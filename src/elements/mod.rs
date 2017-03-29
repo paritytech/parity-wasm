@@ -2,11 +2,12 @@ use std::io;
 
 mod module;
 mod section;
+mod primitives;
+mod types;
 
 pub use self::module::Module;
 pub use self::section::Section;
-
-use byteorder::{LittleEndian, ByteOrder};
+pub use self::primitives::{VarUint32, VarUint7, VarUint1, VarInt7, Uint32, CountedList};
 
 pub trait Deserialize : Sized {
     type Error;
@@ -19,6 +20,7 @@ pub enum Error {
     InconsistentLength { expected: usize, actual: usize },
     Other(&'static str),
     HeapOther(String),
+    UnknownValueType(i8),
 }
 
 impl From<io::Error> for Error {
@@ -40,55 +42,22 @@ impl Deserialize for Unparsed {
     }
 }
 
-struct VarUint32(u32);
-
-impl From<VarUint32> for usize {
-    fn from(var: VarUint32) -> usize {
-        var.0 as usize
+impl From<Unparsed> for Vec<u8> {
+    fn from(u: Unparsed) -> Vec<u8> {
+        u.0
     }
 }
 
-impl Deserialize for VarUint32 {
-    type Error = Error;
+fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Error> {
+    use std::io::Read;
 
-    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-        let mut res = 0;
-        let mut shift = 0;
-        let mut u8buf = [0u8; 1];
-        loop {
-            reader.read_exact(&mut u8buf)?;
-            let b = u8buf[0] as u32;
-            res |= (b & 0x7f) << shift;
-            shift += 7;
-            if (b >> 7) == 0 {
-                break;
-            }
-        }
-        Ok(VarUint32(res))
-    }
+    let mut contents = Vec::new();
+    ::std::fs::File::open(p)?.read_to_end(&mut contents)?;
+
+    deserialize_buffer(contents)
 }
 
-struct VarUint7(u8);
-
-impl Deserialize for VarUint7 {
-    type Error = Error;
-
-    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-        let mut u8buf = [0u8; 1];
-        reader.read_exact(&mut u8buf)?;
-        Ok(VarUint7(u8buf[0]))
-    }
-}
-
-struct Uint32(u32);
-
-impl Deserialize for Uint32 {
-    type Error = Error;
-
-    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-        ;
-        Ok(Uint32(LittleEndian::read_u32(&buf)))
-    }
+fn deserialize_buffer<T: Deserialize>(contents: Vec<u8>) -> Result<T, T::Error> {
+    let mut reader = io::Cursor::new(contents);
+    T::deserialize(&mut reader)
 }

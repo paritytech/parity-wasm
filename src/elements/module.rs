@@ -35,8 +35,8 @@ impl Deserialize for Module {
         }
 
         Ok(Module { 
-            magic: magic.0,
-            version: version.0,
+            magic: magic.into(),
+            version: version.into(),
             sections: sections,
         })
     }    

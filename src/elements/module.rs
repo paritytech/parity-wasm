@@ -10,6 +10,10 @@ pub struct Module {
 
 impl Module {
     pub fn version(&self) -> u32 { self.version }
+
+    pub fn sections(&self) -> &[Section] {
+        &self.sections
+    }
 }
 
 impl Deserialize for Module {
@@ -19,6 +23,7 @@ impl Deserialize for Module {
         let mut sections = Vec::new();
 
         let magic = Uint32::deserialize(reader)?;
+
         let version = Uint32::deserialize(reader)?;
 
         loop {
@@ -58,5 +63,6 @@ mod integration_tests {
         let module = Module::deserialize(&mut reader).expect("Should be deserialized");
 
         assert_eq!(module.version(), 1);
+        assert_eq!(module.sections().len(), 8);
     }
 }

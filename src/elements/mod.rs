@@ -34,7 +34,8 @@ impl Deserialize for Unparsed {
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         let len = VarUint32::deserialize(reader)?.into();
-        let vec = vec![0u8; len];
+        let mut vec = vec![0u8; len];
+        reader.read_exact(&mut vec[..])?;
         Ok(Unparsed(vec))
     }
 }

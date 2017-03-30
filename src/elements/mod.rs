@@ -8,7 +8,7 @@ mod import_entry;
 
 pub use self::module::Module;
 pub use self::section::Section;
-pub use self::import_entry::ImportEntry;
+pub use self::import_entry::{ImportEntry, MemoryType, TableType};
 pub use self::primitives::{VarUint32, VarUint7, VarUint1, VarInt7, Uint32, CountedList};
 pub use self::types::ValueType;
 

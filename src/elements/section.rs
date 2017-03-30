@@ -1,5 +1,16 @@
 use std::io;
-use super::{Deserialize, Unparsed, Error, VarUint7, VarUint32, CountedList, ImportEntry};
+use super::{
+    Deserialize,
+    Unparsed,
+    Error,
+    VarUint7,
+    VarUint32,
+    CountedList,
+    ImportEntry,
+    MemoryType,
+    TableType,
+};
+
 use super::types::Type;
 
 pub enum Section {
@@ -11,6 +22,8 @@ pub enum Section {
     Type(TypeSection),
     Import(ImportSection),
     Function(FunctionsSection),
+    Table(TableSection),
+    Memory(MemorySection),
 }
 
 impl Deserialize for Section {
@@ -37,6 +50,12 @@ impl Deserialize for Section {
                 3 => {
                     Section::Function(FunctionsSection::deserialize(reader)?)
                 },
+                4 => {
+                    Section::Table(TableSection::deserialize(reader)?)
+                },
+                5 => {
+                    Section::Memory(MemorySection::deserialize(reader)?)
+                },                
                 _ => {
                     Section::Unparsed { id: id.into(), payload: Unparsed::deserialize(reader)?.into() }
                 }
@@ -87,7 +106,7 @@ impl Deserialize for ImportSection {
 pub struct Function(pub u32);
 
 impl Function {
-    fn type_ref(&self) -> u32 {
+    pub fn type_ref(&self) -> u32 {
         self.0
     }
 }
@@ -115,6 +134,43 @@ impl Deserialize for FunctionsSection {
     }   
 }
 
+pub struct TableSection(Vec<TableType>);
+
+impl TableSection {
+    pub fn entries(&self) -> &[TableType] {
+        &self.0
+    }
+}
+
+impl Deserialize for TableSection {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _section_length = VarUint32::deserialize(reader)?;
+        let entries: Vec<TableType> = CountedList::deserialize(reader)?.into_inner();
+        Ok(TableSection(entries))
+    }   
+}
+
+pub struct MemorySection(Vec<MemoryType>);
+
+impl MemorySection {
+    pub fn entries(&self) -> &[MemoryType] {
+        &self.0
+    }
+}
+
+impl Deserialize for MemorySection {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _section_length = VarUint32::deserialize(reader)?;
+        let entries: Vec<MemoryType> = CountedList::deserialize(reader)?.into_inner();
+        Ok(MemorySection(entries))
+    }   
+}
 
 #[cfg(test)]
 mod tests {
@@ -243,8 +299,7 @@ mod tests {
             deserialize_buffer(types_test_payload()).expect("type_section be deserialized");
 
         let t1 = match &type_section.types()[1] {
-            &Type::Function(ref func_type) => func_type,
-            _ => { panic!("Type should function type"); }
+            &Type::Function(ref func_type) => func_type
         };
 
         assert_eq!(Some(ValueType::I64), t1.return_type());

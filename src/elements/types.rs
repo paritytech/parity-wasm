@@ -13,7 +13,7 @@ impl Deserialize for Type {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ValueType {
     I32,
     I64,

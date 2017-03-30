@@ -86,6 +86,12 @@ impl Deserialize for ImportSection {
 /// Function signature (type reference)
 pub struct Function(pub u32);
 
+impl Function {
+    fn type_ref(&self) -> u32 {
+        self.0
+    }
+}
+
 pub struct FunctionsSection(Vec<Function>);
 
 impl FunctionsSection {
@@ -113,7 +119,7 @@ impl Deserialize for FunctionsSection {
 #[cfg(test)]
 mod tests {
 
-    use super::super::{deserialize_buffer, deserialize_file};
+    use super::super::{deserialize_buffer, deserialize_file, ValueType};
     use super::{Section, TypeSection, Type};
 
     #[test]
@@ -132,28 +138,117 @@ mod tests {
         assert!(found, "There should be import section in test5.wasm");
     }
 
+    fn functions_test_payload() -> Vec<u8> {
+        vec![
+            // functions section id
+            0x03u8, 
+            // functions section length
+            0x87, 0x80, 0x80, 0x80, 0x0,
+            // number of functions
+            0x04, 
+            // type reference 1
+            0x01,
+            // type reference 2
+            0x86, 0x80, 0x00,
+            // type reference 3
+            0x09,            
+            // type reference 4
+            0x33
+        ]
+    }
+
     #[test]
-    fn type_section() {
-        let payload = vec![
-            129u8, 0x80, 0x80, 0x80, 0x0,
-            // func 1
-            // form=1
+    fn fn_section_detect() {
+        let section: Section = 
+            deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
+
+        match section {
+            Section::Function(_) => {},
+            _ => {
+                panic!("Payload should be recognized as functions section")
+            }
+        }
+    }
+
+    #[test]
+    fn fn_section_number() {
+        let section: Section = 
+            deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
+
+        match section {
+            Section::Function(fn_section) => {
+                assert_eq!(4, fn_section.entries().len(), "There should be 4 functions total");
+            },
+            _ => {
+                // will be catched by dedicated test
+            }
+        }        
+    }
+
+    #[test]
+    fn fn_section_ref() {
+        let section: Section = 
+            deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
+
+        match section {
+            Section::Function(fn_section) => {
+                assert_eq!(6, fn_section.entries()[1].type_ref());
+            },
+            _ => {
+                // will be catched by dedicated test
+            }
+        }        
+    }
+
+    fn types_test_payload() -> Vec<u8> {
+        vec![
+            // section length
+            148u8, 0x80, 0x80, 0x80, 0x0,
+            
+            // 2 functions
+            130u8, 0x80, 0x80, 0x80, 0x0,
+            // func 1, form =1
             0x01, 
             // param_count=1
             129u8, 0x80, 0x80, 0x80, 0x0,
                 // first param
                 0x7e, // i64
             // no return params
-            0u8
-        ];
+            0x00,
 
+            // func 2, form=1
+            0x01, 
+            // param_count=1
+            130u8, 0x80, 0x80, 0x80, 0x0,
+                // first param
+                0x7e, 
+                // second param
+                0x7d, 
+            // return param (is_present, param_type)
+            0x01, 0x7e
+        ]
+    }    
+
+    #[test]
+    fn type_section_len() {
         let type_section: TypeSection = 
-            deserialize_buffer(payload).expect("type_section be deserialized");
+            deserialize_buffer(types_test_payload()).expect("type_section be deserialized");
 
-        assert_eq!(type_section.types().len(), 1);
-        match type_section.types()[0] {
-            Type::Function(_) => {}
-        }
+        assert_eq!(type_section.types().len(), 2);
+    }
+
+    #[test]
+    fn type_section_infer() {
+        let type_section: TypeSection = 
+            deserialize_buffer(types_test_payload()).expect("type_section be deserialized");
+
+        let t1 = match &type_section.types()[1] {
+            &Type::Function(ref func_type) => func_type,
+            _ => { panic!("Type should function type"); }
+        };
+
+        assert_eq!(Some(ValueType::I64), t1.return_type());
+        assert_eq!(2, t1.params().len());
     }
 
 }

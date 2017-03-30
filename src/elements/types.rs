@@ -1,5 +1,5 @@
 use std::io;
-use super::{Deserialize, Unparsed, Error, VarUint7, VarInt7, VarUint32, VarUint1};
+use super::{Deserialize, Error, VarUint7, VarInt7, VarUint1, CountedList};
 
 pub enum Type {
     Function(FunctionType),
@@ -13,6 +13,7 @@ impl Deserialize for Type {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum ValueType {
     I32,
     I64,
@@ -42,20 +43,19 @@ pub struct FunctionType {
     return_type: Option<ValueType>,
 }
 
+impl FunctionType {
+    pub fn form(&self) -> u8 { self.form }
+    pub fn params(&self) -> &[ValueType] { &self.params }
+    pub fn return_type(&self) -> Option<ValueType> { self.return_type }
+}
+
 impl Deserialize for FunctionType {
     type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         let form: u8 = VarUint7::deserialize(reader)?.into();
-        println!("function form {}", form);
-        let param_count: usize = VarUint32::deserialize(reader)?.into();
 
-        println!("type param count {}", param_count);
-
-        let mut params = Vec::new();
-        for _ in 0..param_count {
-            params.push(ValueType::deserialize(reader)?);
-        }
+        let params: Vec<ValueType> = CountedList::deserialize(reader)?.into_inner();
 
         let has_return_type = VarUint1::deserialize(reader)?;
         let return_type = if has_return_type.into() {

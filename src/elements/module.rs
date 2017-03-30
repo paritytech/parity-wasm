@@ -1,9 +1,9 @@
 use std::io;
-use super::{Deserialize, VarUint32, Error, Uint32};
+use super::{Deserialize, Error, Uint32};
 use super::section::Section;
 
 pub struct Module {
-    magic: u32,
+    _magic: u32,
     version: u32,
     sections: Vec<Section>,
 }
@@ -35,7 +35,7 @@ impl Deserialize for Module {
         }
 
         Ok(Module { 
-            magic: magic.into(),
+            _magic: magic.into(),
             version: version.into(),
             sections: sections,
         })
@@ -48,19 +48,12 @@ mod integration_tests {
     use std::io::{self, Read};
     use std::fs::File;
 
-    use super::super::Deserialize;
+    use super::super::{Deserialize, deserialize_file};
     use super::Module;
     
     #[test]
     fn hello() {
-        let mut contents = Vec::new();
-        File::open("./res/cases/v1/hello.wasm")
-            .expect("readable file")
-            .read_to_end(&mut contents)
-            .expect("read succeeds");
-        
-        let mut reader = io::Cursor::new(contents);
-        let module = Module::deserialize(&mut reader).expect("Should be deserialized");
+        let module = deserialize_file("./res/cases/v1/hello.wasm").expect("Should be deserialized");
 
         assert_eq!(module.version(), 1);
         assert_eq!(module.sections().len(), 8);

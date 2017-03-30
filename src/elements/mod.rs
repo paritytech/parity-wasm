@@ -4,10 +4,13 @@ mod module;
 mod section;
 mod primitives;
 mod types;
+mod import_entry;
 
 pub use self::module::Module;
 pub use self::section::Section;
+pub use self::import_entry::ImportEntry;
 pub use self::primitives::{VarUint32, VarUint7, VarUint1, VarInt7, Uint32, CountedList};
+pub use self::types::ValueType;
 
 pub trait Deserialize : Sized {
     type Error;
@@ -21,6 +24,8 @@ pub enum Error {
     Other(&'static str),
     HeapOther(String),
     UnknownValueType(i8),
+    NonUtf8String,
+    UnknownExternalKind(u8),
 }
 
 impl From<io::Error> for Error {
@@ -48,7 +53,7 @@ impl From<Unparsed> for Vec<u8> {
     }
 }
 
-fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Error> {
+pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Error> {
     use std::io::Read;
 
     let mut contents = Vec::new();
@@ -57,7 +62,7 @@ fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Error> 
     deserialize_buffer(contents)
 }
 
-fn deserialize_buffer<T: Deserialize>(contents: Vec<u8>) -> Result<T, T::Error> {
+pub fn deserialize_buffer<T: Deserialize>(contents: Vec<u8>) -> Result<T, T::Error> {
     let mut reader = io::Cursor::new(contents);
     T::deserialize(&mut reader)
 }

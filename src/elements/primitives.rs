@@ -25,7 +25,6 @@ impl Deserialize for VarUint32 {
         let mut shift = 0;
         let mut u8buf = [0u8; 1];
         loop {
-            println!("read 1 byte");
             reader.read_exact(&mut u8buf)?;
             let b = u8buf[0] as u32;
             res |= (b & 0x7f) << shift;
@@ -119,6 +118,22 @@ impl Deserialize for VarUint1 {
     }
 }
 
+impl Deserialize for String {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let length = VarUint32::deserialize(reader)?.into();
+        if length > 0 {
+            let mut buf = vec![0u8; length];
+            reader.read_exact(&mut buf)?;
+            String::from_utf8(buf).map_err(|_| Error::NonUtf8String)
+        }
+        else {
+            Ok(String::new())
+        }
+    }
+}
+
 pub struct CountedList<T: Deserialize>(Vec<T>);
 
 impl<T: Deserialize> CountedList<T> {
@@ -130,13 +145,13 @@ impl<T: Deserialize> Deserialize for CountedList<T> where T::Error : From<Error>
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         let count: usize = VarUint32::deserialize(reader)?.into();
-        println!("count={}", count);
         let mut result = Vec::new();
         for _ in 0..count { result.push(T::deserialize(reader)?); }
         Ok(CountedList(result))
     }
 }
 
+#[cfg(test)]
 mod tests {
 
     use super::super::deserialize_buffer;
@@ -162,5 +177,4 @@ mod tests {
         let v3: i8 = (*vars.get(1).unwrap()).into();
         assert_eq!(-0x03i8, v3);
     }
-
 }

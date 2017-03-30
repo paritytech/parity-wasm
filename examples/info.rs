@@ -19,6 +19,9 @@ fn main() {
             &Section::Import(ref import_section) => {
                 println!("Imports {}", import_section.entries().len());
             },
+            &Section::Export(ref exports_section) => {
+                println!("Exports {}", exports_section.entries().len());
+            },            
             &Section::Function(ref functions_section) => {
                 println!("Functions {}", functions_section.entries().len());
             },

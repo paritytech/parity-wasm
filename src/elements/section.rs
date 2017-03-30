@@ -9,6 +9,7 @@ use super::{
     ImportEntry,
     MemoryType,
     TableType,
+    ExportEntry,
 };
 
 use super::types::Type;
@@ -24,6 +25,7 @@ pub enum Section {
     Function(FunctionsSection),
     Table(TableSection),
     Memory(MemorySection),
+    Export(ExportSection),
 }
 
 impl Deserialize for Section {
@@ -55,7 +57,10 @@ impl Deserialize for Section {
                 },
                 5 => {
                     Section::Memory(MemorySection::deserialize(reader)?)
-                },                
+                },
+                7 => {
+                    Section::Export(ExportSection::deserialize(reader)?)
+                },
                 _ => {
                     Section::Unparsed { id: id.into(), payload: Unparsed::deserialize(reader)?.into() }
                 }
@@ -169,6 +174,25 @@ impl Deserialize for MemorySection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<MemoryType> = CountedList::deserialize(reader)?.into_inner();
         Ok(MemorySection(entries))
+    }   
+}
+
+pub struct ExportSection(Vec<ExportEntry>);
+
+impl ExportSection {
+    pub fn entries(&self) -> &[ExportEntry] {
+        &self.0
+    }
+}
+
+impl Deserialize for ExportSection {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _section_length = VarUint32::deserialize(reader)?;
+        let entries: Vec<ExportEntry> = CountedList::deserialize(reader)?.into_inner();
+        Ok(ExportSection(entries))
     }   
 }
 
@@ -306,4 +330,41 @@ mod tests {
         assert_eq!(2, t1.params().len());
     }
 
+    fn export_payload() -> Vec<u8> {
+        vec![
+            // section id
+            0x07,
+            // section length
+            148u8, 0x80, 0x80, 0x80, 0x0,
+            // 6 entries
+            134u8, 0x80, 0x80, 0x80, 0x0,
+            // func "A", index 6 
+            // [name_len(1-5 bytes), name_bytes(name_len, internal_kind(1byte), internal_index(1-5 bytes)])
+            0x01, 0x30,  0x01, 0x86, 0x80, 0x00,
+            // func "B", index 8
+            0x01, 0x31,  0x01, 0x86, 0x00,
+            // func "C", index 7
+            0x01, 0x32,  0x01, 0x07,
+            // memory "D", index 0
+            0x01, 0x33,  0x02, 0x00,
+            // func "E", index 1
+            0x01, 0x34,  0x01, 0x01,
+            // func "F", index 2
+            0x01, 0x35,  0x01, 0x02
+        ]
+    }
+
+ 
+    #[test]
+    fn export_detect() {
+        let section: Section = 
+            deserialize_buffer(export_payload()).expect("section to be deserialized");
+
+        match section {
+            Section::Export(_) => {},
+            _ => {
+                panic!("Payload should be recognized as export section")
+            }
+        }
+    }
 }

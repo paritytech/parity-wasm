@@ -45,12 +45,8 @@ impl Deserialize for Module {
 #[cfg(test)]
 mod integration_tests {
 
-    use std::io::{self, Read};
-    use std::fs::File;
+    use super::super::deserialize_file;
 
-    use super::super::{Deserialize, deserialize_file};
-    use super::Module;
-    
     #[test]
     fn hello() {
         let module = deserialize_file("./res/cases/v1/hello.wasm").expect("Should be deserialized");

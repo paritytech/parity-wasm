@@ -10,6 +10,7 @@ pub enum Section {
     Custom(Vec<u8>),
     Type(TypeSection),
     Import(ImportSection),
+    Function(FunctionsSection),
 }
 
 impl Deserialize for Section {
@@ -32,6 +33,9 @@ impl Deserialize for Section {
                 },
                 2 => {
                     Section::Import(ImportSection::deserialize(reader)?)
+                },
+                3 => {
+                    Section::Function(FunctionsSection::deserialize(reader)?)
                 },
                 _ => {
                     Section::Unparsed { id: id.into(), payload: Unparsed::deserialize(reader)?.into() }
@@ -79,6 +83,33 @@ impl Deserialize for ImportSection {
     }   
 }
 
+/// Function signature (type reference)
+pub struct Function(pub u32);
+
+pub struct FunctionsSection(Vec<Function>);
+
+impl FunctionsSection {
+    pub fn entries(&self) -> &[Function] {
+        &self.0
+    }
+}
+
+impl Deserialize for FunctionsSection {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _section_length = VarUint32::deserialize(reader)?;
+        let funcs: Vec<Function> = CountedList::<VarUint32>::deserialize(reader)?
+            .into_inner()
+            .into_iter()
+            .map(|f| Function(f.into()))
+            .collect();
+        Ok(FunctionsSection(funcs))
+    }   
+}
+
+
 #[cfg(test)]
 mod tests {
 
@@ -121,8 +152,7 @@ mod tests {
 
         assert_eq!(type_section.types().len(), 1);
         match type_section.types()[0] {
-            Type::Function(_) => {},
-            _ => panic!("Type should be a function")
+            Type::Function(_) => {}
         }
     }
 

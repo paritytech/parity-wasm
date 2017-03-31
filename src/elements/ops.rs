@@ -10,6 +10,47 @@ impl Opcodes {
     pub fn elements(&self) -> &[Opcode] { &self.0 }
 }
 
+impl Deserialize for Opcodes {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let mut opcodes = Vec::new();
+
+        loop {
+            let opcode = Opcode::deserialize(reader)?;
+            let is_terminal = opcode.is_terminal();
+            opcodes.push(opcode);
+            if is_terminal {
+                break;
+            }
+        }
+
+        Ok(Opcodes(opcodes))
+    }
+}
+
+pub struct InitExpr(Vec<Opcode>);
+
+// todo: check if kind of opcode sequence is valid as an expression
+impl Deserialize for InitExpr {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let mut opcodes = Vec::new();
+
+        loop {
+            let opcode = Opcode::deserialize(reader)?;
+            let is_terminal = opcode.is_terminal();
+            opcodes.push(opcode);
+            if is_terminal {
+                break;
+            }
+        }
+
+        Ok(InitExpr(opcodes))
+    }
+}
+
 pub enum Opcode {
     Unreachable,
     Nop,
@@ -484,24 +525,5 @@ impl Deserialize for Opcode {
                 _ => { return Err(Error::UnknownOpcode(val)); }
             }
         )
-    }
-}
-
-impl Deserialize for Opcodes {
-    type Error = Error;
-
-    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-        let mut opcodes = Vec::new();
-
-        loop {
-            let opcode = Opcode::deserialize(reader)?;
-            let is_terminal = opcode.is_terminal();
-            opcodes.push(opcode);
-            if is_terminal {
-                break;
-            }
-        }
-
-        Ok(Opcodes(opcodes))
     }
 }

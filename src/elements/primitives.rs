@@ -37,7 +37,6 @@ impl Deserialize for VarUint32 {
     }
 }
 
-
 #[derive(Copy, Clone)]
 pub struct VarUint64(u64);
 

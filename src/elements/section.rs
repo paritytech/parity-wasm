@@ -12,6 +12,7 @@ use super::{
     ExportEntry,
     Opcodes,
     ValueType,
+    GlobalEntry,
 };
 
 use super::types::Type;
@@ -27,6 +28,7 @@ pub enum Section {
     Function(FunctionsSection),
     Table(TableSection),
     Memory(MemorySection),
+    Global(GlobalSection),
     Export(ExportSection),
     Start(u32),
     Code(CodeSection),
@@ -61,6 +63,9 @@ impl Deserialize for Section {
                 },
                 5 => {
                     Section::Memory(MemorySection::deserialize(reader)?)
+                },
+                6 => {
+                    Section::Global(GlobalSection::deserialize(reader)?)
                 },
                 7 => {
                     Section::Export(ExportSection::deserialize(reader)?)
@@ -185,6 +190,25 @@ impl Deserialize for MemorySection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<MemoryType> = CountedList::deserialize(reader)?.into_inner();
         Ok(MemorySection(entries))
+    }   
+}
+
+pub struct GlobalSection(Vec<GlobalEntry>);
+
+impl GlobalSection {
+    pub fn entries(&self) -> &[GlobalEntry] {
+        &self.0
+    }
+}
+
+impl Deserialize for GlobalSection {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _section_length = VarUint32::deserialize(reader)?;
+        let entries: Vec<GlobalEntry> = CountedList::deserialize(reader)?.into_inner();
+        Ok(GlobalSection(entries))
     }   
 }
 

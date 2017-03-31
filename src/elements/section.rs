@@ -26,6 +26,7 @@ pub enum Section {
     Table(TableSection),
     Memory(MemorySection),
     Export(ExportSection),
+    Start(u32),
 }
 
 impl Deserialize for Section {
@@ -60,6 +61,10 @@ impl Deserialize for Section {
                 },
                 7 => {
                     Section::Export(ExportSection::deserialize(reader)?)
+                },
+                8 => {
+                    let _section_length = VarUint32::deserialize(reader)?;
+                    Section::Start(VarUint32::deserialize(reader)?.into())
                 },
                 _ => {
                     Section::Unparsed { id: id.into(), payload: Unparsed::deserialize(reader)?.into() }

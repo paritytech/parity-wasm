@@ -37,6 +37,30 @@ impl Deserialize for ValueType {
     }    
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum BlockType {
+    Value(ValueType),
+    NoResult,
+}
+
+impl Deserialize for BlockType {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let val = VarInt7::deserialize(reader)?;
+
+        match val.into() {
+            -0x01 => Ok(BlockType::Value(ValueType::I32)),
+            -0x02 => Ok(BlockType::Value(ValueType::I64)),
+            -0x03 => Ok(BlockType::Value(ValueType::F32)),
+            -0x04 => Ok(BlockType::Value(ValueType::F64)),
+            -0x40 => Ok(BlockType::NoResult),
+            _ => Err(Error::UnknownValueType(val.into())),
+        }
+    }    
+}
+
+
 pub struct FunctionType {
     form: u8,
     params: Vec<ValueType>,

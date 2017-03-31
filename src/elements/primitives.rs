@@ -37,6 +37,36 @@ impl Deserialize for VarUint32 {
     }
 }
 
+
+#[derive(Copy, Clone)]
+pub struct VarUint64(u64);
+
+impl From<VarUint64> for u64 {
+    fn from(var: VarUint64) -> u64 {
+        var.0
+    }
+}
+
+impl Deserialize for VarUint64 {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let mut res = 0;
+        let mut shift = 0;
+        let mut u8buf = [0u8; 1];
+        loop {
+            reader.read_exact(&mut u8buf)?;
+            let b = u8buf[0] as u64;
+            res |= (b & 0x7f) << shift;
+            shift += 7;
+            if (b >> 7) == 0 {
+                break;
+            }
+        }
+        Ok(VarUint64(res))
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct VarUint7(u8);
 
@@ -94,6 +124,27 @@ impl Deserialize for Uint32 {
 
 impl From<Uint32> for u32 {
     fn from(var: Uint32) -> u32 {
+        var.0
+    }
+}
+
+
+#[derive(Copy, Clone)]
+pub struct Uint64(u64);
+
+impl Deserialize for Uint64 {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let mut buf = [0u8; 8];
+        reader.read_exact(&mut buf)?;
+        // todo check range
+        Ok(Uint64(LittleEndian::read_u64(&buf)))
+    }
+}
+
+impl From<Uint64> for u64 {
+    fn from(var: Uint64) -> u64 {
         var.0
     }
 }

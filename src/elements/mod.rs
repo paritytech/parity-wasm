@@ -12,7 +12,7 @@ pub use self::module::Module;
 pub use self::section::Section;
 pub use self::import_entry::{ImportEntry, MemoryType, TableType, External};
 pub use self::export_entry::{ExportEntry, Internal};
-pub use self::primitives::{VarUint32, VarUint7, VarUint1, VarInt7, Uint32, CountedList};
+pub use self::primitives::{VarUint32, VarUint7, VarUint1, VarInt7, Uint32, Uint64, VarUint64, CountedList};
 pub use self::types::{ValueType, BlockType};
 pub use self::ops::{Opcode, Opcodes};
 

@@ -231,6 +231,11 @@ pub struct Local {
     value_type: ValueType,
 }
 
+impl Local {
+    pub fn count(&self) -> u32 { self.count }
+    pub fn value_type(&self) -> ValueType { self.value_type }
+}
+
 impl Deserialize for Local {
      type Error = Error;
 
@@ -244,6 +249,11 @@ impl Deserialize for Local {
 pub struct FunctionBody {
     locals: Vec<Local>,
     opcodes: Opcodes,
+}
+
+impl FunctionBody {
+    pub fn locals(&self) -> &[Local] { &self.locals }
+    pub fn code(&self) -> &Opcodes { &self.opcodes }
 }
 
 impl Deserialize for FunctionBody {

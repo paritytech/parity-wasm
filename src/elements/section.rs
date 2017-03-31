@@ -10,6 +10,8 @@ use super::{
     MemoryType,
     TableType,
     ExportEntry,
+    Opcodes,
+    ValueType,
 };
 
 use super::types::Type;
@@ -27,6 +29,7 @@ pub enum Section {
     Memory(MemorySection),
     Export(ExportSection),
     Start(u32),
+    Code(CodeSection),
 }
 
 impl Deserialize for Section {
@@ -65,6 +68,9 @@ impl Deserialize for Section {
                 8 => {
                     let _section_length = VarUint32::deserialize(reader)?;
                     Section::Start(VarUint32::deserialize(reader)?.into())
+                },
+                10 => {
+                    Section::Code(CodeSection::deserialize(reader)?)
                 },
                 _ => {
                     Section::Unparsed { id: id.into(), payload: Unparsed::deserialize(reader)?.into() }
@@ -198,6 +204,57 @@ impl Deserialize for ExportSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<ExportEntry> = CountedList::deserialize(reader)?.into_inner();
         Ok(ExportSection(entries))
+    }   
+}
+
+pub struct CodeSection(Vec<FunctionBody>);
+
+impl CodeSection {
+    pub fn bodies(&self) -> &[FunctionBody] {
+        &self.0
+    }
+}
+
+impl Deserialize for CodeSection {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _section_length = VarUint32::deserialize(reader)?;
+        let entries: Vec<FunctionBody> = CountedList::deserialize(reader)?.into_inner();
+        Ok(CodeSection(entries))
+    }   
+}
+
+pub struct Local {
+    count: u32,
+    value_type: ValueType,
+}
+
+impl Deserialize for Local {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let count = VarUint32::deserialize(reader)?;
+        let value_type = ValueType::deserialize(reader)?;
+        Ok(Local { count: count.into(), value_type: value_type })
+    }   
+}
+
+pub struct FunctionBody {
+    locals: Vec<Local>,
+    opcodes: Opcodes,
+}
+
+impl Deserialize for FunctionBody {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _body_size = VarUint32::deserialize(reader)?;
+        let locals: Vec<Local> = CountedList::deserialize(reader)?.into_inner();
+        let opcodes = Opcodes::deserialize(reader)?;
+        Ok(FunctionBody { locals: locals, opcodes: opcodes })
     }   
 }
 
@@ -369,6 +426,50 @@ mod tests {
             Section::Export(_) => {},
             _ => {
                 panic!("Payload should be recognized as export section")
+            }
+        }
+    }
+
+    fn code_payload() -> Vec<u8> {
+        vec![
+            // sectionid
+            0x0Au8,
+            // section length, 32
+            0x20,
+            // body count
+            0x01, 
+            // body 1, length 30
+            0x1E, 
+            0x01, 0x01, 0x7F, // local i32 (one collection of length one of type i32)
+            0x02, 0x7F, // block i32
+                0x23, 0x00, // get_global 0
+                0x21, 0x01, // set_local 1
+                0x23, 0x00, // get_global 0
+                0x20, 0x00, // get_local 0
+                0x6A,       // i32.add
+                0x24, 0x00, // set_global 0
+                0x23, 0x00, // get_global 0
+                0x41, 0x0F, // i32.const 15
+                0x6A,       // i32.add
+                0x41, 0x70, // i32.const -16
+                0x71,       // i32.and
+                0x24, 0x00, // set_global 0
+                0x20, 0x01, // get_local 1
+            0x0B,
+            0x0B,
+        ]
+    }
+
+    #[test]
+    fn code_detect() {
+
+        let section: Section = 
+            deserialize_buffer(code_payload()).expect("section to be deserialized");
+
+        match section {
+            Section::Code(_) => {},
+            _ => {
+                panic!("Payload should be recognized as a code section")
             }
         }
     }

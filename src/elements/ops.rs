@@ -1,5 +1,5 @@
 use std::io;
-use super::{Deserialize, Error, VarUint7, VarInt7, VarUint1, CountedList, BlockType};
+use super::{Deserialize, Error, VarUint7, VarInt7, VarUint1, VarUint32, CountedList, BlockType};
 
 pub struct Opcodes(Vec<Opcode>);
 
@@ -189,4 +189,63 @@ pub enum Opcode {
     I64ReinterpretF64,
     F32ReinterpretI32,
     F64ReinterpretI64,
+}
+
+impl Opcode {
+    pub fn is_terminal(&self) -> bool { 
+        match self {
+            &Opcode::End => true,
+            _ => false,
+        }
+    }
+}
+
+impl Deserialize for Opcode {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        use self::Opcode::*;
+
+        let val: u8 = VarUint7::deserialize(reader)?.into();
+
+        Ok(
+            match val {
+                0x00 => Unreachable,
+                0x01 => Nop,
+                0x02 => Block(BlockType::deserialize(reader)?, Opcodes::deserialize(reader)?),
+                0x0b => End,
+
+                0x20 => SetLocal(VarUint32::deserialize(reader)?.into()),
+                0x21 => SetLocal(VarUint32::deserialize(reader)?.into()),
+                0x23 => GetGlobal(VarUint32::deserialize(reader)?.into()),
+                0x24 => SetGlobal(VarUint32::deserialize(reader)?.into()),
+
+                0x41 => I32Const(VarUint32::deserialize(reader)?.into()),
+
+                0x6a => I32Add,
+                0x71 => I32And,
+
+                _ => { return Err(Error::UnknownOpcode(val)); }
+            }
+        )
+    }
+}
+
+impl Deserialize for Opcodes {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let mut opcodes = Vec::new();
+
+        loop {
+            let opcode = Opcode::deserialize(reader)?;
+            let is_terminal = opcode.is_terminal();
+            opcodes.push(opcode);
+            if is_terminal {
+                break;
+            }
+        }
+
+        Ok(Opcodes(opcodes))
+    }
 }

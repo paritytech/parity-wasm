@@ -12,6 +12,8 @@ use super::{
     ExportEntry,
     GlobalEntry,
     FuncBody,
+    ElementSegment,
+    DataSegment,
 };
 
 use super::types::Type;
@@ -30,7 +32,9 @@ pub enum Section {
     Global(GlobalSection),
     Export(ExportSection),
     Start(u32),
+    Element(ElementSection),
     Code(CodeSection),
+    Data(DataSection),
 }
 
 impl Deserialize for Section {
@@ -73,8 +77,14 @@ impl Deserialize for Section {
                     let _section_length = VarUint32::deserialize(reader)?;
                     Section::Start(VarUint32::deserialize(reader)?.into())
                 },
+                9 => {
+                    Section::Element(ElementSection::deserialize(reader)?)
+                },
                 10 => {
                     Section::Code(CodeSection::deserialize(reader)?)
+                },
+                11 => {
+                    Section::Data(DataSection::deserialize(reader)?)
                 },
                 _ => {
                     Section::Unparsed { id: id.into(), payload: Unparsed::deserialize(reader)?.into() }
@@ -246,6 +256,44 @@ impl Deserialize for CodeSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<FuncBody> = CountedList::deserialize(reader)?.into_inner();
         Ok(CodeSection(entries))
+    }   
+}
+
+pub struct ElementSection(Vec<ElementSegment>);
+
+impl ElementSection {
+    pub fn entries(&self) -> &[ElementSegment] {
+        &self.0
+    }
+}
+
+impl Deserialize for ElementSection {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _section_length = VarUint32::deserialize(reader)?;
+        let entries: Vec<ElementSegment> = CountedList::deserialize(reader)?.into_inner();
+        Ok(ElementSection(entries))
+    }   
+}
+
+pub struct DataSection(Vec<DataSegment>);
+
+impl DataSection {
+    pub fn entries(&self) -> &[DataSegment] {
+        &self.0
+    }
+}
+
+impl Deserialize for DataSection {
+     type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let _section_length = VarUint32::deserialize(reader)?;
+        let entries: Vec<DataSegment> = CountedList::deserialize(reader)?.into_inner();
+        Ok(DataSection(entries))
     }   
 }
 

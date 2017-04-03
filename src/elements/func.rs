@@ -1,6 +1,16 @@
 use std::io;
 use super::{Deserialize, Error, ValueType, VarUint32, CountedList, Opcodes};
 
+/// Function signature (type reference)
+pub struct Func(u32);
+
+impl Func {
+    pub fn new(type_ref: u32) -> Self { Func(type_ref) }
+
+    pub fn type_ref(&self) -> u32 {
+        self.0
+    }
+}
 
 pub struct Local {
     count: u32,

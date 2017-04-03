@@ -1,11 +1,9 @@
 extern crate byteorder;
 
-mod elements;
+pub mod elements;
 
 pub use elements::{
-    Section, 
-    Module, 
-    Error as DeserializeError, 
+    Error as SerializationError,
     deserialize_buffer, 
     deserialize_file
 };

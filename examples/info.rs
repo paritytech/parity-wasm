@@ -1,7 +1,7 @@
 extern crate parity_wasm;
 
 use std::env;
-use parity_wasm::Section;
+use parity_wasm::elements::Section;
 
 fn main() {
     let args = env::args().collect::<Vec<_>>();

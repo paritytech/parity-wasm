@@ -11,6 +11,7 @@ use super::{
     TableType,
     ExportEntry,
     GlobalEntry,
+    Func,
     FuncBody,
     ElementSegment,
     DataSegment,
@@ -132,19 +133,10 @@ impl Deserialize for ImportSection {
     }   
 }
 
-/// Function signature (type reference)
-pub struct Function(pub u32);
-
-impl Function {
-    pub fn type_ref(&self) -> u32 {
-        self.0
-    }
-}
-
-pub struct FunctionsSection(Vec<Function>);
+pub struct FunctionsSection(Vec<Func>);
 
 impl FunctionsSection {
-    pub fn entries(&self) -> &[Function] {
+    pub fn entries(&self) -> &[Func] {
         &self.0
     }
 }
@@ -155,13 +147,13 @@ impl Deserialize for FunctionsSection {
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
         let _section_length = VarUint32::deserialize(reader)?;
-        let funcs: Vec<Function> = CountedList::<VarUint32>::deserialize(reader)?
+        let funcs: Vec<Func> = CountedList::<VarUint32>::deserialize(reader)?
             .into_inner()
             .into_iter()
-            .map(|f| Function(f.into()))
+            .map(|f| Func::new(f.into()))
             .collect();
         Ok(FunctionsSection(funcs))
-    }   
+    }
 }
 
 pub struct TableSection(Vec<TableType>);

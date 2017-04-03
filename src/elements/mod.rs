@@ -19,12 +19,17 @@ pub use self::global_entry::GlobalEntry;
 pub use self::primitives::{VarUint32, VarUint7, VarUint1, VarInt7, Uint32, Uint64, VarUint64, CountedList};
 pub use self::types::{ValueType, BlockType};
 pub use self::ops::{Opcode, Opcodes, InitExpr};
-pub use self::func::{FuncBody, Local};
+pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
 
 pub trait Deserialize : Sized {
     type Error;
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error>;
+}
+
+pub trait Serialize {
+    type Error;
+    fn serialize<W: io::Write>(&self, writer: &mut W) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug)]

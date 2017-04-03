@@ -178,6 +178,22 @@ impl Deserialize for TableSection {
     }   
 }
 
+impl Serialize for TableSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<TableType, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }    
+}
+
 pub struct MemorySection(Vec<MemoryType>);
 
 impl MemorySection {
@@ -195,6 +211,22 @@ impl Deserialize for MemorySection {
         let entries: Vec<MemoryType> = CountedList::deserialize(reader)?.into_inner();
         Ok(MemorySection(entries))
     }   
+}
+
+impl Serialize for MemorySection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<MemoryType, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }    
 }
 
 pub struct GlobalSection(Vec<GlobalEntry>);

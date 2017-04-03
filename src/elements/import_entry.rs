@@ -68,6 +68,7 @@ impl Serialize for TableType {
     }
 }
 
+#[derive(Debug)]
 pub struct ResizableLimits {
     initial: u32,
     maximum: Option<u32>,
@@ -102,7 +103,7 @@ impl Serialize for ResizableLimits {
 
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let max = self.maximum;
-        VarUint1::from(max.is_some());
+        VarUint1::from(max.is_some()).serialize(writer)?;
         VarUint32::from(self.initial).serialize(writer)?;
         if let Some(val) = max { 
             VarUint32::from(val).serialize(writer)?; 

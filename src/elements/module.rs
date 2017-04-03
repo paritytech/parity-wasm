@@ -9,16 +9,22 @@ pub struct Module {
 }
 
 impl Module {
+    /// Version of module.
     pub fn version(&self) -> u32 { self.version }
 
+    /// Sections list.
+    /// Each known section is optional and may appear at most once.
     pub fn sections(&self) -> &[Section] {
         &self.sections
     }
 
+    /// Sections list (mutable)
+    /// Each known section is optional and may appear at most once.
     pub fn sections_mut(&mut self) -> &mut Vec<Section> {
         &mut self.sections
     }
 
+    /// Code section, if any.
     pub fn code_section(&self) -> Option<&CodeSection> {
         for section in self.sections() {
             if let &Section::Code(ref code_section) = section { return Some(code_section); }
@@ -26,6 +32,7 @@ impl Module {
         None
     }
 
+    /// Types section, if any.
     pub fn type_section(&self) -> Option<&TypeSection> {
         for section in self.sections() {
             if let &Section::Type(ref type_section) = section { return Some(type_section); }
@@ -33,6 +40,7 @@ impl Module {
         None
     }
 
+    /// Imports section, if any.
     pub fn import_section(&self) -> Option<&ImportSection> {
         for section in self.sections() {
             if let &Section::Import(ref import_section) = section { return Some(import_section); }

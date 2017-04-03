@@ -1,6 +1,6 @@
 use std::io;
 use byteorder::{LittleEndian, ByteOrder};
-use super::{Error, Deserialize};
+use super::{Error, Deserialize, Serialize};
 
 #[derive(Copy, Clone)]
 pub struct VarUint32(u32);
@@ -14,6 +14,19 @@ impl From<VarUint32> for usize {
 impl From<VarUint32> for u32 {
     fn from(var: VarUint32) -> u32 {
         var.0
+    }
+}
+
+impl From<u32> for VarUint32 {
+    fn from(i: u32) -> VarUint32 {
+        VarUint32(i)
+    }
+}
+
+impl From<usize> for VarUint32 {
+    fn from(i: usize) -> VarUint32 {
+        assert!(i <= ::std::u32::MAX as usize);
+        VarUint32(i as u32)
     }
 }
 
@@ -34,6 +47,24 @@ impl Deserialize for VarUint32 {
             }
         }
         Ok(VarUint32(res))
+    }
+}
+
+impl Serialize for VarUint32 {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut buf = [0u8; 1];
+        let mut v = self.0;
+        while v >= 0x80 {
+            buf[0] = ((v & 0xff) as u8) | 0x80;
+            writer.write_all(&buf[..])?;
+            v >>= 7;
+        }
+        buf[0] = (v & 0xff) as u8;
+        writer.write_all(&buf[..])?;
+
+        Ok(())
     }
 }
 
@@ -201,11 +232,83 @@ impl<T: Deserialize> Deserialize for CountedList<T> where T::Error : From<Error>
     }
 }
 
+pub struct CountedWriter<'a, W: 'a + io::Write> {
+    writer: &'a mut W,
+    data: Vec<u8>,
+}
+
+impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
+    pub fn new(writer: &'a mut W) -> Self {
+        CountedWriter {
+            writer: writer,
+            data: Vec::new(),
+        }
+    }
+
+    pub fn done(self) -> io::Result<()> {
+        let writer = self.writer;
+        let data = self.data;
+        VarUint32::from(data.len())
+            .serialize(writer)
+            .map_err(
+                |_| io::Error::new(
+                    io::ErrorKind::Other, 
+                    "Length serialization error",
+                )
+            )?;
+        writer.write_all(&data[..])?;
+        Ok(())
+    }
+}
+
+impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.data.extend(buf.to_vec());
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }    
+}
+
 #[cfg(test)]
 mod tests {
 
-    use super::super::deserialize_buffer;
-    use super::{CountedList, VarInt7};
+    use super::super::{deserialize_buffer, Serialize};
+    use super::{CountedList, VarInt7, VarUint32};
+
+    fn varuint32_ser_test(val: u32, expected: Vec<u8>) {
+        let mut buf = Vec::new();
+        let v1: VarUint32 = val.into();
+        v1.serialize(&mut buf).expect("to be serialized ok");
+        assert_eq!(expected, buf);
+    }
+
+    fn varuint32_de_test(dt: Vec<u8>, expected: u32) {
+        let val: VarUint32 = super::super::deserialize_buffer(dt).expect("buf to be serialized");
+        assert_eq!(expected, val.into());
+    }
+
+    fn varuint32_serde_test(dt: Vec<u8>, val: u32) {
+        varuint32_de_test(dt.clone(), val);
+        varuint32_ser_test(val, dt);
+    }
+
+    #[test]
+    fn varuint32_0() {
+        varuint32_serde_test(vec![0u8; 1], 0);
+    }
+
+    #[test]
+    fn varuint32_1() {
+        varuint32_serde_test(vec![1u8; 1], 1);
+    }
+
+    #[test]
+    fn varuint32_135() {        
+        varuint32_serde_test(vec![135u8, 0x01], 135);
+    }    
 
     #[test]
     fn counted_list() {

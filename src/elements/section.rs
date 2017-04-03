@@ -1,5 +1,7 @@
 use std::io;
+use std::io::Write;
 use super::{
+    Serialize,
     Deserialize,
     Unparsed,
     Error,
@@ -15,6 +17,7 @@ use super::{
     FuncBody,
     ElementSegment,
     DataSegment,
+    CountedWriter,
 };
 
 use super::types::Type;
@@ -279,7 +282,7 @@ impl DataSection {
 }
 
 impl Deserialize for DataSection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
@@ -287,6 +290,18 @@ impl Deserialize for DataSection {
         let entries: Vec<DataSegment> = CountedList::deserialize(reader)?.into_inner();
         Ok(DataSection(entries))
     }   
+}
+
+impl Serialize for DataSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let test = vec![0u8; 12];
+        counted_writer.write(&test[..])?;
+        counted_writer.done()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

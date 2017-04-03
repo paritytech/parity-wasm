@@ -16,7 +16,10 @@ pub use self::section::Section;
 pub use self::import_entry::{ImportEntry, MemoryType, TableType, GlobalType, External};
 pub use self::export_entry::{ExportEntry, Internal};
 pub use self::global_entry::GlobalEntry;
-pub use self::primitives::{VarUint32, VarUint7, VarUint1, VarInt7, Uint32, Uint64, VarUint64, CountedList};
+pub use self::primitives::{
+    VarUint32, VarUint7, VarUint1, VarInt7, Uint32, 
+    Uint64, VarUint64, CountedList, CountedWriter,
+};
 pub use self::types::{ValueType, BlockType};
 pub use self::ops::{Opcode, Opcodes, InitExpr};
 pub use self::func::{Func, FuncBody, Local};
@@ -29,7 +32,7 @@ pub trait Deserialize : Sized {
 
 pub trait Serialize {
     type Error;
-    fn serialize<W: io::Write>(&self, writer: &mut W) -> Result<(), Self::Error>;
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug)]

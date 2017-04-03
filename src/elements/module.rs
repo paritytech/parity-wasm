@@ -1,6 +1,6 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, Uint32};
-use super::section::Section;
+use super::section::{Section, CodeSection};
 
 pub struct Module {
     magic: u32,
@@ -17,6 +17,13 @@ impl Module {
 
     pub fn sections_mut(&mut self) -> &mut Vec<Section> {
         &mut self.sections
+    }
+
+    pub fn code_section(&self) -> Option<&CodeSection> {
+        for section in self.sections() {
+            if let &Section::Code(ref code_section) = section { return Some(code_section); }
+        }
+        None
     }
 }
 
@@ -60,7 +67,7 @@ impl Serialize for Module {
 #[cfg(test)]
 mod integration_tests {
 
-    use super::super::{deserialize_file, serialize, deserialize_buffer};
+    use super::super::{deserialize_file, serialize, deserialize_buffer, Section};
     use super::Module;
 
     #[test]
@@ -73,12 +80,31 @@ mod integration_tests {
 
     #[test]
     fn serde() {
-        let module = deserialize_file("./res/cases/v1/hello.wasm").expect("Should be deserialized");
+        let module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
         let buf = serialize(module).expect("serialization to succeed");
 
         let module_new: Module = deserialize_buffer(buf).expect("deserialization to succeed");
-        let module_old = deserialize_file("./res/cases/v1/hello.wasm").expect("Should be deserialized");
+        let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 
         assert_eq!(module_old.sections().len(), module_new.sections().len());
+    }
+
+    #[test]
+    fn serde_code() {
+        let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+        module.sections_mut().retain(|x| {
+            if let &Section::Code(_) = x { true } else { false }
+        });
+
+        let buf = serialize(module).expect("serialization to succeed");
+
+        let module_new: Module = deserialize_buffer(buf).expect("deserialization to succeed");
+        let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+        assert_eq!(
+            module_old.code_section().expect("code section exists").bodies().len(),
+            module_new.code_section().expect("code section exists").bodies().len(),
+            "There should be equal amount of function bodies before and after serialization"
+        );
+        
     }
 }

@@ -5,6 +5,7 @@ use super::{
     Uint32, VarUint64, Uint64, CountedListWriter
 };
 
+#[derive(Debug)]
 pub struct Opcodes(Vec<Opcode>);
 
 impl Opcodes {
@@ -70,6 +71,7 @@ impl Deserialize for InitExpr {
     }
 }
 
+#[derive(Debug)]
 pub enum Opcode {
     Unreachable,
     Nop,

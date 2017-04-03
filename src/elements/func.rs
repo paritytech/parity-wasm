@@ -61,7 +61,7 @@ impl FuncBody {
     }
 
     pub fn locals(&self) -> &[Local] { &self.locals }
-    
+
     pub fn code(&self) -> &Opcodes { &self.opcodes }
 }
 
@@ -89,7 +89,7 @@ impl Serialize for FuncBody {
             data.into_iter().map(Into::into),
         );
         counted_list.serialize(&mut counted_writer)?;
-
+      
         let code = self.opcodes;
         code.serialize(&mut counted_writer)?;
 

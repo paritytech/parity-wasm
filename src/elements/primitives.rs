@@ -97,6 +97,30 @@ impl Deserialize for VarUint64 {
     }
 }
 
+impl Serialize for VarUint64 {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut buf = [0u8; 1];
+        let mut v = self.0;
+        while v >= 0x80 {
+            buf[0] = ((v & 0xff) as u8) | 0x80;
+            writer.write_all(&buf[..])?;
+            v >>= 7;
+        }
+        buf[0] = (v & 0xff) as u8;
+        writer.write_all(&buf[..])?;
+
+        Ok(())
+    }
+}
+
+impl From<u64> for VarUint64 {
+    fn from(u: u64) -> VarUint64 {
+        VarUint64(u)
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct VarUint7(u8);
 
@@ -176,6 +200,20 @@ impl From<Uint32> for u32 {
     }
 }
 
+impl Serialize for Uint32 {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut buf = [0u8; 4];
+        LittleEndian::write_u32(&mut buf, self.0);
+        writer.write_all(&buf)?;
+        Ok(())
+    }
+}
+
+impl From<u32> for Uint32 {
+    fn from(u: u32) -> Self { Uint32(u) }
+}
 
 #[derive(Copy, Clone)]
 pub struct Uint64(u64);
@@ -191,11 +229,27 @@ impl Deserialize for Uint64 {
     }
 }
 
+impl Serialize for Uint64 {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut buf = [0u8; 8];
+        LittleEndian::write_u64(&mut buf, self.0);
+        writer.write_all(&buf)?;
+        Ok(())
+    }
+}
+
+impl From<u64> for Uint64 {
+    fn from(u: u64) -> Self { Uint64(u) }
+}
+
 impl From<Uint64> for u64 {
     fn from(var: Uint64) -> u64 {
         var.0
     }
 }
+
 
 #[derive(Copy, Clone)]
 pub struct VarUint1(bool);
@@ -203,6 +257,12 @@ pub struct VarUint1(bool);
 impl From<VarUint1> for bool {
     fn from(v: VarUint1) -> bool {
         v.0
+    }
+}
+
+impl From<bool> for VarUint1 {
+    fn from(b: bool) -> Self {
+        VarUint1(b)
     }
 }
 
@@ -214,6 +274,17 @@ impl Deserialize for VarUint1 {
         reader.read_exact(&mut u8buf)?;
         // todo check range
         Ok(VarUint1(u8buf[0] == 1))
+    }
+}
+
+impl Serialize for VarUint1 {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        writer.write_all(&[
+            if self.0 { 1u8 } else { 0u8 }
+        ])?;
+        Ok(())
     }
 }
 

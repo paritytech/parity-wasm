@@ -254,6 +254,22 @@ impl Deserialize for CodeSection {
     }   
 }
 
+impl Serialize for CodeSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<FuncBody, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }
+}
+
 pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {

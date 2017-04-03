@@ -1,5 +1,8 @@
 use std::io;
-use super::{Deserialize, Error, ValueType, VarUint32, CountedList, Opcodes};
+use super::{
+    Deserialize, Error, ValueType, VarUint32, CountedList, Opcodes, 
+    Serialize, CountedWriter, CountedListWriter, 
+};
 
 /// Function signature (type reference)
 pub struct Func(u32);
@@ -32,6 +35,16 @@ impl Deserialize for Local {
     }   
 }
 
+impl Serialize for Local {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        VarUint32::from(self.count).serialize(writer)?;
+        self.value_type.serialize(writer)?;
+        Ok(())
+    }
+}
+
 pub struct FuncBody {
     locals: Vec<Local>,
     opcodes: Opcodes,
@@ -52,4 +65,26 @@ impl Deserialize for FuncBody {
         let opcodes = Opcodes::deserialize(reader)?;
         Ok(FuncBody { locals: locals, opcodes: opcodes })
     }   
+}
+
+impl Serialize for FuncBody {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+
+        let data = self.locals;
+        let counted_list = CountedListWriter::<Local, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+
+        let code = self.opcodes;
+        code.serialize(&mut counted_writer)?;
+
+        counted_writer.done()?;
+
+        Ok(())
+    }
 }

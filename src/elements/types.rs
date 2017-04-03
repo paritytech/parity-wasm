@@ -37,6 +37,21 @@ impl Deserialize for ValueType {
     }    
 }
 
+impl Serialize for ValueType {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let val: VarInt7 = match self {
+            ValueType::I32 => -0x01,
+            ValueType::I64 => -0x02,
+            ValueType::F32 => -0x03,
+            ValueType::F64 => -0x04,
+        }.into();
+        val.serialize(writer)?;
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum BlockType {
     Value(ValueType),

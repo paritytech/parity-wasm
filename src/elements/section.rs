@@ -238,6 +238,10 @@ impl Deserialize for ExportSection {
 pub struct CodeSection(Vec<FuncBody>);
 
 impl CodeSection {
+    pub fn new(bodies: Vec<FuncBody>) -> Self {
+        CodeSection(bodies)
+    }
+
     pub fn bodies(&self) -> &[FuncBody] {
         &self.0
     }
@@ -353,9 +357,9 @@ mod tests {
 
     use super::super::{
         deserialize_buffer, deserialize_file, ValueType, InitExpr, DataSegment,
-        serialize, ElementSegment,
+        serialize, ElementSegment, Opcodes, BlockType, Local, FuncBody,
     };
-    use super::{Section, TypeSection, Type, DataSection, ElementSection};
+    use super::{Section, TypeSection, Type, DataSection, ElementSection, CodeSection};
 
     #[test]
     fn import_section() {
@@ -622,7 +626,7 @@ mod tests {
             vec![ElementSegment::new(0u32, InitExpr::empty(), vec![0u32; 4])]
         );
 
-        let buf = serialize(element_section).expect("Data section to be serialized");
+        let buf = serialize(element_section).expect("Element section to be serialized");
 
         assert_eq!(buf, vec![
             08u8, // 8 bytes overall
@@ -633,4 +637,42 @@ mod tests {
             0x00, 0x00, 0x00, 0x00 // 4x 0x00 as in initialization
         ]);
     }    
+
+    #[test]
+    fn code_section_ser() {
+        use super::super::Opcode::*;
+
+        let code_section = CodeSection::new(
+            vec![
+                FuncBody::new(
+                    vec![Local::new(1, ValueType::I32)],
+                    Opcodes::new(vec![
+                        Block(
+                            BlockType::Value(ValueType::I32),
+                            Opcodes::new(vec![
+                                GetGlobal(0),
+                                End
+                            ])
+                        ),
+                        End,
+                    ])
+                )
+            ]);
+
+        let buf = serialize(code_section).expect("Code section to be serialized");
+
+        assert_eq!(buf, vec![
+            11u8,            // 11 bytes total section size
+            0x01,            // 1 function
+              9,             //   function #1 total code size
+              1,             //   1 local variable declaration
+              1,             //      amount of variables
+              0xff,          //      type of variable (-0x01), negative
+              0x02,          //   block
+                0xff,        //      block return type (-0x01), negative
+                0x23, 0x00,  //      get_global(0)
+                0x0b,        //   block end
+            0x0b,            // function end
+        ]);
+    }
 }

@@ -8,6 +8,10 @@ use super::{
 pub struct Opcodes(Vec<Opcode>);
 
 impl Opcodes {
+    pub fn new(elements: Vec<Opcode>) -> Self {
+        Opcodes(elements)
+    }
+
     pub fn elements(&self) -> &[Opcode] { &self.0 }
 }
 

@@ -21,7 +21,12 @@ pub struct Local {
 }
 
 impl Local {
+    pub fn new(count: u32, value_type: ValueType) -> Self {
+        Local { count: count, value_type: value_type }
+    }
+
     pub fn count(&self) -> u32 { self.count }
+
     pub fn value_type(&self) -> ValueType { self.value_type }
 }
 
@@ -51,7 +56,12 @@ pub struct FuncBody {
 }
 
 impl FuncBody {
+    pub fn new(locals: Vec<Local>, opcodes: Opcodes) -> Self {
+        FuncBody { locals: locals, opcodes: opcodes }
+    }
+
     pub fn locals(&self) -> &[Local] { &self.locals }
+    
     pub fn code(&self) -> &Opcodes { &self.opcodes }
 }
 

@@ -8,6 +8,7 @@ mod import_entry;
 mod export_entry;
 mod global_entry;
 mod ops;
+mod func;
 
 pub use self::module::Module;
 pub use self::section::Section;
@@ -17,6 +18,7 @@ pub use self::global_entry::GlobalEntry;
 pub use self::primitives::{VarUint32, VarUint7, VarUint1, VarInt7, Uint32, Uint64, VarUint64, CountedList};
 pub use self::types::{ValueType, BlockType};
 pub use self::ops::{Opcode, Opcodes, InitExpr};
+pub use self::func::{FuncBody, Local};
 
 pub trait Deserialize : Sized {
     type Error;

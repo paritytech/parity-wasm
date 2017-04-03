@@ -125,6 +125,12 @@ impl From<VarInt7> for i8 {
     }
 }
 
+impl From<i8> for VarInt7 {
+    fn from(v: i8) -> VarInt7 {
+        VarInt7(v)
+    }
+}
+
 impl Deserialize for VarInt7 {
     type Error = Error;
 
@@ -135,6 +141,18 @@ impl Deserialize for VarInt7 {
         if u8buf[0] & 0b0100_0000 == 0b0100_0000 { u8buf[0] |= 0b1000_0000 }
         // todo check range
         Ok(VarInt7(unsafe { ::std::mem::transmute (u8buf[0]) }))
+    }
+}
+
+impl Serialize for VarInt7 {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        // todo check range?
+        let mut b: u8 = self.0 as u8;
+        if self.0 < 0 { b |= 0b0100_0000 }
+        writer.write_all(&[b])?;
+        Ok(())
     }
 }
 

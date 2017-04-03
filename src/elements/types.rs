@@ -1,5 +1,5 @@
 use std::io;
-use super::{Deserialize, Error, VarUint7, VarInt7, VarUint1, CountedList};
+use super::{Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList};
 
 pub enum Type {
     Function(FunctionType),
@@ -58,6 +58,22 @@ impl Deserialize for BlockType {
             _ => Err(Error::UnknownValueType(val.into())),
         }
     }    
+}
+
+impl Serialize for BlockType {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let val: VarInt7 = match self {
+            BlockType::NoResult => -0x40i8,
+            BlockType::Value(ValueType::I32) => -0x01,
+            BlockType::Value(ValueType::I64) => -0x02,
+            BlockType::Value(ValueType::F32) => -0x03,
+            BlockType::Value(ValueType::F64) => -0x04,
+        }.into();
+        val.serialize(writer)?;
+        Ok(())
+    }
 }
 
 

@@ -1,5 +1,6 @@
 use std::io;
-use super::{Deserialize, Error, VarUint7, 
+use super::{
+    Serialize, Deserialize, Error, VarUint7, 
     VarUint1, VarUint32, CountedList, BlockType,
     Uint32, VarUint64, Uint64
 };
@@ -527,3 +528,61 @@ impl Deserialize for Opcode {
         )
     }
 }
+
+macro_rules! op {
+    ($writer: expr, $byte: expr) => ({
+        let b: u8 = $byte;
+        $writer.write_all(&[b])?;
+    });
+    ($writer: expr, $byte: expr, $s: block) => ({
+        op!($writer, $byte);
+        $s;
+    });
+}
+
+impl Serialize for Opcode {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        use self::Opcode::*;
+
+        match self {
+            Unreachable => op!(writer, 0x00),
+            Nop => op!(writer, 0x01),
+            Block(block_type, ops) => op!(writer, 0x02, {
+               block_type.serialize(writer)?;
+               ops.serialize(writer)?;
+            }),            
+            End => op!(writer, 0x0b),           
+            _ => unreachable!(),
+        }
+
+        Ok(())
+    }
+    
+}
+
+impl Serialize for Opcodes {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        for op in self.0.into_iter() {
+            op.serialize(writer)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Serialize for InitExpr {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        for op in self.0.into_iter() {
+            op.serialize(writer)?;
+        }
+
+        Ok(())
+    }
+}
+

@@ -68,6 +68,9 @@ impl Serialize for DataSegment {
     type Error = Error;
     
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        VarUint32::from(self.index).serialize(writer)?;
+        self.offset.serialize(writer)?;
+        writer.write_all(&self.value[..])?;
         Ok(())
     }
 }

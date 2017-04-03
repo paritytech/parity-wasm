@@ -1,9 +1,9 @@
 use std::io;
-use super::{Deserialize, Error, Uint32};
+use super::{Deserialize, Serialize, Error, Uint32};
 use super::section::Section;
 
 pub struct Module {
-    _magic: u32,
+    magic: u32,
     version: u32,
     sections: Vec<Section>,
 }
@@ -37,17 +37,31 @@ impl Deserialize for Module {
         }
 
         Ok(Module { 
-            _magic: magic.into(),
+            magic: magic.into(),
             version: version.into(),
             sections: sections,
         })
     }    
 }
 
+impl Serialize for Module {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, w: &mut W) -> Result<(), Self::Error> {
+        Uint32::from(self.magic).serialize(w)?;
+        Uint32::from(self.version).serialize(w)?;
+        for section in self.sections.into_iter() {
+            section.serialize(w)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod integration_tests {
 
-    use super::super::deserialize_file;
+    use super::super::{deserialize_file, serialize, deserialize_buffer};
+    use super::Module;
 
     #[test]
     fn hello() {
@@ -55,5 +69,16 @@ mod integration_tests {
 
         assert_eq!(module.version(), 1);
         assert_eq!(module.sections().len(), 8);
+    }
+
+    #[test]
+    fn serde() {
+        let module = deserialize_file("./res/cases/v1/hello.wasm").expect("Should be deserialized");
+        let buf = serialize(module).expect("serialization to succeed");
+
+        let module_new: Module = deserialize_buffer(buf).expect("deserialization to succeed");
+        let module_old = deserialize_file("./res/cases/v1/hello.wasm").expect("Should be deserialized");
+
+        assert_eq!(module_old.sections().len(), module_new.sections().len());
     }
 }

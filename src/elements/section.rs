@@ -115,7 +115,46 @@ impl Serialize for Section {
                 VarUint7::from(0x01).serialize(writer)?;
                 type_section.serialize(writer)?;
             },
-            _ => unreachable!()
+            Section::Import(import_section) => {
+                VarUint7::from(0x02).serialize(writer)?;
+                import_section.serialize(writer)?;
+            },
+            Section::Function(function_section) => {
+                VarUint7::from(0x03).serialize(writer)?;
+                function_section.serialize(writer)?;
+            },
+            Section::Table(table_section) => {
+                VarUint7::from(0x04).serialize(writer)?;
+                table_section.serialize(writer)?;
+            },
+            Section::Memory(memory_section) => {
+                VarUint7::from(0x05).serialize(writer)?;
+                memory_section.serialize(writer)?;
+            },
+            Section::Global(global_section) => {
+                VarUint7::from(0x06).serialize(writer)?;
+                global_section.serialize(writer)?;
+            },
+            Section::Export(export_section) => {
+                VarUint7::from(0x07).serialize(writer)?;
+                export_section.serialize(writer)?;
+            },
+            Section::Start(index) => {
+                VarUint7::from(0x08).serialize(writer)?;
+                VarUint32::from(index).serialize(writer)?;
+            },
+            Section::Element(element_section) => {
+                VarUint7::from(0x09).serialize(writer)?;
+                element_section.serialize(writer)?;
+            },
+            Section::Code(code_section) => {
+                VarUint7::from(0x0a).serialize(writer)?;
+                code_section.serialize(writer)?;
+            },
+            Section::Data(data_section) => {
+                VarUint7::from(0x0b).serialize(writer)?;
+                data_section.serialize(writer)?;
+            },
         }
         Ok(())
     }

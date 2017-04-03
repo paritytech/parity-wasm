@@ -14,6 +14,10 @@ impl Module {
     pub fn sections(&self) -> &[Section] {
         &self.sections
     }
+
+    pub fn sections_mut(&mut self) -> &mut Vec<Section> {
+        &mut self.sections
+    }
 }
 
 impl Deserialize for Module {
@@ -21,9 +25,7 @@ impl Deserialize for Module {
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         let mut sections = Vec::new();
-
         let magic = Uint32::deserialize(reader)?;
-
         let version = Uint32::deserialize(reader)?;
 
         loop {

@@ -1,5 +1,8 @@
 use std::io;
-use super::{Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList};
+use super::{
+    Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList, 
+    CountedListWriter
+};
 
 pub enum Type {
     Function(FunctionType),
@@ -10,6 +13,16 @@ impl Deserialize for Type {
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         Ok(Type::Function(FunctionType::deserialize(reader)?))
+    }
+}
+
+impl Serialize for Type {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        match self {
+            Type::Function(fn_type) => fn_type.serialize(writer)
+        }
     }
 }
 
@@ -91,7 +104,6 @@ impl Serialize for BlockType {
     }
 }
 
-
 pub struct FunctionType {
     form: u8,
     params: Vec<ValueType>,
@@ -125,4 +137,28 @@ impl Deserialize for FunctionType {
             return_type: return_type,
         })
     }    
+}
+
+impl Serialize for FunctionType {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        VarUint7::from(self.form).serialize(writer)?;
+
+        let data = self.params;
+        let counted_list = CountedListWriter::<ValueType, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(writer)?;
+
+        if let Some(return_type) = self.return_type {
+            VarUint1::from(true).serialize(writer)?;
+            return_type.serialize(writer)?;
+        } else {
+            VarUint1::from(false).serialize(writer)?;
+        }
+
+        Ok(())
+    }
 }

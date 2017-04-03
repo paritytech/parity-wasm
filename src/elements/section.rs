@@ -98,6 +98,29 @@ impl Deserialize for Section {
     }    
 }
 
+impl Serialize for Section {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        match self {
+            Section::Custom(custom_section) => {
+                VarUint7::from(0x00).serialize(writer)?;
+                writer.write_all(&custom_section[..])?;
+            },
+            Section::Unparsed { id, payload } => {
+                VarUint7::from(id).serialize(writer)?;
+                writer.write_all(&payload[..])?;
+            },
+            Section::Type(type_section) => {
+                VarUint7::from(0x01).serialize(writer)?;
+                type_section.serialize(writer)?;
+            },
+            _ => unreachable!()
+        }
+        Ok(())
+    }
+}
+
 pub struct TypeSection(Vec<Type>);
 
 impl TypeSection {
@@ -117,6 +140,22 @@ impl Deserialize for TypeSection {
     }   
 }
 
+impl Serialize for TypeSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<Type, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }    
+}
+
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {
@@ -134,6 +173,22 @@ impl Deserialize for ImportSection {
         let entries: Vec<ImportEntry> = CountedList::deserialize(reader)?.into_inner();
         Ok(ImportSection(entries))
     }   
+}
+
+impl Serialize for ImportSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<ImportEntry, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }    
 }
 
 pub struct FunctionsSection(Vec<Func>);
@@ -157,6 +212,22 @@ impl Deserialize for FunctionsSection {
             .collect();
         Ok(FunctionsSection(funcs))
     }
+}
+
+impl Serialize for FunctionsSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<VarUint32, _>(
+            data.len(),
+            data.into_iter().map(|func| func.type_ref().into())
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }    
 }
 
 pub struct TableSection(Vec<TableType>);

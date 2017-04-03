@@ -1,5 +1,4 @@
 use std::io;
-use std::io::Write;
 use super::{
     Serialize,
     Deserialize,
@@ -18,6 +17,7 @@ use super::{
     ElementSegment,
     DataSegment,
     CountedWriter,
+    CountedListWriter,
 };
 
 use super::types::Type;
@@ -296,10 +296,12 @@ impl Serialize for DataSection {
     type Error = Error;
     
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-        let mut counted_writer = CountedWriter::new(writer);
-        let test = vec![0u8; 12];
-        counted_writer.write(&test[..])?;
-        counted_writer.done()?;
+        let data = self.0;
+        let counted_list = CountedListWriter::<DataSegment, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(writer)?;
         Ok(())
     }
 }

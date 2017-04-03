@@ -1,5 +1,5 @@
 use std::io;
-use super::{Deserialize, Error, VarUint32, CountedList, InitExpr};
+use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr};
 
 pub struct ElementSegment {
     index: u32,
@@ -62,4 +62,12 @@ impl Deserialize for DataSegment {
             value: value_buf,
         })
     }   
+}
+
+impl Serialize for DataSegment {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }

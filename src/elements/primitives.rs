@@ -221,7 +221,7 @@ impl<T: Deserialize> CountedList<T> {
     pub fn into_inner(self) -> Vec<T> { self.0 }
 }
 
-impl<T: Deserialize> Deserialize for CountedList<T> where T::Error : From<Error> {
+impl<T: Deserialize> Deserialize for CountedList<T> where T::Error: From<Error> {
     type Error = T::Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
@@ -270,6 +270,22 @@ impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }    
+}
+
+pub struct CountedListWriter<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>>(pub usize, pub T);
+
+impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize for CountedListWriter<I, T> {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let len_us = self.0;
+        let data = self.1;
+        let len: VarUint32 = len_us.into();
+        len.serialize(writer)?;
+        for data_element in data { data_element.serialize(writer)? }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

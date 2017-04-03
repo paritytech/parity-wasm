@@ -126,7 +126,7 @@ impl ImportSection {
 }
 
 impl Deserialize for ImportSection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
@@ -145,7 +145,7 @@ impl FunctionsSection {
 }
 
 impl Deserialize for FunctionsSection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
@@ -168,7 +168,7 @@ impl TableSection {
 }
 
 impl Deserialize for TableSection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
@@ -187,7 +187,7 @@ impl MemorySection {
 }
 
 impl Deserialize for MemorySection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
@@ -206,7 +206,7 @@ impl GlobalSection {
 }
 
 impl Deserialize for GlobalSection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
@@ -225,7 +225,7 @@ impl ExportSection {
 }
 
 impl Deserialize for ExportSection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
@@ -244,7 +244,7 @@ impl CodeSection {
 }
 
 impl Deserialize for CodeSection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)
@@ -263,7 +263,7 @@ impl ElementSection {
 }
 
 impl Deserialize for ElementSection {
-     type Error = Error;
+    type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         // todo: maybe use reader.take(section_length)

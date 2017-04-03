@@ -1,5 +1,5 @@
 use std::io;
-use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr};
+use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr, CountedListWriter};
 
 pub struct ElementSegment {
     index: u32,
@@ -8,8 +8,14 @@ pub struct ElementSegment {
 }
 
 impl ElementSegment {
+    pub fn new(index: u32, offset: InitExpr, members: Vec<u32>) -> Self {
+        ElementSegment { index: index, offset: offset, members: members }
+    }
+
     pub fn members(&self) -> &[u32] { &self.members }
+
     pub fn index(&self) -> u32 { self.index }
+
     pub fn offset(&self) -> &InitExpr { &self.offset }
 }
 
@@ -31,6 +37,22 @@ impl Deserialize for ElementSegment {
             members: funcs,
         })
     }   
+}
+
+impl Serialize for ElementSegment {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        VarUint32::from(self.index).serialize(writer)?;
+        self.offset.serialize(writer)?;
+        let data = self.members;
+        let counted_list = CountedListWriter::<VarUint32, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );        
+        counted_list.serialize(writer)?;        
+        Ok(())
+    }
 }
 
 pub struct DataSegment {
@@ -78,7 +100,10 @@ impl Serialize for DataSegment {
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         VarUint32::from(self.index).serialize(writer)?;
         self.offset.serialize(writer)?;
-        writer.write_all(&self.value[..])?;
+
+        let value = self.value;
+        VarUint32::from(value.len()).serialize(writer)?;
+        writer.write_all(&value[..])?;
         Ok(())
     }
 }

@@ -257,6 +257,10 @@ impl Deserialize for CodeSection {
 pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {
+    pub fn new(entries: Vec<ElementSegment>) -> Self {
+        ElementSection(entries)
+    }
+
     pub fn entries(&self) -> &[ElementSegment] {
         &self.0
     }
@@ -271,6 +275,22 @@ impl Deserialize for ElementSection {
         let entries: Vec<ElementSegment> = CountedList::deserialize(reader)?.into_inner();
         Ok(ElementSection(entries))
     }   
+}
+
+impl Serialize for ElementSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<ElementSegment, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }
 }
 
 pub struct DataSection(Vec<DataSegment>);
@@ -317,9 +337,9 @@ mod tests {
 
     use super::super::{
         deserialize_buffer, deserialize_file, ValueType, InitExpr, DataSegment,
-        serialize,
+        serialize, ElementSegment,
     };
-    use super::{Section, TypeSection, Type, DataSection};
+    use super::{Section, TypeSection, Type, DataSection, ElementSection};
 
     #[test]
     fn import_section() {
@@ -555,10 +575,11 @@ mod tests {
         let buf = serialize(data_section).expect("Data section to be serialized");
 
         assert_eq!(buf, vec![
-            19u8, // 19 bytes overall
+            20u8, // 19 bytes overall
             0x01, // number of segments
             0x00, // index
             0x0b, // just `end` op
+            16,   // value of length 16
             0x00, 0x00, 0x00, 0x00, // 16x 0x00 as in initialization
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
@@ -578,4 +599,22 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn element_section_ser() {
+        let element_section = ElementSection::new(
+            vec![ElementSegment::new(0u32, InitExpr::empty(), vec![0u32; 4])]
+        );
+
+        let buf = serialize(element_section).expect("Data section to be serialized");
+
+        assert_eq!(buf, vec![
+            08u8, // 8 bytes overall
+            0x01, // number of segments
+            0x00, // index
+            0x0b, // just `end` op
+            0x04, // 4 elements
+            0x00, 0x00, 0x00, 0x00 // 4x 0x00 as in initialization
+        ]);
+    }    
 }

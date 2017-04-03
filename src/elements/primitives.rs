@@ -130,6 +130,12 @@ impl From<VarUint7> for u8 {
     }
 }
 
+impl From<u8> for VarUint7 {
+    fn from(v: u8) -> Self {
+        VarUint7(v)
+    }
+}
+
 impl Deserialize for VarUint7 {
     type Error = Error;
 
@@ -137,6 +143,16 @@ impl Deserialize for VarUint7 {
         let mut u8buf = [0u8; 1];
         reader.read_exact(&mut u8buf)?;
         Ok(VarUint7(u8buf[0]))
+    }
+}
+
+impl Serialize for VarUint7 {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        // todo check range?
+        writer.write_all(&[self.0])?;
+        Ok(())
     }
 }
 
@@ -301,6 +317,16 @@ impl Deserialize for String {
         else {
             Ok(String::new())
         }
+    }
+}
+
+impl Serialize for String {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Error> {
+        VarUint32::from(self.len()).serialize(writer)?;
+        writer.write_all(&self.into_bytes()[..])?;
+        Ok(())
     }
 }
 

@@ -1,5 +1,5 @@
 use std::io;
-use super::{Deserialize, Error, GlobalType, InitExpr};
+use super::{Deserialize, Serialize, Error, GlobalType, InitExpr};
 
 pub struct GlobalEntry {
     global_type: GlobalType,
@@ -24,3 +24,12 @@ impl Deserialize for GlobalEntry {
         })
     }    
 } 
+
+impl Serialize for GlobalEntry {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        self.global_type.serialize(writer)?;
+        self.init_expr.serialize(writer)
+    }
+}

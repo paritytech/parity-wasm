@@ -216,6 +216,22 @@ impl Deserialize for GlobalSection {
     }   
 }
 
+impl Serialize for GlobalSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<GlobalEntry, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }    
+}
+
 pub struct ExportSection(Vec<ExportEntry>);
 
 impl ExportSection {
@@ -233,6 +249,22 @@ impl Deserialize for ExportSection {
         let entries: Vec<ExportEntry> = CountedList::deserialize(reader)?.into_inner();
         Ok(ExportSection(entries))
     }   
+}
+
+impl Serialize for ExportSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
+        let data = self.0;
+        let counted_list = CountedListWriter::<ExportEntry, _>(
+            data.len(),
+            data.into_iter().map(Into::into),
+        );
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
+        Ok(())
+    }    
 }
 
 pub struct CodeSection(Vec<FuncBody>);

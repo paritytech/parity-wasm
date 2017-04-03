@@ -1,5 +1,8 @@
 use std::io;
-use super::{Deserialize, Error, VarUint7, VarInt7, VarUint32, VarUint1, ValueType};
+use super::{
+    Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint32, VarUint1, 
+    ValueType
+};
 
 pub struct GlobalType {
     content_type: ValueType,
@@ -24,8 +27,18 @@ impl Deserialize for GlobalType {
     }    
 } 
 
+impl Serialize for GlobalType {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        self.content_type.serialize(writer)?;
+        VarUint1::from(self.is_mutable).serialize(writer)?;
+        Ok(())
+    }
+}
+
 pub struct TableType {
-    _elem_type: i8,
+    elem_type: i8,
     limits: ResizableLimits,
 }
 
@@ -40,11 +53,20 @@ impl Deserialize for TableType {
         let elem_type = VarInt7::deserialize(reader)?;
         let limits = ResizableLimits::deserialize(reader)?;
         Ok(TableType {
-            _elem_type: elem_type.into(),
+            elem_type: elem_type.into(),
             limits: limits,
         })
     }    
 } 
+
+impl Serialize for TableType {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        VarInt7::from(self.elem_type).serialize(writer)?;
+        self.limits.serialize(writer)
+    }
+}
 
 pub struct ResizableLimits {
     initial: u32,
@@ -75,6 +97,20 @@ impl Deserialize for ResizableLimits {
     }    
 } 
 
+impl Serialize for ResizableLimits {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let max = self.maximum;
+        VarUint1::from(max.is_some());
+        VarUint32::from(self.initial).serialize(writer)?;
+        if let Some(val) = max { 
+            VarUint32::from(val).serialize(writer)?; 
+        }
+        Ok(())
+    }
+}
+
 pub struct MemoryType(ResizableLimits);
 
 impl MemoryType {
@@ -90,6 +126,14 @@ impl Deserialize for MemoryType {
         Ok(MemoryType(ResizableLimits::deserialize(reader)?))
     }    
 } 
+
+impl Serialize for MemoryType {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        self.0.serialize(writer)
+    }
+}
 
 pub enum External {
     Function(u32),
@@ -112,6 +156,35 @@ impl Deserialize for External {
         }
     }    
 } 
+
+impl Serialize for External {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        use self::External::*;
+
+        match self {
+            Function(index) => {
+                VarUint7::from(0x00).serialize(writer)?;
+                VarUint32::from(index).serialize(writer)?;
+            },
+            Table(tt) => {
+                VarInt7::from(0x01).serialize(writer)?;
+                tt.serialize(writer)?;
+            },
+            Memory(mt) => {
+                VarInt7::from(0x02).serialize(writer)?;
+                mt.serialize(writer)?;
+            },
+            Global(gt) => {
+                VarInt7::from(0x03).serialize(writer)?;
+                gt.serialize(writer)?;
+            },            
+        }
+
+        Ok(())
+    }
+}
 
 pub struct ImportEntry {
     module_str: String,
@@ -139,4 +212,14 @@ impl Deserialize for ImportEntry {
             external: external,
         })
     }    
+}
+
+impl Serialize for ImportEntry {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        self.module_str.serialize(writer)?;
+        self.field_str.serialize(writer)?;
+        self.external.serialize(writer)
+    }
 }

@@ -276,6 +276,10 @@ impl Deserialize for ElementSection {
 pub struct DataSection(Vec<DataSegment>);
 
 impl DataSection {
+    pub fn new(segments: Vec<DataSegment>) -> Self {
+        DataSection(segments)
+    }
+
     pub fn entries(&self) -> &[DataSegment] {
         &self.0
     }
@@ -296,12 +300,14 @@ impl Serialize for DataSection {
     type Error = Error;
     
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
         let counted_list = CountedListWriter::<DataSegment, _>(
             data.len(),
             data.into_iter().map(Into::into),
         );
-        counted_list.serialize(writer)?;
+        counted_list.serialize(&mut counted_writer)?;
+        counted_writer.done()?;
         Ok(())
     }
 }
@@ -309,8 +315,11 @@ impl Serialize for DataSection {
 #[cfg(test)]
 mod tests {
 
-    use super::super::{deserialize_buffer, deserialize_file, ValueType};
-    use super::{Section, TypeSection, Type};
+    use super::super::{
+        deserialize_buffer, deserialize_file, ValueType, InitExpr, DataSegment,
+        serialize,
+    };
+    use super::{Section, TypeSection, Type, DataSection};
 
     #[test]
     fn import_section() {
@@ -518,6 +527,54 @@ mod tests {
             Section::Code(_) => {},
             _ => {
                 panic!("Payload should be recognized as a code section")
+            }
+        }
+    }
+
+    fn data_payload() -> Vec<u8> {
+        vec![
+            0x0bu8,  // section id           
+            19,      // 19 bytes overall
+            0x01,    // number of segments
+            0x00,    // index
+            0x0b,    // just `end` op
+            // 16x 0x00
+            0x00, 0x00, 0x00, 0x00, 
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00
+        ]
+    }
+
+    #[test]
+    fn data_section_ser() {
+        let data_section = DataSection::new(
+            vec![DataSegment::new(0u32, InitExpr::empty(), vec![0u8; 16])]
+        );
+
+        let buf = serialize(data_section).expect("Data section to be serialized");
+
+        assert_eq!(buf, vec![
+            19u8, // 19 bytes overall
+            0x01, // number of segments
+            0x00, // index
+            0x0b, // just `end` op
+            0x00, 0x00, 0x00, 0x00, // 16x 0x00 as in initialization
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00
+        ]);
+    }
+
+    #[test]
+    fn data_section_detect() {
+        let section: Section = 
+            deserialize_buffer(data_payload()).expect("section to be deserialized");
+
+        match section {
+            Section::Data(_) => {},
+            _ => {
+                panic!("Payload should be recognized as a data section")
             }
         }
     }

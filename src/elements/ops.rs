@@ -32,6 +32,20 @@ impl Deserialize for Opcodes {
 
 pub struct InitExpr(Vec<Opcode>);
 
+impl InitExpr {
+    pub fn new(code: Vec<Opcode>) -> Self {
+        InitExpr(code)
+    }
+
+    pub fn empty() -> Self {
+        InitExpr(vec![Opcode::End])
+    }
+
+    pub fn code(&self) -> &[Opcode] {
+        &self.0
+    }
+}
+
 // todo: check if kind of opcode sequence is valid as an expression
 impl Deserialize for InitExpr {
     type Error = Error;

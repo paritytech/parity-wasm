@@ -40,6 +40,14 @@ pub struct DataSegment {
 }
 
 impl DataSegment {
+    pub fn new(index: u32, offset: InitExpr, value: Vec<u8>) -> Self {
+        DataSegment {
+            index: index,
+            offset: offset,
+            value: value,
+        }
+    }
+
     pub fn index(&self) -> u32 { self.index }
     pub fn offset(&self) -> &InitExpr { &self.offset }   
     pub fn value(&self) -> &[u8] { &self.value }

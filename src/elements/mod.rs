@@ -86,3 +86,9 @@ pub fn deserialize_buffer<T: Deserialize>(contents: Vec<u8>) -> Result<T, T::Err
     let mut reader = io::Cursor::new(contents);
     T::deserialize(&mut reader)
 }
+
+pub fn serialize<T: Serialize>(val: T) -> Result<Vec<u8>, T::Error> {
+    let mut buf = Vec::new();
+    val.serialize(&mut buf)?;
+    Ok(buf)
+}

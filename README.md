@@ -1,5 +1,7 @@
 # parity-wasm
 
+[![Build Status](https://travis-ci.org/NikVolf/parity-wasm.svg?branch=master)](https://travis-ci.org/NikVolf/parity-wasm)
+
 ## Rust WebAssembly format serializing/deserializing
 
 ```rust

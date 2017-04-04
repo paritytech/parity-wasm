@@ -1,13 +1,16 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, GlobalType, InitExpr};
 
+/// Global entry in the module.
 pub struct GlobalEntry {
     global_type: GlobalType,
     init_expr: InitExpr,
 }
 
 impl GlobalEntry {
+    /// Global type.
     pub fn global_type(&self) -> &GlobalType { &self.global_type }
+    /// Initialization expression (opcodes) for global.
     pub fn init_expr(&self) -> &InitExpr { &self.init_expr }
 }
 

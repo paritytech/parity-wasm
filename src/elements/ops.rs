@@ -5,14 +5,17 @@ use super::{
     Uint32, VarUint64, Uint64, CountedListWriter
 };
 
+/// Collection of opcodes (usually inside a block section).
 #[derive(Debug)]
 pub struct Opcodes(Vec<Opcode>);
 
 impl Opcodes {
+    /// New list of opcodes from vector of opcodes
     pub fn new(elements: Vec<Opcode>) -> Self {
         Opcodes(elements)
     }
 
+    /// List of individual opcodes
     pub fn elements(&self) -> &[Opcode] { &self.0 }
 }
 
@@ -35,17 +38,22 @@ impl Deserialize for Opcodes {
     }
 }
 
+/// Initialization expression.
 pub struct InitExpr(Vec<Opcode>);
 
 impl InitExpr {
+    /// New initialization expression from list of opcodes.
+    ///   `code` must end with the `Opcode::End` opcode!
     pub fn new(code: Vec<Opcode>) -> Self {
         InitExpr(code)
     }
 
+    /// Empty expression with only `Opcode::End` opcode
     pub fn empty() -> Self {
         InitExpr(vec![Opcode::End])
     }
 
+    /// List of opcodes used in the expression.
     pub fn code(&self) -> &[Opcode] {
         &self.0
     }
@@ -71,7 +79,9 @@ impl Deserialize for InitExpr {
     }
 }
 
+/// Opcode
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub enum Opcode {
     Unreachable,
     Nop,
@@ -261,6 +271,8 @@ pub enum Opcode {
 }
 
 impl Opcode {
+    /// Is this opcode determines the termination of opcode sequence
+    /// `true` for `Opcode::End`
     pub fn is_terminal(&self) -> bool { 
         match self {
             &Opcode::End => true,

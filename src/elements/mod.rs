@@ -1,3 +1,5 @@
+//! Elemets of the WebAssembly binary format.
+
 use std::io;
 
 mod module;
@@ -25,26 +27,47 @@ pub use self::ops::{Opcode, Opcodes, InitExpr};
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
 
+/// Deserialization from serial i/o
 pub trait Deserialize : Sized {
+    /// Serialization error produced by deserialization routine.
     type Error;
+    /// Deserialize type from serial i/o
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error>;
 }
 
+/// Serialization to serial i/o
 pub trait Serialize {
+    /// Serialization error produced by serialization routine.
     type Error;
+    /// Serialize type to serial i/o
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error>;
 }
 
+/// Deserialization/serialization error
 #[derive(Debug)]
 pub enum Error {
+    /// Unexpected end of input
     UnexpectedEof,
-    InconsistentLength { expected: usize, actual: usize },
+    /// Inconsistence between declared and actual length
+    InconsistentLength { 
+        /// Expected length of the definition
+        expected: usize, 
+        /// Actual length of the definition
+        actual: usize 
+    },
+    /// Other static error
     Other(&'static str),
+    /// Other allocated error
     HeapOther(String),
+    /// Invalid/unknown value type declaration
     UnknownValueType(i8),
+    /// Non-utf8 string
     NonUtf8String,
+    /// Unknown external kind code
     UnknownExternalKind(u8),
+    /// Unknown internal kind code
     UnknownInternalKind(u8),
+    /// Unknown opcode encountered
     UnknownOpcode(u8),
 }
 
@@ -54,7 +77,8 @@ impl From<io::Error> for Error {
     }
 }
 
-struct Unparsed(pub Vec<u8>);
+/// Unparsed part of the module/section
+pub struct Unparsed(pub Vec<u8>);
 
 impl Deserialize for Unparsed {
     type Error = Error;
@@ -73,6 +97,7 @@ impl From<Unparsed> for Vec<u8> {
     }
 }
 
+/// Deserialize module from file.
 pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Error> {
     use std::io::Read;
 
@@ -82,11 +107,13 @@ pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Err
     deserialize_buffer(contents)
 }
 
+/// Deserialize deserializable type from buffer.
 pub fn deserialize_buffer<T: Deserialize>(contents: Vec<u8>) -> Result<T, T::Error> {
     let mut reader = io::Cursor::new(contents);
     T::deserialize(&mut reader)
 }
 
+/// Create buffer with serialized value.
 pub fn serialize<T: Serialize>(val: T) -> Result<Vec<u8>, T::Error> {
     let mut buf = Vec::new();
     val.serialize(&mut buf)?;

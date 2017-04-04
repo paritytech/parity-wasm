@@ -1,3 +1,7 @@
+//! WebAssembly format library
+
+#![warn(missing_docs)]
+
 extern crate byteorder;
 
 pub mod elements;

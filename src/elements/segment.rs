@@ -1,6 +1,7 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr, CountedListWriter};
 
+/// Entry in the element section.
 pub struct ElementSegment {
     index: u32,
     offset: InitExpr,
@@ -8,14 +9,18 @@ pub struct ElementSegment {
 }
 
 impl ElementSegment {
+    /// New element segment.
     pub fn new(index: u32, offset: InitExpr, members: Vec<u32>) -> Self {
         ElementSegment { index: index, offset: offset, members: members }
     }
 
+    /// Sequence of function indices.
     pub fn members(&self) -> &[u32] { &self.members }
 
+    /// Table index (currently valid only value of `0`)
     pub fn index(&self) -> u32 { self.index }
 
+    /// An i32 initializer expression that computes the offset at which to place the elements.
     pub fn offset(&self) -> &InitExpr { &self.offset }
 }
 
@@ -55,6 +60,7 @@ impl Serialize for ElementSegment {
     }
 }
 
+/// Data segment definition.
 pub struct DataSegment {
     index: u32,
     offset: InitExpr,
@@ -62,6 +68,7 @@ pub struct DataSegment {
 }
 
 impl DataSegment {
+    /// New data segments.
     pub fn new(index: u32, offset: InitExpr, value: Vec<u8>) -> Self {
         DataSegment {
             index: index,
@@ -70,8 +77,11 @@ impl DataSegment {
         }
     }
 
+    /// Linear memory index (currently the only valid value is `0`).
     pub fn index(&self) -> u32 { self.index }
+    /// An i32 initializer expression that computes the offset at which to place the data.
     pub fn offset(&self) -> &InitExpr { &self.offset }   
+    /// Initial value of the data segment.
     pub fn value(&self) -> &[u8] { &self.value }
 }
 

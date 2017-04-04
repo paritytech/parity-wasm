@@ -2,6 +2,7 @@ use std::io;
 use super::{Deserialize, Serialize, Error, Uint32};
 use super::section::{Section, CodeSection, TypeSection, ImportSection};
 
+/// WebAssembly module
 pub struct Module {
     magic: u32,
     version: u32,

@@ -8,25 +8,31 @@ use super::{
 pub struct Func(u32);
 
 impl Func {
+    /// New function signature
     pub fn new(type_ref: u32) -> Self { Func(type_ref) }
 
+    /// Function signature type reference.
     pub fn type_ref(&self) -> u32 {
         self.0
     }
 }
 
+/// Local definition inside the function body.
 pub struct Local {
     count: u32,
     value_type: ValueType,
 }
 
 impl Local {
+    /// New local with `count` and `value_type`.
     pub fn new(count: u32, value_type: ValueType) -> Self {
         Local { count: count, value_type: value_type }
     }
 
+    /// Number of locals with the shared type.
     pub fn count(&self) -> u32 { self.count }
 
+    /// Type of the locals.
     pub fn value_type(&self) -> ValueType { self.value_type }
 }
 
@@ -50,18 +56,23 @@ impl Serialize for Local {
     }
 }
 
+/// Function body definition.
 pub struct FuncBody {
     locals: Vec<Local>,
     opcodes: Opcodes,
 }
 
 impl FuncBody {
+    /// New function body with given `locals` and `opcodes`
     pub fn new(locals: Vec<Local>, opcodes: Opcodes) -> Self {
         FuncBody { locals: locals, opcodes: opcodes }
     }
 
+    /// Locals declared in function body.
     pub fn locals(&self) -> &[Local] { &self.locals }
 
+    /// Opcode sequence of the function body. Minimal opcode sequence
+    /// is just `&[Opcode::End]`
     pub fn code(&self) -> &Opcodes { &self.opcodes }
 }
 

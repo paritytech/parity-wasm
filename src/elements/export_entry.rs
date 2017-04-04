@@ -1,10 +1,15 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, VarUint7, VarUint32};
 
+/// Internal reference of the exported entry.
 pub enum Internal {
+    /// Function reference.
     Function(u32),
+    /// Table reference.
     Table(u32),
+    /// Memory reference.
     Memory(u32),
+    /// Global reference.
     Global(u32),
 }
 
@@ -41,13 +46,16 @@ impl Serialize for Internal {
     }
 }
 
+/// Export entry.
 pub struct ExportEntry {
     field_str: String,
     internal: Internal,
 }
 
 impl ExportEntry {
+    /// Public name
     pub fn field(&self) -> &str { &self.field_str }
+    /// Internal reference of the export entry.
     pub fn internal(&self) -> &Internal { &self.internal }
 }
 

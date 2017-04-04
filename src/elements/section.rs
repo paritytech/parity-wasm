@@ -22,22 +22,38 @@ use super::{
 
 use super::types::Type;
 
+/// Section in the WebAssembly module.
 pub enum Section {
+    /// Section is unparsed.
     Unparsed {
+        /// id of the unparsed section
         id: u8,
+        /// raw bytes of the unparsed section
         payload: Vec<u8>,
     },
+    /// Custom section (`id=0`)
     Custom(Vec<u8>),
+    /// Types section
     Type(TypeSection),
+    /// Import section
     Import(ImportSection),
+    /// Function signatures section
     Function(FunctionsSection),
+    /// Table definition section
     Table(TableSection),
+    /// Memory definition section
     Memory(MemorySection),
+    /// Global entries section
     Global(GlobalSection),
+    /// Export definitions
     Export(ExportSection),
+    /// Entry reference of the module
     Start(u32),
+    /// Elements section
     Element(ElementSection),
+    /// Function bodies section
     Code(CodeSection),
+    /// Data definition section
     Data(DataSection),
 }
 
@@ -195,6 +211,7 @@ impl Serialize for TypeSection {
     }    
 }
 
+/// Section of the imports definition.
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {
@@ -230,6 +247,7 @@ impl Serialize for ImportSection {
     }    
 }
 
+/// Section with function signatures definition.
 pub struct FunctionsSection(Vec<Func>);
 
 impl FunctionsSection {
@@ -269,6 +287,7 @@ impl Serialize for FunctionsSection {
     }    
 }
 
+/// Section with table definition (currently only one is allowed).
 pub struct TableSection(Vec<TableType>);
 
 impl TableSection {
@@ -304,6 +323,7 @@ impl Serialize for TableSection {
     }    
 }
 
+/// Section with table definition (currently only one entry is allowed).
 pub struct MemorySection(Vec<MemoryType>);
 
 impl MemorySection {
@@ -339,6 +359,7 @@ impl Serialize for MemorySection {
     }    
 }
 
+/// Globals definition section.
 pub struct GlobalSection(Vec<GlobalEntry>);
 
 impl GlobalSection {
@@ -374,6 +395,7 @@ impl Serialize for GlobalSection {
     }    
 }
 
+/// List of exports definition.
 pub struct ExportSection(Vec<ExportEntry>);
 
 impl ExportSection {
@@ -409,6 +431,7 @@ impl Serialize for ExportSection {
     }    
 }
 
+/// Section with function bodies of the module.
 pub struct CodeSection(Vec<FuncBody>);
 
 impl CodeSection {
@@ -448,6 +471,7 @@ impl Serialize for CodeSection {
     }
 }
 
+/// Element entries section.
 pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {
@@ -487,6 +511,7 @@ impl Serialize for ElementSection {
     }
 }
 
+/// Data entries definitions.
 pub struct DataSection(Vec<DataSegment>);
 
 impl DataSection {

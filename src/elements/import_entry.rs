@@ -4,13 +4,16 @@ use super::{
     ValueType
 };
 
+/// Global definition struct
 pub struct GlobalType {
     content_type: ValueType,
     is_mutable: bool,
 }
 
 impl GlobalType {
+    /// Type of the global entry
     pub fn content_type(&self) -> ValueType { self.content_type }
+    /// Is global entry is declared as mutable
     pub fn is_mutable(&self) -> bool { self.is_mutable }
 }
 
@@ -37,12 +40,14 @@ impl Serialize for GlobalType {
     }
 }
 
+/// Table entry
 pub struct TableType {
     elem_type: i8,
     limits: ResizableLimits,
 }
 
 impl TableType {
+    /// Table memory specification
     pub fn limits(&self) -> &ResizableLimits { &self.limits }
 }
 
@@ -68,6 +73,7 @@ impl Serialize for TableType {
     }
 }
 
+/// Memory limits
 #[derive(Debug)]
 pub struct ResizableLimits {
     initial: u32,
@@ -75,7 +81,9 @@ pub struct ResizableLimits {
 }
 
 impl ResizableLimits {
+    /// Initial size
     pub fn initial(&self) -> u32 { self.initial }
+    /// Maximum size
     pub fn maximum(&self) -> Option<u32> { self.maximum }
 }
 
@@ -112,9 +120,11 @@ impl Serialize for ResizableLimits {
     }
 }
 
+/// Memory entry.
 pub struct MemoryType(ResizableLimits);
 
 impl MemoryType {
+    /// Limits of the memory entry.
     pub fn limits(&self) -> &ResizableLimits {
         &self.0
     }
@@ -136,10 +146,15 @@ impl Serialize for MemoryType {
     }
 }
 
+/// External to local binding.
 pub enum External {
+    /// Binds to function with index.
     Function(u32),
+    /// Describes local table definition to be imported as.
     Table(TableType),
+    /// Describes local memory definition to be imported as.
     Memory(MemoryType),
+    /// Describes local global entry to be imported as.
     Global(GlobalType),
 }
 
@@ -187,6 +202,7 @@ impl Serialize for External {
     }
 }
 
+/// Import entry.
 pub struct ImportEntry {
     module_str: String,
     field_str: String,
@@ -194,8 +210,11 @@ pub struct ImportEntry {
 }
 
 impl ImportEntry {
+    /// Module reference of the import entry.
     pub fn module(&self) -> &str { &self.module_str }
+    /// Field reference of the import entry.
     pub fn field(&self) -> &str { &self.field_str }
+    /// Local binidng of the import entry.
     pub fn external(&self) -> &External { &self.external }
 }
 

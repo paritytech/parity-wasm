@@ -4,7 +4,9 @@ use super::{
     CountedListWriter
 };
 
+/// Type definition in types section. Currently can be only of the function type.
 pub enum Type {
+    /// Function type.
     Function(FunctionType),
 }
 
@@ -26,11 +28,16 @@ impl Serialize for Type {
     }
 }
 
+/// Value type.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ValueType {
+    /// 32-bit signed integer
     I32,
+    /// 64-bit signed integer
     I64,
+    /// 32-bit float
     F32,
+    /// 64-bit float
     F64,
 }
 
@@ -65,9 +72,12 @@ impl Serialize for ValueType {
     }
 }
 
+/// Block type which is basically `ValueType` + NoResult (to define blocks that have no return type)
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum BlockType {
+    /// Value-type specified block type
     Value(ValueType),
+    /// No specified block type
     NoResult,
 }
 
@@ -104,6 +114,7 @@ impl Serialize for BlockType {
     }
 }
 
+/// Function signature type.
 pub struct FunctionType {
     form: u8,
     params: Vec<ValueType>,
@@ -111,8 +122,11 @@ pub struct FunctionType {
 }
 
 impl FunctionType {
+    /// Function form (currently only valid value is `0x60`)
     pub fn form(&self) -> u8 { self.form }
+    /// Parameters in the function signature.
     pub fn params(&self) -> &[ValueType] { &self.params }
+    /// Return type in the function signature, if any.
     pub fn return_type(&self) -> Option<ValueType> { self.return_type }
 }
 

@@ -2,6 +2,8 @@ use std::io;
 use byteorder::{LittleEndian, ByteOrder};
 use super::{Error, Deserialize, Serialize};
 
+/// Unsigned variable-length integer, limited to 32 bits, 
+/// represented by at most 5 bytes that may contain padding 0x80 bytes.
 #[derive(Copy, Clone)]
 pub struct VarUint32(u32);
 
@@ -68,6 +70,8 @@ impl Serialize for VarUint32 {
     }
 }
 
+/// Unsigned variable-length integer, limited to 64 bits, 
+/// represented by at most 9 bytes that may contain padding 0x80 bytes.
 #[derive(Copy, Clone)]
 pub struct VarUint64(u64);
 
@@ -121,6 +125,7 @@ impl From<u64> for VarUint64 {
     }
 }
 
+/// 7-bit unsigned integer, encoded in LEB128 (always 1 byte length)
 #[derive(Copy, Clone)]
 pub struct VarUint7(u8);
 
@@ -156,6 +161,7 @@ impl Serialize for VarUint7 {
     }
 }
 
+/// 7-bit signed integer, encoded in LEB128 (always 1 byte length)
 #[derive(Copy, Clone)]
 pub struct VarInt7(i8);
 
@@ -196,6 +202,7 @@ impl Serialize for VarInt7 {
     }
 }
 
+/// 32-bit unsigned integer, encoded in little endian
 #[derive(Copy, Clone)]
 pub struct Uint32(u32);
 
@@ -231,6 +238,7 @@ impl From<u32> for Uint32 {
     fn from(u: u32) -> Self { Uint32(u) }
 }
 
+/// 64-bit unsigned integer, encoded in little endian
 #[derive(Copy, Clone)]
 pub struct Uint64(u64);
 
@@ -267,6 +275,7 @@ impl From<Uint64> for u64 {
 }
 
 
+/// VarUint1, 1-bit value (0/1)
 #[derive(Copy, Clone)]
 pub struct VarUint1(bool);
 
@@ -330,9 +339,12 @@ impl Serialize for String {
     }
 }
 
+/// List for reading sequence of elements typed `T`, given
+/// they are preceded by length (serialized as VarUint32)
 pub struct CountedList<T: Deserialize>(Vec<T>);
 
 impl<T: Deserialize> CountedList<T> {
+    /// Destroy counted list returing inner vector.
     pub fn into_inner(self) -> Vec<T> { self.0 }
 }
 
@@ -347,12 +359,15 @@ impl<T: Deserialize> Deserialize for CountedList<T> where T::Error: From<Error> 
     }
 }
 
+/// Helper struct to write payload which is preceded by 
+/// it's own length in bytes.
 pub struct CountedWriter<'a, W: 'a + io::Write> {
     writer: &'a mut W,
     data: Vec<u8>,
 }
 
 impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
+    /// New counted writer on top of the given serial writer
     pub fn new(writer: &'a mut W) -> Self {
         CountedWriter {
             writer: writer,
@@ -360,6 +375,8 @@ impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
         }
     }
 
+    /// Finish counted writer routing, which writes accumulated length
+    /// and actual payload.
     pub fn done(self) -> io::Result<()> {
         let writer = self.writer;
         let data = self.data;
@@ -387,6 +404,8 @@ impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
     }    
 }
 
+/// Helper struct to write series of `T` preceded by the length of the sequence 
+/// serialized as VarUint32
 pub struct CountedListWriter<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>>(pub usize, pub T);
 
 impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize for CountedListWriter<I, T> {

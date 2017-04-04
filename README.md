@@ -17,3 +17,10 @@ let code_section = module.code_section().unwrap(); // Part of the module with fu
 
 println!("Function count in wasm file: {}", code_section.bodies().len());
 ```
+
+# License
+
+`parity-wasm` is primarily distributed under the terms of both the MIT
+license and the Apache License (Version 2.0), at your choice.
+
+See LICENSE-APACHE, and LICENSE-MIT for details.

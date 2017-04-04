@@ -2,6 +2,11 @@
 name = "parity-wasm"
 version = "0.2.0"
 authors = ["NikVolf <nikvolf@gmail.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/nikvolf/parity-wasm"
+homepage = "https://github.com/nikvolf/parity-wasm"
+documentation = "https://nikvolf.github.io/parity-wasm/parity_wasm/"
 
 [dependencies]
 byteorder = "1.0"

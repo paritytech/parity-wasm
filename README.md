@@ -1,6 +1,6 @@
 # parity-wasm
 
-## Pure Rust WebAssembly format serializing/deserializing
+## Rust WebAssembly format serializing/deserializing
 
 ```rust
 

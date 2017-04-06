@@ -1,5 +1,6 @@
-use super::invoke::{Invoke, Identity};
 use elements;
+use super::invoke::{Invoke, Identity};
+use super::misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder};
 
 pub enum Signature {
     TypeReference(u32),
@@ -19,19 +20,65 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
         }
     }
 
-    pub fn param(mut self, value_type: elements::ValueType) -> Self {
+    pub fn with_param(mut self, value_type: elements::ValueType) -> Self {
         self.signature.params_mut().push(value_type);
-
         self
     }
 
-    pub fn return_type(mut self, value_type: elements::ValueType) -> Self {
-        *self.signature.return_type_mut() = Some(value_type);                
+    pub fn with_params(mut self, value_types: Vec<elements::ValueType>) -> Self {
+        self.signature.params_mut().extend(value_types);
         self
+    }
+
+    pub fn with_return_type(mut self, return_type: Option<elements::ValueType>) -> Self {
+        *self.signature.return_type_mut() = return_type;
+        self
+    }
+
+    pub fn param(self) -> ValueTypeBuilder<Self> {
+        ValueTypeBuilder::with_callback(self)
+    }
+
+    pub fn params(self) -> ValueTypesBuilder<Self> {
+        ValueTypesBuilder::with_callback(self)
+    }
+
+    pub fn return_type(self) -> OptionalValueTypeBuilder<Self> {
+        OptionalValueTypeBuilder::with_callback(self)
     }
 
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.signature)
+    }
+}
+
+impl<F> Invoke<Vec<elements::ValueType>> for SignatureBuilder<F>
+    where F: Invoke<elements::FunctionType>
+{
+    type Result = Self;
+
+    fn invoke(self, args: Vec<elements::ValueType>) -> Self {
+        self.with_params(args)
+    }
+}
+
+impl<F> Invoke<Option<elements::ValueType>> for SignatureBuilder<F>
+    where F: Invoke<elements::FunctionType>
+{
+    type Result = Self;
+
+    fn invoke(self, arg: Option<elements::ValueType>) -> Self {
+        self.with_return_type(arg)
+    }
+}
+
+impl<F> Invoke<elements::ValueType> for SignatureBuilder<F> 
+    where F: Invoke<elements::FunctionType>  
+{
+    type Result = Self;
+
+    fn invoke(self, arg: elements::ValueType) -> Self {
+        self.with_param(arg)
     }
 }
 
@@ -150,9 +197,9 @@ mod tests {
 
         let result = function()
             .signature()
-                .param(::elements::ValueType::I32)
-                .param(::elements::ValueType::I32)
-                .return_type(::elements::ValueType::I64)
+                .param().i32()
+                .param().i32()
+                .return_type().i64()
                 .build()
             .bind();      
 

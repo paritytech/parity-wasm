@@ -14,7 +14,7 @@ fn main() {
 
     let module = builder::module()
         .functions()
-            .signature().param(elements::ValueType::I32).build()
+            .signature().with_param(elements::ValueType::I32).build()
             .bind()
         .build();
 

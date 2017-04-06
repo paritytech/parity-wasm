@@ -132,6 +132,14 @@ impl Default for FunctionType {
 }
 
 impl FunctionType {
+    /// New function type given the signature in-params(`params`) and return type (`return_type`)
+    pub fn new(params: Vec<ValueType>, return_type: Option<ValueType>) -> Self {
+        FunctionType {
+            params: params,
+            return_type: return_type,
+            ..Default::default()
+        }
+    }
     /// Function form (currently only valid value is `0x60`)
     pub fn form(&self) -> u8 { self.form }
     /// Parameters in the function signature.

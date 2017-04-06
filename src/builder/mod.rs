@@ -5,3 +5,4 @@ mod module;
 mod code;
 
 pub use self::module::{module, ModuleBuilder};
+pub use self::code::function;

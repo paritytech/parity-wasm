@@ -10,5 +10,7 @@ pub mod builder;
 pub use elements::{
     Error as SerializationError,
     deserialize_buffer, 
-    deserialize_file
+    deserialize_file,
+    serialize,
+    serialize_to_file,
 };

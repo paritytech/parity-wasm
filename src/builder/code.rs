@@ -8,55 +8,52 @@ pub enum Signature {
 
 pub struct SignatureBuilder<F=Identity> {
     callback: F,
-    signature: Signature,
+    signature: elements::FunctionType,
 }
 
-impl<F> SignatureBuilder<F> where F: Invoke<Signature> {
+impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
     pub fn with_callback(callback: F) -> Self {
         SignatureBuilder { 
             callback: callback, 
-            signature: Signature::TypeReference(0) 
+            signature: elements::FunctionType::default(),
         }
-    }
-
-    pub fn type_ref(mut self, val: u32) -> Self {
-        self.signature = Signature::TypeReference(val);
-        self
     }
 
     pub fn param(mut self, value_type: elements::ValueType) -> Self {
-        {
-            let signature = &mut self.signature;
-            if let Signature::TypeReference(_) = *signature { 
-                *signature = Signature::Inline(elements::FunctionType::default())
-            }
-
-            if let Signature::Inline(ref mut func_type) = *signature {
-                func_type.params_mut().push(value_type);
-            }
-        }
+        self.signature.params_mut().push(value_type);
 
         self
     }
 
     pub fn return_type(mut self, value_type: elements::ValueType) -> Self {
-        {
-            let signature = &mut self.signature;
-            if let Signature::TypeReference(_) = *signature { 
-                *signature = Signature::Inline(elements::FunctionType::default())
-            }
-
-            if let Signature::Inline(ref mut func_type) = *signature {
-                *func_type.return_type_mut() = Some(value_type);
-            }
-        }
-                
+        *self.signature.return_type_mut() = Some(value_type);                
         self
     }
 
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.signature)
     }
+}
+
+pub struct TypeRefBuilder<F=Identity> {
+    callback: F,
+    type_ref: u32,
+}
+
+impl<F> TypeRefBuilder<F> where F: Invoke<u32> {
+    pub fn with_callback(callback: F) -> Self {
+        TypeRefBuilder { 
+            callback: callback, 
+            type_ref: 0
+        }
+    }
+
+    pub fn val(mut self, val: u32) -> Self {
+        self.type_ref = val;
+        self
+    }
+
+    pub fn build(self) -> F::Result { self.callback.invoke(self.type_ref) }
 }
 
 pub struct FunctionsBuilder<F=Identity> {
@@ -84,16 +81,30 @@ impl<F> FunctionsBuilder<F> {
         self
     }
 
+    pub fn type_ref(self) -> TypeRefBuilder<Self> {
+        TypeRefBuilder::with_callback(self)
+    }    
+}
+
+impl<F> FunctionsBuilder<F> where F: Invoke<SignatureBindings> {
     pub fn signature(self) -> SignatureBuilder<Self> {
         SignatureBuilder::with_callback(self)
     }
 }
 
-impl<F> Invoke<Signature> for FunctionsBuilder<F> {
+impl<F> Invoke<elements::FunctionType> for FunctionsBuilder<F> {
 	type Result = Self;
 
-	fn invoke(self, signature: Signature) -> Self {
-		self.with_signature(signature)
+	fn invoke(self, signature: elements::FunctionType) -> Self {
+		self.with_signature(Signature::Inline(signature))
+    }    
+}
+
+impl<F> Invoke<u32> for FunctionsBuilder<F> {
+	type Result = Self;
+
+	fn invoke(self, type_ref: u32) -> Self {
+		self.with_signature(Signature::TypeReference(type_ref))
     }    
 }
 
@@ -119,21 +130,30 @@ impl<F> FunctionsBuilder<F> where F: Invoke<SignatureBindings> {
     }
 }
 
+/// New function builder.
+pub fn function() -> FunctionsBuilder {
+    FunctionsBuilder::new()
+}
+
 #[cfg(test)]
 mod tests {
 
-    use super::FunctionsBuilder;
+    use super::function;
 
     #[test]
     fn example() {
-        let result = FunctionsBuilder::new()
-            .signature().type_ref(1).build()
+        let result = function()
+            .type_ref().val(1).build()
             .build();
 
         assert_eq!(result.entries().len(), 1);
 
-        let result = FunctionsBuilder::new()
-            .signature().type_ref(1).build()
+        let result = function()
+            .signature()
+                .param(::elements::ValueType::I32)
+                .param(::elements::ValueType::I32)
+                .return_type(::elements::ValueType::I64)
+                .build()
             .bind();      
 
         assert_eq!(result.len(), 1);              

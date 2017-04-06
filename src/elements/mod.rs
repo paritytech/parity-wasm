@@ -16,7 +16,7 @@ mod segment;
 pub use self::module::Module;
 pub use self::section::{
     Section, FunctionsSection, CodeSection, MemorySection, DataSection,
-    ImportSection, ExportSection, GlobalSection,
+    ImportSection, ExportSection, GlobalSection, TypeSection,
 };
 pub use self::import_entry::{ImportEntry, MemoryType, TableType, GlobalType, External};
 pub use self::export_entry::{ExportEntry, Internal};
@@ -25,7 +25,7 @@ pub use self::primitives::{
     VarUint32, VarUint7, VarUint1, VarInt7, Uint32, 
     Uint64, VarUint64, CountedList, CountedWriter, CountedListWriter,
 };
-pub use self::types::{ValueType, BlockType, FunctionType};
+pub use self::types::{Type, ValueType, BlockType, FunctionType};
 pub use self::ops::{Opcode, Opcodes, InitExpr};
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
@@ -121,4 +121,11 @@ pub fn serialize<T: Serialize>(val: T) -> Result<Vec<u8>, T::Error> {
     let mut buf = Vec::new();
     val.serialize(&mut buf)?;
     Ok(buf)
+}
+
+/// Serialize module to the file
+pub fn serialize_to_file<P: AsRef<::std::path::Path>>(p: P, module: Module) -> Result<(), Error> 
+{ 
+    let mut io = ::std::fs::File::create(p)?;
+    module.serialize(&mut io)
 }

@@ -1,6 +1,6 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, Uint32};
-use super::section::{Section, CodeSection, TypeSection, ImportSection};
+use super::section::{Section, CodeSection, TypeSection, ImportSection, FunctionsSection};
 
 /// WebAssembly module
 pub struct Module {
@@ -9,14 +9,27 @@ pub struct Module {
     sections: Vec<Section>,
 }
 
+impl Default for Module {
+    fn default() -> Self {
+        Module {
+            magic: 0x6d736100,
+            version: 1,
+            sections: Vec::with_capacity(16),
+        }        
+    }
+}
+
 impl Module {
     /// New module with sections
     pub fn new(sections: Vec<Section>) -> Self {
         Module {
-            magic: 0x6d736100,
-            version: 1,
-            sections: sections,
+            sections: sections, ..Default::default()
         }
+    }
+
+    /// Destructure the module, yielding sections
+    pub fn into_sections(self) -> Vec<Section> {
+        self.sections
     }
 
     /// Version of module.
@@ -56,6 +69,14 @@ impl Module {
             if let &Section::Import(ref import_section) = section { return Some(import_section); }
         }
         None
+    }
+
+    /// Functions signatures section, if any.
+    pub fn functions_section(&self) -> Option<&FunctionsSection> {
+        for section in self.sections() {
+            if let &Section::Function(ref sect) = section { return Some(sect); }
+        }
+        None        
     }
 }
 

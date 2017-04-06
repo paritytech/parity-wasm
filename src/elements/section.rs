@@ -176,11 +176,19 @@ impl Serialize for Section {
     }
 }
 
+/// Section with type declarations
+#[derive(Default)]
 pub struct TypeSection(Vec<Type>);
 
 impl TypeSection {
+    /// List of type declarations
     pub fn types(&self) -> &[Type] {
         &self.0
+    }
+
+    /// List of type declarations (mutable)
+    pub fn types_mut(&mut self) -> &mut Vec<Type> { 
+        &mut self.0
     }
 }
 
@@ -215,6 +223,7 @@ impl Serialize for TypeSection {
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {
+    /// List of import entries.
     pub fn entries(&self) -> &[ImportEntry] {
         &self.0
     }
@@ -248,17 +257,21 @@ impl Serialize for ImportSection {
 }
 
 /// Section with function signatures definition.
+#[derive(Default)]
 pub struct FunctionsSection(Vec<Func>);
 
 impl FunctionsSection {
+    /// New functions section
     pub fn new() -> FunctionsSection {
         FunctionsSection(Vec::new())
     }
 
+    /// List of all functions in the section, mutable
     pub fn entries_mut(&mut self) -> &mut Vec<Func> { 
         &mut self.0
     }
 
+    /// List of all functions in the section
     pub fn entries(&self) -> &[Func] {
         &self.0
     }
@@ -335,6 +348,7 @@ impl Serialize for TableSection {
 pub struct MemorySection(Vec<MemoryType>);
 
 impl MemorySection {
+    /// List of all memory entries in the section
     pub fn entries(&self) -> &[MemoryType] {
         &self.0
     }
@@ -371,6 +385,7 @@ impl Serialize for MemorySection {
 pub struct GlobalSection(Vec<GlobalEntry>);
 
 impl GlobalSection {
+    /// List of all global entries in the section
     pub fn entries(&self) -> &[GlobalEntry] {
         &self.0
     }
@@ -407,6 +422,7 @@ impl Serialize for GlobalSection {
 pub struct ExportSection(Vec<ExportEntry>);
 
 impl ExportSection {
+    /// List of all export entries in the section
     pub fn entries(&self) -> &[ExportEntry] {
         &self.0
     }
@@ -443,10 +459,12 @@ impl Serialize for ExportSection {
 pub struct CodeSection(Vec<FuncBody>);
 
 impl CodeSection {
+    /// New code section
     pub fn new(bodies: Vec<FuncBody>) -> Self {
         CodeSection(bodies)
     }
 
+    /// All function bodies in the section
     pub fn bodies(&self) -> &[FuncBody] {
         &self.0
     }
@@ -483,10 +501,12 @@ impl Serialize for CodeSection {
 pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {
+    /// New elements section
     pub fn new(entries: Vec<ElementSegment>) -> Self {
         ElementSection(entries)
     }
 
+    /// New elements entries in the section
     pub fn entries(&self) -> &[ElementSegment] {
         &self.0
     }
@@ -523,10 +543,12 @@ impl Serialize for ElementSection {
 pub struct DataSection(Vec<DataSegment>);
 
 impl DataSection {
+    /// New data section
     pub fn new(segments: Vec<DataSegment>) -> Self {
         DataSection(segments)
     }
 
+    /// List of all data entries in the section
     pub fn entries(&self) -> &[DataSegment] {
         &self.0
     }

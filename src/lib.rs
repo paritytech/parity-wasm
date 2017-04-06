@@ -5,6 +5,7 @@
 extern crate byteorder;
 
 pub mod elements;
+pub mod builder;
 
 pub use elements::{
     Error as SerializationError,

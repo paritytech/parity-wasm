@@ -251,6 +251,14 @@ impl Serialize for ImportSection {
 pub struct FunctionsSection(Vec<Func>);
 
 impl FunctionsSection {
+    pub fn new() -> FunctionsSection {
+        FunctionsSection(Vec::new())
+    }
+
+    pub fn entries_mut(&mut self) -> &mut Vec<Func> { 
+        &mut self.0
+    }
+
     pub fn entries(&self) -> &[Func] {
         &self.0
     }

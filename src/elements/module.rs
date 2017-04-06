@@ -10,6 +10,15 @@ pub struct Module {
 }
 
 impl Module {
+    /// New module with sections
+    pub fn new(sections: Vec<Section>) -> Self {
+        Module {
+            magic: 0x6d736100,
+            version: 1,
+            sections: sections,
+        }
+    }
+
     /// Version of module.
     pub fn version(&self) -> u32 { self.version }
 

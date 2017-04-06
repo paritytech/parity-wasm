@@ -121,13 +121,27 @@ pub struct FunctionType {
     return_type: Option<ValueType>,
 }
 
+impl Default for FunctionType {
+    fn default() -> Self {
+        FunctionType {
+            form: 0x60,
+            params: Vec::new(),
+            return_type: None,
+        }
+    }
+}
+
 impl FunctionType {
     /// Function form (currently only valid value is `0x60`)
     pub fn form(&self) -> u8 { self.form }
     /// Parameters in the function signature.
     pub fn params(&self) -> &[ValueType] { &self.params }
+    /// Mutable parameters in the function signature.
+    pub fn params_mut(&mut self) -> &mut Vec<ValueType> { &mut self.params }
     /// Return type in the function signature, if any.
     pub fn return_type(&self) -> Option<ValueType> { self.return_type }
+    /// Mutable type in the function signature, if any.
+    pub fn return_type_mut(&mut self) -> &mut Option<ValueType> { &mut self.return_type }
 }
 
 impl Deserialize for FunctionType {

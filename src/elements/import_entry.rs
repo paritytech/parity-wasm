@@ -11,8 +11,17 @@ pub struct GlobalType {
 }
 
 impl GlobalType {
+    /// New global type
+    pub fn new(content_type: ValueType, is_mutable: bool) -> Self {
+        GlobalType {
+            content_type: content_type,
+            is_mutable: is_mutable,
+        }
+    }
+
     /// Type of the global entry
     pub fn content_type(&self) -> ValueType { self.content_type }
+
     /// Is global entry is declared as mutable
     pub fn is_mutable(&self) -> bool { self.is_mutable }
 }
@@ -47,6 +56,13 @@ pub struct TableType {
 }
 
 impl TableType {
+    /// New table definition
+    pub fn new(min: u32, max: Option<u32>) -> Self {
+        TableType {
+            elem_type: 0,
+            limits: ResizableLimits::new(min, max),
+        }
+    }
     /// Table memory specification
     pub fn limits(&self) -> &ResizableLimits { &self.limits }
 }
@@ -81,6 +97,13 @@ pub struct ResizableLimits {
 }
 
 impl ResizableLimits {
+    /// New memory limits definition
+    pub fn new(min: u32, max: Option<u32>) -> Self {
+        ResizableLimits {
+            initial: min,
+            maximum: max,
+        }
+    }
     /// Initial size
     pub fn initial(&self) -> u32 { self.initial }
     /// Maximum size
@@ -124,6 +147,10 @@ impl Serialize for ResizableLimits {
 pub struct MemoryType(ResizableLimits);
 
 impl MemoryType {
+    /// New memory definition
+    pub fn new(min: u32, max: Option<u32>) -> Self {
+        MemoryType(ResizableLimits::new(min, max))
+    }
     /// Limits of the memory entry.
     pub fn limits(&self) -> &ResizableLimits {
         &self.0

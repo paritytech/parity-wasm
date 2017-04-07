@@ -1,4 +1,4 @@
-//! Elemets of the WebAssembly binary format.
+//! Elements of the WebAssembly binary format.
 
 use std::io;
 

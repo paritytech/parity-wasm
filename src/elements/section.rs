@@ -457,6 +457,7 @@ impl Serialize for ExportSection {
 }
 
 /// Section with function bodies of the module.
+#[derive(Default)]
 pub struct CodeSection(Vec<FuncBody>);
 
 impl CodeSection {
@@ -465,9 +466,14 @@ impl CodeSection {
         CodeSection(bodies)
     }
 
-    /// All function bodies in the section
+    /// All function bodies in the section.
     pub fn bodies(&self) -> &[FuncBody] {
         &self.0
+    }
+
+    /// All function bodies in the section, mutable.
+    pub fn bodies_mut(&mut self) -> &mut Vec<FuncBody> {
+        &mut self.0
     }
 }
 

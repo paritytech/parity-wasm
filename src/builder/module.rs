@@ -8,11 +8,20 @@ pub struct ModuleBuilder<F=Identity> {
     module: ModuleScaffold,
 }
 
+/// Location of the internal module function
+pub struct CodeLocation {
+    /// Location (index in 'functions' section) of the signature
+    pub signature: u32,
+    /// Location (index in the 'code' section) of the body
+    pub body: u32,
+}
+
 #[derive(Default)]
 struct ModuleScaffold {
     pub functions: elements::FunctionsSection,
     pub types: elements::TypeSection,
     pub import: elements::ImportSection,
+    pub code: elements::CodeSection,
     pub other: Vec<elements::Section>,
 }
 
@@ -21,6 +30,7 @@ impl From<elements::Module> for ModuleScaffold {
         let mut funcs: Option<elements::FunctionsSection> = None;
         let mut types: Option<elements::TypeSection> = None;
         let mut import: Option<elements::ImportSection> = None;
+        let mut code: Option<elements::CodeSection> = None;
 
         let mut sections = module.into_sections();
         while let Some(section) = sections.pop() {
@@ -28,6 +38,7 @@ impl From<elements::Module> for ModuleScaffold {
                 elements::Section::Type(sect) => { types = Some(sect); }
                 elements::Section::Function(sect) => { funcs = Some(sect); }
                 elements::Section::Import(sect) => { import = Some(sect); }
+                elements::Section::Code(sect) => { code = Some(sect); }
                 _ => {}
             }
         }
@@ -36,6 +47,7 @@ impl From<elements::Module> for ModuleScaffold {
             functions: funcs.unwrap_or_default(),
             types: types.unwrap_or_default(),
             import: import.unwrap_or_default(),
+            code: code.unwrap_or_default(),
             other: sections,
         }
     }
@@ -96,6 +108,35 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     pub fn with_signatures(mut self, bindings: code::SignatureBindings) -> Self {
         self.push_signatures(bindings);
         self
+    }
+
+    /// Push stand-alone function definition, creating sections, signature and code blocks
+    /// in corresponding sections.
+    /// `FunctionDefinition` can be build using `builder::function` builder
+    pub fn push_function(&mut self, func: code::FunctionDefinition) -> CodeLocation {
+        let signature = func.signature;
+        let body = func.code;
+        let module = &mut self.module;
+
+        let type_ref = match signature {
+            code::Signature::Inline(func_type) => {
+                module.types.types_mut().push(elements::Type::Function(func_type));
+                module.types.types().len() as u32 - 1
+            }
+            code::Signature::TypeReference(type_ref) => {
+                type_ref
+            }
+        };
+
+        module.functions.entries_mut().push(elements::Func::new(type_ref));
+        let signature_index = module.functions.entries_mut().len() as u32 - 1;
+        module.code.bodies_mut().push(body);
+        let body_index = module.code.bodies_mut().len() as u32 - 1;
+
+        CodeLocation {
+            signature: signature_index,
+            body: body_index,
+        }
     }
 
     /// Push signatures in the module, returning corresponding indices of pushed signatures

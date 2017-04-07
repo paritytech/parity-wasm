@@ -90,4 +90,3 @@ impl<F> ValueTypesBuilder<F> where F: Invoke<Vec<elements::ValueType>> {
         self.callback.invoke(self.value_types)
     }
 }
-

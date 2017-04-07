@@ -103,21 +103,21 @@ impl<F> TypeRefBuilder<F> where F: Invoke<u32> {
     pub fn build(self) -> F::Result { self.callback.invoke(self.type_ref) }
 }
 
-pub struct FunctionsBuilder<F=Identity> {
+pub struct SignaturesBuilder<F=Identity> {
     callback: F,
     section: Vec<Signature>,
 }
 
-impl FunctionsBuilder {
+impl SignaturesBuilder {
     /// New empty functions section builder
     pub fn new() -> Self {
-        FunctionsBuilder::with_callback(Identity)
+        SignaturesBuilder::with_callback(Identity)
     }
 }
 
-impl<F> FunctionsBuilder<F> {
+impl<F> SignaturesBuilder<F> {
     pub fn with_callback(callback: F) -> Self {
-        FunctionsBuilder {
+        SignaturesBuilder {
             callback: callback,
             section: Vec::new(),
         }
@@ -133,13 +133,13 @@ impl<F> FunctionsBuilder<F> {
     }    
 }
 
-impl<F> FunctionsBuilder<F> where F: Invoke<SignatureBindings> {
+impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
     pub fn signature(self) -> SignatureBuilder<Self> {
         SignatureBuilder::with_callback(self)
     }
 }
 
-impl<F> Invoke<elements::FunctionType> for FunctionsBuilder<F> {
+impl<F> Invoke<elements::FunctionType> for SignaturesBuilder<F> {
 	type Result = Self;
 
 	fn invoke(self, signature: elements::FunctionType) -> Self {
@@ -147,7 +147,7 @@ impl<F> Invoke<elements::FunctionType> for FunctionsBuilder<F> {
     }    
 }
 
-impl<F> Invoke<u32> for FunctionsBuilder<F> {
+impl<F> Invoke<u32> for SignaturesBuilder<F> {
 	type Result = Self;
 
 	fn invoke(self, type_ref: u32) -> Self {
@@ -155,7 +155,7 @@ impl<F> Invoke<u32> for FunctionsBuilder<F> {
     }    
 }
 
-impl<F> FunctionsBuilder<F> where F: Invoke<elements::FunctionsSection> {
+impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionsSection> {
     pub fn build(self) -> F::Result {
         let mut result = elements::FunctionsSection::new();
         for f in self.section.into_iter() {
@@ -171,31 +171,31 @@ impl<F> FunctionsBuilder<F> where F: Invoke<elements::FunctionsSection> {
 
 pub type SignatureBindings = Vec<Signature>;
 
-impl<F> FunctionsBuilder<F> where F: Invoke<SignatureBindings> {
+impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
     pub fn bind(self) -> F::Result {
         self.callback.invoke(self.section)
     }
 }
 
 /// New function builder.
-pub fn function() -> FunctionsBuilder {
-    FunctionsBuilder::new()
+pub fn signatures() -> SignaturesBuilder {
+    SignaturesBuilder::new()
 }
 
 #[cfg(test)]
 mod tests {
 
-    use super::function;
+    use super::signatures;
 
     #[test]
     fn example() {
-        let result = function()
+        let result = signatures()
             .type_ref().val(1).build()
             .build();
 
         assert_eq!(result.entries().len(), 1);
 
-        let result = function()
+        let result = signatures()
             .signature()
                 .param().i32()
                 .param().i32()

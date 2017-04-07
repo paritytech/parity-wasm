@@ -6,4 +6,4 @@ mod code;
 mod misc;
 
 pub use self::module::{module, ModuleBuilder};
-pub use self::code::function;
+pub use self::code::signatures;

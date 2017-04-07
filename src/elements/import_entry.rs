@@ -210,12 +210,36 @@ pub struct ImportEntry {
 }
 
 impl ImportEntry {
+    /// New import entry.
+    pub fn new(module_str: String, field_str: String, external: External) -> Self {
+        ImportEntry {
+            module_str: module_str,
+            field_str: field_str,
+            external: external,
+        }
+    }
+
     /// Module reference of the import entry.
     pub fn module(&self) -> &str { &self.module_str }
+
+    /// Module reference of the import entry (mutable).
+    pub fn module_mut(&mut self) -> &mut str {
+        &mut self.module_str
+    }
+
     /// Field reference of the import entry.
     pub fn field(&self) -> &str { &self.field_str }
+
+    /// Field reference of the import entry (mutable)
+    pub fn field_mut(&mut self) -> &mut str {
+        &mut self.field_str
+    }
+
     /// Local binidng of the import entry.
     pub fn external(&self) -> &External { &self.external }
+
+    /// Local binidng of the import entry (mutable)
+    pub fn external_mut(&mut self) -> &External { &mut self.external }    
 }
 
 impl Deserialize for ImportEntry {

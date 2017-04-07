@@ -1,5 +1,5 @@
 use super::invoke::{Invoke, Identity};
-use super::code::{self, FunctionsBuilder};
+use super::code::{self, SignaturesBuilder};
 use elements;
 
 /// Module builder
@@ -86,34 +86,39 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 
     /// Binds to the type section, creates additional types when required
     pub fn with_signatures(mut self, bindings: code::SignatureBindings) -> Self {
-        // todo bind to type section
-
-        {
-            let module = &mut self.module;
-
-            let raw_functions: Vec<u32> = bindings.into_iter().map(|binding|
-                match binding {
-                    code::Signature::Inline(func_type) => {
-                        module.types.types_mut().push(elements::Type::Function(func_type));
-                        module.types.types().len() as u32 - 1
-                    }
-                    code::Signature::TypeReference(type_ref) => {
-                        type_ref
-                    }
-                }
-            ).collect();
-
-            for function in raw_functions {
-                module.functions.entries_mut().push(elements::Func::new(function));
-            }
-        }
-
+        self.push_signatures(bindings);
         self
     }
 
+    /// Push signatures in the module, returning corresponding indices of pushed signatures
+    pub fn push_signatures(&mut self, signatures: code::SignatureBindings) -> Vec<u32> {
+        let module = &mut self.module;
+        let mut result = Vec::new();
+
+        // todo: maybe reuse existing types with the equal signatures
+        let raw_functions: Vec<u32> = signatures.into_iter().map(|binding|
+            match binding {
+                code::Signature::Inline(func_type) => {
+                    module.types.types_mut().push(elements::Type::Function(func_type));
+                    module.types.types().len() as u32 - 1
+                }
+                code::Signature::TypeReference(type_ref) => {
+                    type_ref
+                }
+            }
+        ).collect();
+
+        for function in raw_functions {
+            module.functions.entries_mut().push(elements::Func::new(function));
+            result.push(module.functions.entries_mut().len() as u32 - 1);
+        }
+
+        result
+    }
+
     /// Define functions section
-    pub fn functions(self) -> FunctionsBuilder<Self> {
-        FunctionsBuilder::with_callback(self)
+    pub fn functions(self) -> SignaturesBuilder<Self> {
+        SignaturesBuilder::with_callback(self)
     }
 
     /// Build module (final step)

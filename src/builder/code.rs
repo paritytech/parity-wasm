@@ -177,6 +177,39 @@ impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
     }
 }
 
+pub struct FuncBodyBuilder<F=Identity> {
+    callback: F,
+    locals: Vec<elements::Local>,
+    opcodes: elements::Opcodes,
+}
+
+impl<F> FuncBodyBuilder<F> {
+    pub fn with_callback(callback: F) -> Self {
+        FuncBodyBuilder {
+            callback: callback,
+            locals: Vec::new(),
+            opcodes: elements::Opcodes::empty(),
+        }
+    }
+}
+
+impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
+
+    pub fn with_locals(mut self, locals: Vec<elements::Local>) -> Self {
+        self.locals.extend(locals);
+        self
+    }
+
+    pub fn with_opcodes(mut self, opcodes: elements::Opcodes) -> Self {
+        self.opcodes = opcodes;
+        self
+    }
+
+    pub fn build(self) -> F::Result {
+        self.callback.invoke(elements::FuncBody::new(self.locals, self.opcodes))
+    }
+}
+
 pub struct FunctionDefinition {
     pub signature: Signature,
     pub code: elements::FuncBody,
@@ -193,7 +226,7 @@ impl Default for FunctionDefinition {
 
 pub struct FunctionBuilder<F=Identity> {
     callback: F,
-    code: FunctionDefinition,
+    func: FunctionDefinition,
 }
 
 impl FunctionBuilder {
@@ -206,20 +239,72 @@ impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
     pub fn with_callback(callback: F) -> Self {
         FunctionBuilder {
             callback: callback,
-            code: Default::default(),
+            func: Default::default(),
         }
+    }
+
+    pub fn signature(self) -> SignatureBuilder<Self> {
+        SignatureBuilder::with_callback(self)
+    }
+
+    pub fn with_signature(mut self, signature: Signature) -> Self {
+        self.func.signature = signature;
+        self
+    }
+
+    pub fn body(self) -> FuncBodyBuilder<Self> {
+        FuncBodyBuilder::with_callback(self)
+    }
+
+    pub fn with_body(mut self, body: elements::FuncBody) -> Self {
+        self.func.code = body;
+        self
+    }
+
+    pub fn build(self) -> F::Result {
+        self.callback.invoke(self.func)
     }
 }
 
-/// New function builder.
+impl<F> Invoke<elements::FunctionType> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+	type Result = Self;
+
+	fn invoke(self, signature: elements::FunctionType) -> Self {
+		self.with_signature(Signature::Inline(signature))
+    }    
+}
+
+impl<F> Invoke<u32> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+	type Result = Self;
+
+	fn invoke(self, type_ref: u32) -> Self {
+		self.with_signature(Signature::TypeReference(type_ref))
+    }    
+}
+
+impl<F> Invoke<elements::FuncBody> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+    type Result = Self;
+
+    fn invoke(self, body: elements::FuncBody) -> Self::Result {
+        self.with_body(body)
+    }
+}
+
+/// New builder of signature list
 pub fn signatures() -> SignaturesBuilder {
     SignaturesBuilder::new()
+}
+
+/// New builder of function (signature & body)
+pub fn function() -> FunctionBuilder {
+    FunctionBuilder::new()
 }
 
 #[cfg(test)]
 mod tests {
 
-    use super::signatures;
+    use super::{signatures, function};
+    use elements;
 
     #[test]
     fn example() {
@@ -238,5 +323,21 @@ mod tests {
             .bind();      
 
         assert_eq!(result.len(), 1);              
+    }
+
+    #[test]
+    fn func_example() {
+        let func = function()
+            .signature()
+                .param().i32()
+                .return_type().i32()
+                .build()
+            .body()
+                .with_opcodes(elements::Opcodes::empty())
+                .build()
+            .build();
+
+        assert_eq!(func.code.locals().len(), 0);
+        assert_eq!(func.code.code().elements().len(), 1);
     }
 }

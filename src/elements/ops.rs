@@ -15,6 +15,11 @@ impl Opcodes {
         Opcodes(elements)
     }
 
+    /// Empty expression with only `Opcode::End` opcode
+    pub fn empty() -> Self {
+        Opcodes(vec![Opcode::End])
+    }    
+
     /// List of individual opcodes
     pub fn elements(&self) -> &[Opcode] { &self.0 }
 }

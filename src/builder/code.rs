@@ -177,6 +177,40 @@ impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
     }
 }
 
+pub struct FunctionDefinition {
+    pub signature: Signature,
+    pub code: elements::FuncBody,
+}
+
+impl Default for FunctionDefinition {
+    fn default() -> Self {
+        FunctionDefinition {
+            signature: Signature::TypeReference(0),
+            code: elements::FuncBody::empty(),
+        }
+    }
+}
+
+pub struct FunctionBuilder<F=Identity> {
+    callback: F,
+    code: FunctionDefinition,
+}
+
+impl FunctionBuilder {
+    pub fn new() -> Self {
+        FunctionBuilder::with_callback(Identity)
+    }
+}
+
+impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+    pub fn with_callback(callback: F) -> Self {
+        FunctionBuilder {
+            callback: callback,
+            code: Default::default(),
+        }
+    }
+}
+
 /// New function builder.
 pub fn signatures() -> SignaturesBuilder {
     SignaturesBuilder::new()

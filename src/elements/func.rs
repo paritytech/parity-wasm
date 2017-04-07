@@ -68,6 +68,11 @@ impl FuncBody {
         FuncBody { locals: locals, opcodes: opcodes }
     }
 
+    /// List of individual opcodes
+    pub fn empty() -> Self {
+        FuncBody { locals: Vec::new(), opcodes: Opcodes::empty() }        
+    }
+
     /// Locals declared in function body.
     pub fn locals(&self) -> &[Local] { &self.locals }
 

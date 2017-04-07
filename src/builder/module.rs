@@ -12,6 +12,7 @@ pub struct ModuleBuilder<F=Identity> {
 struct ModuleScaffold {
     pub functions: elements::FunctionsSection,
     pub types: elements::TypeSection,
+    pub import: elements::ImportSection,
     pub other: Vec<elements::Section>,
 }
 
@@ -19,12 +20,14 @@ impl From<elements::Module> for ModuleScaffold {
     fn from(module: elements::Module) -> Self {
         let mut funcs: Option<elements::FunctionsSection> = None;
         let mut types: Option<elements::TypeSection> = None;
+        let mut import: Option<elements::ImportSection> = None;
 
         let mut sections = module.into_sections();
         while let Some(section) = sections.pop() {
             match section {
                 elements::Section::Type(sect) => { types = Some(sect); }
                 elements::Section::Function(sect) => { funcs = Some(sect); }
+                elements::Section::Import(sect) => { import = Some(sect); }
                 _ => {}
             }
         }
@@ -32,6 +35,7 @@ impl From<elements::Module> for ModuleScaffold {
         ModuleScaffold {
             functions: funcs.unwrap_or_default(),
             types: types.unwrap_or_default(),
+            import: import.unwrap_or_default(),
             other: sections,
         }
     }
@@ -49,6 +53,10 @@ impl From<ModuleScaffold> for elements::Module {
         if functions.entries().len() > 0 {
             sections.push(elements::Section::Function(functions));
         }        
+        let import = module.import;
+        if import.entries().len() > 0 {
+            sections.push(elements::Section::Import(import));
+        }                
         sections.extend(module.other);
         elements::Module::new(sections)
     }

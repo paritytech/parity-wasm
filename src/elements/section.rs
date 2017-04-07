@@ -220,6 +220,7 @@ impl Serialize for TypeSection {
 }
 
 /// Section of the imports definition.
+#[derive(Default)]
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {

@@ -196,7 +196,7 @@ impl Serialize for VarInt7 {
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         // todo check range?
         let mut b: u8 = self.0 as u8;
-        if self.0 < 0 { b |= 0b0100_0000 }
+        if self.0 < 0 { b |= 0b0100_0000; b &= 0b0111_1111; }
         writer.write_all(&[b])?;
         Ok(())
     }

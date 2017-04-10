@@ -6,6 +6,6 @@ mod code;
 mod misc;
 mod import;
 
-pub use self::module::{module, ModuleBuilder};
+pub use self::module::{module, from_module, ModuleBuilder};
 pub use self::code::{signatures, function};
 pub use self::import::import;

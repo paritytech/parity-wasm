@@ -10,18 +10,21 @@ use super::{
 pub struct Opcodes(Vec<Opcode>);
 
 impl Opcodes {
-    /// New list of opcodes from vector of opcodes
+    /// New list of opcodes from vector of opcodes.
     pub fn new(elements: Vec<Opcode>) -> Self {
         Opcodes(elements)
     }
 
-    /// Empty expression with only `Opcode::End` opcode
+    /// Empty expression with only `Opcode::End` opcode.
     pub fn empty() -> Self {
         Opcodes(vec![Opcode::End])
     }    
 
-    /// List of individual opcodes
+    /// List of individual opcodes.
     pub fn elements(&self) -> &[Opcode] { &self.0 }
+
+    /// Individual opcodes, mutable.
+    pub fn elements_mut(&mut self) -> &mut Vec<Opcode> { &mut self.0 }
 }
 
 impl Deserialize for Opcodes {

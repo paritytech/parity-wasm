@@ -79,6 +79,12 @@ impl FuncBody {
     /// Opcode sequence of the function body. Minimal opcode sequence
     /// is just `&[Opcode::End]`
     pub fn code(&self) -> &Opcodes { &self.opcodes }
+
+    /// Locals declared in function body (mutable).
+    pub fn locals_mut(&mut self) -> &mut Vec<Local> { &mut self.locals }
+
+    /// Opcode sequence of the function body (mutable).
+    pub fn code_mut(&mut self) -> &mut Opcodes { &mut self.opcodes }
 }
 
 impl Deserialize for FuncBody {

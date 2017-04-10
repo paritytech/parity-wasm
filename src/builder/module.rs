@@ -1,5 +1,6 @@
 use super::invoke::{Invoke, Identity};
 use super::code::{self, SignaturesBuilder};
+use super::import;
 use elements;
 
 /// Module builder
@@ -90,6 +91,12 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         }
     }
 
+    /// Builder from raw module
+    pub fn with_module(mut self, module: elements::Module) -> Self {
+        self.module = module.into();
+        self
+    }
+
     /// Fill module with sections from iterator
     pub fn with_sections<I>(mut self, sections: I) -> Self 
         where I: IntoIterator<Item=elements::Section>
@@ -170,6 +177,17 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         SignaturesBuilder::with_callback(self)
     }
 
+    /// With inserted import entry
+    pub fn with_import(mut self, entry: elements::ImportEntry) -> Self {
+        self.module.import.entries_mut().push(entry);
+        self
+    }
+
+    /// Import entry builder
+    pub fn import(self) -> import::ImportBuilder<Self> {
+        import::ImportBuilder::with_callback(self)
+    }
+
     /// Build module (final step)
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.module.into())
@@ -196,9 +214,24 @@ impl<F> Invoke<code::SignatureBindings> for ModuleBuilder<F>
     }
 }
 
+impl<F> Invoke<elements::ImportEntry> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, entry: elements::ImportEntry) -> Self::Result {
+        self.with_import(entry)
+    }
+}
+
 /// Start new module builder
 pub fn module() -> ModuleBuilder {
     ModuleBuilder::new()
+}
+
+/// Start builder to extend existing module
+pub fn from_module(module: elements::Module) -> ModuleBuilder {
+    ModuleBuilder::new().with_module(module)
 }
 
 #[cfg(test)]

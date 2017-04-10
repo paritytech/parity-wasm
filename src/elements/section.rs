@@ -228,6 +228,11 @@ impl ImportSection {
     pub fn entries(&self) -> &[ImportEntry] {
         &self.0
     }
+
+    /// List of import entries (mutable).
+    pub fn entries_mut(&mut self) -> &mut Vec<ImportEntry> {
+        &mut self.0
+    }    
 }
 
 impl Deserialize for ImportSection {
@@ -903,9 +908,9 @@ mod tests {
               9,             //   function #1 total code size
               1,             //   1 local variable declaration
               1,             //      amount of variables
-              0xff,          //      type of variable (-0x01), negative
+              0x7f,          //      type of variable (7-bit, -0x01), negative
               0x02,          //   block
-                0xff,        //      block return type (-0x01), negative
+                0x7f,        //      block return type (7-bit, -0x01), negative
                 0x23, 0x00,  //      get_global(0)
                 0x0b,        //   block end
             0x0b,            // function end

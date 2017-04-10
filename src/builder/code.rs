@@ -179,34 +179,37 @@ impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
 
 pub struct FuncBodyBuilder<F=Identity> {
     callback: F,
-    locals: Vec<elements::Local>,
-    opcodes: elements::Opcodes,
+    body: elements::FuncBody,
 }
 
 impl<F> FuncBodyBuilder<F> {
     pub fn with_callback(callback: F) -> Self {
         FuncBodyBuilder {
             callback: callback,
-            locals: Vec::new(),
-            opcodes: elements::Opcodes::empty(),
+            body: elements::FuncBody::new(Vec::new(), elements::Opcodes::empty()),
         }
     }
 }
 
 impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
 
+    pub fn with_func(mut self, func: elements::FuncBody) -> Self {
+        self.body = func;
+        self
+    }
+
     pub fn with_locals(mut self, locals: Vec<elements::Local>) -> Self {
-        self.locals.extend(locals);
+        self.body.locals_mut().extend(locals);
         self
     }
 
     pub fn with_opcodes(mut self, opcodes: elements::Opcodes) -> Self {
-        self.opcodes = opcodes;
+        *self.body.code_mut() = opcodes;
         self
     }
 
     pub fn build(self) -> F::Result {
-        self.callback.invoke(elements::FuncBody::new(self.locals, self.opcodes))
+        self.callback.invoke(self.body)
     }
 }
 

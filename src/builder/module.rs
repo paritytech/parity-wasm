@@ -123,22 +123,13 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     pub fn push_function(&mut self, func: code::FunctionDefinition) -> CodeLocation {
         let signature = func.signature;
         let body = func.code;
-        let module = &mut self.module;
 
-        let type_ref = match signature {
-            code::Signature::Inline(func_type) => {
-                module.types.types_mut().push(elements::Type::Function(func_type));
-                module.types.types().len() as u32 - 1
-            }
-            code::Signature::TypeReference(type_ref) => {
-                type_ref
-            }
-        };
+        let type_ref = self.resolve_type_ref(signature);
 
-        module.functions.entries_mut().push(elements::Func::new(type_ref));
-        let signature_index = module.functions.entries_mut().len() as u32 - 1;
-        module.code.bodies_mut().push(body);
-        let body_index = module.code.bodies_mut().len() as u32 - 1;
+        self.module.functions.entries_mut().push(elements::Func::new(type_ref));
+        let signature_index = self.module.functions.entries_mut().len() as u32 - 1;
+        self.module.code.bodies_mut().push(body);
+        let body_index = self.module.code.bodies_mut().len() as u32 - 1;
 
         CodeLocation {
             signature: signature_index,
@@ -146,17 +137,36 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         }
     }
 
+    fn resolve_type_ref(&mut self, signature: code::Signature) -> u32 {
+        match signature {
+            code::Signature::Inline(func_type) => {
+                self.module.types.types_mut().push(elements::Type::Function(func_type));
+                self.module.types.types().len() as u32 - 1
+            }
+            code::Signature::TypeReference(type_ref) => {
+                type_ref
+            }
+        }
+    }
+
+    /// Push one function signature, returning it's calling index.
+    /// Can create corresponding type in type section.
+    pub fn push_signature(&mut self, signature: code::Signature) -> u32 {
+        let type_ref = self.resolve_type_ref(signature);
+        self.module.functions.entries_mut().push(elements::Func::new(type_ref));
+        self.module.functions.entries_mut().len() as u32 - 1
+    }
+
     /// Push signatures in the module, returning corresponding indices of pushed signatures
     pub fn push_signatures(&mut self, signatures: code::SignatureBindings) -> Vec<u32> {
-        let module = &mut self.module;
         let mut result = Vec::new();
 
         // todo: maybe reuse existing types with the equal signatures
         let raw_functions: Vec<u32> = signatures.into_iter().map(|binding|
             match binding {
                 code::Signature::Inline(func_type) => {
-                    module.types.types_mut().push(elements::Type::Function(func_type));
-                    module.types.types().len() as u32 - 1
+                    self.module.types.types_mut().push(elements::Type::Function(func_type));
+                    self.module.types.types().len() as u32 - 1
                 }
                 code::Signature::TypeReference(type_ref) => {
                     type_ref
@@ -165,8 +175,8 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         ).collect();
 
         for function in raw_functions {
-            module.functions.entries_mut().push(elements::Func::new(function));
-            result.push(module.functions.entries_mut().len() as u32 - 1);
+            self.module.functions.entries_mut().push(elements::Func::new(function));
+            result.push(self.module.functions.entries_mut().len() as u32 - 1);
         }
 
         result

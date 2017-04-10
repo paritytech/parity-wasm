@@ -12,6 +12,12 @@ pub struct SignatureBuilder<F=Identity> {
     signature: elements::FunctionType,
 }
 
+impl SignatureBuilder {
+    pub fn new() -> Self {
+        SignatureBuilder::with_callback(Identity)
+    }
+}
+
 impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
     pub fn with_callback(callback: F) -> Self {
         SignatureBuilder { 
@@ -49,6 +55,10 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.signature)
+    }
+
+    pub fn build_sig(self) -> Signature {
+        Signature::Inline(self.signature)
     }
 }
 
@@ -296,6 +306,11 @@ impl<F> Invoke<elements::FuncBody> for FunctionBuilder<F> where F: Invoke<Functi
 /// New builder of signature list
 pub fn signatures() -> SignaturesBuilder {
     SignaturesBuilder::new()
+}
+
+/// New signature builder
+pub fn signature() -> SignatureBuilder {
+    SignatureBuilder::new()
 }
 
 /// New builder of function (signature & body)

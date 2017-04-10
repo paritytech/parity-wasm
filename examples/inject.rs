@@ -3,6 +3,7 @@ extern crate parity_wasm;
 use std::env;
 
 use parity_wasm::elements;
+use parity_wasm::builder;
 
 pub fn inject_nop(opcodes: &mut elements::Opcodes) {
     use parity_wasm::elements::Opcode::*;
@@ -38,5 +39,19 @@ fn main() {
         }
     }
 
-    parity_wasm::serialize_to_file(&args[2], module).unwrap();
+    let mut build = builder::from_module(module);
+    let import_sig = build.push_signature(
+        builder::signature()
+            .param().i32()
+            .param().i32()
+            .return_type().i32()
+            .build_sig()
+    );
+    let build = build.import()
+        .module("env")
+        .field("log")
+        .external().func(import_sig)
+        .build();
+
+    parity_wasm::serialize_to_file(&args[2], build.build()).unwrap();
 }

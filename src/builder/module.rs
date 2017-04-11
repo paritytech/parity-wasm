@@ -144,6 +144,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     fn resolve_type_ref(&mut self, signature: code::Signature) -> u32 {
         match signature {
             code::Signature::Inline(func_type) => {
+                // todo: maybe search for existing type
                 self.module.types.types_mut().push(elements::Type::Function(func_type));
                 self.module.types.types().len() as u32 - 1
             }
@@ -161,27 +162,9 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 
     /// Push signatures in the module, returning corresponding indices of pushed signatures
     pub fn push_signatures(&mut self, signatures: code::SignatureBindings) -> Vec<u32> {
-        let mut result = Vec::new();
-
-        // todo: maybe reuse existing types with the equal signatures
-        let raw_functions: Vec<u32> = signatures.into_iter().map(|binding|
-            match binding {
-                code::Signature::Inline(func_type) => {
-                    self.module.types.types_mut().push(elements::Type::Function(func_type));
-                    self.module.types.types().len() as u32 - 1
-                }
-                code::Signature::TypeReference(type_ref) => {
-                    type_ref
-                }
-            }
-        ).collect();
-
-        for function in raw_functions {
-            self.module.functions.entries_mut().push(elements::Func::new(function));
-            result.push(self.module.functions.entries_mut().len() as u32 - 1);
-        }
-
-        result
+        signatures.into_iter().map(|binding|
+            self.resolve_type_ref(binding)
+        ).collect()
     }
 
     pub fn function(self) -> FunctionBuilder<Self> {

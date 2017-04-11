@@ -13,9 +13,10 @@ fn main() {
     }
 
     let module = builder::module()
-        .functions()
+        .function()
             .signature().with_param(elements::ValueType::I32).build()
-            .bind()
+            .body().build()
+            .build()
         .build();
 
     parity_wasm::serialize_to_file(&args[1], module).unwrap();

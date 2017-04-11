@@ -1,5 +1,5 @@
 use super::invoke::{Invoke, Identity};
-use super::code::{self, SignaturesBuilder};
+use super::code::{self, SignaturesBuilder, FunctionBuilder};
 use super::import;
 use elements;
 
@@ -70,6 +70,10 @@ impl From<ModuleScaffold> for elements::Module {
         if functions.entries().len() > 0 {
             sections.push(elements::Section::Function(functions));
         }        
+        let code = module.code;
+        if code.bodies().len() > 0 {
+            sections.push(elements::Section::Code(code));
+        }
         sections.extend(module.other);
         elements::Module::new(sections)
     }
@@ -182,6 +186,10 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         result
     }
 
+    pub fn function(self) -> FunctionBuilder<Self> {
+        FunctionBuilder::with_callback(self)
+    }
+
     /// Define functions section
     pub fn functions(self) -> SignaturesBuilder<Self> {
         SignaturesBuilder::with_callback(self)
@@ -224,6 +232,19 @@ impl<F> Invoke<code::SignatureBindings> for ModuleBuilder<F>
     }
 }
 
+
+impl<F> Invoke<code::FunctionDefinition> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, def: code::FunctionDefinition) -> Self {
+        let mut b = self;
+        b.push_function(def);
+        b
+    }
+}
+
 impl<F> Invoke<elements::ImportEntry> for ModuleBuilder<F>
     where F: Invoke<elements::Module> 
 {
@@ -258,13 +279,15 @@ mod tests {
     #[test]
     fn functions() {
         let module = module()
-            .functions()
-                .signature().with_param(::elements::ValueType::I32).build()
-                .bind()
+            .function()
+                .signature().param().i32().build()
+                .body().build()
+                .build()
             .build();
 
         assert_eq!(module.type_section().expect("type section to exist").types().len(), 1);
         assert_eq!(module.functions_section().expect("function section to exist").entries().len(), 1);
+        assert_eq!(module.code_section().expect("code section to exist").bodies().len(), 1);
     }
 
 }

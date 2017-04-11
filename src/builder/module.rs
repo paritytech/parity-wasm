@@ -62,14 +62,14 @@ impl From<ModuleScaffold> for elements::Module {
         if types.types().len() > 0 {
             sections.push(elements::Section::Type(types));
         }
-        let functions = module.functions;
-        if functions.entries().len() > 0 {
-            sections.push(elements::Section::Function(functions));
-        }        
         let import = module.import;
         if import.entries().len() > 0 {
             sections.push(elements::Section::Import(import));
         }                
+        let functions = module.functions;
+        if functions.entries().len() > 0 {
+            sections.push(elements::Section::Function(functions));
+        }        
         sections.extend(module.other);
         elements::Module::new(sections)
     }

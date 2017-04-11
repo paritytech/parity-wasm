@@ -156,9 +156,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     /// Push one function signature, returning it's calling index.
     /// Can create corresponding type in type section.
     pub fn push_signature(&mut self, signature: code::Signature) -> u32 {
-        let type_ref = self.resolve_type_ref(signature);
-        self.module.functions.entries_mut().push(elements::Func::new(type_ref));
-        self.module.functions.entries_mut().len() as u32 - 1
+        self.resolve_type_ref(signature)
     }
 
     /// Push signatures in the module, returning corresponding indices of pushed signatures

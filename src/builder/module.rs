@@ -167,6 +167,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         ).collect()
     }
 
+    /// Add new function using dedicated builder
     pub fn function(self) -> FunctionBuilder<Self> {
         FunctionBuilder::with_callback(self)
     }

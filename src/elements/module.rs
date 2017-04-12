@@ -1,6 +1,9 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, Uint32};
-use super::section::{Section, CodeSection, TypeSection, ImportSection, FunctionsSection};
+use super::section::{
+    Section, CodeSection, TypeSection, ImportSection, FunctionsSection,
+    GlobalSection, TableSection, ElementSection, DataSection, MemorySection,
+};
 
 /// WebAssembly module
 pub struct Module {
@@ -67,6 +70,46 @@ impl Module {
     pub fn import_section(&self) -> Option<&ImportSection> {
         for section in self.sections() {
             if let &Section::Import(ref import_section) = section { return Some(import_section); }
+        }
+        None
+    }
+
+    /// Globals section, if any.
+    pub fn global_section(&self) -> Option<&GlobalSection> {
+        for section in self.sections() {
+            if let &Section::Global(ref section) = section { return Some(section); }
+        }
+        None        
+    }
+
+    /// Table section, if any.
+    pub fn table_section(&self) -> Option<&TableSection> {
+        for section in self.sections() {
+            if let &Section::Table(ref section) = section { return Some(section); }
+        }
+        None
+    }
+
+    /// Data section, if any.
+    pub fn data_section(&self) -> Option<&DataSection> {
+        for section in self.sections() {
+            if let &Section::Data(ref section) = section { return Some(section); }
+        }
+        None
+    }
+
+    /// Element section, if any.
+    pub fn elements_section(&self) -> Option<&ElementSection> {
+        for section in self.sections() {
+            if let &Section::Element(ref section) = section { return Some(section); }
+        }
+        None
+    }
+
+    /// Memory section, if any.
+    pub fn memory_section(&self) -> Option<&MemorySection> {
+        for section in self.sections() {
+            if let &Section::Memory(ref section) = section { return Some(section); }
         }
         None
     }

@@ -19,36 +19,64 @@ pub struct CodeLocation {
 
 #[derive(Default)]
 struct ModuleScaffold {
-    pub functions: elements::FunctionsSection,
     pub types: elements::TypeSection,
     pub import: elements::ImportSection,
+    pub functions: elements::FunctionsSection,
+    pub table: elements::TableSection,
+    pub memory: elements::MemorySection,
+    pub global: elements::GlobalSection,
+    pub export: elements::ExportSection,
+    pub start: Option<u32>,
+    pub element: elements::ElementSection,
     pub code: elements::CodeSection,
+    pub data: elements::DataSection,
     pub other: Vec<elements::Section>,
 }
 
 impl From<elements::Module> for ModuleScaffold {
     fn from(module: elements::Module) -> Self {
-        let mut funcs: Option<elements::FunctionsSection> = None;
         let mut types: Option<elements::TypeSection> = None;
         let mut import: Option<elements::ImportSection> = None;
+        let mut funcs: Option<elements::FunctionsSection> = None;
+        let mut table: Option<elements::TableSection> = None;
+        let mut memory: Option<elements::MemorySection> = None;
+        let mut global: Option<elements::GlobalSection> = None;
+        let mut export: Option<elements::ExportSection> = None;
+        let mut start: Option<u32> = None;
+        let mut element: Option<elements::ElementSection> = None;
         let mut code: Option<elements::CodeSection> = None;
+        let mut data: Option<elements::DataSection> = None;
 
         let mut sections = module.into_sections();
         while let Some(section) = sections.pop() {
             match section {
                 elements::Section::Type(sect) => { types = Some(sect); }
-                elements::Section::Function(sect) => { funcs = Some(sect); }
                 elements::Section::Import(sect) => { import = Some(sect); }
+                elements::Section::Function(sect) => { funcs = Some(sect); }
+                elements::Section::Table(sect) => { table = Some(sect); }
+                elements::Section::Memory(sect) => { memory = Some(sect); }
+                elements::Section::Global(sect) => { global = Some(sect); }
+                elements::Section::Export(sect) => { export = Some(sect); }
+                elements::Section::Start(index) => { start = Some(index); }
+                elements::Section::Element(sect) => { element = Some(sect); }
                 elements::Section::Code(sect) => { code = Some(sect); }
+                elements::Section::Data(sect) => { data = Some(sect); }
                 _ => {}
             }
         }
 
         ModuleScaffold {
-            functions: funcs.unwrap_or_default(),
             types: types.unwrap_or_default(),
             import: import.unwrap_or_default(),
+            functions: funcs.unwrap_or_default(),
+            table: table.unwrap_or_default(),
+            memory: memory.unwrap_or_default(),
+            global: global.unwrap_or_default(),
+            export: export.unwrap_or_default(),
+            start: start,
+            element: element.unwrap_or_default(),
             code: code.unwrap_or_default(),
+            data: data.unwrap_or_default(),
             other: sections,
         }
     }
@@ -69,10 +97,37 @@ impl From<ModuleScaffold> for elements::Module {
         let functions = module.functions;
         if functions.entries().len() > 0 {
             sections.push(elements::Section::Function(functions));
-        }        
+        }
+        let table = module.table;
+        if table.entries().len() > 0 {
+            sections.push(elements::Section::Table(table));
+        }
+        let memory = module.memory;
+        if memory.entries().len() > 0 {
+            sections.push(elements::Section::Memory(memory));
+        }
+        let global = module.global;
+        if global.entries().len() > 0 {
+            sections.push(elements::Section::Global(global));
+        }
+        let export = module.export;
+        if export.entries().len() > 0 {
+            sections.push(elements::Section::Export(export));
+        }
+        if let Some(start) = module.start {
+            sections.push(elements::Section::Start(start));
+        }
+        let element = module.element;
+        if element.entries().len() > 0 {
+            sections.push(elements::Section::Element(element));
+        }
         let code = module.code;
         if code.bodies().len() > 0 {
             sections.push(elements::Section::Code(code));
+        }
+        let data = module.data;
+        if data.entries().len() > 0 {
+            sections.push(elements::Section::Data(data));
         }
         sections.extend(module.other);
         elements::Module::new(sections)

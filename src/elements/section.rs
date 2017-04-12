@@ -315,9 +315,11 @@ impl Serialize for FunctionsSection {
 }
 
 /// Section with table definition (currently only one is allowed).
+#[derive(Default)]
 pub struct TableSection(Vec<TableType>);
 
 impl TableSection {
+    /// Table entries.
     pub fn entries(&self) -> &[TableType] {
         &self.0
     }
@@ -351,6 +353,7 @@ impl Serialize for TableSection {
 }
 
 /// Section with table definition (currently only one entry is allowed).
+#[derive(Default)]
 pub struct MemorySection(Vec<MemoryType>);
 
 impl MemorySection {
@@ -388,6 +391,7 @@ impl Serialize for MemorySection {
 }
 
 /// Globals definition section.
+#[derive(Default)]
 pub struct GlobalSection(Vec<GlobalEntry>);
 
 impl GlobalSection {
@@ -425,6 +429,7 @@ impl Serialize for GlobalSection {
 }
 
 /// List of exports definition.
+#[derive(Default)]
 pub struct ExportSection(Vec<ExportEntry>);
 
 impl ExportSection {
@@ -510,6 +515,7 @@ impl Serialize for CodeSection {
 }
 
 /// Element entries section.
+#[derive(Default)]
 pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {
@@ -552,6 +558,7 @@ impl Serialize for ElementSection {
 }
 
 /// Data entries definitions.
+#[derive(Default)]
 pub struct DataSection(Vec<DataSegment>);
 
 impl DataSection {

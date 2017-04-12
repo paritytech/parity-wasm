@@ -16,7 +16,8 @@ mod segment;
 pub use self::module::Module;
 pub use self::section::{
     Section, FunctionsSection, CodeSection, MemorySection, DataSection,
-    ImportSection, ExportSection, GlobalSection, TypeSection,
+    ImportSection, ExportSection, GlobalSection, TypeSection, ElementSection,
+    TableSection,
 };
 pub use self::import_entry::{ImportEntry, MemoryType, TableType, GlobalType, External};
 pub use self::export_entry::{ExportEntry, Internal};

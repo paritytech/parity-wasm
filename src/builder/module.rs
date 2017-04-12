@@ -167,6 +167,16 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         ).collect()
     }
 
+    /// Push import entry to module. Not that it does not update calling indices in
+    /// function bodies.
+    pub fn push_import(&mut self, import: elements::ImportEntry) -> u32 {
+        self.module.import.entries_mut().push(import);
+        // todo: actually update calling addresses in function bodies
+        // todo: also batch push
+
+        self.module.import.entries_mut().len() as u32 - 1
+    }
+
     /// Add new function using dedicated builder
     pub fn function(self) -> FunctionBuilder<Self> {
         FunctionBuilder::with_callback(self)

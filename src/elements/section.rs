@@ -437,6 +437,11 @@ impl ExportSection {
     pub fn entries(&self) -> &[ExportEntry] {
         &self.0
     }
+
+    /// List of all export entries in the section (mutable)
+    pub fn entries_mut(&mut self) -> &mut Vec<ExportEntry> {
+        &mut self.0
+    }    
 }
 
 impl Deserialize for ExportSection {

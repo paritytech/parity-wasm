@@ -6,9 +6,9 @@
     set_local 0
     i32.const 0
     if i32
-        i32.const 8
+        i32.const 5
     else
-        i32.const 4
+        i32.const 7
     end
     set_local 0
     get_local 0

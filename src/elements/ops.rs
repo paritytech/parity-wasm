@@ -913,3 +913,23 @@ impl Serialize for InitExpr {
     }
 }
 
+#[test]
+fn ifelse() {
+    // see if-else.wast/if-else.wasm
+    let opcode = super::deserialize_buffer::<Opcode>(vec![0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B])
+        .expect("valid hex of if instruction");
+    match opcode {
+        Opcode::If(_, ops) => {
+            let before_else = ops.elements().iter()
+                .take_while(|op| match **op { Opcode::Else => false, _ => true }).count();
+            let after_else = ops.elements().iter()
+                .skip_while(|op| match **op { Opcode::Else => false, _ => true })
+                .take_while(|op| match **op { Opcode::End => false, _ => true })
+                .count() 
+                - 1; // minus Opcode::Else itself
+
+            assert_eq!(before_else, after_else);
+        },
+        _ => { panic!("Should be deserialized as if opcode"); }
+    }
+}

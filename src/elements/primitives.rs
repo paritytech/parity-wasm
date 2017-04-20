@@ -58,13 +58,15 @@ impl Serialize for VarUint32 {
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut buf = [0u8; 1];
         let mut v = self.0;
-        while v >= 0x80 {
-            buf[0] = ((v & 0xff) as u8) | 0x80;
-            writer.write_all(&buf[..])?;
+        loop {
+            buf[0] = (v & 0b0111_1111) as u8;
             v >>= 7;
+            if v > 0 {
+                buf[0] |= 0b1000_0000;
+            }
+            writer.write_all(&buf[..])?;
+            if v == 0 { break; }
         }
-        buf[0] = (v & 0xff) as u8;
-        writer.write_all(&buf[..])?;
 
         Ok(())
     }
@@ -107,13 +109,15 @@ impl Serialize for VarUint64 {
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut buf = [0u8; 1];
         let mut v = self.0;
-        while v >= 0x80 {
-            buf[0] = ((v & 0xff) as u8) | 0x80;
-            writer.write_all(&buf[..])?;
+        loop {
+            buf[0] = (v & 0b0111_1111) as u8;
             v >>= 7;
+            if v > 0 {
+                buf[0] |= 0b1000_0000;
+            }
+            writer.write_all(&buf[..])?;
+            if v == 0 { break; }
         }
-        buf[0] = (v & 0xff) as u8;
-        writer.write_all(&buf[..])?;
 
         Ok(())
     }
@@ -458,6 +462,11 @@ mod tests {
     #[test]
     fn varuint32_135() {        
         varuint32_serde_test(vec![135u8, 0x01], 135);
+    }
+
+    #[test]
+    fn varuint32_8192() {        
+        varuint32_serde_test(vec![0x80, 0x40], 8192);
     }    
 
     #[test]

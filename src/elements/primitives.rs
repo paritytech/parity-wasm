@@ -206,6 +206,69 @@ impl Serialize for VarInt7 {
     }
 }
 
+/// 32-bit signed integer, encoded in LEB128 (always 1 byte length)
+#[derive(Copy, Clone)]
+pub struct VarInt32(i32);
+
+impl From<VarInt32> for i32 {
+    fn from(v: VarInt32) -> i32 {
+        v.0
+    }
+}
+
+impl From<i32> for VarInt32 {
+    fn from(v: i32) -> VarInt32 {
+        VarInt32(v)
+    }
+}
+
+impl Deserialize for VarInt32 {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let mut res = 0;
+        let mut shift = 0;
+        let mut u8buf = [0u8; 1];
+        loop {
+            reader.read_exact(&mut u8buf)?;
+            let b = u8buf[0];
+
+            res |= ((b & 0x7f) as i32) << shift;
+            shift += 7;
+            if (b >> 7) == 0 {
+                if b & 0b0100_0000 == 0b0100_0000 { 
+                    res |= - (1 << shift);
+                }
+                break;
+            }
+        }
+        Ok(VarInt32(res))
+    }
+}
+
+impl Serialize for VarInt32 {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut buf = [0u8; 1];
+        let mut v = self.0;
+        let mut more = true;
+        while more {
+            buf[0] = (v & 0b0111_1111) as u8;
+            v >>= 7;
+            if (v == 0 && buf[0] & 0b0100_0000 == 0) || (v == -1 && buf[0] & 0b0100_0000 == 0b0100_0000)  {
+                more = false
+            } else {
+                buf[0] |= 0b1000_0000 
+            }
+            
+            writer.write_all(&buf[..])?;
+        }
+
+        Ok(())
+    }
+}
+
 /// 32-bit unsigned integer, encoded in little endian
 #[derive(Copy, Clone)]
 pub struct Uint32(u32);
@@ -430,7 +493,7 @@ impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize f
 mod tests {
 
     use super::super::{deserialize_buffer, Serialize};
-    use super::{CountedList, VarInt7, VarUint32};
+    use super::{CountedList, VarInt7, VarUint32, VarInt32};
 
     fn varuint32_ser_test(val: u32, expected: Vec<u8>) {
         let mut buf = Vec::new();
@@ -449,6 +512,23 @@ mod tests {
         varuint32_ser_test(val, dt);
     }
 
+    fn varint32_ser_test(val: i32, expected: Vec<u8>) {
+        let mut buf = Vec::new();
+        let v1: VarInt32 = val.into();
+        v1.serialize(&mut buf).expect("to be serialized ok");
+        assert_eq!(expected, buf);
+    }
+
+    fn varint32_de_test(dt: Vec<u8>, expected: i32) {
+        let val: VarInt32 = super::super::deserialize_buffer(dt).expect("buf to be serialized");
+        assert_eq!(expected, val.into());
+    }
+
+    fn varint32_serde_test(dt: Vec<u8>, val: i32) {
+        varint32_de_test(dt.clone(), val);
+        varint32_ser_test(val, dt);
+    }
+    
     #[test]
     fn varuint32_0() {
         varuint32_serde_test(vec![0u8; 1], 0);
@@ -467,6 +547,11 @@ mod tests {
     #[test]
     fn varuint32_8192() {        
         varuint32_serde_test(vec![0x80, 0x40], 8192);
+    }    
+
+    #[test]
+    fn varint32_8192() {        
+        varint32_serde_test(vec![0x80, 0xc0, 0x00], 8192);
     }    
 
     #[test]

@@ -141,8 +141,8 @@ pub enum Opcode {
     CurrentMemory(bool),
     GrowMemory(bool),
 
-    I32Const(u32),
-    I64Const(u64),
+    I32Const(i32),
+    I64Const(i64),
     F32Const(u32),
     F64Const(u64),
 

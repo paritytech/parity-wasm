@@ -6,7 +6,7 @@ use super::{
 };
 
 /// Collection of opcodes (usually inside a block section).
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Opcodes(Vec<Opcode>);
 
 impl Opcodes {
@@ -88,7 +88,7 @@ impl Deserialize for InitExpr {
 }
 
 /// Opcode
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(missing_docs)]
 pub enum Opcode {
     Unreachable,

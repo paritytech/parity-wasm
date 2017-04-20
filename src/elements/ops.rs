@@ -2,7 +2,7 @@ use std::io;
 use super::{
     Serialize, Deserialize, Error, VarUint7, 
     VarUint1, VarUint32, CountedList, BlockType,
-    Uint32, VarUint64, Uint64, CountedListWriter,
+    Uint32, Uint64, CountedListWriter,
     VarInt32, VarInt64,
 };
 

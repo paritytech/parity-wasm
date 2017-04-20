@@ -2,7 +2,8 @@ use std::io;
 use super::{
     Serialize, Deserialize, Error, VarUint7, 
     VarUint1, VarUint32, CountedList, BlockType,
-    Uint32, VarUint64, Uint64, CountedListWriter
+    Uint32, VarUint64, Uint64, CountedListWriter,
+    VarInt32, VarInt64,
 };
 
 /// Collection of opcodes (usually inside a block section).
@@ -428,8 +429,8 @@ impl Deserialize for Opcode {
                 0x3f => CurrentMemory(VarUint1::deserialize(reader)?.into()),
                 0x40 => GrowMemory(VarUint1::deserialize(reader)?.into()),
 
-                0x41 => I32Const(VarUint32::deserialize(reader)?.into()),
-                0x42 => I64Const(VarUint64::deserialize(reader)?.into()),
+                0x41 => I32Const(VarInt32::deserialize(reader)?.into()),
+                0x42 => I64Const(VarInt64::deserialize(reader)?.into()),
                 0x43 => F32Const(Uint32::deserialize(reader)?.into()),
                 0x44 => F64Const(Uint64::deserialize(reader)?.into()),
                 0x45 => I32Eqz,
@@ -741,10 +742,10 @@ impl Serialize for Opcode {
                 VarUint1::from(flag).serialize(writer)?;
             }),
             I32Const(def) => op!(writer, 0x41, {
-                VarUint32::from(def).serialize(writer)?;
+                VarInt32::from(def).serialize(writer)?;
             }),
             I64Const(def) => op!(writer, 0x42, {
-                VarUint64::from(def).serialize(writer)?;
+                VarInt64::from(def).serialize(writer)?;
             }),
             F32Const(def) => op!(writer, 0x43, {
                 Uint32::from(def).serialize(writer)?;

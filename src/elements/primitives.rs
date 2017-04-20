@@ -206,7 +206,7 @@ impl Serialize for VarInt7 {
     }
 }
 
-/// 32-bit signed integer, encoded in LEB128 (always 1 byte length)
+/// 32-bit signed integer, encoded in LEB128 (can be 1-5 bytes length)
 #[derive(Copy, Clone)]
 pub struct VarInt32(i32);
 
@@ -236,7 +236,7 @@ impl Deserialize for VarInt32 {
             res |= ((b & 0x7f) as i32) << shift;
             shift += 7;
             if (b >> 7) == 0 {
-                if b & 0b0100_0000 == 0b0100_0000 { 
+                if shift < 32 && b & 0b0100_0000 == 0b0100_0000 { 
                     res |= - (1 << shift);
                 }
                 break;
@@ -247,6 +247,69 @@ impl Deserialize for VarInt32 {
 }
 
 impl Serialize for VarInt32 {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let mut buf = [0u8; 1];
+        let mut v = self.0;
+        let mut more = true;
+        while more {
+            buf[0] = (v & 0b0111_1111) as u8;
+            v >>= 7;
+            if (v == 0 && buf[0] & 0b0100_0000 == 0) || (v == -1 && buf[0] & 0b0100_0000 == 0b0100_0000)  {
+                more = false
+            } else {
+                buf[0] |= 0b1000_0000 
+            }
+            
+            writer.write_all(&buf[..])?;
+        }
+
+        Ok(())
+    }
+}
+
+/// 64-bit signed integer, encoded in LEB128 (can be 1-9 bytes length)
+#[derive(Copy, Clone)]
+pub struct VarInt64(i64);
+
+impl From<VarInt64> for i64 {
+    fn from(v: VarInt64) -> i64 {
+        v.0
+    }
+}
+
+impl From<i64> for VarInt64 {
+    fn from(v: i64) -> VarInt64 {
+        VarInt64(v)
+    }
+}
+
+impl Deserialize for VarInt64 {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let mut res = 0i64;
+        let mut shift = 0;
+        let mut u8buf = [0u8; 1];
+        loop {
+            reader.read_exact(&mut u8buf)?;
+            let b = u8buf[0];
+
+            res |= ((b & 0x7f) as i64) << shift;
+            shift += 7;
+            if (b >> 7) == 0 {
+                if shift < 64 && b & 0b0100_0000 == 0b0100_0000 { 
+                    res |= - (1 << shift);
+                }
+                break;
+            }
+        }
+        Ok(VarInt64(res))
+    }
+}
+
+impl Serialize for VarInt64 {
     type Error = Error;
 
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
@@ -552,6 +615,11 @@ mod tests {
     #[test]
     fn varint32_8192() {        
         varint32_serde_test(vec![0x80, 0xc0, 0x00], 8192);
+    }    
+
+    #[test]
+    fn varint32_neg_8192() {        
+        varint32_serde_test(vec![0x80, 0x40], -8192);
     }    
 
     #[test]

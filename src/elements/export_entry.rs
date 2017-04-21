@@ -2,6 +2,7 @@ use std::io;
 use super::{Deserialize, Serialize, Error, VarUint7, VarUint32};
 
 /// Internal reference of the exported entry.
+#[derive(Clone, Copy)]
 pub enum Internal {
     /// Function reference.
     Function(u32),

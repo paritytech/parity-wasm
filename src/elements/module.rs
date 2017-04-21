@@ -1,7 +1,7 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, Uint32};
 use super::section::{
-    Section, CodeSection, TypeSection, ImportSection, FunctionsSection,
+    Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionsSection,
     GlobalSection, TableSection, ElementSection, DataSection, MemorySection,
 };
 
@@ -80,6 +80,14 @@ impl Module {
             if let &Section::Global(ref section) = section { return Some(section); }
         }
         None        
+    }
+
+    /// Exports section, if any.
+    pub fn export_section(&self) -> Option<&ExportSection> {
+        for section in self.sections() {
+            if let &Section::Export(ref export_section) = section { return Some(export_section); }
+        }
+        None
     }
 
     /// Table section, if any.

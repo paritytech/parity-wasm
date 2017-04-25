@@ -3,6 +3,7 @@ use super::{Deserialize, Serialize, Error, Uint32};
 use super::section::{
     Section, CodeSection, TypeSection, ImportSection, FunctionsSection,
     GlobalSection, TableSection, ElementSection, DataSection, MemorySection,
+    ExportSection,
 };
 
 /// WebAssembly module
@@ -121,6 +122,14 @@ impl Module {
         }
         None        
     }
+
+    /// Export section, if any.
+    pub fn export_section(&self) -> Option<&ExportSection> {
+        for section in self.sections() {
+            if let &Section::Export(ref sect) = section { return Some(sect); }
+        }
+        None        
+    }    
 }
 
 impl Deserialize for Module {

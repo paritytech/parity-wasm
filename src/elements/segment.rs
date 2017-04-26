@@ -95,7 +95,7 @@ impl DataSegment {
     /// Initial value of the data segment.
     pub fn value(&self) -> &[u8] { &self.value }
 
-    /// Initial value of the data segment.
+    /// Initial value of the data segment (mutable).
     pub fn value_mut(&mut self) -> &mut Vec<u8> { &mut self.value }
 }
 

@@ -399,6 +399,11 @@ impl GlobalSection {
     pub fn entries(&self) -> &[GlobalEntry] {
         &self.0
     }
+
+    /// List of all global entries in the section (mutable)
+    pub fn entries_mut(&mut self) -> &mut Vec<GlobalEntry> {
+        &mut self.0
+    }
 }
 
 impl Deserialize for GlobalSection {

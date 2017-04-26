@@ -17,11 +17,17 @@ impl ElementSegment {
     /// Sequence of function indices.
     pub fn members(&self) -> &[u32] { &self.members }
 
+    /// Sequence of function indices (mutable)
+    pub fn members_mut(&mut self) -> &mut Vec<u32> { &mut self.members }
+
     /// Table index (currently valid only value of `0`)
     pub fn index(&self) -> u32 { self.index }
 
     /// An i32 initializer expression that computes the offset at which to place the elements.
     pub fn offset(&self) -> &InitExpr { &self.offset }
+
+    /// An i32 initializer expression that computes the offset at which to place the elements (mutable)
+    pub fn offset_mut(&mut self) -> &mut InitExpr { &mut self.offset }
 }
 
 impl Deserialize for ElementSegment {
@@ -79,10 +85,18 @@ impl DataSegment {
 
     /// Linear memory index (currently the only valid value is `0`).
     pub fn index(&self) -> u32 { self.index }
+
     /// An i32 initializer expression that computes the offset at which to place the data.
     pub fn offset(&self) -> &InitExpr { &self.offset }   
+
+    /// An i32 initializer expression that computes the offset at which to place the data (mutable)
+    pub fn offset_mut(&mut self) -> &mut InitExpr { &mut self.offset }   
+
     /// Initial value of the data segment.
     pub fn value(&self) -> &[u8] { &self.value }
+
+    /// Initial value of the data segment.
+    pub fn value_mut(&mut self) -> &mut Vec<u8> { &mut self.value }
 }
 
 impl Deserialize for DataSegment {

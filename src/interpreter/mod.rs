@@ -13,7 +13,7 @@ pub enum Error {
 	Stack(String),
 	Value(String),
 	Interpreter(String),
-	Trap,
+	Trap(String),
 	NotImplemented,
 }
 
@@ -31,7 +31,7 @@ impl Into<String> for Error {
 			Error::Stack(s) => s,
 			Error::Interpreter(s) => s,
 			Error::Value(s) => s,
-			Error::Trap => "trap".into(),
+			Error::Trap(s) => format!("trap: {}", s),
 			Error::NotImplemented => "not implemented".into(),
 		}
 	}
@@ -44,5 +44,6 @@ mod program;
 mod runner;
 mod stack;
 mod table;
+mod utils;
 mod value;
 mod variable;

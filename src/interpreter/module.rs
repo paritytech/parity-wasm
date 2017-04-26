@@ -7,7 +7,7 @@ use interpreter::program::ProgramInstanceEssence;
 use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::table::TableInstance;
 use interpreter::value::{RuntimeValue, TryInto};
-use interpreter::variable::VariableInstance;
+use interpreter::variable::{VariableInstance, VariableType};
 
 /// Item index in items index space.
 #[derive(Debug, Clone, Copy)]
@@ -55,7 +55,7 @@ impl ModuleInstance {
 		let mut tables = match module.table_section() {
 			Some(table_section) => table_section.entries()
 										.iter()
-										.map(TableInstance::new)
+										.map(|tt| TableInstance::new(VariableType::AnyFunc, tt)) // TODO: actual table type
 										.collect::<Result<Vec<_>, _>>()?,
 			None => Vec::new(),
 		};
@@ -91,7 +91,7 @@ impl ModuleInstance {
 				tables
 					.get_mut(element_segment.index() as usize)
 					.ok_or(Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}", element_segment_index, element_segment.index())))
-					.and_then(|m| m.set(offset, element_segment.members()).map_err(|e| Error::Initialization(e.into())))?;
+					.and_then(|m| m.set_raw(offset, element_segment.members()).map_err(|e| Error::Initialization(e.into())))?;
 			}
 		}
 
@@ -152,7 +152,7 @@ impl ModuleInstance {
 	}
 
 	/// Call function with given index in functions index space.
-	pub fn call_function<'a>(&self, outer: &mut FunctionContext<'a>, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
+	pub fn call_function(&self, outer: &mut FunctionContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => {
@@ -202,6 +202,35 @@ impl ModuleInstance {
 					.ok_or(Error::Function(format!("trying to access external function with index {} in module with {}-entries import section", index, s.entries().len()))))
 				.and_then(|e| self.imports.module(e.module()))
 				.and_then(|m| m.call_function(outer, ItemIndex::Internal(index))),
+		}
+	}
+
+	/// Call function with given index in the given table.
+	pub fn call_function_indirect(&self, outer: &mut FunctionContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+		// TODO: check signature
+		match self.imports.parse_table_index(table_index) {
+			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
+			ItemIndex::Internal(table_index) => {
+				let table = self.table(ItemIndex::Internal(table_index))?;
+				let index = match table.get(func_index)? {
+					RuntimeValue::AnyFunc(index) => index,
+					_ => return Err(Error::Function(format!("trying to indirect call function {} via non-anyfunc table {}", func_index, table_index))),
+				};
+				self.call_function(outer, ItemIndex::Internal(index))
+			},
+			ItemIndex::External(table_index) => {
+				let table = self.table(ItemIndex::External(table_index))?;
+				let index = match table.get(func_index)? {
+					RuntimeValue::AnyFunc(index) => index,
+					_ => return Err(Error::Function(format!("trying to indirect call function {} via non-anyfunc table {}", func_index, table_index))),
+				};
+				let module = self.module.import_section()
+					.ok_or(Error::Function(format!("trying to access external table with index {} in module without import section", table_index)))
+					.and_then(|s| s.entries().get(table_index as usize)
+						.ok_or(Error::Function(format!("trying to access external table with index {} in module with {}-entries import section", table_index, s.entries().len()))))
+					.and_then(|e| self.imports.module(e.module()))?;
+				module.call_function(outer, ItemIndex::Internal(index))
+			}
 		}
 	}
 }

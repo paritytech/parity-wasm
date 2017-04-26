@@ -63,6 +63,16 @@ impl VariableInstance {
 	}
 }
 
+impl Clone for VariableInstance {
+	fn clone(&self) -> Self {
+		VariableInstance {
+			is_mutable: self.is_mutable,
+			variable_type: self.variable_type,
+			value: RwLock::new(self.value.read().clone()),
+		}
+	}
+}
+
 impl From<ValueType> for VariableType {
 	fn from(vt: ValueType) -> VariableType {
 		match vt {

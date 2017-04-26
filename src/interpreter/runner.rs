@@ -5,11 +5,13 @@ use elements::{Opcode, BlockType, FunctionType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstance, ItemIndex};
 use interpreter::stack::StackWithLimit;
+use interpreter::utils::{to_little_endian_bytes, from_little_endian_bytes};
 use interpreter::value::{RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto, TransmuteInto,
 	ArithmeticOps, Integer, Float};
 use interpreter::variable::VariableInstance;
 
 const DEFAULT_MEMORY_INDEX: u32 = 0;
+const DEFAULT_TABLE_INDEX: u32 = 0;
 
 pub struct Interpreter;
 
@@ -255,7 +257,7 @@ impl Interpreter {
 	}
 
 	fn run_unreachable(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
-		Err(Error::Trap)
+		Err(Error::Trap("programmatic".into()))
 	}
 
 	fn run_nop(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
@@ -322,11 +324,16 @@ impl Interpreter {
 	}
 
 	fn run_call(context: &mut FunctionContext, func_idx: u32) -> Result<InstructionOutcome, Error> {
-		Err(Error::NotImplemented)
+		context.call_function(func_idx)
+			.and_then(|r| r.map(|r| context.value_stack_mut().push(r)).unwrap_or(Ok(())))
+			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_call_indirect(context: &mut FunctionContext, type_idx: u32) -> Result<InstructionOutcome, Error> {
-		Err(Error::NotImplemented)
+		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
+		context.call_function_indirect(DEFAULT_TABLE_INDEX, type_idx, table_func_idx)
+			.and_then(|r| r.map(|r| context.value_stack_mut().push(r)).unwrap_or(Ok(())))
+			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_drop(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
@@ -863,6 +870,14 @@ impl<'a> FunctionContext<'a> {
 		self.module
 	}
 
+	pub fn call_function(&mut self, index: u32) -> Result<Option<RuntimeValue>, Error> {
+		self.module.call_function(self, ItemIndex::IndexSpace(index))
+	}
+
+	pub fn call_function_indirect(&mut self, table_index: u32, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+		self.module.call_function_indirect(self, ItemIndex::IndexSpace(table_index), type_index, func_index)
+	}
+
 	pub fn set_local(&mut self, index: usize, value: RuntimeValue) -> Result<InstructionOutcome, Error> {
 		self.locals.get_mut(index)
 			.ok_or(Error::Local(format!("expected to have local with index {}", index)))
@@ -936,14 +951,6 @@ fn effective_address(offset: u32, align: u32) -> Result<u32, Error> {
 	}
 }
 
-fn to_little_endian_bytes<T>(number: T) -> Vec<u8> {
-	unimplemented!()
-}
-
-fn from_little_endian_bytes<T>(buffer: &[u8]) -> T {
-	unimplemented!()
-}
-
 #[cfg(test)]
 mod tests {
 	use std::sync::Weak;
@@ -970,7 +977,7 @@ mod tests {
 			Opcode::Unreachable,							// trap
 			Opcode::End]);
 
-		assert_eq!(run_function_i32(&body, 0).unwrap_err(), Error::Trap);
+		assert_eq!(run_function_i32(&body, 0).unwrap_err(), Error::Trap("programmatic".into()));
 	}
 
 	#[test]

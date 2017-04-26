@@ -1,26 +1,56 @@
 use std::u32;
 use std::sync::Arc;
+use parking_lot::RwLock;
 use elements::TableType;
 use interpreter::Error;
+use interpreter::variable::{VariableInstance, VariableType};
 use interpreter::value::RuntimeValue;
 
 /// Table instance.
 pub struct TableInstance {
+	/// Table variables type.
+	variable_type: VariableType,
 	/// Table memory buffer.
-	buffer: Vec<RuntimeValue>,
+	buffer: RwLock<Vec<VariableInstance>>,
 	/// Maximum buffer size.
 	maximum_size: u32,
 }
 
 impl TableInstance {
-	pub fn new(table_type: &TableType) -> Result<Arc<Self>, Error> {
+	pub fn new(variable_type: VariableType, table_type: &TableType) -> Result<Arc<Self>, Error> {
 		Ok(Arc::new(TableInstance {
-			buffer: vec![RuntimeValue::Null; table_type.limits().initial() as usize],
+			variable_type: variable_type,
+			buffer: RwLock::new(
+				vec![VariableInstance::new(true, variable_type, RuntimeValue::Null)?; table_type.limits().initial() as usize]
+			),
 			maximum_size: table_type.limits().maximum().unwrap_or(u32::MAX),
 		}))
 	}
 
-	pub fn set(&self, offset: u32, value: &[u32]) -> Result<Self, Error> {
-		unimplemented!()
+	pub fn get(&self, offset: u32) -> Result<RuntimeValue, Error> {
+		let buffer = self.buffer.read();
+		let buffer_len = buffer.len();
+		buffer.get(offset as usize)
+			.map(|v| v.get())
+			.ok_or(Error::Table(format!("trying to read table item with index {} when there are only {} items", offset, buffer_len)))
+	}
+
+	pub fn set_raw(&self, mut offset: u32, value: &[u32]) -> Result<(), Error> {
+		for val in value {
+			match self.variable_type {
+				VariableType::AnyFunc => self.set(offset, RuntimeValue::AnyFunc(*val))?,
+				_ => return Err(Error::NotImplemented),
+			}
+			offset += 1;
+		}
+		Ok(())
+	}
+
+	pub fn set(&self, offset: u32, value: RuntimeValue) -> Result<(), Error> {
+		let mut buffer = self.buffer.write();
+		let buffer_len = buffer.len();
+		buffer.get_mut(offset as usize)
+			.ok_or(Error::Table(format!("trying to update table item with index {} when there are only {} items", offset, buffer_len)))
+			.and_then(|v| v.set(value))
 	}
 }

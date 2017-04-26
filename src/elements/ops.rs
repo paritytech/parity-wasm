@@ -66,6 +66,11 @@ impl InitExpr {
     pub fn code(&self) -> &[Opcode] {
         &self.0
     }
+
+    /// List of opcodes used in the expression.
+    pub fn code_mut(&mut self) -> &mut Vec<Opcode> {
+        &mut self.0
+    }    
 }
 
 // todo: check if kind of opcode sequence is valid as an expression

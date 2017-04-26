@@ -1,10 +1,10 @@
 use std::sync::{Arc, Weak};
-use elements::{Module, InitExpr, Opcode, Type};
+use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody};
 use interpreter::Error;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::program::ProgramInstanceEssence;
-use interpreter::runner::Interpreter;
+use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::table::TableInstance;
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::VariableInstance;
@@ -67,7 +67,7 @@ impl ModuleInstance {
 										.map(|g| {
 											get_initializer(g.init_expr())
 												.map_err(|e| Error::Initialization(e.into()))
-												.and_then(|v| VariableInstance::new(g.global_type(), v))
+												.and_then(|v| VariableInstance::new_global(g.global_type(), v).map(Arc::new))
 										})
 										.collect::<Result<Vec<_>, _>>()?,
 			None => Vec::new(),
@@ -152,9 +152,7 @@ impl ModuleInstance {
 	}
 
 	/// Call function with given index in functions index space.
-	pub fn call_function(&self, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
-		// each functions has its own value stack
-		// but there's global stack limit
+	pub fn call_function<'a>(&self, outer: &mut FunctionContext<'a>, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => {
@@ -187,17 +185,42 @@ impl ModuleInstance {
 						.get(index as usize)
 						.ok_or(Error::Function(format!("trying to call function with index {} in module with {} functions codes", index, s.bodies().len()))))?;
 
-				// TODO: args, locals
-				Interpreter::run_function(function_type, function_body.code().elements(), &vec![])
+				// TODO: 
+				// each functions has its own value stack
+				// but there's global stack limit
+				// args, locals
+				let function_code = function_body.code().elements();
+				let value_stack_limit = outer.value_stack().limit() - outer.value_stack().len();
+				let frame_stack_limit = outer.frame_stack().limit() - outer.frame_stack().len();
+				let locals = prepare_function_locals(function_type, function_body, outer)?;
+				let mut innner = FunctionContext::new(self, value_stack_limit, frame_stack_limit, function_type, function_code, locals)?;
+				Interpreter::run_function(&mut innner, function_code)
 			},
 			ItemIndex::External(index) => self.module.import_section()
 				.ok_or(Error::Function(format!("trying to access external function with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Function(format!("trying to access external function with index {} in module with {}-entries import section", index, s.entries().len()))))
 				.and_then(|e| self.imports.module(e.module()))
-				.and_then(|m| m.call_function(ItemIndex::Internal(index))),
+				.and_then(|m| m.call_function(outer, ItemIndex::Internal(index))),
 		}
 	}
+}
+
+fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, outer: &mut FunctionContext) -> Result<Vec<VariableInstance>, Error> {
+	// locals = function arguments + defined locals
+	function_type.params().iter().rev()
+		.map(|param_type| {
+			let param_value = outer.value_stack_mut().pop()?;
+			let actual_type = param_value.variable_type();
+			let expected_type = (*param_type).into();
+			if actual_type != Some(expected_type) {
+				return Err(Error::Function(format!("invalid parameter type {:?} when expected {:?}", actual_type, expected_type)));
+			}
+
+			VariableInstance::new(true, expected_type, param_value)
+		})
+		.chain(function_body.locals().iter().map(|l| VariableInstance::new(true, l.value_type().into(), RuntimeValue::Null)))
+		.collect::<Result<Vec<_>, _>>()
 }
 
 fn get_initializer(expr: &InitExpr) -> Result<RuntimeValue, Error> {

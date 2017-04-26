@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use parking_lot::RwLock;
 use elements::{GlobalType, ValueType};
 use interpreter::Error;
@@ -20,6 +19,7 @@ pub enum VariableType {
 }
 
 /// Variable instance.
+#[derive(Debug)]
 pub struct VariableInstance {
 	/// Is mutable?
 	is_mutable: bool,
@@ -30,17 +30,20 @@ pub struct VariableInstance {
 }
 
 impl VariableInstance {
-	pub fn new(global_type: &GlobalType, value: RuntimeValue) -> Result<Arc<Self>, Error> {
-		let variable_type: VariableType = global_type.content_type().into();
+	pub fn new(is_mutable: bool, variable_type: VariableType, value: RuntimeValue) -> Result<Self, Error> {
 		if !value.is_null() && value.variable_type() != Some(variable_type) {
 			return Err(Error::Variable(format!("trying to initialize variable of type {:?} with value of type {:?}", variable_type, value.variable_type())));
 		}
 
-		Ok(Arc::new(VariableInstance {
-			is_mutable: global_type.is_mutable(),
+		Ok(VariableInstance {
+			is_mutable: is_mutable,
 			variable_type: variable_type,
 			value: RwLock::new(value),
-		}))
+		})
+	}
+
+	pub fn new_global(global_type: &GlobalType, value: RuntimeValue) -> Result<Self, Error> {
+		Self::new(global_type.is_mutable(), global_type.content_type().into(), value)
 	}
 
 	pub fn get(&self) -> RuntimeValue {

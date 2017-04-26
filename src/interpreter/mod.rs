@@ -10,8 +10,7 @@ pub enum Error {
 	Variable(String),
 	Global(String),
 	Local(String),
-	ValueStack(String),
-	FrameStack(String),
+	Stack(String),
 	Value(String),
 	Interpreter(String),
 	Trap,
@@ -29,8 +28,7 @@ impl Into<String> for Error {
 			Error::Variable(s) => s,
 			Error::Global(s) => s,
 			Error::Local(s) => s,
-			Error::ValueStack(s) => s,
-			Error::FrameStack(s) => s,
+			Error::Stack(s) => s,
 			Error::Interpreter(s) => s,
 			Error::Value(s) => s,
 			Error::Trap => "trap".into(),
@@ -44,6 +42,7 @@ mod memory;
 mod module;
 mod program;
 mod runner;
+mod stack;
 mod table;
 mod value;
 mod variable;

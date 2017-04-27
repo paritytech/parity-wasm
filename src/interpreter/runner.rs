@@ -6,9 +6,8 @@ use elements::{Opcode, BlockType, FunctionType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstance, ItemIndex};
 use interpreter::stack::StackWithLimit;
-use interpreter::utils::{to_little_endian_bytes, from_little_endian_bytes};
 use interpreter::value::{RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto, TransmuteInto,
-	ArithmeticOps, Integer, Float};
+	ArithmeticOps, Integer, Float, LittleEndianConvert};
 use interpreter::variable::VariableInstance;
 
 const DEFAULT_MEMORY_INDEX: u32 = 0;
@@ -397,21 +396,21 @@ impl Interpreter {
 	}
 
 	fn run_load<T>(context: &mut FunctionContext, offset: u32, align: u32) -> Result<InstructionOutcome, Error>
-		where RuntimeValue: From<T> {
+		where RuntimeValue: From<T>, T: LittleEndianConvert {
 		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.and_then(|m| m.get(effective_address(offset, align)?, 4))
-			.map(|b| from_little_endian_bytes::<T>(&b))
+			.and_then(|b| T::from_little_endian(b))
 			.and_then(|n| context.value_stack_mut().push(n.into()))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_load_extend<T, U>(context: &mut FunctionContext, offset: u32, align: u32) -> Result<InstructionOutcome, Error>
-		where T: ExtendInto<U>, RuntimeValue: From<U> {
+		where T: ExtendInto<U>, RuntimeValue: From<U>, T: LittleEndianConvert {
 		let stack_value: U = context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.and_then(|m| m.get(effective_address(offset, align)?, mem::size_of::<T>()))
-			.map(|b| from_little_endian_bytes::<T>(&b))
+			.and_then(|b| T::from_little_endian(b))
 			.map(|v| v.extend_into())?;
 		context
 			.value_stack_mut()
@@ -420,11 +419,11 @@ impl Interpreter {
 	}
 
 	fn run_store<T>(context: &mut FunctionContext, offset: u32, align: u32) -> Result<InstructionOutcome, Error>
-		where RuntimeValue: TryInto<T, Error> {
+		where RuntimeValue: TryInto<T, Error>, T: LittleEndianConvert {
 		let stack_value = context
 			.value_stack_mut()
 			.pop_as::<T>()
-			.map(|n| to_little_endian_bytes::<T>(n))?;
+			.map(|n| n.into_little_endian())?;
 		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.and_then(|m| m.set(effective_address(offset, align)?, &stack_value))
@@ -432,9 +431,9 @@ impl Interpreter {
 	}
 
 	fn run_store_wrap<T, U>(context: &mut FunctionContext, offset: u32, align: u32) -> Result<InstructionOutcome, Error>
-		where RuntimeValue: TryInto<T, Error>, T: WrapInto<U> {
+		where RuntimeValue: TryInto<T, Error>, T: WrapInto<U>, U: LittleEndianConvert {
 		let stack_value: T = context.value_stack_mut().pop().and_then(|v| v.try_into())?;
-		let stack_value = to_little_endian_bytes::<U>(stack_value.wrap_into());
+		let stack_value = stack_value.wrap_into().into_little_endian();
 		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.and_then(|m| m.set(effective_address(offset, align)?, &stack_value))

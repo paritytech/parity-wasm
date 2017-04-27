@@ -44,7 +44,6 @@ mod program;
 mod runner;
 mod stack;
 mod table;
-mod utils;
 mod value;
 mod variable;
 

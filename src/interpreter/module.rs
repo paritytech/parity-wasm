@@ -104,6 +104,11 @@ impl ModuleInstance {
 		})
 	}
 
+	/// Execute start function of the module.
+	pub fn execute_main(&self, _args: &[RuntimeValue]) -> Result<Option<RuntimeValue>, Error> {
+		unimplemented!()
+	}
+
 	/// Get module description reference.
 	pub fn module(&self) -> &Module {
 		&self.module
@@ -206,7 +211,7 @@ impl ModuleInstance {
 	}
 
 	/// Call function with given index in the given table.
-	pub fn call_function_indirect(&self, outer: &mut FunctionContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+	pub fn call_function_indirect(&self, outer: &mut FunctionContext, table_index: ItemIndex, _type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
 		// TODO: check signature
 		match self.imports.parse_table_index(table_index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),

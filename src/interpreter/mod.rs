@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_variables, missing_docs)]
+#![allow(missing_docs)]
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
@@ -50,3 +50,7 @@ mod variable;
 
 #[cfg(test)]
 mod tests;
+
+pub use self::module::ModuleInstance;
+pub use self::program::ProgramInstance;
+pub use self::value::RuntimeValue;

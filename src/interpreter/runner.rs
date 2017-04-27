@@ -82,7 +82,7 @@ impl Interpreter {
 			&Opcode::Return => Interpreter::run_return(context),
 
 			&Opcode::Call(index) => Interpreter::run_call(context, index),
-			&Opcode::CallIndirect(index, reserved) => Interpreter::run_call_indirect(context, index),
+			&Opcode::CallIndirect(index, _reserved) => Interpreter::run_call_indirect(context, index),
 
 			&Opcode::Drop => Interpreter::run_drop(context),
 			&Opcode::Select => Interpreter::run_select(context),
@@ -261,11 +261,11 @@ impl Interpreter {
 		}
 	}
 
-	fn run_unreachable(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
+	fn run_unreachable(_context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
 		Err(Error::Trap("programmatic".into()))
 	}
 
-	fn run_nop(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
+	fn run_nop(_context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
@@ -299,15 +299,15 @@ impl Interpreter {
 		}
 	}
 
-	fn run_else(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
+	fn run_else(_context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
 		Ok(InstructionOutcome::End)
 	}
 
-	fn run_end(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
+	fn run_end(_context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
 		Ok(InstructionOutcome::End)
 	}
 
-	fn run_br(context: &mut FunctionContext, label_idx: u32) -> Result<InstructionOutcome, Error> {
+	fn run_br(_context: &mut FunctionContext, label_idx: u32) -> Result<InstructionOutcome, Error> {
 		Ok(InstructionOutcome::Branch(label_idx as usize))
 	}
 
@@ -324,7 +324,7 @@ impl Interpreter {
 		Ok(InstructionOutcome::Branch(table.get(index as usize).cloned().unwrap_or(default) as usize))
 	}
 
-	fn run_return(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
+	fn run_return(_context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
 		Ok(InstructionOutcome::Return)
 	}
 
@@ -781,9 +781,9 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_copysign<T>(context: &mut FunctionContext) -> Result<InstructionOutcome, Error>
+	fn run_copysign<T>(_context: &mut FunctionContext) -> Result<InstructionOutcome, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
-		Err(Error::NotImplemented)
+		Err(Error::NotImplemented) // TODO
 	}
 
 	fn run_wrap<T, U>(context: &mut FunctionContext) -> Result<InstructionOutcome, Error>

@@ -12,8 +12,6 @@ pub struct TableInstance {
 	variable_type: VariableType,
 	/// Table memory buffer.
 	buffer: RwLock<Vec<VariableInstance>>,
-	/// Maximum buffer size.
-	maximum_size: u32,
 }
 
 impl TableInstance {
@@ -23,7 +21,6 @@ impl TableInstance {
 			buffer: RwLock::new(
 				vec![VariableInstance::new(true, variable_type, RuntimeValue::Null)?; table_type.limits().initial() as usize]
 			),
-			maximum_size: table_type.limits().maximum().unwrap_or(u32::MAX),
 		}))
 	}
 

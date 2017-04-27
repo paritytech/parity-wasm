@@ -16,3 +16,9 @@ pub use elements::{
     serialize,
     serialize_to_file,
 };
+
+pub use interpreter::{
+    ProgramInstance,
+    ModuleInstance,
+    RuntimeValue,
+};

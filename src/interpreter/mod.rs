@@ -47,3 +47,6 @@ mod table;
 mod utils;
 mod value;
 mod variable;
+
+#[cfg(test)]
+mod tests;

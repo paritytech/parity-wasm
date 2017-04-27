@@ -3,6 +3,7 @@ use interpreter::Error;
 use interpreter::value::{RuntimeValue, TryInto};
 
 /// Stack with limit.
+#[derive(Debug)]
 pub struct StackWithLimit<T> where T: Clone {
 	/// Stack values.
 	values: VecDeque<T>,

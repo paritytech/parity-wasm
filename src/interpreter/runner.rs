@@ -1,6 +1,7 @@
 use std::mem;
 use std::ops;
 use std::u32;
+use std::fmt::Display;
 use elements::{Opcode, BlockType, FunctionType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstance, ItemIndex};
@@ -37,8 +38,10 @@ pub enum InstructionOutcome {
 	RunInstruction,
 	/// Continue with next instruction.
 	RunNextInstruction,
-	/// Pop given number of stack frames.
-	PopFrame(usize),
+	/// Branch to given frame.
+	Branch(usize),
+	/// End current frame.
+	End,
 	/// Return from current function block.
 	Return,
 }
@@ -46,7 +49,9 @@ pub enum InstructionOutcome {
 #[derive(Debug, Clone)]
 pub struct BlockFrame {
 	// A label for reference from branch instructions.
-	position: usize,
+	branch_position: usize,
+	// A label for reference from end instructions.
+	end_position: usize,
 	// A limit integer value, which is an index into the value stack indicating where to reset it to on a branch to that label.
 	value_limit: usize,
 	// A signature, which is a block signature type indicating the number and types of result values of the region.
@@ -266,13 +271,13 @@ impl Interpreter {
 
 	fn run_block(context: &mut FunctionContext, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome, Error> {
 		let frame_position = context.position + 1;
-		context.push_frame(frame_position, block_type.clone())?;
+		context.push_frame(frame_position, frame_position, block_type.clone())?;
 		Interpreter::execute_block(context, body)
 	}
 
 	fn run_loop(context: &mut FunctionContext, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome, Error> {
 		let frame_position = context.position;
-		context.push_frame(frame_position, block_type.clone())?;
+		context.push_frame(frame_position, frame_position + 1, block_type.clone())?;
 		Interpreter::execute_block(context,  body)
 	}
 
@@ -287,7 +292,7 @@ impl Interpreter {
 
 		if begin_index != end_index {
 			let frame_position = context.position + 1;
-			context.push_frame(frame_position, block_type.clone())?;
+			context.push_frame(frame_position, frame_position, block_type.clone())?;
 			Interpreter::execute_block(context, &body[begin_index..end_index])
 		} else {
 			Ok(InstructionOutcome::RunNextInstruction)
@@ -295,20 +300,20 @@ impl Interpreter {
 	}
 
 	fn run_else(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
-		Ok(InstructionOutcome::PopFrame(0))
+		Ok(InstructionOutcome::End)
 	}
 
 	fn run_end(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
-		Ok(InstructionOutcome::PopFrame(0))
+		Ok(InstructionOutcome::End)
 	}
 
 	fn run_br(context: &mut FunctionContext, label_idx: u32) -> Result<InstructionOutcome, Error> {
-		Ok(InstructionOutcome::PopFrame(label_idx as usize))
+		Ok(InstructionOutcome::Branch(label_idx as usize))
 	}
 
 	fn run_br_if(context: &mut FunctionContext, label_idx: u32) -> Result<InstructionOutcome, Error> {
 		if context.value_stack_mut().pop_as()? {
-			Ok(InstructionOutcome::PopFrame(label_idx as usize))
+			Ok(InstructionOutcome::Branch(label_idx as usize))
 		} else {
 			Ok(InstructionOutcome::RunNextInstruction)
 		}
@@ -316,7 +321,7 @@ impl Interpreter {
 
 	fn run_br_table(context: &mut FunctionContext, table: &Vec<u32>, default: u32) -> Result<InstructionOutcome, Error> {
 		let index: u32 = context.value_stack_mut().pop_as()?;
-		Ok(InstructionOutcome::PopFrame(table.get(index as usize).cloned().unwrap_or(default) as usize))
+		Ok(InstructionOutcome::Branch(table.get(index as usize).cloned().unwrap_or(default) as usize))
 	}
 
 	fn run_return(context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
@@ -491,7 +496,7 @@ impl Interpreter {
 	}
 
 	fn run_lt<T>(context: &mut FunctionContext) -> Result<InstructionOutcome, Error>
-		where RuntimeValue: TryInto<T, Error>, T: PartialOrd<T> {
+		where RuntimeValue: TryInto<T, Error>, T: PartialOrd<T> + Display {
 		context
 			.value_stack_mut()
 			.pop_pair_as::<T>()
@@ -835,13 +840,18 @@ impl Interpreter {
 			match Interpreter::run_instruction(context, instruction)? {
 				InstructionOutcome::RunInstruction => (),
 				InstructionOutcome::RunNextInstruction => context.position += 1,
-				InstructionOutcome::PopFrame(index) => {
-					context.pop_frame()?;
+				InstructionOutcome::Branch(index) => {
 					if index != 0 {
-						return Ok(InstructionOutcome::PopFrame(index - 1));
+						context.discard_frame()?;
+						return Ok(InstructionOutcome::Branch(index - 1));
 					} else {
+						context.pop_frame(true)?;
 						return Ok(InstructionOutcome::RunInstruction);
 					}
+				},
+				InstructionOutcome::End => {
+					context.pop_frame(false)?;
+					return Ok(InstructionOutcome::RunInstruction);
 				},
 				InstructionOutcome::Return => return Ok(InstructionOutcome::Return),
 			}
@@ -859,7 +869,7 @@ impl<'a> FunctionContext<'a> {
 			locals: args,
 			position: 0,
 		};
-		context.push_frame(body.len() - 1, match function.return_type() {
+		context.push_frame(body.len() - 1, body.len() - 1, match function.return_type() {
 			Some(value_type) => BlockType::Value(value_type),
 			None => BlockType::NoResult,
 		})?;
@@ -903,15 +913,21 @@ impl<'a> FunctionContext<'a> {
 		&self.frame_stack
 	}
 
-	pub fn push_frame(&mut self, position: usize, signature: BlockType) -> Result<(), Error> {
+	pub fn push_frame(&mut self, branch_position: usize, end_position: usize, signature: BlockType) -> Result<(), Error> {
 		self.frame_stack.push(BlockFrame {
-			position: position,
+			branch_position: branch_position,
+			end_position: end_position,
 			value_limit: self.value_stack.len(),
 			signature: signature,
 		})
 	}
 
-	pub fn pop_frame(&mut self) -> Result<(), Error> {
+	pub fn discard_frame(&mut self) -> Result<(), Error> {
+		self.frame_stack.pop()
+			.map(|_| ())
+	}
+
+	pub fn pop_frame(&mut self, is_branch: bool) -> Result<(), Error> {
 		let frame = self.frame_stack.pop()?;
 		if frame.value_limit > self.value_stack.len() {
 			return Err(Error::Stack("invalid stack len".into()));
@@ -922,7 +938,7 @@ impl<'a> FunctionContext<'a> {
 			BlockType::NoResult => None,
 		};
 		self.value_stack.resize(frame.value_limit, RuntimeValue::I32(0));
-		self.position = frame.position;
+		self.position = if is_branch { frame.branch_position } else { frame.end_position };
 		if let Some(frame_value) = frame_value {
 			self.value_stack.push(frame_value)?;
 		}
@@ -934,7 +950,8 @@ impl<'a> FunctionContext<'a> {
 impl BlockFrame {
 	pub fn invalid() -> Self {
 		BlockFrame {
-			position: usize::max_value(),
+			branch_position: usize::max_value(),
+			end_position: usize::max_value(),
 			value_limit: usize::max_value(),
 			signature: BlockType::NoResult,
 		}
@@ -948,160 +965,5 @@ fn effective_address(offset: u32, align: u32) -> Result<u32, Error> {
 		1u32.checked_shl(align - 1)
 			.and_then(|align| align.checked_add(offset))
 			.ok_or(Error::Interpreter("invalid memory alignment".into()))
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use std::sync::Weak;
-	use elements::{Module, ValueType, Opcodes, Opcode, BlockType, FunctionType};
-	use interpreter::Error;
-	use interpreter::module::ModuleInstance;
-	use interpreter::runner::{Interpreter, FunctionContext};
-	use interpreter::value::{RuntimeValue, TryInto};
-	use interpreter::variable::{VariableInstance, VariableType};
-
-	fn run_function_i32(body: &Opcodes, arg: i32) -> Result<i32, Error> {
-		let ftype = FunctionType::new(vec![ValueType::I32], Some(ValueType::I32));
-		let module = ModuleInstance::new(Weak::default(), Module::default()).unwrap();
-		let mut context = FunctionContext::new(&module, 1024, 1024, &ftype, body.elements(), vec![
-				VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(arg)).unwrap()
-			])?;
-		Interpreter::run_function(&mut context, body.elements())
-			.map(|v| v.unwrap().try_into().unwrap())
-	}
-
-	#[test]
-	fn trap() {
-		let body = Opcodes::new(vec![
-			Opcode::Unreachable,							// trap
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap_err(), Error::Trap("programmatic".into()));
-	}
-
-	#[test]
-	fn nop() {
-		let body = Opcodes::new(vec![
-			Opcode::Nop,									// nop
-			Opcode::I32Const(20),							// 20
-			Opcode::Nop,									// nop
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap(), 20);
-	}
-
-	#[test]
-	fn if_then() {
-		let body = Opcodes::new(vec![
-			Opcode::I32Const(20),							// 20
-			Opcode::GetLocal(0),							// read argument
-			Opcode::If(BlockType::Value(ValueType::I32),	// if argument != 0
-				Opcodes::new(vec![
-					Opcode::I32Const(10),					//  10
-					Opcode::End,							// end
-				])),
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap(), 20);
-		assert_eq!(run_function_i32(&body, 1).unwrap(), 10);
-	}
-
-	#[test]
-	fn if_then_else() {
-		let body = Opcodes::new(vec![
-			Opcode::GetLocal(0),							// read argument
-			Opcode::If(BlockType::Value(ValueType::I32),	// if argument != 0
-				Opcodes::new(vec![
-					Opcode::I32Const(10),					//  10
-					Opcode::Else,							// else
-					Opcode::I32Const(20),					//  20
-					Opcode::End,							// end
-				])),
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap(), 20);
-		assert_eq!(run_function_i32(&body, 1).unwrap(), 10);
-	}
-
-	#[test]
-	fn return_from_if() {
-		let body = Opcodes::new(vec![
-			Opcode::GetLocal(0),							// read argument
-			Opcode::If(BlockType::Value(ValueType::I32),	// if argument != 0
-				Opcodes::new(vec![
-					Opcode::I32Const(20),					//  20
-					Opcode::Return,							//  return
-					Opcode::End,
-				])),
-			Opcode::I32Const(10),							// 10
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap(), 10);
-		assert_eq!(run_function_i32(&body, 1).unwrap(), 20);
-	}
-
-	#[test]
-	fn block() {
-		let body = Opcodes::new(vec![
-			Opcode::Block(BlockType::Value(ValueType::I32),	// mark block
-				Opcodes::new(vec![
-					Opcode::I32Const(10),					// 10
-					Opcode::End,
-				])),
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap(), 10);
-	}
-
-	#[test]
-	fn loop_block() {
-		// TODO: test
-/*
-		let body = Opcodes::new(vec![
-			Opcode::I32Const(2),									// 2
-			Opcode::Loop(BlockType::Value(ValueType::I32),			// start loop
-				Opcodes::new(vec![
-					Opcode::GetLocal(0),							//  read argument
-					Opcode::I32Const(1),							//  1
-					Opcode::I32Sub,									//  argument--
-					Opcode::If(BlockType::Value(ValueType::I32),	//  if argument != 0
-						Opcodes::new(vec![
-							Opcode::I32Const(2),					//   2
-							Opcode::I32Mul,							//   prev_val * 2
-							Opcode::Br(1),							//   branch to loop
-							Opcode::End,							//  end (if)
-						])),
-					Opcode::End,									// end (loop)
-				])),
-			Opcode::End]);											// end (fun)
-
-		assert_eq!(run_function_i32(&body, 2).unwrap(), 10);
-*/
-	}
-
-	#[test]
-	fn branch() {
-		// TODO
-	}
-
-	#[test]
-	fn branch_if() {
-		// TODO
-	}
-
-	#[test]
-	fn branch_table() {
-		// TODO
-	}
-
-	#[test]
-	fn drop() {
-		// TODO
-	}
-
-	#[test]
-	fn select() {
-		// TODO
 	}
 }

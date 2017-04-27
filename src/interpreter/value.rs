@@ -109,14 +109,17 @@ pub trait Float<T>: ArithmeticOps<T> {
 }
 
 impl RuntimeValue {
+	/// Creates new value by interpreting passed u32 as f32.
 	pub fn decode_f32(val: u32) -> Self {
-		RuntimeValue::F32(unsafe { mem::transmute(val) })
+		RuntimeValue::F32(val.transmute_into())
 	}
 
+	/// Creates new value by interpreting passed u64 as f64.
 	pub fn decode_f64(val: u64) -> Self {
-		RuntimeValue::F64(unsafe { mem::transmute(val) })
+		RuntimeValue::F64(val.transmute_into())
 	}
 
+	/// Returns true if value is null.
 	pub fn is_null(&self) -> bool {
 		match *self {
 			RuntimeValue::Null => true,
@@ -124,6 +127,7 @@ impl RuntimeValue {
 		}
 	}
 
+	/// Gets function index, if type of value is AnyFunc.
 	pub fn as_any_func_index(&self) -> Option<u32> {
 		match *self {
 			RuntimeValue::AnyFunc(idx) => Some(idx),
@@ -131,6 +135,7 @@ impl RuntimeValue {
 		}
 	}
 
+	/// Get variable type for this value.
 	pub fn variable_type(&self) -> Option<VariableType> {
 		match *self {
 			RuntimeValue::Null => None,
@@ -345,10 +350,12 @@ impl_transmute_into!(i8, u8);
 impl_transmute_into!(u8, i8);
 impl_transmute_into!(i32, u32);
 impl_transmute_into!(u32, i32);
+impl_transmute_into!(u32, f32);
 impl_transmute_into!(i32, f32);
 impl_transmute_into!(f32, i32);
 impl_transmute_into!(i64, u64);
 impl_transmute_into!(u64, i64);
+impl_transmute_into!(u64, f64);
 impl_transmute_into!(i64, f64);
 impl_transmute_into!(f64, i64);
 

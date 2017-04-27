@@ -1,19 +1,33 @@
-#![allow(missing_docs)]
+//! WebAssembly interpreter module.
 
+/// Interpreter error.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
+	/// Program-level error.
 	Program(String),
+	/// Initialization error.
 	Initialization(String),
+	/// Function-level error.
 	Function(String),
+	/// Table-level error.
 	Table(String),
+	/// Memory-level error.
 	Memory(String),
+	/// Variable-level error.
 	Variable(String),
+	/// Global-level error.
 	Global(String),
+	/// Local-level error.
 	Local(String),
+	/// Stack-level error.
 	Stack(String),
+	/// Value-level error.
 	Value(String),
+	/// Interpreter (code) error.
 	Interpreter(String),
+	/// Trap.
 	Trap(String),
+	/// Functionality not yet implemented.
 	NotImplemented,
 }
 

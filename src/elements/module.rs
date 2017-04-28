@@ -129,6 +129,14 @@ impl Module {
         }
         None        
     }
+
+    /// Start section, if any.
+    pub fn start_section(&self) -> Option<u32> {
+        for section in self.sections() {
+            if let &Section::Start(sect) = section { return Some(sect); }
+        }
+        None
+    }
 }
 
 impl Deserialize for Module {

@@ -361,6 +361,11 @@ impl MemorySection {
     pub fn entries(&self) -> &[MemoryType] {
         &self.0
     }
+
+    /// Mutable list of all memory entries in the section
+    pub fn entries_mut(&mut self) -> &mut Vec<MemoryType> {
+        &mut self.0
+    }
 }
 
 impl Deserialize for MemorySection {

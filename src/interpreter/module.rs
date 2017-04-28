@@ -5,6 +5,7 @@ use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::program::ProgramInstanceEssence;
 use interpreter::runner::{Interpreter, FunctionContext};
+use interpreter::stack::StackWithLimit;
 use interpreter::table::TableInstance;
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, VariableType};
@@ -32,6 +33,13 @@ pub struct ModuleInstance {
 	memory: Vec<Arc<MemoryInstance>>,
 	/// Globals.
 	globals: Vec<Arc<VariableInstance>>,
+}
+
+/// Caller context.
+pub struct CallerContext<'a> {
+	pub value_stack_limit: usize,
+	pub frame_stack_limit: usize,
+	pub value_stack: &'a mut StackWithLimit<RuntimeValue>,
 }
 
 impl ModuleInstance {
@@ -105,8 +113,12 @@ impl ModuleInstance {
 	}
 
 	/// Execute start function of the module.
-	pub fn execute_main(&self, _args: &[RuntimeValue]) -> Result<Option<RuntimeValue>, Error> {
-		unimplemented!()
+	pub fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+		let index = self.module.start_section().ok_or(Error::Program("module has no start section".into()))?;
+		let args_len = args.len();
+		let mut args = StackWithLimit::with_data(args, args_len);
+		let caller_context = CallerContext::topmost(&mut args);
+		self.call_function(caller_context, ItemIndex::IndexSpace(index))
 	}
 
 	/// Get module description reference.
@@ -157,7 +169,7 @@ impl ModuleInstance {
 	}
 
 	/// Call function with given index in functions index space.
-	pub fn call_function(&self, outer: &mut FunctionContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
+	pub fn call_function(&self, outer: CallerContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => {
@@ -195,8 +207,8 @@ impl ModuleInstance {
 				// but there's global stack limit
 				// args, locals
 				let function_code = function_body.code().elements();
-				let value_stack_limit = outer.value_stack().limit() - outer.value_stack().len();
-				let frame_stack_limit = outer.frame_stack().limit() - outer.frame_stack().len();
+				let value_stack_limit = outer.value_stack_limit;
+				let frame_stack_limit = outer.frame_stack_limit;
 				let locals = prepare_function_locals(function_type, function_body, outer)?;
 				let mut innner = FunctionContext::new(self, value_stack_limit, frame_stack_limit, function_type, function_code, locals)?;
 				Interpreter::run_function(&mut innner, function_code)
@@ -211,7 +223,7 @@ impl ModuleInstance {
 	}
 
 	/// Call function with given index in the given table.
-	pub fn call_function_indirect(&self, outer: &mut FunctionContext, table_index: ItemIndex, _type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+	pub fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, _type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
 		// TODO: check signature
 		match self.imports.parse_table_index(table_index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
@@ -240,11 +252,29 @@ impl ModuleInstance {
 	}
 }
 
-fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, outer: &mut FunctionContext) -> Result<Vec<VariableInstance>, Error> {
+impl<'a> CallerContext<'a> {
+	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>) -> Self {
+		CallerContext {
+			value_stack_limit: 1024,
+			frame_stack_limit: 1024,
+			value_stack: args,
+		}
+	}
+
+	pub fn nested(outer: &'a mut FunctionContext) -> Self {
+		CallerContext {
+			value_stack_limit: outer.value_stack().limit() - outer.value_stack().len(),
+			frame_stack_limit: outer.frame_stack().limit() - outer.frame_stack().len(),
+			value_stack: outer.value_stack_mut(),
+		}
+	}
+}
+
+fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, outer: CallerContext) -> Result<Vec<VariableInstance>, Error> {
 	// locals = function arguments + defined locals
 	function_type.params().iter().rev()
 		.map(|param_type| {
-			let param_value = outer.value_stack_mut().pop()?;
+			let param_value = outer.value_stack.pop()?;
 			let actual_type = param_value.variable_type();
 			let expected_type = (*param_type).into();
 			if actual_type != Some(expected_type) {

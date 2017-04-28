@@ -1,5 +1,6 @@
 use super::invoke::{Invoke, Identity};
 use super::code::{self, SignaturesBuilder, FunctionBuilder};
+use super::memory::{self, MemoryBuilder};
 use super::import;
 use elements;
 
@@ -190,10 +191,21 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         self.module.code.bodies_mut().push(body);
         let body_index = self.module.code.bodies_mut().len() as u32 - 1;
 
+        if func.is_main {
+            self.module.start = Some(body_index);
+        }
+
         CodeLocation {
             signature: signature_index,
             body: body_index,
         }
+    }
+
+    /// Push linear memory region
+    pub fn push_memory(&mut self, memory: memory::MemoryDefinition) -> u32 {
+        let entries = self.module.memory.entries_mut();
+        entries.push(elements::MemoryType::new(memory.min, memory.max));
+        (entries.len() - 1) as u32
     }
 
     fn resolve_type_ref(&mut self, signature: code::Signature) -> u32 {
@@ -235,6 +247,11 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     /// Add new function using dedicated builder
     pub fn function(self) -> FunctionBuilder<Self> {
         FunctionBuilder::with_callback(self)
+    }
+
+    /// Add new linear memory using dedicated builder
+    pub fn memory(self) -> MemoryBuilder<Self> {
+        MemoryBuilder::with_callback(self)
     }
 
     /// Define functions section
@@ -288,6 +305,18 @@ impl<F> Invoke<code::FunctionDefinition> for ModuleBuilder<F>
     fn invoke(self, def: code::FunctionDefinition) -> Self {
         let mut b = self;
         b.push_function(def);
+        b
+    }
+}
+
+impl<F> Invoke<memory::MemoryDefinition> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, def: memory::MemoryDefinition) -> Self {
+        let mut b = self;
+        b.push_memory(def);
         b
     }
 }

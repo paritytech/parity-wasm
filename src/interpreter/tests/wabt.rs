@@ -450,6 +450,42 @@ fn return_test() {
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/return-void.txt
 #[test]
 fn return_void() {
+	use builder::module;
+	use interpreter::module::ItemIndex;
+	use interpreter::program::ProgramInstance;
+
+	let body = Opcodes::new(vec![
+		Opcode::GetLocal(0),
+		Opcode::I32Const(0),
+		Opcode::I32Eq,
+		Opcode::If(BlockType::NoResult,
+			Opcodes::new(vec![
+				Opcode::Return,
+				Opcode::End,
+			])),
+		Opcode::I32Const(0),
+		Opcode::I32Const(1),
+		Opcode::I32Store(2, 0),
+		Opcode::End,
+	]);
+
+	let module = module()
+		.memory().build()
+		.function().main()
+			.signature().param().i32().build()
+			.body().with_opcodes(body).build()
+			.build()
+		.build();
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+
+	module.execute_main(vec![RuntimeValue::I32(0)]).unwrap();
+	let memory = module.memory(ItemIndex::IndexSpace(0)).unwrap();
+	assert_eq!(memory.get(0, 4).unwrap(), vec![0, 0, 0, 0]);
+
+	module.execute_main(vec![RuntimeValue::I32(1)]).unwrap();
+	let memory = module.memory(ItemIndex::IndexSpace(0)).unwrap();
+	assert_eq!(memory.get(0, 4).unwrap(), vec![0, 0, 0, 1]);
 	// TODO: linear memory required
 }
 

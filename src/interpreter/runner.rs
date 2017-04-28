@@ -4,7 +4,7 @@ use std::u32;
 use std::fmt::Display;
 use elements::{Opcode, BlockType, FunctionType};
 use interpreter::Error;
-use interpreter::module::{ModuleInstance, ItemIndex};
+use interpreter::module::{ModuleInstance, CallerContext, ItemIndex};
 use interpreter::stack::StackWithLimit;
 use interpreter::value::{RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto, TransmuteInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert};
@@ -880,11 +880,11 @@ impl<'a> FunctionContext<'a> {
 	}
 
 	pub fn call_function(&mut self, index: u32) -> Result<Option<RuntimeValue>, Error> {
-		self.module.call_function(self, ItemIndex::IndexSpace(index))
+		self.module.call_function(CallerContext::nested(self), ItemIndex::IndexSpace(index))
 	}
 
 	pub fn call_function_indirect(&mut self, table_index: u32, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
-		self.module.call_function_indirect(self, ItemIndex::IndexSpace(table_index), type_index, func_index)
+		self.module.call_function_indirect(CallerContext::nested(self), ItemIndex::IndexSpace(table_index), type_index, func_index)
 	}
 
 	pub fn set_local(&mut self, index: usize, value: RuntimeValue) -> Result<InstructionOutcome, Error> {

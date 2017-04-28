@@ -5,6 +5,7 @@ mod module;
 mod code;
 mod misc;
 mod import;
+mod memory;
 
 pub use self::module::{module, from_module, ModuleBuilder};
 pub use self::code::{signatures, signature, function};

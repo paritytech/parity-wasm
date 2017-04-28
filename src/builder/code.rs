@@ -224,6 +224,7 @@ impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
 }
 
 pub struct FunctionDefinition {
+    pub is_main: bool,
     pub signature: Signature,
     pub code: elements::FuncBody,
 }
@@ -231,6 +232,7 @@ pub struct FunctionDefinition {
 impl Default for FunctionDefinition {
     fn default() -> Self {
         FunctionDefinition {
+            is_main: false,
             signature: Signature::TypeReference(0),
             code: elements::FuncBody::empty(),
         }
@@ -254,6 +256,11 @@ impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
             callback: callback,
             func: Default::default(),
         }
+    }
+
+    pub fn main(mut self) -> Self {
+        self.func.is_main = true;
+        self
     }
 
     pub fn signature(self) -> SignatureBuilder<Self> {

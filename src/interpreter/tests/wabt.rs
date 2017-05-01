@@ -550,6 +550,7 @@ fn call_1() {
 			.body().with_opcodes(body2).build()
 			.build()
 		.build();
+
 	let program = ProgramInstance::new();
 	let module = program.add_module("main", module).unwrap();
 	assert_eq!(module.execute_main(vec![]).unwrap().unwrap(), RuntimeValue::I32(10));
@@ -586,7 +587,6 @@ fn call_2() {
 	]);
 
 	let module = module()
-		.memory().build()
 		.function().main()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(body1).build()
@@ -599,7 +599,53 @@ fn call_2() {
 			.body().with_opcodes(body2).build()
 			.build()
 		.build();
+
 	let program = ProgramInstance::new();
 	let module = program.add_module("main", module).unwrap();
 	assert_eq!(module.execute_main(vec![]).unwrap().unwrap(), RuntimeValue::I32(3628800));
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/call-zero-args.txt
+#[test]
+fn call_zero_args() {
+	let body1 = Opcodes::new(vec![
+		Opcode::I32Const(42),
+		Opcode::End,
+	]);
+
+	let body2 = Opcodes::new(vec![
+		Opcode::GetLocal(0),
+		Opcode::GetLocal(1),
+		Opcode::I32Add,
+		Opcode::End,
+	]);
+
+	let body3 = Opcodes::new(vec![
+		Opcode::I32Const(1),
+		Opcode::Call(0),
+		Opcode::Call(1),
+		Opcode::End,
+	]);
+
+	let module = module()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(body1).build()
+			.build()
+		.function()
+			.signature()
+				.param().i32()
+				.param().i32()
+				.return_type().i32()
+				.build()
+			.body().with_opcodes(body2).build()
+			.build()
+		.function().main()
+			.body().with_opcodes(body3).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute_main(vec![]).unwrap().unwrap(), RuntimeValue::I32(43));
 }

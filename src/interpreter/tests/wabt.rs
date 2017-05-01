@@ -354,7 +354,25 @@ fn brif() {
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/brif-loop.txt
 #[test]
 fn brif_loop() {
-	
+	let body = Opcodes::new(vec![
+		Opcode::Loop(BlockType::NoResult,					// loop
+			Opcodes::new(vec![
+				Opcode::GetLocal(1),						//   [local1]
+				Opcode::I32Const(1),						//   [local1, 1]
+				Opcode::I32Add,								//   [local1 + 1]
+				Opcode::SetLocal(1),						//   [] + local1 = local1 + 1
+				Opcode::GetLocal(1),						//   [local1]
+				Opcode::GetLocal(0),						//   [local1, arg]
+				Opcode::I32LtS,								//   [local1 < arg]
+				Opcode::BrIf(0),							//   break loop if local1 < arg
+				Opcode::End,								// end (loop)
+			])),
+		Opcode::GetLocal(1),								// [local1]
+		Opcode::Return,										// return
+		Opcode::End]);
+
+	assert_eq!(run_function_i32(&body, 3).unwrap(), 3);
+	assert_eq!(run_function_i32(&body, 10).unwrap(), 10);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/expr-brif.txt
@@ -487,128 +505,3 @@ fn return_void() {
 	let memory = module.memory(ItemIndex::IndexSpace(0)).unwrap();
 	assert_eq!(memory.get(0, 4).unwrap(), vec![1, 0, 0, 0]);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-	#[test]
-	fn basics_loop() {
-		let body = Opcodes::new(vec![
-			Opcode::I32Const(2),									// [2]
-			Opcode::SetLocal(1),									// [] + local1 = 2
-			Opcode::Block(BlockType::NoResult,						// add block label to exit from loop. TODO: is it the correct pattern?
-				Opcodes::new(vec![
-					Opcode::Loop(BlockType::NoResult,				//   start loop
-						Opcodes::new(vec![
-							Opcode::GetLocal(0),					//    [local0]
-							Opcode::I32Const(1),					//    [local0, 1]
-							Opcode::I32Sub,							//    [local0 - 1]
-							Opcode::SetLocal(0),					//    [] + local0 = local0 - 1
-							Opcode::GetLocal(0),					//    [local0]
-							Opcode::If(BlockType::NoResult,			//    if local0 != 0
-								Opcodes::new(vec![
-									Opcode::GetLocal(1),			//      [local1]
-									Opcode::I32Const(2),			//      [local1, 2]
-									Opcode::I32Mul,					//      [local1 * 2]
-									Opcode::SetLocal(1),			//      [] + local1 = local1 * 2
-									Opcode::Else,					//    else
-									Opcode::Br(2),					//      exit from loop (2 = if + loop)
-									Opcode::End,					//    end (if)
-								])),
-							Opcode::End,							//   end (loop)
-						])),
-					Opcode::End,									// end (block)
-				])),
-			Opcode::GetLocal(1),									// [local1]
-			Opcode::End]);											// end (fun)
-
-		assert_eq!(run_function_i32(&body, 2).unwrap(), 4);
-		assert_eq!(run_function_i32(&body, 8).unwrap(), 256);
-	}
-
-
-	#[test]
-	fn basics_if_then() {
-		let body = Opcodes::new(vec![
-			Opcode::I32Const(20),							// 20
-			Opcode::GetLocal(0),							// read argument
-			Opcode::If(BlockType::Value(ValueType::I32),	// if argument != 0
-				Opcodes::new(vec![
-					Opcode::I32Const(10),					//  10
-					Opcode::End,							// end
-				])),
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap(), 20);
-		assert_eq!(run_function_i32(&body, 1).unwrap(), 10);
-	}
-
-	#[test]
-	fn basics_if_then_else() {
-		let body = Opcodes::new(vec![
-			Opcode::GetLocal(0),							// read argument
-			Opcode::If(BlockType::Value(ValueType::I32),	// if argument != 0
-				Opcodes::new(vec![
-					Opcode::I32Const(10),					//  10
-					Opcode::Else,							// else
-					Opcode::I32Const(20),					//  20
-					Opcode::End,							// end
-				])),
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap(), 20);
-		assert_eq!(run_function_i32(&body, 1).unwrap(), 10);
-	}
-
-	#[test]
-	fn basics_return() {
-		let body = Opcodes::new(vec![
-			Opcode::GetLocal(0),							// read argument
-			Opcode::If(BlockType::Value(ValueType::I32),	// if argument != 0
-				Opcodes::new(vec![
-					Opcode::I32Const(20),					//  20
-					Opcode::Return,							//  return
-					Opcode::End,
-				])),
-			Opcode::I32Const(10),							// 10
-			Opcode::End]);
-
-		assert_eq!(run_function_i32(&body, 0).unwrap(), 10);
-		assert_eq!(run_function_i32(&body, 1).unwrap(), 20);
-	}
-
-	#[test]
-	fn branch_if() {
-		// TODO
-	}
-
-	#[test]
-	fn branch_table() {
-		// TODO
-	}
-
-	#[test]
-	fn drop() {
-		// TODO
-	}
-
-	#[test]
-	fn select() {
-		// TODO
-	}*/

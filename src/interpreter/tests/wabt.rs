@@ -465,7 +465,7 @@ fn return_void() {
 			])),
 		Opcode::I32Const(0),
 		Opcode::I32Const(1),
-		Opcode::I32Store(2, 0),
+		Opcode::I32Store(0, 2),
 		Opcode::End,
 	]);
 
@@ -485,8 +485,7 @@ fn return_void() {
 
 	module.execute_main(vec![RuntimeValue::I32(1)]).unwrap();
 	let memory = module.memory(ItemIndex::IndexSpace(0)).unwrap();
-	assert_eq!(memory.get(0, 4).unwrap(), vec![0, 0, 0, 1]);
-	// TODO: linear memory required
+	assert_eq!(memory.get(0, 4).unwrap(), vec![1, 0, 0, 0]);
 }
 
 

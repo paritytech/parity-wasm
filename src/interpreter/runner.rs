@@ -395,21 +395,23 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_load<T>(context: &mut FunctionContext, offset: u32, align: u32) -> Result<InstructionOutcome, Error>
+	fn run_load<T>(context: &mut FunctionContext, offset: u32, _align: u32) -> Result<InstructionOutcome, Error>
 		where RuntimeValue: From<T>, T: LittleEndianConvert {
+		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
-			.and_then(|m| m.get(effective_address(offset, align)?, 4))
+			.and_then(|m| m.get(address, 4))
 			.and_then(|b| T::from_little_endian(b))
 			.and_then(|n| context.value_stack_mut().push(n.into()))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_load_extend<T, U>(context: &mut FunctionContext, offset: u32, align: u32) -> Result<InstructionOutcome, Error>
+	fn run_load_extend<T, U>(context: &mut FunctionContext, offset: u32, _align: u32) -> Result<InstructionOutcome, Error>
 		where T: ExtendInto<U>, RuntimeValue: From<U>, T: LittleEndianConvert {
+		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		let stack_value: U = context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
-			.and_then(|m| m.get(effective_address(offset, align)?, mem::size_of::<T>()))
+			.and_then(|m| m.get(address, mem::size_of::<T>()))
 			.and_then(|b| T::from_little_endian(b))
 			.map(|v| v.extend_into())?;
 		context
@@ -418,25 +420,27 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_store<T>(context: &mut FunctionContext, offset: u32, align: u32) -> Result<InstructionOutcome, Error>
+	fn run_store<T>(context: &mut FunctionContext, offset: u32, _align: u32) -> Result<InstructionOutcome, Error>
 		where RuntimeValue: TryInto<T, Error>, T: LittleEndianConvert {
 		let stack_value = context
 			.value_stack_mut()
 			.pop_as::<T>()
 			.map(|n| n.into_little_endian())?;
+		let address = effective_address(offset, context.value_stack_mut().pop_as::<u32>()?)?;
 		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
-			.and_then(|m| m.set(effective_address(offset, align)?, &stack_value))
+			.and_then(|m| m.set(address, &stack_value))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_store_wrap<T, U>(context: &mut FunctionContext, offset: u32, align: u32) -> Result<InstructionOutcome, Error>
+	fn run_store_wrap<T, U>(context: &mut FunctionContext, offset: u32, _align: u32) -> Result<InstructionOutcome, Error>
 		where RuntimeValue: TryInto<T, Error>, T: WrapInto<U>, U: LittleEndianConvert {
 		let stack_value: T = context.value_stack_mut().pop().and_then(|v| v.try_into())?;
 		let stack_value = stack_value.wrap_into().into_little_endian();
+		let address = effective_address(offset, context.value_stack_mut().pop_as::<u32>()?)?;
 		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
-			.and_then(|m| m.set(effective_address(offset, align)?, &stack_value))
+			.and_then(|m| m.set(address, &stack_value))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -957,12 +961,9 @@ impl BlockFrame {
 	}
 }
 
-fn effective_address(offset: u32, align: u32) -> Result<u32, Error> {
-	if align == 0 {
-		Ok(offset)
-	} else {
-		1u32.checked_shl(align - 1)
-			.and_then(|align| align.checked_add(offset))
-			.ok_or(Error::Interpreter("invalid memory alignment".into()))
+fn effective_address(address: u32, offset: u32) -> Result<u32, Error> {
+	match offset.checked_add(address) {
+		None => Err(Error::Memory(format!("invalid memory access: {} + {}", offset, address))),
+		Some(address) => Ok(address),
 	}
 }

@@ -554,3 +554,52 @@ fn call_1() {
 	let module = program.add_module("main", module).unwrap();
 	assert_eq!(module.execute_main(vec![]).unwrap().unwrap(), RuntimeValue::I32(10));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/call.txt#L23
+#[test]
+fn call_2() {
+	let body1 = Opcodes::new(vec![
+		Opcode::I32Const(10),
+		Opcode::Call(1),
+		Opcode::End,
+	]);
+
+	let body2 = Opcodes::new(vec![
+		Opcode::GetLocal(0),
+		Opcode::I32Const(0),
+		Opcode::I32GtS,
+		Opcode::If(BlockType::NoResult,
+			Opcodes::new(vec![
+				Opcode::GetLocal(0),
+				Opcode::GetLocal(0),
+				Opcode::I32Const(1),
+				Opcode::I32Sub,
+				Opcode::Call(1),
+				Opcode::I32Mul,
+				Opcode::Return,
+				Opcode::Else,
+				Opcode::I32Const(1),
+				Opcode::Return,
+				Opcode::End,
+			])),
+		Opcode::End,
+	]);
+
+	let module = module()
+		.memory().build()
+		.function().main()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(body1).build()
+			.build()
+		.function()
+			.signature()
+				.param().i32()
+				.return_type().i32()
+				.build()
+			.body().with_opcodes(body2).build()
+			.build()
+		.build();
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute_main(vec![]).unwrap().unwrap(), RuntimeValue::I32(3628800));
+}

@@ -1,9 +1,11 @@
 ///! Tests from https://github.com/WebAssembly/wabt/tree/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp
 
 use std::sync::Weak;
+use builder::module;
 use elements::{Module, ValueType, Opcodes, Opcode, BlockType, FunctionType};
 use interpreter::Error;
-use interpreter::module::ModuleInstance;
+use interpreter::module::{ModuleInstance, ItemIndex};
+use interpreter::program::ProgramInstance;
 use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, VariableType};
@@ -468,10 +470,6 @@ fn return_test() {
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/return-void.txt
 #[test]
 fn return_void() {
-	use builder::module;
-	use interpreter::module::ItemIndex;
-	use interpreter::program::ProgramInstance;
-
 	let body = Opcodes::new(vec![
 		Opcode::GetLocal(0),
 		Opcode::I32Const(0),
@@ -504,4 +502,55 @@ fn return_void() {
 	module.execute_main(vec![RuntimeValue::I32(1)]).unwrap();
 	let memory = module.memory(ItemIndex::IndexSpace(0)).unwrap();
 	assert_eq!(memory.get(0, 4).unwrap(), vec![1, 0, 0, 0]);
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/call.txt#L3
+#[test]
+fn call_1() {
+	let body1 = Opcodes::new(vec![
+		Opcode::I32Const(1),
+		Opcode::I64Const(2),
+		// f32 -> f64 are serialized using binary32 && binary64 formats
+		// http://babbage.cs.qc.cuny.edu/IEEE-754/
+		Opcode::F32Const(0x40400000),
+		Opcode::F64Const(0x4010000000000000),
+		Opcode::Call(1),
+		Opcode::End,
+	]);
+
+	let body2 = Opcodes::new(vec![
+		Opcode::GetLocal(1),
+		Opcode::I32WarpI64,
+		Opcode::GetLocal(0),
+		Opcode::I32Add,
+		Opcode::GetLocal(2),
+		Opcode::I32TruncSF32,
+		Opcode::I32Add,
+		Opcode::GetLocal(3),
+		Opcode::I32TruncSF64,
+		Opcode::I32Add,
+		Opcode::Return,
+		Opcode::End,
+	]);
+
+	let module = module()
+		.memory().build()
+		.function().main()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(body1).build()
+			.build()
+		.function()
+			.signature()
+				.param().i32()
+				.param().i64()
+				.param().f32()
+				.param().f64()
+				.return_type().i32()
+				.build()
+			.body().with_opcodes(body2).build()
+			.build()
+		.build();
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute_main(vec![]).unwrap().unwrap(), RuntimeValue::I32(10));
 }

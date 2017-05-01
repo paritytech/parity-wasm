@@ -283,6 +283,8 @@ fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBod
 
 			VariableInstance::new(true, expected_type, param_value)
 		})
+		.collect::<Vec<_>>().into_iter().rev()
+		// TODO: default values (zero), not null
 		.chain(function_body.locals().iter().map(|l| VariableInstance::new(true, l.value_type().into(), RuntimeValue::Null)))
 		.collect::<Result<Vec<_>, _>>()
 }

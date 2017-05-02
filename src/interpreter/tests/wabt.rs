@@ -2691,3 +2691,51 @@ fn load_i64() {
 	assert_eq!(module.execute(5, vec![]).unwrap().unwrap(), RuntimeValue::I64(65535));
 	assert_eq!(module.execute(6, vec![]).unwrap().unwrap(), RuntimeValue::I64(4294967295));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/load.txt#L50
+#[test]
+fn load_f32() {
+	let module = module()
+		.memory()
+			.with_data(0, vec![0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0xce, 0x41,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x8f, 0x40,
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(4),
+				Opcode::F32Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::F32(25.750000));
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/load.txt#L54
+#[test]
+fn load_f64() {
+	let module = module()
+		.memory()
+			.with_data(0, vec![0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0xce, 0x41,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x8f, 0x40,
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(8),
+				Opcode::F64Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::F64(1023.875000));
+}

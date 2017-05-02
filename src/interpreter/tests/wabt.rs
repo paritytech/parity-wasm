@@ -702,3 +702,66 @@ fn callindirect_1() {
 	assert_eq!(module.execute_main(vec![RuntimeValue::I32(0)]).unwrap().unwrap(), RuntimeValue::I32(0));
 	assert_eq!(module.execute_main(vec![RuntimeValue::I32(1)]).unwrap().unwrap(), RuntimeValue::I32(1));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callindirect.txt#L39
+#[test]
+fn callindirect_2() {
+	let body1 = Opcodes::new(vec![
+		Opcode::GetLocal(0),
+		Opcode::GetLocal(1),
+		Opcode::I32Add,
+		Opcode::End,
+	]);
+
+	let body2 = Opcodes::new(vec![
+		Opcode::GetLocal(0),
+		Opcode::GetLocal(1),
+		Opcode::I32Sub,
+		Opcode::End,
+	]);
+
+	let body3 = Opcodes::new(vec![
+		Opcode::GetLocal(0),
+		Opcode::GetLocal(1),
+		Opcode::GetLocal(2),
+		Opcode::CallIndirect(0, false),
+		Opcode::End,
+	]);
+
+	let module = module()
+		.table()
+			.with_min(2)
+			.with_element(0, vec![0, 1])
+			.build()
+		.function()
+			.signature()
+				.param().i32()
+				.param().i32()
+				.return_type().i32().build()
+			.body().with_opcodes(body1).build()
+			.build()
+		.function()
+			.signature()
+				.param().i32()
+				.param().i32()
+				.return_type().i32().build()
+			.body().with_opcodes(body2).build()
+			.build()
+		.function().main()
+			.signature()
+				.param().i32()
+				.param().i32()
+				.param().i32()
+				.return_type().i32()
+				.build()
+			.body().with_opcodes(body3).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)]).unwrap().unwrap(), RuntimeValue::I32(14));
+	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)]).unwrap().unwrap(), RuntimeValue::I32(6));
+	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)]).unwrap_err(),
+		Error::Table("trying to read table item with index 2 when there are only 2 items".into()));
+}

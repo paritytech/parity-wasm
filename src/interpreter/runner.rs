@@ -784,9 +784,14 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_copysign<T>(_context: &mut FunctionContext) -> Result<InstructionOutcome, Error>
+	fn run_copysign<T>(context: &mut FunctionContext) -> Result<InstructionOutcome, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
-		Err(Error::NotImplemented) // TODO
+		context
+			.value_stack_mut()
+			.pop_pair_as::<T>()
+			.map(|(left, right)| left.copysign(right))
+			.map(|v| context.value_stack_mut().push(v.into()))
+			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_wrap<T, U>(context: &mut FunctionContext) -> Result<InstructionOutcome, Error>

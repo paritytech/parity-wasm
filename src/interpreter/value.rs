@@ -106,6 +106,8 @@ pub trait Float<T>: ArithmeticOps<T> {
 	fn min(self, other: T) -> T;
 	/// Returns the maximum of the two numbers.
 	fn max(self, other: T) -> T;
+	/// Sets sign of this value to the sign of other value.
+	fn copysign(self, other: T) -> T;
 }
 
 impl RuntimeValue {
@@ -552,6 +554,14 @@ macro_rules! impl_float {
 			// This differs from the IEEE 754-2008 maxNum operation in that it returns a NaN if either operand is a NaN, and in that the behavior when the operands are zeros of differing signs is fully specified.
 			// This differs from the common x>y?x:y expansion in its handling of negative zero and NaN values.
 			fn max(self, other: $type) -> $type { self.max(other) }
+			fn copysign(self, other: $type) -> $type {
+				// TODO: this may be buggy for edge cases
+				if self.is_sign_positive() == other.is_sign_positive() {
+					self
+				} else {
+					self * -1.0
+				}
+			}
 		}
 	}
 }

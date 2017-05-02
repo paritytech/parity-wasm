@@ -5,6 +5,7 @@ use super::{
 };
 
 /// Type definition in types section. Currently can be only of the function type.
+#[derive(Debug, PartialEq)]
 pub enum Type {
     /// Function type.
     Function(FunctionType),
@@ -115,6 +116,7 @@ impl Serialize for BlockType {
 }
 
 /// Function signature type.
+#[derive(Debug, PartialEq)]
 pub struct FunctionType {
     form: u8,
     params: Vec<ValueType>,

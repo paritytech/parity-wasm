@@ -722,6 +722,12 @@ fn callindirect_2() {
 
 	let body3 = Opcodes::new(vec![
 		Opcode::GetLocal(0),
+		Opcode::I32Ctz,
+		Opcode::End,
+	]);
+
+	let body4 = Opcodes::new(vec![
+		Opcode::GetLocal(0),
 		Opcode::GetLocal(1),
 		Opcode::GetLocal(2),
 		Opcode::CallIndirect(0, false),
@@ -730,8 +736,8 @@ fn callindirect_2() {
 
 	let module = module()
 		.table()
-			.with_min(2)
-			.with_element(0, vec![0, 1])
+			.with_min(3)
+			.with_element(0, vec![0, 1, 2])
 			.build()
 		.function()
 			.signature()
@@ -747,6 +753,12 @@ fn callindirect_2() {
 				.return_type().i32().build()
 			.body().with_opcodes(body2).build()
 			.build()
+		.function()
+			.signature()
+				.param().i32()
+				.return_type().i32().build()
+			.body().with_opcodes(body3).build()
+			.build()
 		.function().main()
 			.signature()
 				.param().i32()
@@ -754,7 +766,7 @@ fn callindirect_2() {
 				.param().i32()
 				.return_type().i32()
 				.build()
-			.body().with_opcodes(body3).build()
+			.body().with_opcodes(body4).build()
 			.build()
 		.build();
 
@@ -763,5 +775,7 @@ fn callindirect_2() {
 	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)]).unwrap().unwrap(), RuntimeValue::I32(14));
 	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)]).unwrap().unwrap(), RuntimeValue::I32(6));
 	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)]).unwrap_err(),
-		Error::Table("trying to read table item with index 2 when there are only 2 items".into()));
+		Error::Function("expected function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
+	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)]).unwrap_err(),
+		Error::Table("trying to read table item with index 3 when there are only 3 items".into()));
 }

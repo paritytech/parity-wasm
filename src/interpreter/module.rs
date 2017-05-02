@@ -172,59 +172,25 @@ impl ModuleInstance {
 	pub fn call_function(&self, outer: CallerContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
-			ItemIndex::Internal(index) => {
-				// TODO: cache
-				// internal index = index of function in functions section && index of code in code section
-				// get function type index
-				let function_type_index = self.module
-					.functions_section()
-					.ok_or(Error::Function(format!("trying to call function with index {} in module without function section", index)))
-					.and_then(|s| s.entries()
-						.get(index as usize)
-						.ok_or(Error::Function(format!("trying to call function with index {} in module with {} functions", index, s.entries().len()))))?
-					.type_ref();
-				// function type index = index of function type in types index
-				// get function type
-				let item_type = self.module
-					.type_section()
-					.ok_or(Error::Function(format!("trying to call function with index {} in module without types section", index)))
-					.and_then(|s| s.types()
-						.get(function_type_index as usize)
-						.ok_or(Error::Function(format!("trying to call function with type index {} in module with {} types", index, s.types().len()))))?;
-				let function_type = match item_type {
-					&Type::Function(ref function_type) => function_type,
-				};
-				// get function body
-				let function_body = self.module
-					.code_section()
-					.ok_or(Error::Function(format!("trying to call function with index {} in module without code section", index)))
-					.and_then(|s| s.bodies()
-						.get(index as usize)
-						.ok_or(Error::Function(format!("trying to call function with index {} in module with {} functions codes", index, s.bodies().len()))))?;
-
-				// TODO: 
-				// each functions has its own value stack
-				// but there's global stack limit
-				// args, locals
-				let function_code = function_body.code().elements();
-				let value_stack_limit = outer.value_stack_limit;
-				let frame_stack_limit = outer.frame_stack_limit;
-				let locals = prepare_function_locals(function_type, function_body, outer)?;
-				let mut innner = FunctionContext::new(self, value_stack_limit, frame_stack_limit, function_type, function_code, locals)?;
-				Interpreter::run_function(&mut innner, function_code)
-			},
+			ItemIndex::Internal(index) => self.call_internal_function(outer, index, None),
 			ItemIndex::External(index) => self.module.import_section()
 				.ok_or(Error::Function(format!("trying to access external function with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Function(format!("trying to access external function with index {} in module with {}-entries import section", index, s.entries().len()))))
 				.and_then(|e| self.imports.module(e.module()))
-				.and_then(|m| m.call_function(outer, ItemIndex::Internal(index))),
+				.and_then(|m| m.call_internal_function(outer, index, None)),
 		}
 	}
 
 	/// Call function with given index in the given table.
-	pub fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, _type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
-		// TODO: check signature
+	pub fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+		let function_type = match self.module.type_section()
+			.ok_or(Error::Function(format!("trying to indirect call function {} with non-existent function section", func_index)))
+			.and_then(|s| s.types().get(type_index as usize)
+				.ok_or(Error::Function(format!("trying to indirect call function {} with non-existent type index {}", func_index, type_index))))? {
+			&Type::Function(ref function_type) => function_type,
+		};
+
 		match self.imports.parse_table_index(table_index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(table_index) => {
@@ -233,7 +199,7 @@ impl ModuleInstance {
 					RuntimeValue::AnyFunc(index) => index,
 					_ => return Err(Error::Function(format!("trying to indirect call function {} via non-anyfunc table {}", func_index, table_index))),
 				};
-				self.call_function(outer, ItemIndex::Internal(index))
+				self.call_internal_function(outer, index, Some(function_type))
 			},
 			ItemIndex::External(table_index) => {
 				let table = self.table(ItemIndex::External(table_index))?;
@@ -246,9 +212,57 @@ impl ModuleInstance {
 					.and_then(|s| s.entries().get(table_index as usize)
 						.ok_or(Error::Function(format!("trying to access external table with index {} in module with {}-entries import section", table_index, s.entries().len()))))
 					.and_then(|e| self.imports.module(e.module()))?;
-				module.call_function(outer, ItemIndex::Internal(index))
+				module.call_internal_function(outer, index, Some(function_type))
 			}
 		}
+	}
+
+	/// Call function with internal index.
+	fn call_internal_function(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+		// TODO: cache
+		// internal index = index of function in functions section && index of code in code section
+		// get function type index
+		let function_type_index = self.module
+			.functions_section()
+			.ok_or(Error::Function(format!("trying to call function with index {} in module without function section", index)))
+			.and_then(|s| s.entries()
+				.get(index as usize)
+				.ok_or(Error::Function(format!("trying to call function with index {} in module with {} functions", index, s.entries().len()))))?
+			.type_ref();
+		// function type index = index of function type in types index
+		// get function type
+		let item_type = self.module
+			.type_section()
+			.ok_or(Error::Function(format!("trying to call function with index {} in module without types section", index)))
+			.and_then(|s| s.types()
+				.get(function_type_index as usize)
+				.ok_or(Error::Function(format!("trying to call function with type index {} in module with {} types", index, s.types().len()))))?;
+		let actual_function_type = match item_type {
+			&Type::Function(ref function_type) => function_type,
+		};
+		if let Some(ref function_type) = function_type {
+			if function_type != &actual_function_type {
+				return Err(Error::Function(format!("expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
+					function_type.params(), function_type.return_type(), actual_function_type.params(), actual_function_type.return_type())));
+			}
+		}
+		// get function body
+		let function_body = self.module
+			.code_section()
+			.ok_or(Error::Function(format!("trying to call function with index {} in module without code section", index)))
+			.and_then(|s| s.bodies()
+				.get(index as usize)
+				.ok_or(Error::Function(format!("trying to call function with index {} in module with {} functions codes", index, s.bodies().len()))))?;
+
+		// each functions has its own value stack
+		// but there's global stack limit
+		// args, locals
+		let function_code = function_body.code().elements();
+		let value_stack_limit = outer.value_stack_limit;
+		let frame_stack_limit = outer.frame_stack_limit;
+		let locals = prepare_function_locals(actual_function_type, function_body, outer)?;
+		let mut innner = FunctionContext::new(self, value_stack_limit, frame_stack_limit, actual_function_type, function_code, locals)?;
+		Interpreter::run_function(&mut innner, function_code)
 	}
 }
 

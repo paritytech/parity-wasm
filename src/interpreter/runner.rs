@@ -400,7 +400,7 @@ impl Interpreter {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
-			.and_then(|m| m.get(address, 4))
+			.and_then(|m| m.get(address, mem::size_of::<T>()))
 			.and_then(|b| T::from_little_endian(b))
 			.and_then(|n| context.value_stack_mut().push(n.into()))
 			.map(|_| InstructionOutcome::RunNextInstruction)

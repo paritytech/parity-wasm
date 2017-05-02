@@ -203,10 +203,15 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     }
 
     /// Push linear memory region
-    pub fn push_memory(&mut self, memory: memory::MemoryDefinition) -> u32 {
+    pub fn push_memory(&mut self, mut memory: memory::MemoryDefinition) -> u32 {
         let entries = self.module.memory.entries_mut();
         entries.push(elements::MemoryType::new(memory.min, memory.max));
-        (entries.len() - 1) as u32
+        let memory_index = (entries.len() - 1) as u32;
+        for data in memory.data.drain(..) {
+            self.module.data.entries_mut()
+                .push(elements::DataSegment::new(memory_index, data.offset, data.values))
+        }
+        memory_index
     }
 
     /// Push table

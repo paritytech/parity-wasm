@@ -7,8 +7,8 @@ pub struct TableDefinition {
 }
 
 pub struct TableEntryDefinition {
-	pub offset: elements::InitExpr,
-	pub values: Vec<u32>,
+    pub offset: elements::InitExpr,
+    pub values: Vec<u32>,
 }
 
 pub struct TableBuilder<F=Identity> {

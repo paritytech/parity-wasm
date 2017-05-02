@@ -591,6 +591,11 @@ impl DataSection {
     pub fn entries(&self) -> &[DataSegment] {
         &self.0
     }
+
+    /// Mutable list of all data entries in the section
+    pub fn entries_mut(&mut self) -> &mut Vec<DataSegment> {
+        &mut self.0
+    }
 }
 
 impl Deserialize for DataSection {

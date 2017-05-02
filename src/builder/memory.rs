@@ -1,8 +1,15 @@
+use elements;
 use super::invoke::{Invoke, Identity};
 
 pub struct MemoryDefinition {
     pub min: u32,
     pub max: Option<u32>,
+    pub data: Vec<MemoryDataDefinition>,
+}
+
+pub struct MemoryDataDefinition {
+    pub offset: elements::InitExpr,
+    pub values: Vec<u8>,
 }
 
 pub struct MemoryBuilder<F=Identity> {
@@ -34,6 +41,14 @@ impl<F> MemoryBuilder<F> where F: Invoke<MemoryDefinition> {
         self
     }
 
+    pub fn with_data(mut self, index: u32, values: Vec<u8>) -> Self {
+        self.memory.data.push(MemoryDataDefinition {
+            offset: elements::InitExpr::new(vec![elements::Opcode::I32Const(index as i32)]),
+            values: values,
+        });
+        self
+    }
+
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.memory)
     }
@@ -44,6 +59,7 @@ impl Default for MemoryDefinition {
         MemoryDefinition {
             min: 1,
             max: None,
+            data: Vec::new(),
         }
     }
 }

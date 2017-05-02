@@ -2825,3 +2825,74 @@ fn store_i32() {
 	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(-859059511));
 	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(-123456));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/store.txt#L38
+#[test]
+fn store_i64() {
+	let module = module()
+		.memory().build()
+		.function()
+			.signature().return_type().i64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0),
+				Opcode::I64Const(-1229782938247303429),
+				Opcode::I64Store8(0, 0),
+				Opcode::I32Const(1),
+				Opcode::I64Const(-1229782938247303428),
+				Opcode::I64Store8(0, 0),
+				Opcode::I32Const(2),
+				Opcode::I64Const(-1229782938247303427),
+				Opcode::I64Store8(0, 0),
+				Opcode::I32Const(3),
+				Opcode::I64Const(-1229782938247303426),
+				Opcode::I64Store8(0, 0),
+				Opcode::I32Const(0),
+				Opcode::I64Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0),
+				Opcode::I64Const(-1229782938247312695),
+				Opcode::I64Store16(0, 0),
+				Opcode::I32Const(2),
+				Opcode::I64Const(-1229782938247312181),
+				Opcode::I64Store16(0, 0),
+				Opcode::I32Const(0),
+				Opcode::I64Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0),
+				Opcode::I64Const(-123456),
+				Opcode::I64Store32(0, 0),
+				Opcode::I32Const(0),
+				Opcode::I64Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0),
+				Opcode::I64Const(-4981613551475109875),
+				Opcode::I64Store(0, 0),
+				Opcode::I32Const(0),
+				Opcode::I64Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I64(4278058235));
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::I64(3435907785));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::I64(4294843840));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I64(-4981613551475109875));
+}

@@ -172,6 +172,33 @@ fn expr_if() {
 	assert_eq!(run_function_i32(&body, 1).unwrap(), 2);
 }
 
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/nested-if.txt
+#[test]
+fn nested_if() {
+	let body = Opcodes::new(vec![
+		Opcode::Block(BlockType::NoResult,
+			Opcodes::new(vec![
+				Opcode::I32Const(1),
+				Opcode::If(BlockType::NoResult,
+					Opcodes::new(vec![
+						Opcode::I32Const(2),
+						Opcode::Drop,
+						Opcode::I32Const(3),
+						Opcode::If(BlockType::NoResult,
+							Opcodes::new(vec![
+								Opcode::Br(2),
+								Opcode::End,
+							])),
+						Opcode::End,
+					])),
+				Opcode::End,
+			])),
+		Opcode::I32Const(4),
+		Opcode::End]);
+
+	assert_eq!(run_function_i32(&body, 0).unwrap(), 4);
+}
+
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/br.txt#L4
 #[test]
 fn br_0() {

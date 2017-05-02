@@ -1334,3 +1334,51 @@ fn binary_f64() {
 	assert_eq!(module.execute(5, vec![]).unwrap().unwrap(), RuntimeValue::F64(0.000000));
 	assert_eq!(module.execute(6, vec![]).unwrap().unwrap(), RuntimeValue::F64(0.000000));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/cast.txt
+#[test]
+fn cast() {
+	// f32 && f64 are serialized using binary32 && binary64 formats
+	// http://babbage.cs.qc.cuny.edu/IEEE-754/
+	let module = module()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0x40900000),
+				Opcode::F32ReinterpretI32,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0xC0600000),
+				Opcode::I32ReinterpretF32,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(0x405f480000000000),
+				Opcode::F64ReinterpretI64,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x42099C82CC000000),
+				Opcode::I64ReinterpretF64,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::F32(4.5));
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(-1067450368)); // 3227516928
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::F64(125.125000));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I64(4758506566875873280));
+}

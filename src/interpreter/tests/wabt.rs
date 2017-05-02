@@ -2134,3 +2134,175 @@ fn compare_f32() {
 	assert_eq!(module.execute(14, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute(15, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/compare.txt#L317
+#[test]
+fn compare_f64() {
+	// f32 && f64 are serialized using binary32 && binary64 formats
+	// http://babbage.cs.qc.cuny.edu/IEEE-754/
+	let module = module()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Eq,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Eq,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Ne,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Ne,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Lt,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Lt,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Lt,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Le,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Le,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Le,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Gt,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Gt,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Gt,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Ge,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Ge,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x3FF0000000000000), // 1
+				Opcode::F64Const(0xBFF0000000000000), // -1
+				Opcode::F64Ge,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(5, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(6, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(7, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(8, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(9, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(10, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(11, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(12, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(13, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(14, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(15, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+}

@@ -1,6 +1,7 @@
 use super::invoke::{Invoke, Identity};
 use super::code::{self, SignaturesBuilder, FunctionBuilder};
 use super::memory::{self, MemoryBuilder};
+use super::table::{self, TableBuilder};
 use super::import;
 use elements;
 
@@ -208,6 +209,18 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         (entries.len() - 1) as u32
     }
 
+    /// Push table
+    pub fn push_table(&mut self, mut table: table::TableDefinition) -> u32 {
+        let entries = self.module.table.entries_mut();
+        entries.push(elements::TableType::new(table.min, Some(table.min)));
+        let table_index = (entries.len() - 1) as u32;
+        for entry in table.elements.drain(..) {
+            self.module.element.entries_mut()
+                .push(elements::ElementSegment::new(table_index, entry.offset, entry.values))
+        }
+        table_index
+    }
+
     fn resolve_type_ref(&mut self, signature: code::Signature) -> u32 {
         match signature {
             code::Signature::Inline(func_type) => {
@@ -252,6 +265,11 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     /// Add new linear memory using dedicated builder
     pub fn memory(self) -> MemoryBuilder<Self> {
         MemoryBuilder::with_callback(self)
+    }
+
+    /// Add new table using dedicated builder
+    pub fn table(self) -> TableBuilder<Self> {
+        TableBuilder::with_callback(self)
     }
 
     /// Define functions section
@@ -317,6 +335,18 @@ impl<F> Invoke<memory::MemoryDefinition> for ModuleBuilder<F>
     fn invoke(self, def: memory::MemoryDefinition) -> Self {
         let mut b = self;
         b.push_memory(def);
+        b
+    }
+}
+
+impl<F> Invoke<table::TableDefinition> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, def: table::TableDefinition) -> Self {
+        let mut b = self;
+        b.push_table(def);
         b
     }
 }

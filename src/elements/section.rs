@@ -323,6 +323,11 @@ impl TableSection {
     pub fn entries(&self) -> &[TableType] {
         &self.0
     }
+
+    /// Mutable table entries.
+    pub fn entries_mut(&mut self) -> &mut Vec<TableType> {
+        &mut self.0
+    }
 }
 
 impl Deserialize for TableSection {
@@ -537,6 +542,11 @@ impl ElementSection {
     /// New elements entries in the section
     pub fn entries(&self) -> &[ElementSegment] {
         &self.0
+    }
+
+    /// Mutable elements entries in the section
+    pub fn entries_mut(&mut self) -> &mut Vec<ElementSegment> {
+        &mut self.0
     }
 }
 

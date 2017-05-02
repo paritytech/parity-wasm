@@ -649,3 +649,56 @@ fn call_zero_args() {
 	let module = program.add_module("main", module).unwrap();
 	assert_eq!(module.execute_main(vec![]).unwrap().unwrap(), RuntimeValue::I32(43));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callimport-zero-args.txt
+#[test]
+fn callimport_zero_zrgs() {
+	// TODO: import needed
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callindirect.txt#L31
+#[test]
+fn callindirect_1() {
+	let body1 = Opcodes::new(vec![
+		Opcode::I32Const(0),
+		Opcode::End,
+	]);
+
+	let body2 = Opcodes::new(vec![
+		Opcode::I32Const(1),
+		Opcode::End,
+	]);
+
+	let body3 = Opcodes::new(vec![
+		Opcode::GetLocal(0),
+		Opcode::CallIndirect(0, false),
+		Opcode::End,
+	]);
+
+	let module = module()
+		.table()
+			.with_min(2)
+			.with_element(0, vec![0, 1])
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(body1).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(body2).build()
+			.build()
+		.function().main()
+			.signature()
+				.param().i32()
+				.return_type().i32()
+				.build()
+			.body().with_opcodes(body3).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute_main(vec![RuntimeValue::I32(0)]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute_main(vec![RuntimeValue::I32(1)]).unwrap().unwrap(), RuntimeValue::I32(1));
+}

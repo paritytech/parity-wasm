@@ -115,6 +115,11 @@ impl ModuleInstance {
 	/// Execute start function of the module.
 	pub fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
 		let index = self.module.start_section().ok_or(Error::Program("module has no start section".into()))?;
+		self.execute(index, args)
+	}
+
+	/// Execute function with the given index.
+	pub fn execute(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
 		let args_len = args.len();
 		let mut args = StackWithLimit::with_data(args, args_len);
 		let caller_context = CallerContext::topmost(&mut args);

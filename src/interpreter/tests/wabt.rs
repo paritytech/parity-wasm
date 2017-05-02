@@ -510,7 +510,7 @@ fn call_1() {
 	let body1 = Opcodes::new(vec![
 		Opcode::I32Const(1),
 		Opcode::I64Const(2),
-		// f32 -> f64 are serialized using binary32 && binary64 formats
+		// f32 && f64 are serialized using binary32 && binary64 formats
 		// http://babbage.cs.qc.cuny.edu/IEEE-754/
 		Opcode::F32Const(0x40400000),
 		Opcode::F64Const(0x4010000000000000),
@@ -778,4 +778,74 @@ fn callindirect_2() {
 		Error::Function("expected function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
 	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)]).unwrap_err(),
 		Error::Table("trying to read table item with index 3 when there are only 3 items".into()));
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/select.txt
+#[test]
+fn select() {
+	let body1 = Opcodes::new(vec![
+		Opcode::I32Const(1),
+		Opcode::I32Const(2),
+		Opcode::GetLocal(0),
+		Opcode::Select,
+		Opcode::End,
+	]);
+
+	let body2 = Opcodes::new(vec![
+		Opcode::I64Const(1),
+		Opcode::I64Const(2),
+		Opcode::GetLocal(0),
+		Opcode::Select,
+		Opcode::End,
+	]);
+
+	let body3 = Opcodes::new(vec![
+		// f32 && f64 are serialized using binary32 && binary64 formats
+		// http://babbage.cs.qc.cuny.edu/IEEE-754/
+		Opcode::F32Const(0x3F800000),
+		Opcode::F32Const(0x40000000),
+		Opcode::GetLocal(0),
+		Opcode::Select,
+		Opcode::End,
+	]);
+
+	let body4 = Opcodes::new(vec![
+		// f32 && f64 are serialized using binary32 && binary64 formats
+		// http://babbage.cs.qc.cuny.edu/IEEE-754/
+		Opcode::F64Const(0x3FF0000000000000),
+		Opcode::F64Const(0x4000000000000000),
+		Opcode::GetLocal(0),
+		Opcode::Select,
+		Opcode::End,
+	]);
+
+	let module = module()
+		.function()
+			.signature().param().i32().return_type().i32().build()
+			.body().with_opcodes(body1).build()
+			.build()
+		.function()
+			.signature().param().i32().return_type().i64().build()
+			.body().with_opcodes(body2).build()
+			.build()
+		.function()
+			.signature().param().i32().return_type().f32().build()
+			.body().with_opcodes(body3).build()
+			.build()
+		.function()
+			.signature().param().i32().return_type().f64().build()
+			.body().with_opcodes(body4).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![RuntimeValue::I32(0)]).unwrap().unwrap(), RuntimeValue::I32(2));
+	assert_eq!(module.execute(0, vec![RuntimeValue::I32(1)]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(1, vec![RuntimeValue::I32(0)]).unwrap().unwrap(), RuntimeValue::I64(2));
+	assert_eq!(module.execute(1, vec![RuntimeValue::I32(1)]).unwrap().unwrap(), RuntimeValue::I64(1));
+	assert_eq!(module.execute(2, vec![RuntimeValue::I32(0)]).unwrap().unwrap(), RuntimeValue::F32(2f32));
+	assert_eq!(module.execute(2, vec![RuntimeValue::I32(1)]).unwrap().unwrap(), RuntimeValue::F32(1f32));
+	assert_eq!(module.execute(3, vec![RuntimeValue::I32(0)]).unwrap().unwrap(), RuntimeValue::F64(2f64));
+	assert_eq!(module.execute(3, vec![RuntimeValue::I32(1)]).unwrap().unwrap(), RuntimeValue::F64(1f64));
 }

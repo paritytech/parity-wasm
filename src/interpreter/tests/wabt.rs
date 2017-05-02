@@ -2766,3 +2766,62 @@ fn load_f64() {
 	let module = program.add_module("main", module).unwrap();
 	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::F64(1023.875000));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/store.txt#L5
+#[test]
+fn store_i32() {
+	let module = module()
+		.memory().build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0),
+				Opcode::I32Const(0xfb),
+				Opcode::I32Store8(0, 0),
+				Opcode::I32Const(1),
+				Opcode::I32Const(0xfc),
+				Opcode::I32Store8(0, 0),
+				Opcode::I32Const(2),
+				Opcode::I32Const(0xfd),
+				Opcode::I32Store8(0, 0),
+				Opcode::I32Const(3),
+				Opcode::I32Const(0xfe),
+				Opcode::I32Store8(0, 0),
+				Opcode::I32Const(0),
+				Opcode::I32Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0),
+				Opcode::I32Const(0xcac9),
+				Opcode::I32Store16(0, 0),
+				Opcode::I32Const(2),
+				Opcode::I32Const(0xcccb),
+				Opcode::I32Store16(0, 0),
+				Opcode::I32Const(0),
+				Opcode::I32Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0),
+				Opcode::I32Const(-123456),
+				Opcode::I32Store(0, 0),
+				Opcode::I32Const(0),
+				Opcode::I32Load(0, 0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(-16909061));
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(-859059511));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(-123456));
+}

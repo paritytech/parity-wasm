@@ -2435,5 +2435,119 @@ fn convert_i64() {
 	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(5, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/convert.txt#L50
+#[test]
+fn convert_f32() {
+	// f32 && f64 are serialized using binary32 && binary64 formats
+	// http://babbage.cs.qc.cuny.edu/IEEE-754/
+	let module = module()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(-1),
+				Opcode::F32ConvertSI32,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(-1),
+				Opcode::F32ConvertUI32,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x41678C29DCCCCCCD), // 12345678.9
+				Opcode::F32DemoteF64,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(0),
+				Opcode::F32ConvertSI64,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(0),
+				Opcode::F32ConvertUI64,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::F32(-1.000000));
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::F32(4294967296.000000));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::F32(12345679.000000));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::F32(0.000000));
+	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::F32(0.000000));
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/convert.txt#L50
+#[test]
+fn convert_f64() {
+	// f32 && f64 are serialized using binary32 && binary64 formats
+	// http://babbage.cs.qc.cuny.edu/IEEE-754/
+	let module = module()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(-1),
+				Opcode::F64ConvertSI32,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(-1),
+				Opcode::F64ConvertUI32,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0x4B3C614F), // 12345678.9
+				Opcode::F64PromoteF32,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(0),
+				Opcode::F64ConvertSI64,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(0),
+				Opcode::F64ConvertUI64,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::F64(-1.000000));
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::F64(4294967295.000000));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::F64(12345679.000000));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::F64(0.000000));
+	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::F64(0.000000));
 }

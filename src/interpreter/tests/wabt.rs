@@ -3003,3 +3003,59 @@ fn unary_i32() {
 	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I32(7));
 	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
 }
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L29
+#[test]
+fn unary_i64() {
+	let module = module()
+		.memory().build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(100),
+				Opcode::I64Eqz,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(0),
+				Opcode::I64Eqz,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(128),
+				Opcode::I64Clz,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(128),
+				Opcode::I64Ctz,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I64Const(128),
+				Opcode::I64Popcnt,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::I64(56));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I64(7));
+	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::I64(1));
+}

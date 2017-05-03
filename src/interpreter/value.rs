@@ -111,6 +111,17 @@ pub trait Float<T>: ArithmeticOps<T> {
 }
 
 impl RuntimeValue {
+	/// Creates new default value of given type.
+	pub fn default(variable_type: VariableType) -> Self {
+		match variable_type {
+			VariableType::AnyFunc => RuntimeValue::AnyFunc(0),
+			VariableType::I32 => RuntimeValue::I32(0),
+			VariableType::I64 => RuntimeValue::I64(0),
+			VariableType::F32 => RuntimeValue::F32(0f32),
+			VariableType::F64 => RuntimeValue::F64(0f64),
+		}
+	}
+
 	/// Creates new value by interpreting passed u32 as f32.
 	pub fn decode_f32(val: u32) -> Self {
 		RuntimeValue::F32(val.transmute_into())

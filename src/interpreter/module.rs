@@ -305,7 +305,7 @@ fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBod
 		})
 		.collect::<Vec<_>>().into_iter().rev()
 		// TODO: default values (zero), not null
-		.chain(function_body.locals().iter().map(|l| VariableInstance::new(true, l.value_type().into(), RuntimeValue::Null)))
+		.chain(function_body.locals().iter().map(|l| VariableInstance::new(true, l.value_type().into(), RuntimeValue::default(l.value_type().into()))))
 		.collect::<Result<Vec<_>, _>>()
 }
 

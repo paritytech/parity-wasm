@@ -3065,7 +3065,7 @@ fn unary_f32() {
 	// http://babbage.cs.qc.cuny.edu/IEEE-754/
 	let module = module()
 		.function()
-			.signature().param().f32().return_type().f32().build()
+			.signature().param().f32().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
 				Opcode::GetLocal(0),
 				Opcode::GetLocal(0),
@@ -3159,4 +3159,107 @@ fn unary_f32() {
 	assert_eq!(module.execute(7, vec![]).unwrap().unwrap(), RuntimeValue::F32(-0.000000));
 	assert_eq!(module.execute(8, vec![]).unwrap().unwrap(), RuntimeValue::F32(1.000000));
 	assert_eq!(module.execute(9, vec![]).unwrap().unwrap(), RuntimeValue::F32(2.000000));
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L76
+#[test]
+fn unary_f64() {
+	// f32 && f64 are serialized using binary32 && binary64 formats
+	// http://babbage.cs.qc.cuny.edu/IEEE-754/
+	let module = module()
+		.function()
+			.signature().param().f64().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::GetLocal(0),
+				Opcode::GetLocal(0),
+				Opcode::F64Ne,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x4059000000000000), // 100
+				Opcode::F64Neg,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xC059000000000000), // -100
+				Opcode::F64Abs,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xC059000000000000	), // -100
+				Opcode::F64Sqrt,
+				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x4059000000000000), // 100
+				Opcode::F64Sqrt,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFE8000000000000), // -0.75
+				Opcode::F64Ceil,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFE8000000000000), // -0.75
+				Opcode::F64Floor,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0xBFE8000000000000), // -0.75
+				Opcode::F64Trunc,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x3FF4000000000000), // 1.25
+				Opcode::F64Nearest,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f64().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F64Const(0x3FFC000000000000), // 1.75
+				Opcode::F64Nearest,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::F64(-100.000000));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::F64(100.000000));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::F64(10.000000));
+	assert_eq!(module.execute(5, vec![]).unwrap().unwrap(), RuntimeValue::F64(-0.000000));
+	assert_eq!(module.execute(6, vec![]).unwrap().unwrap(), RuntimeValue::F64(-1.000000));
+	assert_eq!(module.execute(7, vec![]).unwrap().unwrap(), RuntimeValue::F64(-0.000000));
+	assert_eq!(module.execute(8, vec![]).unwrap().unwrap(), RuntimeValue::F64(1.000000));
+	assert_eq!(module.execute(9, vec![]).unwrap().unwrap(), RuntimeValue::F64(2.000000));
 }

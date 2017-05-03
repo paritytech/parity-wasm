@@ -677,12 +677,6 @@ fn call_zero_args() {
 	assert_eq!(module.execute_main(vec![]).unwrap().unwrap(), RuntimeValue::I32(43));
 }
 
-/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callimport-zero-args.txt
-#[test]
-fn callimport_zero_zrgs() {
-	// TODO: import needed
-}
-
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callindirect.txt#L31
 #[test]
 fn callindirect_1() {
@@ -1355,8 +1349,9 @@ fn binary_f64() {
 	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::F64(1111111110.000000));
 	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::F64(123400000000000007812762268812638756607430593436581896388608.000000));
 	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::F64(-15179717820000.000000));
-	// TODO: result differs
-	// assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::F64(99999999999999998083559617243737459057312001403031879309116481015410011220367858297629826861622.0f64));
+	// in wabt result is 99999999999999998083559617243737459057312001403031879309116481015410011220367858297629826861622
+	// but the actual (and correct) result is 1e150
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::F64(1e150));
 	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::F64(0.000000));
 	assert_eq!(module.execute(5, vec![]).unwrap().unwrap(), RuntimeValue::F64(0.000000));
 	assert_eq!(module.execute(6, vec![]).unwrap().unwrap(), RuntimeValue::F64(0.000000));

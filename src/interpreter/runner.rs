@@ -599,7 +599,7 @@ impl Interpreter {
 	}
 
 	fn run_div<T, U>(context: &mut FunctionContext) -> Result<InstructionOutcome, Error>
-		where RuntimeValue: From<T> + TryInto<T, Error>, T: TransmuteInto<U>, U: ArithmeticOps<U> + TransmuteInto<T> {
+		where RuntimeValue: From<T> + TryInto<T, Error>, T: TransmuteInto<U> + Display, U: ArithmeticOps<U> + TransmuteInto<T> {
 		context
 			.value_stack_mut()
 			.pop_pair_as::<T>()

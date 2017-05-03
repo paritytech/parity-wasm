@@ -1,2 +1,2 @@
-mod import;
+mod basics;
 mod wabt;

@@ -299,6 +299,12 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         import::ImportBuilder::with_callback(self)
     }
 
+    /// With global variable
+    pub fn with_global(mut self, global: elements::GlobalEntry) -> Self {
+        self.module.global.entries_mut().push(global);
+        self
+    }
+
     /// Build module (final step)
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.module.into())

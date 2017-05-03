@@ -2952,7 +2952,6 @@ fn store_f64() {
 #[test]
 fn unary_i32() {
 	let module = module()
-		.memory().build()
 		.function()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
@@ -3008,7 +3007,6 @@ fn unary_i32() {
 #[test]
 fn unary_i64() {
 	let module = module()
-		.memory().build()
 		.function()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
@@ -3058,4 +3056,107 @@ fn unary_i64() {
 	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::I64(56));
 	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I64(7));
 	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::I64(1));
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L46
+#[test]
+fn unary_f32() {
+	// f32 && f64 are serialized using binary32 && binary64 formats
+	// http://babbage.cs.qc.cuny.edu/IEEE-754/
+	let module = module()
+		.function()
+			.signature().param().f32().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::GetLocal(0),
+				Opcode::GetLocal(0),
+				Opcode::F32Ne,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0x42C80000), // 100
+				Opcode::F32Neg,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0xC2C80000), // -100
+				Opcode::F32Abs,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0xC2C80000), // -100
+				Opcode::F32Sqrt,
+				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0x42C80000), // 100
+				Opcode::F32Sqrt,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0xBF400000), // -0.75
+				Opcode::F32Ceil,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0xBF400000), // -0.75
+				Opcode::F32Floor,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0xBF400000), // -0.75
+				Opcode::F32Trunc,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0x3FA00000), // 1.25
+				Opcode::F32Nearest,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().f32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::F32Const(0x3FE00000), // 1.75
+				Opcode::F32Nearest,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::F32(-100.000000));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::F32(100.000000));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::F32(10.000000));
+	assert_eq!(module.execute(5, vec![]).unwrap().unwrap(), RuntimeValue::F32(-0.000000));
+	assert_eq!(module.execute(6, vec![]).unwrap().unwrap(), RuntimeValue::F32(-1.000000));
+	assert_eq!(module.execute(7, vec![]).unwrap().unwrap(), RuntimeValue::F32(-0.000000));
+	assert_eq!(module.execute(8, vec![]).unwrap().unwrap(), RuntimeValue::F32(1.000000));
+	assert_eq!(module.execute(9, vec![]).unwrap().unwrap(), RuntimeValue::F32(2.000000));
 }

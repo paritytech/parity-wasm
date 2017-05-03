@@ -27,8 +27,6 @@ pub enum Error {
 	Interpreter(String),
 	/// Trap.
 	Trap(String),
-	/// Functionality not yet implemented.
-	NotImplemented,
 }
 
 impl Into<String> for Error {
@@ -46,7 +44,6 @@ impl Into<String> for Error {
 			Error::Interpreter(s) => s,
 			Error::Value(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
-			Error::NotImplemented => "not implemented".into(),
 		}
 	}
 }

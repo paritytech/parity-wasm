@@ -36,7 +36,7 @@ impl TableInstance {
 		for val in value {
 			match self.variable_type {
 				VariableType::AnyFunc => self.set(offset, RuntimeValue::AnyFunc(*val))?,
-				_ => return Err(Error::NotImplemented),
+				_ => return Err(Error::Table(format!("table of type {:?} is not supported", self.variable_type))),
 			}
 			offset += 1;
 		}

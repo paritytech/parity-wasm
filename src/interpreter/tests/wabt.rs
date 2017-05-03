@@ -2915,18 +2915,18 @@ fn store_f32() {
 	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(1069547520));
 }
 
-/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/store.txt#L78
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/store.txt#L85
 #[test]
 fn store_f64() {
 	// f32 && f64 are serialized using binary32 && binary64 formats
 	// http://babbage.cs.qc.cuny.edu/IEEE-754/
-	let _module = module()
+	let module = module()
 		.memory().build()
 		.function()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
 				Opcode::I32Const(0),
-				Opcode::F64Const(0x408F460000000000), // -1000.75
+				Opcode::F64Const(0xC08F460000000000), // -1000.75
 				Opcode::F64Store(0, 0),
 				Opcode::I32Const(4),
 				Opcode::I32Load(0, 0),
@@ -2935,10 +2935,9 @@ fn store_f64() {
 			.build()
 		.build();
 
-	// TODO: result differs:
-	// let program = ProgramInstance::new();
-	// let module = program.add_module("main", module).unwrap();
-	// assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(-1064352256));
+	let program = ProgramInstance::new();
+	let module = program.add_module("main", module).unwrap();
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(-1064352256));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L12

@@ -7,7 +7,7 @@ use interpreter::program::ProgramInstanceEssence;
 use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::stack::StackWithLimit;
 use interpreter::table::TableInstance;
-use interpreter::value::{RuntimeValue, TryInto};
+use interpreter::value::{RuntimeValue, TryInto, TransmuteInto};
 use interpreter::variable::{VariableInstance, VariableType};
 
 /// Item index in items index space.
@@ -304,7 +304,6 @@ fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBod
 			VariableInstance::new(true, expected_type, param_value)
 		})
 		.collect::<Vec<_>>().into_iter().rev()
-		// TODO: default values (zero), not null
 		.chain(function_body.locals().iter().map(|l| VariableInstance::new(true, l.value_type().into(), RuntimeValue::default(l.value_type().into()))))
 		.collect::<Result<Vec<_>, _>>()
 }
@@ -320,8 +319,8 @@ fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports) ->
 			.map(|g| g.get()),
 		&Opcode::I32Const(val) => Ok(RuntimeValue::I32(val)),
 		&Opcode::I64Const(val) => Ok(RuntimeValue::I64(val)),
-		&Opcode::F32Const(val) => Ok(RuntimeValue::F32(val as f32)), // TODO
-		&Opcode::F64Const(val) => Ok(RuntimeValue::F64(val as f64)), // TODO
+		&Opcode::F32Const(val) => Ok(RuntimeValue::F32(val.transmute_into())),
+		&Opcode::F64Const(val) => Ok(RuntimeValue::F64(val.transmute_into())),
 		_ => Err(Error::Initialization(format!("not-supported {:?} instruction in instantiation-time initializer", first_opcode))),
 	}
 }

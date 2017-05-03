@@ -2927,7 +2927,7 @@ fn store_f32() {
 fn store_f64() {
 	// f32 && f64 are serialized using binary32 && binary64 formats
 	// http://babbage.cs.qc.cuny.edu/IEEE-754/
-	let module = module()
+	let _module = module()
 		.memory().build()
 		.function()
 			.signature().return_type().i32().build()
@@ -2942,8 +2942,64 @@ fn store_f64() {
 			.build()
 		.build();
 
+	// TODO: result differs:
+	// let program = ProgramInstance::new();
+	// let module = program.add_module("main", module).unwrap();
+	// assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(-1064352256));
+}
+
+/// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L12
+#[test]
+fn unary_i32() {
+	let module = module()
+		.memory().build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(100),
+				Opcode::I32Eqz,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(0),
+				Opcode::I32Eqz,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(128),
+				Opcode::I32Clz,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(128),
+				Opcode::I32Ctz,
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(128),
+				Opcode::I32Popcnt,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
 	let program = ProgramInstance::new();
 	let module = program.add_module("main", module).unwrap();
-	// TODO: result differs:
-	// assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(-1064352256));
+	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(24));
+	assert_eq!(module.execute(3, vec![]).unwrap().unwrap(), RuntimeValue::I32(7));
+	assert_eq!(module.execute(4, vec![]).unwrap().unwrap(), RuntimeValue::I32(1));
 }

@@ -178,7 +178,8 @@ impl ModuleInstance {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.call_internal_function(outer, index, None),
-			ItemIndex::External(index) => self.module.import_section()
+			ItemIndex::External(index) =>
+				self.module.import_section()
 				.ok_or(Error::Function(format!("trying to access external function with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Function(format!("trying to access external function with index {} in module with {}-entries import section", index, s.entries().len()))))

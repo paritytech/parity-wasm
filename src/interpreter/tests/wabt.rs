@@ -1,7 +1,5 @@
 ///! Tests from https://github.com/WebAssembly/wabt/tree/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp
 
-// TODO: https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/import.txt
-
 use std::sync::Weak;
 use builder::module;
 use elements::{Module, ValueType, Opcodes, Opcode, BlockType, FunctionType};

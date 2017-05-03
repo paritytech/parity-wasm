@@ -1,1 +1,2 @@
+mod import;
 mod wabt;

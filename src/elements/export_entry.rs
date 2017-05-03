@@ -54,6 +54,13 @@ pub struct ExportEntry {
 }
 
 impl ExportEntry {
+    /// Create new export entry
+    pub fn new(field: String, internal: Internal) -> Self {
+        Self {
+            field_str: field,
+            internal: internal,
+        }
+    }
     /// Public name
     pub fn field(&self) -> &str { &self.field_str }
     /// Public name (mutable)

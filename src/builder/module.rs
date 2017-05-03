@@ -282,6 +282,12 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         SignaturesBuilder::with_callback(self)
     }
 
+    /// With inserted export entry
+    pub fn with_export(mut self, entry: elements::ExportEntry) -> Self {
+        self.module.export.entries_mut().push(entry);
+        self
+    }
+
     /// With inserted import entry
     pub fn with_import(mut self, entry: elements::ImportEntry) -> Self {
         self.module.import.entries_mut().push(entry);

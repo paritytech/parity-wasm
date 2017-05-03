@@ -73,7 +73,7 @@ impl ModuleInstance {
 			Some(global_section) => global_section.entries()
 										.iter()
 										.map(|g| {
-											get_initializer(g.init_expr())
+											get_initializer(g.init_expr(), &module, &imports)
 												.map_err(|e| Error::Initialization(e.into()))
 												.and_then(|v| VariableInstance::new_global(g.global_type(), v).map(Arc::new))
 										})
@@ -84,7 +84,7 @@ impl ModuleInstance {
 		// use data section to initialize linear memory regions
 		if let Some(data_section) = module.data_section() {
 			for (data_segement_index, data_segment) in data_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(data_segment.offset())?.try_into()?;
+				let offset: u32 = get_initializer(data_segment.offset(), &module, &imports)?.try_into()?;
 				memory
 					.get_mut(data_segment.index() as usize)
 					.ok_or(Error::Initialization(format!("DataSegment {} initializes non-existant MemoryInstance {}", data_segement_index, data_segment.index())))
@@ -95,7 +95,7 @@ impl ModuleInstance {
 		// use element section to fill tables
 		if let Some(element_section) = module.elements_section() {
 			for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(element_segment.offset())?.try_into()?;
+				let offset: u32 = get_initializer(element_segment.offset(), &module, &imports)?.try_into()?;
 				tables
 					.get_mut(element_segment.index() as usize)
 					.ok_or(Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}", element_segment_index, element_segment.index())))
@@ -309,10 +309,15 @@ fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBod
 		.collect::<Result<Vec<_>, _>>()
 }
 
-fn get_initializer(expr: &InitExpr) -> Result<RuntimeValue, Error> {
+fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports) -> Result<RuntimeValue, Error> {
 	let first_opcode = expr.code().get(0).ok_or(Error::Initialization(format!("empty instantiation-time initializer")))?;
 	match first_opcode {
-		// TODO: &Opcode::GetGlobal(index) => self.get_global(index),
+		&Opcode::GetGlobal(index) => module.import_section()
+			.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module without import section", index)))
+			.and_then(|s| s.entries().get(index as usize)
+				.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module with {}-entries import section", index, s.entries().len()))))
+			.and_then(|e| imports.global(e))
+			.map(|g| g.get()),
 		&Opcode::I32Const(val) => Ok(RuntimeValue::I32(val)),
 		&Opcode::I64Const(val) => Ok(RuntimeValue::I64(val)),
 		&Opcode::F32Const(val) => Ok(RuntimeValue::F32(val as f32)), // TODO

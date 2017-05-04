@@ -1,5 +1,5 @@
 use std::sync::{Arc, Weak};
-use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody};
+use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody, Internal};
 use interpreter::Error;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
@@ -15,7 +15,9 @@ pub trait ModuleInstanceInterface {
 	/// Execute start function of the module.
 	fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
 	/// Execute function with the given index.
-	fn execute(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
+	fn execute_index(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
+	/// Execute function with the given export name.
+	fn execute_export(&self, name: &str, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
 	/// Get module description reference.
 	fn module(&self) -> &Module;
 	/// Get table reference.
@@ -39,7 +41,7 @@ pub enum ItemIndex {
 	IndexSpace(u32),
 	/// Internal item index (i.e. index of item in items section).
 	Internal(u32),
-	/// External item index (i.e. index of item in export section).
+	/// External item index (i.e. index of item in the import section).
 	External(u32),
 }
 
@@ -145,14 +147,31 @@ impl ModuleInstance {
 impl ModuleInstanceInterface for ModuleInstance {
 	fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
 		let index = self.module.start_section().ok_or(Error::Program("module has no start section".into()))?;
-		self.execute(index, args)
+		self.execute_index(index, args)
 	}
 
-	fn execute(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+	fn execute_index(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
 		let args_len = args.len();
 		let mut args = StackWithLimit::with_data(args, args_len);
 		let caller_context = CallerContext::topmost(&mut args);
 		self.call_function(caller_context, ItemIndex::IndexSpace(index))
+	}
+
+	fn execute_export(&self, name: &str, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+		let index = self.module.export_section()
+			.ok_or(Error::Function("missing export section".into()))
+			.and_then(|s| s.entries().iter()
+				.find(|e| e.field() == name && match e.internal() {
+					&Internal::Function(_) => true,
+					_ => false,
+				})
+				.ok_or(Error::Function(format!("missing export section exported function with name {}", name)))
+				.map(|e| match e.internal() {
+					&Internal::Function(index) => index,
+					_ => unreachable!(), // checked couple of lines above
+				})
+			)?;
+		self.execute_index(index, args)
 	}
 
 	fn module(&self) -> &Module {
@@ -333,12 +352,18 @@ fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBod
 fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports) -> Result<RuntimeValue, Error> {
 	let first_opcode = expr.code().get(0).ok_or(Error::Initialization(format!("empty instantiation-time initializer")))?;
 	match first_opcode {
-		&Opcode::GetGlobal(index) => module.import_section()
-			.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module without import section", index)))
-			.and_then(|s| s.entries().get(index as usize)
-				.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module with {}-entries import section", index, s.entries().len()))))
-			.and_then(|e| imports.global(e))
-			.map(|g| g.get()),
+		&Opcode::GetGlobal(index) => {
+			let index = match imports.parse_global_index(ItemIndex::IndexSpace(index)) {
+				ItemIndex::External(index) => index,
+				_ => return Err(Error::Global(format!("trying to initialize with non-external global {}", index))),
+			};
+			module.import_section()
+				.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module without import section", index)))
+				.and_then(|s| s.entries().get(index as usize)
+					.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module with {}-entries import section", index, s.entries().len()))))
+				.and_then(|e| imports.global(e))
+				.map(|g| g.get())
+		},
 		&Opcode::I32Const(val) => Ok(RuntimeValue::I32(val)),
 		&Opcode::I64Const(val) => Ok(RuntimeValue::I64(val)),
 		&Opcode::F32Const(val) => Ok(RuntimeValue::F32(val.transmute_into())),

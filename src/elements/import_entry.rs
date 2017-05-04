@@ -5,6 +5,7 @@ use super::{
 };
 
 /// Global definition struct
+#[derive(Debug)]
 pub struct GlobalType {
     content_type: ValueType,
     is_mutable: bool,
@@ -50,6 +51,7 @@ impl Serialize for GlobalType {
 }
 
 /// Table entry
+#[derive(Debug)]
 pub struct TableType {
     elem_type: i8,
     limits: ResizableLimits,
@@ -144,6 +146,7 @@ impl Serialize for ResizableLimits {
 }
 
 /// Memory entry.
+#[derive(Debug)]
 pub struct MemoryType(ResizableLimits);
 
 impl MemoryType {
@@ -174,6 +177,7 @@ impl Serialize for MemoryType {
 }
 
 /// External to local binding.
+#[derive(Debug)]
 pub enum External {
     /// Binds to function with index.
     Function(u32),
@@ -230,6 +234,7 @@ impl Serialize for External {
 }
 
 /// Import entry.
+#[derive(Debug)]
 pub struct ImportEntry {
     module_str: String,
     field_str: String,

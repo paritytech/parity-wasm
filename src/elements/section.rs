@@ -220,7 +220,7 @@ impl Serialize for TypeSection {
 }
 
 /// Section of the imports definition.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {
@@ -444,7 +444,7 @@ impl Serialize for GlobalSection {
 }
 
 /// List of exports definition.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ExportSection(Vec<ExportEntry>);
 
 impl ExportSection {

@@ -280,13 +280,11 @@ macro_rules! impl_try_truncate_into {
 		impl TryTruncateInto<$into, Error> for $from {
 			fn try_truncate_into(self) -> Result<$into, Error> {
 				if !self.is_normal() {
-println!("=== !IS_NORMAL: {}", self);
 					return Err(Error::Value("invalid float value for this operation".into()));
 				}
 
 				let truncated = self.trunc();
 				if truncated < $into::MIN as $from || truncated > $into::MAX as $from {
-println!("=== {} < {} || {} > {}", truncated, $into::MIN, truncated, $into::MIN);
 					return Err(Error::Value("invalid float value for this operation".into()));
 				}
 

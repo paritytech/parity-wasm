@@ -54,7 +54,7 @@ impl ModuleImports {
 		match index {
 			ItemIndex::IndexSpace(index) => match index.checked_sub(self.functions.len() as u32) {
 				Some(index) => ItemIndex::Internal(index),
-				None => ItemIndex::External(index),
+				None => ItemIndex::External(self.functions[index as usize] as u32),
 			},
 			index @ _ => index,
 		}
@@ -65,7 +65,7 @@ impl ModuleImports {
 		match index {
 			ItemIndex::IndexSpace(index) => match index.checked_sub(self.tables.len() as u32) {
 				Some(index) => ItemIndex::Internal(index),
-				None => ItemIndex::External(index),
+				None => ItemIndex::External(self.tables[index as usize] as u32),
 			},
 			index @ _ => index,
 		}
@@ -76,7 +76,7 @@ impl ModuleImports {
 		match index {
 			ItemIndex::IndexSpace(index) => match index.checked_sub(self.memory.len() as u32) {
 				Some(index) => ItemIndex::Internal(index),
-				None => ItemIndex::External(index),
+				None => ItemIndex::External(self.memory[index as usize] as u32),
 			},
 			index @ _ => index,
 		}
@@ -87,7 +87,7 @@ impl ModuleImports {
 		match index {
 			ItemIndex::IndexSpace(index) => match index.checked_sub(self.globals.len() as u32) {
 				Some(index) => ItemIndex::Internal(index),
-				None => ItemIndex::External(index),
+				None => ItemIndex::External(self.globals[index as usize] as u32),
 			},
 			index @ _ => index,
 		}

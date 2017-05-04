@@ -4,6 +4,7 @@ use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, Opcodes, Opcode};
 use interpreter::Error;
+use interpreter::module::ModuleInstanceInterface;
 use interpreter::program::ProgramInstance;
 use interpreter::value::RuntimeValue;
 
@@ -33,12 +34,12 @@ fn import_function() {
 			.build()
 		.build();
 
-	let program = ProgramInstance::new();
+	let program = ProgramInstance::new().unwrap();
 	let external_module = program.add_module("external_module", module1).unwrap();
 	let main_module = program.add_module("main", module2).unwrap();
 
-	assert_eq!(external_module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(3));
-	assert_eq!(main_module.execute(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10));
+	assert_eq!(external_module.execute_index(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(3));
+	assert_eq!(main_module.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10));
 }
 
 #[test]
@@ -79,9 +80,9 @@ fn global_get_set() {
 			.build()
 		.build();
 
-	let program = ProgramInstance::new();
+	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
-	assert_eq!(module.execute(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(50));
-	assert_eq!(module.execute(1, vec![]).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
-	assert_eq!(module.execute(2, vec![]).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
+	assert_eq!(module.execute_index(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(50));
+	assert_eq!(module.execute_index(1, vec![]).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
+	assert_eq!(module.execute_index(2, vec![]).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
 }

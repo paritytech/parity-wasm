@@ -101,6 +101,16 @@ impl ModuleImports {
 			.and_then(|p| p.module(name).ok_or(Error::Program(format!("module {} is not loaded", name))))
 	}
 
+	/// Get function index.
+	pub fn function(&self, import: &ImportEntry) -> Result<u32, Error> {
+		let (_, export) = self.external_export(import)?;
+		if let Internal::Function(external_index) = export {
+			return Ok(external_index);
+		}
+
+		Err(Error::Program(format!("wrong import {} from module {} (expecting function)", import.field(), import.module())))
+	}
+
 	/// Get table reference.
 	pub fn table(&self, import: &ImportEntry) -> Result<Arc<TableInstance>, Error> {
 		let (module, export) = self.external_export(import)?;

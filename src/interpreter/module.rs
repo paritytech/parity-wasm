@@ -226,8 +226,8 @@ impl ModuleInstanceInterface for ModuleInstance {
 				.ok_or(Error::Function(format!("trying to access external function with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Function(format!("trying to access external function with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| self.imports.module(e.module()))
-				.and_then(|m| m.call_internal_function(outer, index, None)),
+				.and_then(|e| Ok((self.imports.module(e.module())?, self.imports.function(e)?)))
+				.and_then(|(m, index)| m.call_internal_function(outer, index, None)),
 		}
 	}
 

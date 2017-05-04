@@ -19,6 +19,7 @@ const TABLE_BASE_DEFAULT: i32 = 0;
 
 const INVOKE_VI_INDEX: u32 = 0;		// (i32, i32) -> ()
 const INVOKE_INDEX: u32 = 1;		// (i32) -> ()
+const GAS_INDEX: u32 = 2;
 
 const TABLE_SIZE: u32 = 1024;
 const TABLE_INDEX: u32 = 0;
@@ -87,8 +88,11 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		unimplemented!()
 	}
 
-	fn call_internal_function(&self, _outer: CallerContext, _index: u32, _function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
-		unimplemented!()
+	fn call_internal_function(&self, _outer: CallerContext, index: u32, _function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+		match index {
+			GAS_INDEX => Ok(None),
+			_ => unimplemented!(),
+		}
 	}
 }
 
@@ -108,6 +112,7 @@ pub fn env_module() -> Result<EnvModuleInstance, Error> {
 		// functions
 		.with_export(ExportEntry::new("invoke_vi".into(), Internal::Function(INVOKE_VI_INDEX)))
 		.with_export(ExportEntry::new("invoke".into(), Internal::Function(INVOKE_INDEX)))
+		.with_export(ExportEntry::new("gas".into(), Internal::Function(GAS_INDEX)))
 		.build();
 
 	EnvModuleInstance::new(module)

@@ -15,6 +15,11 @@ impl Func {
     pub fn type_ref(&self) -> u32 {
         self.0
     }
+
+    /// Function signature type reference (mutable).
+    pub fn type_ref_mut(&mut self) -> &mut u32 {
+        &mut self.0
+    }
 }
 
 /// Local definition inside the function body.

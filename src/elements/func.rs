@@ -18,6 +18,7 @@ impl Func {
 }
 
 /// Local definition inside the function body.
+#[derive(Debug)]
 pub struct Local {
     count: u32,
     value_type: ValueType,
@@ -57,6 +58,7 @@ impl Serialize for Local {
 }
 
 /// Function body definition.
+#[derive(Debug)]
 pub struct FuncBody {
     locals: Vec<Local>,
     opcodes: Opcodes,

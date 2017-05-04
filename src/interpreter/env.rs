@@ -20,6 +20,8 @@ const TABLE_BASE_DEFAULT: i32 = 0;
 const INVOKE_VI_INDEX: u32 = 0;		// (i32, i32) -> ()
 const INVOKE_INDEX: u32 = 1;		// (i32) -> ()
 const GAS_INDEX: u32 = 2;
+const STORAGE_SIZE_INDEX: u32 = 3;
+const STORAGE_WRITE_INDEX: u32 = 4;
 
 const TABLE_SIZE: u32 = 1024;
 const TABLE_INDEX: u32 = 0;
@@ -88,9 +90,21 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		unimplemented!()
 	}
 
-	fn call_internal_function(&self, _outer: CallerContext, index: u32, _function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+	fn call_internal_function(&self, outer: CallerContext, index: u32, _function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
 		match index {
-			GAS_INDEX => Ok(None),
+			GAS_INDEX => {
+				outer.value_stack.pop()?;
+				Ok(None)
+			},
+			STORAGE_SIZE_INDEX => {
+				Ok(Some(RuntimeValue::I32(0)))
+			},
+			STORAGE_WRITE_INDEX => {
+				outer.value_stack.pop()?;
+				outer.value_stack.pop()?;
+				outer.value_stack.pop()?;
+				Ok(Some(RuntimeValue::I32(0)))
+			},
 			_ => unimplemented!(),
 		}
 	}
@@ -113,6 +127,8 @@ pub fn env_module() -> Result<EnvModuleInstance, Error> {
 		.with_export(ExportEntry::new("invoke_vi".into(), Internal::Function(INVOKE_VI_INDEX)))
 		.with_export(ExportEntry::new("invoke".into(), Internal::Function(INVOKE_INDEX)))
 		.with_export(ExportEntry::new("gas".into(), Internal::Function(GAS_INDEX)))
+		.with_export(ExportEntry::new("_storage_size".into(), Internal::Function(STORAGE_SIZE_INDEX)))
+		.with_export(ExportEntry::new("_storage_write".into(), Internal::Function(STORAGE_WRITE_INDEX)))
 		.build();
 
 	EnvModuleInstance::new(module)

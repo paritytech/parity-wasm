@@ -1,3 +1,4 @@
+use std::iter::repeat;
 use std::sync::{Arc, Weak};
 use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody, Internal};
 use interpreter::Error;
@@ -345,7 +346,10 @@ fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBod
 			VariableInstance::new(true, expected_type, param_value)
 		})
 		.collect::<Vec<_>>().into_iter().rev()
-		.chain(function_body.locals().iter().map(|l| VariableInstance::new(true, l.value_type().into(), RuntimeValue::default(l.value_type().into()))))
+		.chain(function_body.locals()
+			.iter()
+			.flat_map(|l| repeat(l.value_type().into()).take(l.count() as usize))
+			.map(|vt| VariableInstance::new(true, vt, RuntimeValue::default(vt))))
 		.collect::<Result<Vec<_>, _>>()
 }
 

@@ -10,6 +10,28 @@ use interpreter::table::TableInstance;
 use interpreter::value::{RuntimeValue, TryInto, TransmuteInto};
 use interpreter::variable::{VariableInstance, VariableType};
 
+/// Module instance API.
+pub trait ModuleInstanceInterface {
+	/// Execute start function of the module.
+	fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
+	/// Execute function with the given index.
+	fn execute(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
+	/// Get module description reference.
+	fn module(&self) -> &Module;
+	/// Get table reference.
+	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error>;
+	/// Get memory reference.
+	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error>;
+	/// Get global reference.
+	fn global(&self, index: ItemIndex) -> Result<Arc<VariableInstance>, Error>;
+	/// Call function with given index in functions index space.
+	fn call_function(&self, outer: CallerContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error>;
+	/// Call function with given index in the given table.
+	fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error>;
+	/// Call function with internal index.
+	fn call_internal_function(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error>;
+}
+
 /// Item index in items index space.
 #[derive(Debug, Clone, Copy)]
 pub enum ItemIndex {
@@ -92,27 +114,52 @@ impl ModuleInstance {
 		Ok(module)
 	}
 
-	/// Execute start function of the module.
-	pub fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+	/// Complete module initialization.
+	fn complete_initialization(&mut self) -> Result<(), Error> {
+		// use data section to initialize linear memory regions
+		if let Some(data_section) = self.module.data_section() {
+			for (data_segment_index, data_segment) in data_section.entries().iter().enumerate() {
+				let offset: u32 = get_initializer(data_segment.offset(), &self.module, &self.imports)?.try_into()?;
+				self.memory(ItemIndex::IndexSpace(data_segment.index()))
+					.map_err(|e| Error::Initialization(format!("DataSegment {} initializes non-existant MemoryInstance {}: {:?}", data_segment_index, data_segment.index(), e)))
+					.and_then(|m| m.set(offset, data_segment.value()))
+					.map_err(|e| Error::Initialization(e.into()))?;
+			}
+		}
+
+		// use element section to fill tables
+		if let Some(element_section) = self.module.elements_section() {
+			for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
+				let offset: u32 = get_initializer(element_segment.offset(), &self.module, &self.imports)?.try_into()?;
+				self.table(ItemIndex::IndexSpace(element_segment.index()))
+					.map_err(|e| Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}: {:?}", element_segment_index, element_segment.index(), e)))
+					.and_then(|m| m.set_raw(offset, element_segment.members()))
+					.map_err(|e| Error::Initialization(e.into()))?;
+			}
+		}
+
+		Ok(())
+	}
+}
+
+impl ModuleInstanceInterface for ModuleInstance {
+	fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
 		let index = self.module.start_section().ok_or(Error::Program("module has no start section".into()))?;
 		self.execute(index, args)
 	}
 
-	/// Execute function with the given index.
-	pub fn execute(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+	fn execute(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
 		let args_len = args.len();
 		let mut args = StackWithLimit::with_data(args, args_len);
 		let caller_context = CallerContext::topmost(&mut args);
 		self.call_function(caller_context, ItemIndex::IndexSpace(index))
 	}
 
-	/// Get module description reference.
-	pub fn module(&self) -> &Module {
+	fn module(&self) -> &Module {
 		&self.module
 	}
 
-	/// Get table reference.
-	pub fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
+	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
 		match self.imports.parse_table_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_table_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.tables.get(index as usize).cloned()
@@ -125,8 +172,7 @@ impl ModuleInstance {
 		}
 	}
 
-	/// Get memory reference.
-	pub fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
+	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
 		match self.imports.parse_memory_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_memory_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.memory.get(index as usize).cloned()
@@ -139,8 +185,7 @@ impl ModuleInstance {
 		}
 	}
 
-	/// Get global reference.
-	pub fn global(&self, index: ItemIndex) -> Result<Arc<VariableInstance>, Error> {
+	fn global(&self, index: ItemIndex) -> Result<Arc<VariableInstance>, Error> {
 		match self.imports.parse_global_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_global_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.globals.get(index as usize).cloned()
@@ -153,8 +198,7 @@ impl ModuleInstance {
 		}
 	}
 
-	/// Call function with given index in functions index space.
-	pub fn call_function(&self, outer: CallerContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
+	fn call_function(&self, outer: CallerContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.call_internal_function(outer, index, None),
@@ -168,8 +212,7 @@ impl ModuleInstance {
 		}
 	}
 
-	/// Call function with given index in the given table.
-	pub fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+	fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
 		let function_type = match self.module.type_section()
 			.ok_or(Error::Function(format!("trying to indirect call function {} with non-existent function section", func_index)))
 			.and_then(|s| s.types().get(type_index as usize)
@@ -203,34 +246,6 @@ impl ModuleInstance {
 		}
 	}
 
-	/// Complete module initialization.
-	fn complete_initialization(&mut self) -> Result<(), Error> {
-		// use data section to initialize linear memory regions
-		if let Some(data_section) = self.module.data_section() {
-			for (data_segment_index, data_segment) in data_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(data_segment.offset(), &self.module, &self.imports)?.try_into()?;
-				self.memory(ItemIndex::IndexSpace(data_segment.index()))
-					.map_err(|e| Error::Initialization(format!("DataSegment {} initializes non-existant MemoryInstance {}: {:?}", data_segment_index, data_segment.index(), e)))
-					.and_then(|m| m.set(offset, data_segment.value()))
-					.map_err(|e| Error::Initialization(e.into()))?;
-			}
-		}
-
-		// use element section to fill tables
-		if let Some(element_section) = self.module.elements_section() {
-			for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(element_segment.offset(), &self.module, &self.imports)?.try_into()?;
-				self.table(ItemIndex::IndexSpace(element_segment.index()))
-					.map_err(|e| Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}: {:?}", element_segment_index, element_segment.index(), e)))
-					.and_then(|m| m.set_raw(offset, element_segment.members()))
-					.map_err(|e| Error::Initialization(e.into()))?;
-			}
-		}
-
-		Ok(())
-	}
-
-	/// Call function with internal index.
 	fn call_internal_function(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
 		// TODO: cache
 		// internal index = index of function in functions section && index of code in code section

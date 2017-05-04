@@ -48,6 +48,7 @@ impl Into<String> for Error {
 	}
 }
 
+mod env;
 mod imports;
 mod memory;
 mod module;
@@ -61,6 +62,6 @@ mod variable;
 #[cfg(test)]
 mod tests;
 
-pub use self::module::ModuleInstance;
+pub use self::module::{ModuleInstance, ModuleInstanceInterface};
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;

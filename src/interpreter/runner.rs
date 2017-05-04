@@ -4,7 +4,7 @@ use std::u32;
 use std::fmt::Display;
 use elements::{Opcode, BlockType, FunctionType};
 use interpreter::Error;
-use interpreter::module::{ModuleInstance, CallerContext, ItemIndex};
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex};
 use interpreter::stack::StackWithLimit;
 use interpreter::value::{RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto, TransmuteInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert};

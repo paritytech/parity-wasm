@@ -2,7 +2,7 @@ use std::sync::{Arc, Weak};
 use elements::{ImportSection, ImportEntry, External, Internal};
 use interpreter::Error;
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstance, ItemIndex};
+use interpreter::module::{ModuleInstanceInterface, ItemIndex};
 use interpreter::program::ProgramInstanceEssence;
 use interpreter::table::TableInstance;
 use interpreter::variable::VariableInstance;
@@ -94,7 +94,7 @@ impl ModuleImports {
 	}
 
 	/// Get module reference.
-	pub fn module(&self, name: &str) -> Result<Arc<ModuleInstance>, Error> {
+	pub fn module(&self, name: &str) -> Result<Arc<ModuleInstanceInterface>, Error> {
 		self.program
 			.upgrade()
 			.ok_or(Error::Program("program unloaded".into()))
@@ -131,7 +131,7 @@ impl ModuleImports {
 		Err(Error::Program(format!("wrong import {} from module {} (expecting global)", import.field(), import.module())))
 	}
 
-	fn external_export(&self, import: &ImportEntry) -> Result<(Arc<ModuleInstance>, Internal), Error> {
+	fn external_export(&self, import: &ImportEntry) -> Result<(Arc<ModuleInstanceInterface>, Internal), Error> {
 		self.module(import.module())
 			.and_then(|m| m.module().export_section()
 				.ok_or(Error::Program(format!("trying to import from module {} without export section", import.module())))

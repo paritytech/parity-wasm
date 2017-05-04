@@ -51,7 +51,7 @@ impl ModuleInstance {
 		let imports = ModuleImports::new(program, module.import_section());
 
 		// instantiate linear memory regions, if any
-		let mut memory = match module.memory_section() {
+		let memory = match module.memory_section() {
 			Some(memory_section) => memory_section.entries()
 										.iter()
 										.map(MemoryInstance::new)
@@ -60,7 +60,7 @@ impl ModuleInstance {
 		};
 
 		// instantiate tables, if any
-		let mut tables = match module.table_section() {
+		let tables = match module.table_section() {
 			Some(table_section) => table_section.entries()
 										.iter()
 										.map(|tt| TableInstance::new(VariableType::AnyFunc, tt)) // TODO: actual table type
@@ -81,35 +81,15 @@ impl ModuleInstance {
 			None => Vec::new(),
 		};
 
-		// use data section to initialize linear memory regions
-		if let Some(data_section) = module.data_section() {
-			for (data_segement_index, data_segment) in data_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(data_segment.offset(), &module, &imports)?.try_into()?;
-				memory
-					.get_mut(data_segment.index() as usize)
-					.ok_or(Error::Initialization(format!("DataSegment {} initializes non-existant MemoryInstance {}", data_segement_index, data_segment.index())))
-					.and_then(|m| m.set(offset, data_segment.value()).map_err(|e| Error::Initialization(e.into())))?;
-			}
-		}
-
-		// use element section to fill tables
-		if let Some(element_section) = module.elements_section() {
-			for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(element_segment.offset(), &module, &imports)?.try_into()?;
-				tables
-					.get_mut(element_segment.index() as usize)
-					.ok_or(Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}", element_segment_index, element_segment.index())))
-					.and_then(|m| m.set_raw(offset, element_segment.members()).map_err(|e| Error::Initialization(e.into())))?;
-			}
-		}
-
-		Ok(ModuleInstance {
+		let mut module = ModuleInstance {
 			module: module,
 			imports: imports,
 			memory: memory,
 			tables: tables,
 			globals: globals,
-		})
+		};
+		module.complete_initialization()?;
+		Ok(module)
 	}
 
 	/// Execute start function of the module.
@@ -221,6 +201,33 @@ impl ModuleInstance {
 				module.call_internal_function(outer, index, Some(function_type))
 			}
 		}
+	}
+
+	/// Complete module initialization.
+	fn complete_initialization(&mut self) -> Result<(), Error> {
+		// use data section to initialize linear memory regions
+		if let Some(data_section) = self.module.data_section() {
+			for (data_segment_index, data_segment) in data_section.entries().iter().enumerate() {
+				let offset: u32 = get_initializer(data_segment.offset(), &self.module, &self.imports)?.try_into()?;
+				self.memory(ItemIndex::IndexSpace(data_segment.index()))
+					.map_err(|e| Error::Initialization(format!("DataSegment {} initializes non-existant MemoryInstance {}: {:?}", data_segment_index, data_segment.index(), e)))
+					.and_then(|m| m.set(offset, data_segment.value()))
+					.map_err(|e| Error::Initialization(e.into()))?;
+			}
+		}
+
+		// use element section to fill tables
+		if let Some(element_section) = self.module.elements_section() {
+			for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
+				let offset: u32 = get_initializer(element_segment.offset(), &self.module, &self.imports)?.try_into()?;
+				self.table(ItemIndex::IndexSpace(element_segment.index()))
+					.map_err(|e| Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}: {:?}", element_segment_index, element_segment.index(), e)))
+					.and_then(|m| m.set_raw(offset, element_segment.members()))
+					.map_err(|e| Error::Initialization(e.into()))?;
+			}
+		}
+
+		Ok(())
 	}
 
 	/// Call function with internal index.

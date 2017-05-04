@@ -48,6 +48,7 @@ impl Deserialize for Opcodes {
 }
 
 /// Initialization expression.
+#[derive(Debug)]
 pub struct InitExpr(Vec<Opcode>);
 
 impl InitExpr {

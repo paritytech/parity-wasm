@@ -28,11 +28,11 @@ impl ProgramInstance {
 
 	/// Instantiate module.
 	pub fn add_module(&self, name: &str, module: Module) -> Result<Arc<ModuleInstance>, Error> {
+		let module_instance = Arc::new(ModuleInstance::new(Arc::downgrade(&self.essence), module)?);
 		let mut modules = self.essence.modules.write();
 		match modules.entry(name.into()) {
 			Entry::Occupied(_) => Err(Error::Program(format!("module {} already instantiated", name))),
 			Entry::Vacant(entry) => {
-				let module_instance = Arc::new(ModuleInstance::new(Arc::downgrade(&self.essence), module)?);
 				entry.insert(module_instance.clone());
 				Ok(module_instance)
 			},

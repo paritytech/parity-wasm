@@ -25,6 +25,8 @@ pub enum Error {
 	Value(String),
 	/// Interpreter (code) error.
 	Interpreter(String),
+	/// Env module error.
+	Env(String),
 	/// Trap.
 	Trap(String),
 }
@@ -43,6 +45,7 @@ impl Into<String> for Error {
 			Error::Stack(s) => s,
 			Error::Interpreter(s) => s,
 			Error::Value(s) => s,
+			Error::Env(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
 		}
 	}

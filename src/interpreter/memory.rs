@@ -5,7 +5,7 @@ use elements::MemoryType;
 use interpreter::Error;
 
 /// Linear memory page size.
-const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
+pub const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
 
 /// Linear memory instance.
 pub struct MemoryInstance {

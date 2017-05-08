@@ -1,153 +1,252 @@
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use builder::module;
-use elements::{Module, FunctionType, ExportEntry, Internal, MemoryType, GlobalEntry, GlobalType,
-	ValueType, InitExpr, TableType, Opcode};
+use elements::{Module, FunctionType, ExportEntry, Internal, GlobalEntry, GlobalType,
+	ValueType, InitExpr, Opcode, Opcodes};
 use interpreter::Error;
-use interpreter::module::{ModuleInstanceInterface, ItemIndex, CallerContext};
-use interpreter::memory::MemoryInstance;
+use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ItemIndex, CallerContext};
+use interpreter::memory::{MemoryInstance, LINEAR_MEMORY_PAGE_SIZE};
 use interpreter::table::TableInstance;
-use interpreter::value::RuntimeValue;
-use interpreter::variable::{VariableType, VariableInstance};
+use interpreter::value::{RuntimeValue, TransmuteInto};
+use interpreter::variable::VariableInstance;
 
-const MEMORY_INDEX: u32 = 0;
-const MEMORY_LIMIT_MIN: u32 = 1;
+/// Memory address, at which stack begins.
+const DEFAULT_STACK_BASE: u32 = 0;
+/// Memory, allocated for stack.
+const DEFAULT_TOTAL_STACK: u32 = 5 * 1024 * 1024;
+/// Total memory, allocated by default.
+const DEFAULT_TOTAL_MEMORY: u32 = 16 * 1024 * 1024;
+/// Whether memory can be enlarged, or not.
+const DEFAULT_ALLOW_MEMORY_GROWTH: bool = false;
+/// Default tableBase variable value.
+const DEFAULT_TABLE_BASE: u32 = 0;
 
-const STACKTOP_INDEX: u32 = 0;
-const STACKTOP_DEFAULT: i32 = 0;
-const TABLE_BASE_INDEX: u32 = 0;
-const TABLE_BASE_DEFAULT: i32 = 0;
+/// Defaul table size.
+const DEFAULT_TABLE_SIZE: u32 = 16;
 
-const INVOKE_VI_INDEX: u32 = 0;		// (i32, i32) -> ()
-const INVOKE_INDEX: u32 = 1;		// (i32) -> ()
-const GAS_INDEX: u32 = 2;
-const STORAGE_SIZE_INDEX: u32 = 3;
-const STORAGE_WRITE_INDEX: u32 = 4;
+/// Index of default memory.
+const INDEX_MEMORY: u32 = 0;
 
-const TABLE_SIZE: u32 = 1024;
-const TABLE_INDEX: u32 = 0;
+/// Index of default table.
+const INDEX_TABLE: u32 = 0;
+
+/// Index of STACK_BASE global variable.
+const INDEX_GLOBAL_STACK_BASE: u32 = 0;
+/// Index of STACK_TOP global variable.
+const INDEX_GLOBAL_STACK_TOP: u32 = 1;
+/// Index of STACK_MAX global variable.
+const INDEX_GLOBAL_STACK_MAX: u32 = 2;
+/// Index of DYNAMIC_BASE global variable.
+const INDEX_GLOBAL_DYNAMIC_BASE: u32 = 3;
+/// Index of DYNAMICTOP_PTR global variable.
+const INDEX_GLOBAL_DYNAMICTOP_PTR: u32 = 4;
+/// Index of TOTAL_MEMORY global variable.
+const INDEX_GLOBAL_TOTAL_MEMORY: u32 = 5;
+/// Index of ABORT global variable.
+const INDEX_GLOBAL_ABORT: u32 = 6;
+/// Index of EXITSTATUS global variable.
+const INDEX_GLOBAL_EXIT_STATUS: u32 = 7;
+/// Index of tableBase global variable.
+const INDEX_GLOBAL_TABLE_BASE: u32 = 8;
+
+/// Index of abort function.
+const INDEX_FUNC_ABORT: u32 = 0;
+/// Index of assert function.
+const INDEX_FUNC_ASSERT: u32 = 1;
+/// Index of enlargeMemory function.
+const INDEX_FUNC_ENLARGE_MEMORY: u32 = 2;
+/// Index of getTotalMemory function.
+const INDEX_FUNC_GET_TOTAL_MEMORY: u32 = 3;
+/// Index of abortOnCannotGrowMemory function.
+/*const INDEX_FUNC_ABORT_ON_CANNOT_GROW_MEMORY: u32 = 4;
+/// Index of invoke_vi function.
+const INDEX_FUNC_INVOKE_VI: u32 = 5;
+/// Index of invoke function.
+const INDEX_FUNC_INVOKE: u32 = 6;*/
+/// Min index of reserver function.
+const INDEX_FUNC_MIN_NONUSED: u32 = 7;
+/// Max index of reserved function.
+const INDEX_FUNC_MAX: u32 = 10000;
+
+/// Environment parameters.
+pub struct EnvParams {
+	/// Stack size in bytes.
+	pub total_stack: u32,
+	/// Total memory size in bytes.
+	pub total_memory: u32,
+	/// Allow memory growth.
+	pub allow_memory_growth: bool,
+}
 
 pub struct EnvModuleInstance {
-	module: Module,
-	memory: Arc<MemoryInstance>,
-	stacktop: Arc<VariableInstance>,
-	table: Arc<TableInstance>,
+	_params: EnvParams,
+	instance: ModuleInstance,
 }
 
 impl EnvModuleInstance {
-	pub fn new(module: Module) -> Result<Self, Error> {
+	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
+		let instance = ModuleInstance::new(Weak::default(), module)?;
+
 		Ok(EnvModuleInstance {
-			module: module,
-			memory: MemoryInstance::new(&MemoryType::new(MEMORY_LIMIT_MIN, None))?,
-			stacktop: Arc::new(VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(STACKTOP_DEFAULT))?),
-			table: TableInstance::new(VariableType::AnyFunc, &TableType::new(TABLE_SIZE, None))?,
+			_params: params,
+			instance: instance,
 		})
 	}
 }
 
 impl ModuleInstanceInterface for EnvModuleInstance {
-	fn execute_main(&self, _args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
-		unimplemented!()
+	fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+		self.instance.execute_main(args)
 	}
 
-	fn execute_index(&self, _index: u32, _args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
-		unimplemented!()
+	fn execute_index(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+		self.instance.execute_index(index, args)
 	}
 
-	fn execute_export(&self, _name: &str, _args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
-		unimplemented!()
+	fn execute_export(&self, name: &str, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+		self.instance.execute_export(name, args)
 	}
 
 	fn module(&self) -> &Module {
-		&self.module
+		self.instance.module()
 	}
 
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
-		match &index {
-			&ItemIndex::Internal(TABLE_INDEX) => Ok(self.table.clone()),
-			_ => Err(Error::Env(format!("trying to get table with index {:?} from env module", index))),
-		}
+		self.instance.table(index)
 	}
 
 	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
-		match &index {
-			&ItemIndex::Internal(MEMORY_INDEX) => Ok(self.memory.clone()),
-			_ => Err(Error::Env(format!("trying to get memory with index {:?} from env module", index))),
-		}
+		self.instance.memory(index)
 	}
 
 	fn global(&self, index: ItemIndex) -> Result<Arc<VariableInstance>, Error> {
-		match &index {
-			&ItemIndex::Internal(STACKTOP_INDEX) => Ok(self.stacktop.clone()),
-			_ => Err(Error::Env(format!("trying to get global with index {:?} from env module", index))),
-		}
+		self.instance.global(index)
 	}
 
-	fn call_function(&self, _outer: CallerContext, _index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
-		unimplemented!()
+	fn call_function(&self, outer: CallerContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
+		self.instance.call_function(outer, index)
 	}
 
-	fn call_function_indirect(&self, _outer: CallerContext, _table_index: ItemIndex, _type_index: u32, _func_index: u32) -> Result<Option<RuntimeValue>, Error> {
-		unimplemented!()
+	fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+		self.instance.call_function_indirect(outer, table_index, type_index, func_index)
 	}
 
 	fn call_internal_function(&self, outer: CallerContext, index: u32, _function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+		// to make interpreter independent of *SCRIPTEN runtime, just make abort/assert = interpreter Error
 		match index {
-			GAS_INDEX => {
-				outer.value_stack.pop()?;
-				Ok(None)
-			},
-			STORAGE_SIZE_INDEX => {
-				Ok(Some(RuntimeValue::I32(0)))
-			},
-			STORAGE_WRITE_INDEX => {
-				outer.value_stack.pop()?;
-				outer.value_stack.pop()?;
-				outer.value_stack.pop()?;
-				Ok(Some(RuntimeValue::I32(0)))
-			},
-			_ => unimplemented!(),
+			INDEX_FUNC_ABORT => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT))
+				.and_then(|g| g.set(RuntimeValue::I32(1)))
+				.and_then(|_| Err(Error::Trap("abort".into()))),
+			INDEX_FUNC_ASSERT => outer.value_stack.pop_as::<i32>()
+				.and_then(|condition| if condition == 0 {
+					self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT))
+						.and_then(|g| g.set(RuntimeValue::I32(1)))
+						.and_then(|_| Err(Error::Trap("assertion failed".into())))
+				} else {
+					Ok(None)
+				}),
+			INDEX_FUNC_ENLARGE_MEMORY => Ok(Some(RuntimeValue::I32(0))), // TODO: support memory enlarge
+			INDEX_FUNC_GET_TOTAL_MEMORY => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_TOTAL_MEMORY))
+				.map(|g| g.get())
+				.map(Some),
+			INDEX_FUNC_MIN_NONUSED ... INDEX_FUNC_MAX => Err(Error::Trap("unimplemented".into())),
+			idx @ _ if idx == INDEX_FUNC_MAX + 1 => outer.value_stack.pop().map(|_| None), // TODO: `gas(i32) -> None` function
+			idx @ _ if idx == INDEX_FUNC_MAX + 2 => Ok(Some(RuntimeValue::I32(0))), // TODO: `_storage_size() -> i32` function
+			idx @ _ if idx == INDEX_FUNC_MAX + 3 => outer.value_stack.pop_triple().map(|_| Some(RuntimeValue::I32(0))), // TODO: `_storage_size(i32,i32,i32) -> i32` function
+			_ => Err(Error::Trap(format!("trying to call function with index {} in emv module", index))),
 		}
 	}
 }
 
 pub fn env_module() -> Result<EnvModuleInstance, Error> {
+	let env_params = EnvParams::default();
+	debug_assert!(env_params.total_stack < env_params.total_memory);
+	debug_assert!((env_params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
+	debug_assert!((env_params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	let module = module()
 		// memory regions
-		.memory().with_min(MEMORY_LIMIT_MIN).build()
-		.with_export(ExportEntry::new("memory".into(), Internal::Memory(MEMORY_INDEX)))
+		.memory()
+			.with_min(env_params.total_memory / LINEAR_MEMORY_PAGE_SIZE)
+			.with_max(env_params.max_memory().map(|m| m / LINEAR_MEMORY_PAGE_SIZE))
+			.build()
+			.with_export(ExportEntry::new("memory".into(), Internal::Memory(INDEX_MEMORY)))
 		// tables
-		.table().with_min(TABLE_SIZE).build()
-		.with_export(ExportEntry::new("table".into(), Internal::Table(TABLE_INDEX)))
+		.table()
+			.with_min(DEFAULT_TABLE_SIZE)
+			.build()
+			.with_export(ExportEntry::new("table".into(), Internal::Table(INDEX_TABLE)))
 		// globals
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(STACKTOP_DEFAULT)])))
-		.with_export(ExportEntry::new("STACKTOP".into(), Internal::Global(STACKTOP_INDEX)))
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(TABLE_BASE_DEFAULT)])))
-		.with_export(ExportEntry::new("tableBase".into(), Internal::Global(TABLE_BASE_INDEX)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_STACK_BASE.transmute_into())])))
+			.with_export(ExportEntry::new("STACK_BASE".into(), Internal::Global(INDEX_GLOBAL_STACK_BASE)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(DEFAULT_STACK_BASE.transmute_into())])))
+			.with_export(ExportEntry::new("STACKTOP".into(), Internal::Global(INDEX_GLOBAL_STACK_TOP)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + env_params.total_stack).transmute_into())])))
+			.with_export(ExportEntry::new("STACK_MAX".into(), Internal::Global(INDEX_GLOBAL_STACK_MAX)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + env_params.total_stack).transmute_into())])))
+			.with_export(ExportEntry::new("DYNAMIC_BASE".into(), Internal::Global(INDEX_GLOBAL_DYNAMIC_BASE)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + env_params.total_stack).transmute_into())])))
+			.with_export(ExportEntry::new("DYNAMICTOP_PTR".into(), Internal::Global(INDEX_GLOBAL_DYNAMICTOP_PTR)))
+			.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, env_params.allow_memory_growth), InitExpr::new(vec![Opcode::I32Const(env_params.total_memory.transmute_into())])))
+			.with_export(ExportEntry::new("TOTAL_MEMORY".into(), Internal::Global(INDEX_GLOBAL_TOTAL_MEMORY)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(0)])))
+			.with_export(ExportEntry::new("ABORT".into(), Internal::Global(INDEX_GLOBAL_ABORT)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(0)])))
+			.with_export(ExportEntry::new("EXITSTATUS".into(), Internal::Global(INDEX_GLOBAL_EXIT_STATUS)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_TABLE_BASE.transmute_into())]))) // TODO: what is this?
+			.with_export(ExportEntry::new("tableBase".into(), Internal::Global(INDEX_GLOBAL_TABLE_BASE)))
 		// functions
-		.with_export(ExportEntry::new("invoke_vi".into(), Internal::Function(INVOKE_VI_INDEX)))
-		.with_export(ExportEntry::new("invoke".into(), Internal::Function(INVOKE_INDEX)))
-		.with_export(ExportEntry::new("gas".into(), Internal::Function(GAS_INDEX)))
-		.with_export(ExportEntry::new("_storage_size".into(), Internal::Function(STORAGE_SIZE_INDEX)))
-		.with_export(ExportEntry::new("_storage_write".into(), Internal::Function(STORAGE_WRITE_INDEX)))
+		.function()
+			.signature().build()
+			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+			.build()
+			.with_export(ExportEntry::new("abort".into(), Internal::Function(INDEX_FUNC_ABORT)))
+		.function()
+			.signature().param().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+			.build()
+			.with_export(ExportEntry::new("assert".into(), Internal::Function(INDEX_FUNC_ASSERT)))
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+			.build()
+			.with_export(ExportEntry::new("enlargeMemory".into(), Internal::Function(INDEX_FUNC_ENLARGE_MEMORY)))
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+			.build()
+			.with_export(ExportEntry::new("getTotalMemory".into(), Internal::Function(INDEX_FUNC_GET_TOTAL_MEMORY)))
+		// non-standard functions (TODO: pass as parameters to EnvModuleInstance)
+		.function()
+			.signature().param().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+			.build()
+			.with_export(ExportEntry::new("gas".into(), Internal::Function(INDEX_FUNC_MAX + 1)))
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+			.build()
+			.with_export(ExportEntry::new("_storage_size".into(), Internal::Function(INDEX_FUNC_MAX + 2)))
+		.function()
+			.signature().param().i32().param().i32().param().i32().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+			.build()
+			.with_export(ExportEntry::new("_storage_write".into(), Internal::Function(INDEX_FUNC_MAX + 3)))
 		.build();
 
-	EnvModuleInstance::new(module)
+	EnvModuleInstance::new(env_params, module)
 }
-/*
-  (import "env" "STACKTOP" (global (;0;) i32))
-  (import "env" "invoke_vi" (func (;0;) (type 3)))
-  (import "env" "invoke_v" (func (;1;) (type 1)))
-  (import "env" "_storage_size" (func (;2;) (type 2)))
-  (import "env" "_storage_write" (func (;3;) (type 4)))
-  (import "env" "_abort" (func (;4;) (type 0)))
-  (import "env" "_emscripten_memcpy_big" (func (;5;) (type 4)))
-  (import "env" "___resumeException" (func (;6;) (type 1)))
-  (import "env" "___cxa_find_matching_catch_2" (func (;7;) (type 2)))
-  (import "env" "___gxx_personality_v0" (func (;8;) (type 6)))
-  (import "env" "memory" (memory (;0;) 256 256))
-  (import "env" "table" (table (;0;) 6 6 anyfunc))
-  (import "env" "tableBase" (global (;1;) i32))
-  (import "env" "gas" (func (;9;) (type 10)))
-  (import "env" "_free" (func (;10;) (type 1)))
-  (import "env" "_malloc" (func (;11;) (type 7)))
-*/
+
+impl Default for EnvParams {
+	fn default() -> Self {
+		EnvParams {
+			total_stack: DEFAULT_TOTAL_STACK,
+			total_memory: DEFAULT_TOTAL_MEMORY,
+			allow_memory_growth: DEFAULT_ALLOW_MEMORY_GROWTH,
+		}
+	}
+}
+
+impl EnvParams {
+	fn max_memory(&self) -> Option<u32> {
+		if self.allow_memory_growth { None } else { Some(self.total_memory) }
+	}
+}

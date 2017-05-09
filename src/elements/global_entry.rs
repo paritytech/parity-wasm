@@ -8,6 +8,13 @@ pub struct GlobalEntry {
 }
 
 impl GlobalEntry {
+    /// New global entry
+    pub fn new(global_type: GlobalType, init_expr: InitExpr) -> Self {
+        GlobalEntry {
+            global_type: global_type,
+            init_expr: init_expr,
+        }
+    }
     /// Global type.
     pub fn global_type(&self) -> &GlobalType { &self.global_type }
     /// Initialization expression (opcodes) for global.

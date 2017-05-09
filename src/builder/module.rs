@@ -1,6 +1,6 @@
 use super::invoke::{Invoke, Identity};
 use super::code::{self, SignaturesBuilder, FunctionBuilder};
-use super::import;
+use super::{import, export};
 use elements;
 
 /// Module builder
@@ -248,9 +248,20 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         self
     }
 
+    /// With inserted import entry
+    pub fn with_export(mut self, entry: elements::ExportEntry) -> Self {
+        self.module.export.entries_mut().push(entry);
+        self
+    }    
+
     /// Import entry builder
     pub fn import(self) -> import::ImportBuilder<Self> {
         import::ImportBuilder::with_callback(self)
+    }
+
+    /// Export entry builder
+    pub fn export(self) -> export::ExportBuilder<Self> {
+        export::ExportBuilder::with_callback(self)
     }
 
     /// Build module (final step)
@@ -302,6 +313,16 @@ impl<F> Invoke<elements::ImportEntry> for ModuleBuilder<F>
     }
 }
 
+impl<F> Invoke<elements::ExportEntry> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, entry: elements::ExportEntry) -> Self::Result {
+        self.with_export(entry)
+    }
+}
+
 /// Start new module builder
 pub fn module() -> ModuleBuilder {
     ModuleBuilder::new()
@@ -337,4 +358,12 @@ mod tests {
         assert_eq!(module.code_section().expect("code section to exist").bodies().len(), 1);
     }
 
+    #[test]
+    fn export() {
+        let module = module()
+            .export().field("call").internal().func(0).build()
+            .build();
+
+        assert_eq!(module.export_section().expect("export section to exist").entries().len(), 1);
+    }
 }

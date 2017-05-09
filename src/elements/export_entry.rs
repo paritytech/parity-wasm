@@ -53,12 +53,23 @@ pub struct ExportEntry {
 }
 
 impl ExportEntry {
+    /// New export entry
+    pub fn new(field: String, internal: Internal) -> Self {
+        ExportEntry {
+            field_str: field,
+            internal: internal
+        }
+    }
+
     /// Public name
     pub fn field(&self) -> &str { &self.field_str }
+
     /// Public name (mutable)
     pub fn field_mut(&mut self) -> &mut str { &mut self.field_str }
+
     /// Internal reference of the export entry.
     pub fn internal(&self) -> &Internal { &self.internal }
+
     /// Internal reference of the export entry (mutable).    
     pub fn internal_mut(&mut self) -> &mut Internal { &mut self.internal }
 }

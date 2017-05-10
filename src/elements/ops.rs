@@ -48,6 +48,7 @@ impl Deserialize for Opcodes {
 }
 
 /// Initialization expression.
+#[derive(Debug)]
 pub struct InitExpr(Vec<Opcode>);
 
 impl InitExpr {
@@ -204,7 +205,7 @@ pub enum Opcode {
     I32Or,
     I32Xor,
     I32Shl,
-    I32ShlS,
+    I32ShrS,
     I32ShrU,
     I32Rotl,
     I32Rotr,
@@ -490,7 +491,7 @@ impl Deserialize for Opcode {
                 0x72 => I32Or,
                 0x73 => I32Xor,
                 0x74 => I32Shl,
-                0x75 => I32ShlS,
+                0x75 => I32ShrS,
                 0x76 => I32ShrU,
                 0x77 => I32Rotl,
                 0x78 => I32Rotr,
@@ -810,7 +811,7 @@ impl Serialize for Opcode {
             I32Or => op!(writer, 0x72),
             I32Xor => op!(writer, 0x73),
             I32Shl => op!(writer, 0x74),
-            I32ShlS => op!(writer, 0x75),
+            I32ShrS => op!(writer, 0x75),
             I32ShrU => op!(writer, 0x76),
             I32Rotl => op!(writer, 0x77),
             I32Rotr => op!(writer, 0x78),

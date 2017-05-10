@@ -5,6 +5,8 @@ mod module;
 mod code;
 mod misc;
 mod import;
+mod memory;
+mod table;
 mod export;
 mod global;
 

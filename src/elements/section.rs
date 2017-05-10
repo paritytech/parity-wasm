@@ -220,7 +220,7 @@ impl Serialize for TypeSection {
 }
 
 /// Section of the imports definition.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {
@@ -323,6 +323,11 @@ impl TableSection {
     pub fn entries(&self) -> &[TableType] {
         &self.0
     }
+
+    /// Mutable table entries.
+    pub fn entries_mut(&mut self) -> &mut Vec<TableType> {
+        &mut self.0
+    }
 }
 
 impl Deserialize for TableSection {
@@ -360,6 +365,11 @@ impl MemorySection {
     /// List of all memory entries in the section
     pub fn entries(&self) -> &[MemoryType] {
         &self.0
+    }
+
+    /// Mutable list of all memory entries in the section
+    pub fn entries_mut(&mut self) -> &mut Vec<MemoryType> {
+        &mut self.0
     }
 }
 
@@ -434,7 +444,7 @@ impl Serialize for GlobalSection {
 }
 
 /// List of exports definition.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ExportSection(Vec<ExportEntry>);
 
 impl ExportSection {
@@ -590,7 +600,7 @@ impl DataSection {
     /// List of all data entries in the section (mutable)
     pub fn entries_mut(&mut self) -> &mut Vec<DataSegment> {
         &mut self.0
-    }    
+    }
 }
 
 impl Deserialize for DataSection {

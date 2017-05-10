@@ -2,6 +2,7 @@ use std::io;
 use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr, CountedListWriter};
 
 /// Entry in the element section.
+#[derive(Debug)]
 pub struct ElementSegment {
     index: u32,
     offset: InitExpr,

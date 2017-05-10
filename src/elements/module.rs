@@ -1,9 +1,8 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, Uint32};
 use super::section::{
-    Section, CodeSection, TypeSection, ImportSection, FunctionsSection,
-    GlobalSection, TableSection, ElementSection, DataSection, MemorySection,
-    ExportSection,
+    Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionsSection,
+    GlobalSection, TableSection, ElementSection, DataSection, MemorySection
 };
 
 /// WebAssembly module
@@ -83,6 +82,14 @@ impl Module {
         None        
     }
 
+    /// Exports section, if any.
+    pub fn export_section(&self) -> Option<&ExportSection> {
+        for section in self.sections() {
+            if let &Section::Export(ref export_section) = section { return Some(export_section); }
+        }
+        None
+    }
+
     /// Table section, if any.
     pub fn table_section(&self) -> Option<&TableSection> {
         for section in self.sections() {
@@ -123,13 +130,13 @@ impl Module {
         None        
     }
 
-    /// Export section, if any.
-    pub fn export_section(&self) -> Option<&ExportSection> {
+    /// Start section, if any.
+    pub fn start_section(&self) -> Option<u32> {
         for section in self.sections() {
-            if let &Section::Export(ref sect) = section { return Some(sect); }
+            if let &Section::Start(sect) = section { return Some(sect); }
         }
-        None        
-    }    
+        None
+    }
 }
 
 impl Deserialize for Module {

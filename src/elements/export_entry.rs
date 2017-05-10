@@ -2,6 +2,7 @@ use std::io;
 use super::{Deserialize, Serialize, Error, VarUint7, VarUint32};
 
 /// Internal reference of the exported entry.
+#[derive(Debug, Clone, Copy)]
 pub enum Internal {
     /// Function reference.
     Function(u32),
@@ -47,6 +48,7 @@ impl Serialize for Internal {
 }
 
 /// Export entry.
+#[derive(Debug)] 
 pub struct ExportEntry {
     field_str: String,
     internal: Internal,

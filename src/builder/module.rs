@@ -1,5 +1,7 @@
 use super::invoke::{Invoke, Identity};
 use super::code::{self, SignaturesBuilder, FunctionBuilder};
+use super::memory::{self, MemoryBuilder};
+use super::table::{self, TableBuilder};
 use super::{import, export, global};
 use elements;
 
@@ -190,10 +192,38 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         self.module.code.bodies_mut().push(body);
         let body_index = self.module.code.bodies_mut().len() as u32 - 1;
 
+        if func.is_main {
+            self.module.start = Some(body_index);
+        }
+
         CodeLocation {
             signature: signature_index,
             body: body_index,
         }
+    }
+
+    /// Push linear memory region
+    pub fn push_memory(&mut self, mut memory: memory::MemoryDefinition) -> u32 {
+        let entries = self.module.memory.entries_mut();
+        entries.push(elements::MemoryType::new(memory.min, memory.max));
+        let memory_index = (entries.len() - 1) as u32;
+        for data in memory.data.drain(..) {
+            self.module.data.entries_mut()
+                .push(elements::DataSegment::new(memory_index, data.offset, data.values))
+        }
+        memory_index
+    }
+
+    /// Push table
+    pub fn push_table(&mut self, mut table: table::TableDefinition) -> u32 {
+        let entries = self.module.table.entries_mut();
+        entries.push(elements::TableType::new(table.min, Some(table.min)));
+        let table_index = (entries.len() - 1) as u32;
+        for entry in table.elements.drain(..) {
+            self.module.element.entries_mut()
+                .push(elements::ElementSegment::new(table_index, entry.offset, entry.values))
+        }
+        table_index
     }
 
     fn resolve_type_ref(&mut self, signature: code::Signature) -> u32 {
@@ -237,9 +267,25 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         FunctionBuilder::with_callback(self)
     }
 
+    /// Add new linear memory using dedicated builder
+    pub fn memory(self) -> MemoryBuilder<Self> {
+        MemoryBuilder::with_callback(self)
+    }
+
+    /// Add new table using dedicated builder
+    pub fn table(self) -> TableBuilder<Self> {
+        TableBuilder::with_callback(self)
+    }
+
     /// Define functions section
     pub fn functions(self) -> SignaturesBuilder<Self> {
         SignaturesBuilder::with_callback(self)
+    }
+
+    /// With inserted export entry
+    pub fn with_export(mut self, entry: elements::ExportEntry) -> Self {
+        self.module.export.entries_mut().push(entry);
+        self
     }
 
     /// With inserted import entry
@@ -248,21 +294,15 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         self
     }
 
-    /// With inserted export entry
-    pub fn with_export(mut self, entry: elements::ExportEntry) -> Self {
-        self.module.export.entries_mut().push(entry);
-        self
-    }    
-
-    /// With inserted global entry
-    pub fn with_global(mut self, entry: elements::GlobalEntry) -> Self {
-        self.module.global.entries_mut().push(entry);
-        self
-    }    
-
     /// Import entry builder
     pub fn import(self) -> import::ImportBuilder<Self> {
         import::ImportBuilder::with_callback(self)
+    }
+
+    /// With global variable
+    pub fn with_global(mut self, global: elements::GlobalEntry) -> Self {
+        self.module.global.entries_mut().push(global);
+        self
     }
 
     /// Export entry builder
@@ -310,6 +350,30 @@ impl<F> Invoke<code::FunctionDefinition> for ModuleBuilder<F>
     fn invoke(self, def: code::FunctionDefinition) -> Self {
         let mut b = self;
         b.push_function(def);
+        b
+    }
+}
+
+impl<F> Invoke<memory::MemoryDefinition> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, def: memory::MemoryDefinition) -> Self {
+        let mut b = self;
+        b.push_memory(def);
+        b
+    }
+}
+
+impl<F> Invoke<table::TableDefinition> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, def: table::TableDefinition) -> Self {
+        let mut b = self;
+        b.push_table(def);
         b
     }
 }

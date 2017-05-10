@@ -13,3 +13,4 @@ exclude = [ "res/*" ]
 
 [dependencies]
 byteorder = "1.0"
+parking_lot = "0.4"

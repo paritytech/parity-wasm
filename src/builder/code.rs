@@ -202,7 +202,6 @@ impl<F> FuncBodyBuilder<F> {
 }
 
 impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
-
     pub fn with_func(mut self, func: elements::FuncBody) -> Self {
         self.body = func;
         self

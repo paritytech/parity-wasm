@@ -271,7 +271,7 @@ impl ImportEntry {
     pub fn external(&self) -> &External { &self.external }
 
     /// Local binidng of the import entry (mutable)
-    pub fn external_mut(&mut self) -> &External { &mut self.external }    
+    pub fn external_mut(&mut self) -> &mut External { &mut self.external }    
 }
 
 impl Deserialize for ImportEntry {

@@ -2,7 +2,7 @@ use super::invoke::{Invoke, Identity};
 use super::code::{self, SignaturesBuilder, FunctionBuilder};
 use super::memory::{self, MemoryBuilder};
 use super::table::{self, TableBuilder};
-use super::import;
+use super::{import, export, global};
 use elements;
 
 /// Module builder
@@ -305,6 +305,16 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         self
     }
 
+    /// Export entry builder
+    pub fn export(self) -> export::ExportBuilder<Self> {
+        export::ExportBuilder::with_callback(self)
+    }
+
+    /// Glboal entry builder
+    pub fn global(self) -> global::GlobalBuilder<Self> {
+        global::GlobalBuilder::with_callback(self)
+    }
+
     /// Build module (final step)
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.module.into())
@@ -378,6 +388,26 @@ impl<F> Invoke<elements::ImportEntry> for ModuleBuilder<F>
     }
 }
 
+impl<F> Invoke<elements::ExportEntry> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, entry: elements::ExportEntry) -> Self::Result {
+        self.with_export(entry)
+    }
+}
+
+impl<F> Invoke<elements::GlobalEntry> for ModuleBuilder<F>
+    where F: Invoke<elements::Module> 
+{
+    type Result = Self;
+
+    fn invoke(self, entry: elements::GlobalEntry) -> Self::Result {
+        self.with_global(entry)
+    }
+}
+
 /// Start new module builder
 pub fn module() -> ModuleBuilder {
     ModuleBuilder::new()
@@ -413,4 +443,21 @@ mod tests {
         assert_eq!(module.code_section().expect("code section to exist").bodies().len(), 1);
     }
 
-}
+    #[test]
+    fn export() {
+        let module = module()
+            .export().field("call").internal().func(0).build()
+            .build();
+
+        assert_eq!(module.export_section().expect("export section to exist").entries().len(), 1);
+    }
+
+    #[test]
+    fn global() {
+        let module = module()
+            .global().value_type().i64().mutable().init_expr(::elements::Opcode::I64Const(5)).build()
+            .build();
+
+        assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);        
+    }
+ }

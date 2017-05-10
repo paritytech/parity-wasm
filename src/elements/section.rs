@@ -410,7 +410,7 @@ impl GlobalSection {
         &self.0
     }
 
-    /// Mutable list of all global entries in the section
+    /// List of all global entries in the section (mutable)
     pub fn entries_mut(&mut self) -> &mut Vec<GlobalEntry> {
         &mut self.0
     }
@@ -549,10 +549,10 @@ impl ElementSection {
         &self.0
     }
 
-    /// Mutable elements entries in the section
+    /// List of all data entries in the section (mutable)
     pub fn entries_mut(&mut self) -> &mut Vec<ElementSegment> {
         &mut self.0
-    }
+    }    
 }
 
 impl Deserialize for ElementSection {
@@ -597,7 +597,7 @@ impl DataSection {
         &self.0
     }
 
-    /// Mutable list of all data entries in the section
+    /// List of all data entries in the section (mutable)
     pub fn entries_mut(&mut self) -> &mut Vec<DataSegment> {
         &mut self.0
     }

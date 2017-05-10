@@ -2,7 +2,7 @@ use std::io;
 use super::{Deserialize, Serialize, Error, Uint32};
 use super::section::{
     Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionsSection,
-    GlobalSection, TableSection, ElementSection, DataSection, MemorySection,
+    GlobalSection, TableSection, ElementSection, DataSection, MemorySection
 };
 
 /// WebAssembly module

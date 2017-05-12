@@ -43,6 +43,39 @@ fn import_function() {
 }
 
 #[test]
+fn wrong_import() {
+	let side_module = module()
+		.with_export(ExportEntry::new("cool_func".into(), Internal::Function(0)))
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(3),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let module = module()
+		.with_import(ImportEntry::new("side_module".into(), "not_cool_func".into(), External::Function(0)))
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::Call(0),
+				Opcode::I32Const(7),
+				Opcode::I32Add,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new().unwrap();
+	let _side_module_instance = program.add_module("side_module", side_module).unwrap();
+	let module_instance = program.add_module("main", module).unwrap();
+
+	assert!(module_instance.execute_index(1, vec![]).is_err());	
+}
+
+#[test]
 fn global_get_set() {
 	let module = module()
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(42)])))

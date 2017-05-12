@@ -65,6 +65,6 @@ mod variable;
 #[cfg(test)]
 mod tests;
 
-pub use self::module::{ModuleInstance, ModuleInstanceInterface};
+pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex};
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;

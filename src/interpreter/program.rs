@@ -39,6 +39,11 @@ impl ProgramInstance {
 			},
 		}
 	}
+
+	/// Get one of the modules by name
+	pub fn module(&self, name: &str) -> Option<Arc<ModuleInstanceInterface>> {
+		self.essence.module(name)
+	}
 }
 
 impl ProgramInstanceEssence {

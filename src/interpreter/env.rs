@@ -1,4 +1,6 @@
 use std::sync::{Arc, Weak};
+use std::collections::HashMap;
+
 use builder::module;
 use elements::{Module, FunctionType, ExportEntry, Internal, GlobalEntry, GlobalType,
 	ValueType, InitExpr, Opcode, Opcodes};
@@ -67,6 +69,19 @@ const INDEX_FUNC_MIN_NONUSED: u32 = 7;
 /// Max index of reserved function.
 const INDEX_FUNC_MAX: u32 = 10000;
 
+/// Set of user-defined functions
+pub type UserFunctions = HashMap<String, UserFunction>;
+
+/// User function closure
+pub type UserFunctionClosure = Box<Fn(&CallerContext) -> Result<Option<RuntimeValue>, Error>>;
+
+/// Signature of user-defined env function
+pub struct UserFunction {
+	params: Vec<ValueType>,
+	result: Option<ValueType>,
+	closure: UserFunctionClosure,
+}
+
 /// Environment parameters.
 pub struct EnvParams {
 	/// Stack size in bytes.
@@ -77,17 +92,21 @@ pub struct EnvParams {
 	pub allow_memory_growth: bool,
 }
 
+type UserFunctionsInternals = HashMap<u32, UserFunctionClosure>;
+
 pub struct EnvModuleInstance {
 	_params: EnvParams,
+	user_functions: UserFunctionsInternals,
 	instance: ModuleInstance,
 }
 
 impl EnvModuleInstance {
-	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
+	pub fn new(params: EnvParams, user_functions: UserFunctionsInternals, module: Module) -> Result<Self, Error> {
 		let instance = ModuleInstance::new(Weak::default(), module)?;
 
 		Ok(EnvModuleInstance {
 			_params: params,
+			user_functions: user_functions,
 			instance: instance,
 		})
 	}
@@ -157,12 +176,12 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 	}
 }
 
-pub fn env_module() -> Result<EnvModuleInstance, Error> {
-	let env_params = EnvParams::default();
+pub fn env_module(user_functions: UserFunctions) -> Result<EnvModuleInstance, Error> {
+	let mut env_params = EnvParams::default();
 	debug_assert!(env_params.total_stack < env_params.total_memory);
 	debug_assert!((env_params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((env_params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
-	let module = module()
+	let mut module = module()
 		// memory regions
 		.memory()
 			.with_min(env_params.total_memory / LINEAR_MEMORY_PAGE_SIZE)
@@ -214,25 +233,32 @@ pub fn env_module() -> Result<EnvModuleInstance, Error> {
 			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
 			.build()
 			.with_export(ExportEntry::new("getTotalMemory".into(), Internal::Function(INDEX_FUNC_GET_TOTAL_MEMORY)))
-		// non-standard functions (TODO: pass as parameters to EnvModuleInstance)
-		.function()
-			.signature().param().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
-			.build()
-			.with_export(ExportEntry::new("gas".into(), Internal::Function(INDEX_FUNC_MAX + 1)))
-		.function()
-			.signature().return_type().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
-			.build()
-			.with_export(ExportEntry::new("_storage_size".into(), Internal::Function(INDEX_FUNC_MAX + 2)))
-		.function()
-			.signature().param().i32().param().i32().param().i32().return_type().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
-			.build()
-			.with_export(ExportEntry::new("_storage_write".into(), Internal::Function(INDEX_FUNC_MAX + 3)))
 		.build();
+		// non-standard functions (TODO: pass as parameters to EnvModuleInstance)
+		// .function()
+		// 	.signature().param().i32().build()
+		// 	.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+		// 	.build()
+		// 	.with_export(ExportEntry::new("gas".into(), Internal::Function(INDEX_FUNC_MAX + 1)))
+		// .function()
+		// 	.signature().return_type().i32().build()
+		// 	.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+		// 	.build()
+		// 	.with_export(ExportEntry::new("_storage_size".into(), Internal::Function(INDEX_FUNC_MAX + 2)))
+		// .function()
+		// 	.signature().param().i32().param().i32().param().i32().return_type().i32().build()
+		// 	.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
+		// 	.build()
+		// 	.with_export(ExportEntry::new("_storage_write".into(), Internal::Function(INDEX_FUNC_MAX + 3)))
+		// .build();
 
-	EnvModuleInstance::new(env_params, module)
+	let mut funcs = user_functions;
+	let internals = HashMap::new();
+	for (func_name, func) in funcs.drain() {
+		
+	}
+
+	EnvModuleInstance::new(env_params, internals, module)
 }
 
 impl Default for EnvParams {

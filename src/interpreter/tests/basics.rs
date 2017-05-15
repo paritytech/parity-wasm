@@ -126,6 +126,7 @@ fn with_user_functions() {
 
 	let module = module()
 		.with_import(ImportEntry::new("env".into(), "custom_alloc".into(), External::Function(0)))
+		.with_import(ImportEntry::new("env".into(), "custom_increment".into(), External::Function(0)))
 		.function()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
@@ -151,10 +152,28 @@ fn with_user_functions() {
 		}
 	);
 
+	let mut rolling = 9999i32;
+	user_functions.insert(
+		"custom_increment".to_owned(), 
+		UserFunction {
+			params: vec![ValueType::I32],
+			result: Some(ValueType::I32),
+			closure: Box::new(move |_: CallerContext| {
+				rolling = rolling + 1;
+				Ok(Some(rolling.into()))
+			}),
+		}
+	);	
+
 	let program = ProgramInstance::with_functions(user_functions).unwrap();
 	let module_instance = program.add_module("main", module).unwrap();	
 
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));	
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(32));	
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(64));	
+	// internal function using first import
+	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));	
+	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(32));	
+	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(64));	
+	
+	// second import
+	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10000));	
+	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10001));	
 }

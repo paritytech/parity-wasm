@@ -122,7 +122,7 @@ fn global_get_set() {
 
 #[test]
 fn with_user_functions() {
-	use interpreter::{UserFunction, UserFunctions};
+	use interpreter::{UserFunction, UserFunctions, ModuleInstance};
 
 	let module = module()
 		.with_import(ImportEntry::new("env".into(), "custom_alloc".into(), External::Function(0)))
@@ -144,7 +144,7 @@ fn with_user_functions() {
 		UserFunction {
 			params: vec![ValueType::I32],
 			result: Some(ValueType::I32),
-			closure: Box::new(move |context: CallerContext| {
+			closure: Box::new(move |_module: &ModuleInstance, context: CallerContext| {
 				let prev = top;
 				top = top + context.value_stack.pop_as::<i32>()?;
 				Ok(Some(prev.into()))
@@ -158,7 +158,7 @@ fn with_user_functions() {
 		UserFunction {
 			params: vec![ValueType::I32],
 			result: Some(ValueType::I32),
-			closure: Box::new(move |_: CallerContext| {
+			closure: Box::new(move |_module: &ModuleInstance, _context: CallerContext|  {
 				rolling = rolling + 1;
 				Ok(Some(rolling.into()))
 			}),
@@ -180,14 +180,14 @@ fn with_user_functions() {
 
 #[test]
 fn with_user_functions_extended() {
-	use interpreter::{UserFunction, UserFunctions, UserFunctionInterface};
+	use interpreter::{UserFunction, UserFunctions, UserFunctionInterface, ModuleInstance};
 
 	struct UserMAlloc {
 		top: i32,
 	}
 
 	impl UserFunctionInterface for UserMAlloc {
-		fn call(&mut self, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+		fn call(&mut self, _module: &ModuleInstance, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 			let prev = self.top;
 			self.top += context.value_stack.pop_as::<i32>()?;
 			Ok(Some(prev.into()))

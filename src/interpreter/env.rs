@@ -78,12 +78,12 @@ pub type UserFunctionClosure = Box<UserFunctionInterface>;
 /// User-defined function execution interface
 pub trait UserFunctionInterface {
 	/// Handles the user function invocation
-	fn call(&mut self, context: CallerContext) -> Result<Option<RuntimeValue>, Error>; 
+	fn call(&mut self, module: &ModuleInstance, context: CallerContext) -> Result<Option<RuntimeValue>, Error>; 
 }
 
-impl<T> UserFunctionInterface for T where T: FnMut(CallerContext) -> Result<Option<RuntimeValue>, Error> {
-    fn call(&mut self, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
-        (&mut *self)(context)
+impl<T> UserFunctionInterface for T where T: FnMut(&ModuleInstance, CallerContext) -> Result<Option<RuntimeValue>, Error> {
+    fn call(&mut self, module: &ModuleInstance, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+        (&mut *self)(module, context)
     }
 }
 
@@ -187,7 +187,7 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 				// user-defined function
 				let user_index = idx - (INDEX_FUNC_MAX+1);
 				let func = self.user_functions.get(user_index as usize).ok_or(Error::Trap(format!("Trying to invoke user-defined function {}", user_index)))?;
-				func.borrow_mut().call(outer)
+				func.borrow_mut().call(&self.instance, outer)
 			},
 			// idx @ _ if idx == INDEX_FUNC_MAX + 1 => outer.value_stack.pop().map(|_| None), // TODO: `gas(i32) -> None` function
 			// idx @ _ if idx == INDEX_FUNC_MAX + 2 => Ok(Some(RuntimeValue::I32(0))), // TODO: `_storage_size() -> i32` function

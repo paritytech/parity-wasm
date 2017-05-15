@@ -262,6 +262,12 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         self.module.import.entries_mut().len() as u32 - 1
     }
 
+    /// Push export entry to module. 
+    pub fn push_export(&mut self, export: elements::ExportEntry) -> u32 {
+        self.module.export.entries_mut().push(export);
+        self.module.export.entries_mut().len() as u32 - 1
+    }
+
     /// Add new function using dedicated builder
     pub fn function(self) -> FunctionBuilder<Self> {
         FunctionBuilder::with_callback(self)

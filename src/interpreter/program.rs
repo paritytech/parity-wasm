@@ -27,6 +27,7 @@ impl ProgramInstance {
 		})
 	}
 
+	/// Create new program instance with predefined user-defined functions
 	pub fn with_functions(funcs: env::UserFunctions) -> Result<Self, Error> {
 		Ok(ProgramInstance {
 			essence: Arc::new(ProgramInstanceEssence::with_functions(funcs)?),
@@ -58,6 +59,7 @@ impl ProgramInstanceEssence {
 		ProgramInstanceEssence::with_functions(HashMap::with_capacity(0))
 	}
 
+	/// Create new program essence with provided user-defined functions
 	pub fn with_functions(funcs: env::UserFunctions) -> Result<Self, Error> {
 		let mut modules = HashMap::new();
 		let env_module: Arc<ModuleInstanceInterface> = Arc::new(env_module(funcs)?);

@@ -4,7 +4,7 @@ use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, Opcodes, Opcode};
 use interpreter::Error;
-use interpreter::module::ModuleInstanceInterface;
+use interpreter::module::{ModuleInstanceInterface, CallerContext};
 use interpreter::program::ProgramInstance;
 use interpreter::value::RuntimeValue;
 
@@ -118,4 +118,43 @@ fn global_get_set() {
 	assert_eq!(module.execute_index(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(50));
 	assert_eq!(module.execute_index(1, vec![]).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
 	assert_eq!(module.execute_index(2, vec![]).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
+}
+
+#[test]
+fn with_user_functions() {
+	use interpreter::{UserFunction, UserFunctions};
+
+	let module = module()
+		.with_import(ImportEntry::new("env".into(), "custom_alloc".into(), External::Function(0)))
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(32),
+				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let mut top = 0i32;
+	let mut user_functions = UserFunctions::new();
+	user_functions.insert(
+		"custom_alloc".to_owned(), 
+		UserFunction {
+			params: vec![ValueType::I32],
+			result: Some(ValueType::I32),
+			closure: Box::new(move |context: CallerContext| {
+				let prev = top;
+				top = top + context.value_stack.pop_as::<i32>()?;
+				Ok(Some(prev.into()))
+			}),
+		}
+	);
+
+	let program = ProgramInstance::with_functions(user_functions).unwrap();
+	let module_instance = program.add_module("main", module).unwrap();	
+
+	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));	
+	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(32));	
+	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(64));	
 }

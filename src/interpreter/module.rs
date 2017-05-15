@@ -62,8 +62,11 @@ pub struct ModuleInstance {
 
 /// Caller context.
 pub struct CallerContext<'a> {
+	/// Value stack limit
 	pub value_stack_limit: usize,
+	/// Frame stack limit
 	pub frame_stack_limit: usize,
+	/// Stack of the input parameters
 	pub value_stack: &'a mut StackWithLimit<RuntimeValue>,
 }
 
@@ -315,6 +318,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 }
 
 impl<'a> CallerContext<'a> {
+	/// Top most args
 	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>) -> Self {
 		CallerContext {
 			value_stack_limit: 1024,
@@ -323,6 +327,7 @@ impl<'a> CallerContext<'a> {
 		}
 	}
 
+	/// Nested context
 	pub fn nested(outer: &'a mut FunctionContext) -> Self {
 		CallerContext {
 			value_stack_limit: outer.value_stack().limit() - outer.value_stack().len(),

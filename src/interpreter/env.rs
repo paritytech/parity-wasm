@@ -77,6 +77,7 @@ pub type UserFunctionClosure = Box<UserFunctionInterface>;
 
 /// User-defined function execution interface
 pub trait UserFunctionInterface {
+	/// Handles the user function invocation
 	fn call(&mut self, context: CallerContext) -> Result<Option<RuntimeValue>, Error>; 
 }
 

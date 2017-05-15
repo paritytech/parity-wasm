@@ -68,4 +68,4 @@ mod tests;
 pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, CallerContext};
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
-pub use self::env::{UserFunctions, UserFunction};
+pub use self::env::{UserFunctions, UserFunction, UserFunctionInterface};

@@ -177,3 +177,50 @@ fn with_user_functions() {
 	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10000));	
 	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10001));	
 }
+
+#[test]
+fn with_user_functions_extended() {
+	use interpreter::{UserFunction, UserFunctions, UserFunctionInterface};
+
+	struct UserMAlloc {
+		top: i32,
+	}
+
+	impl UserFunctionInterface for UserMAlloc {
+		fn call(&mut self, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+			let prev = self.top;
+			self.top += context.value_stack.pop_as::<i32>()?;
+			Ok(Some(prev.into()))
+		}
+	}
+
+	let module = module()
+		.with_import(ImportEntry::new("env".into(), "_malloc".into(), External::Function(0)))
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(32),
+				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let mut user_functions = UserFunctions::new();
+	user_functions.insert(
+		"_malloc".to_owned(), 
+		UserFunction {
+			params: vec![ValueType::I32],
+			result: Some(ValueType::I32),
+			closure: Box::new(UserMAlloc { top: 0 }),
+		}
+	);
+
+	let program = ProgramInstance::with_functions(user_functions).unwrap();
+	let module_instance = program.add_module("main", module).unwrap();	
+
+	// internal function using first import
+	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));	
+	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(32));	
+	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(64));	
+}

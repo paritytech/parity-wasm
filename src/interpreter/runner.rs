@@ -395,7 +395,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_load<T>(context: &mut FunctionContext, offset: u32, _align: u32) -> Result<InstructionOutcome, Error>
+	fn run_load<T>(context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome, Error>
 		where RuntimeValue: From<T>, T: LittleEndianConvert {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		context.module()
@@ -406,7 +406,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_load_extend<T, U>(context: &mut FunctionContext, offset: u32, _align: u32) -> Result<InstructionOutcome, Error>
+	fn run_load_extend<T, U>(context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome, Error>
 		where T: ExtendInto<U>, RuntimeValue: From<U>, T: LittleEndianConvert {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		let stack_value: U = context.module()
@@ -420,7 +420,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_store<T>(context: &mut FunctionContext, offset: u32, _align: u32) -> Result<InstructionOutcome, Error>
+	fn run_store<T>(context: &mut FunctionContext, _align: u32, offset: u32, ) -> Result<InstructionOutcome, Error>
 		where RuntimeValue: TryInto<T, Error>, T: LittleEndianConvert {
 		let stack_value = context
 			.value_stack_mut()
@@ -433,7 +433,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_store_wrap<T, U>(context: &mut FunctionContext, offset: u32, _align: u32) -> Result<InstructionOutcome, Error>
+	fn run_store_wrap<T, U>(context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome, Error>
 		where RuntimeValue: TryInto<T, Error>, T: WrapInto<U>, U: LittleEndianConvert {
 		let stack_value: T = context.value_stack_mut().pop().and_then(|v| v.try_into())?;
 		let stack_value = stack_value.wrap_into().into_little_endian();

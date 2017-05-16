@@ -67,6 +67,7 @@ impl MemoryInstance {
 
 		let mut mut_buffer = buffer.as_mut_slice();
 		mut_buffer[begin..end].copy_from_slice(value);
+
 		Ok(())
 	}
 

@@ -508,7 +508,7 @@ fn return_void() {
 			])),
 		Opcode::I32Const(0),
 		Opcode::I32Const(1),
-		Opcode::I32Store(0, 2),
+		Opcode::I32Store(2, 0),
 		Opcode::End,
 	]);
 

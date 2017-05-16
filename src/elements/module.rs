@@ -276,4 +276,15 @@ mod integration_tests {
         assert_eq!(I32Const(-16384), func.code().elements()[10]);
         assert_eq!(I32Const(-32768), func.code().elements()[11]);
     }
+
+    #[test]
+    fn store() {
+        use super::super::Opcode::*;
+
+        let module = deserialize_file("./res/cases/v1/offset.wasm").expect("Should be deserialized");
+        let func = &module.code_section().expect("Code section to exist").bodies()[0];
+
+        assert_eq!(func.code().elements().len(), 5);
+        assert_eq!(I64Store(0, 32), func.code().elements()[2]);
+    }
 }

@@ -1,5 +1,6 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
+use std::sync::Arc;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, Opcodes, Opcode};
@@ -38,8 +39,8 @@ fn import_function() {
 	let external_module = program.add_module("external_module", module1).unwrap();
 	let main_module = program.add_module("main", module2).unwrap();
 
-	assert_eq!(external_module.execute_index(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(3));
-	assert_eq!(main_module.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10));
+	assert_eq!(external_module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(3));
+	assert_eq!(main_module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(10));
 }
 
 #[test]
@@ -72,7 +73,7 @@ fn wrong_import() {
 	let _side_module_instance = program.add_module("side_module", side_module).unwrap();
 	let module_instance = program.add_module("main", module).unwrap();
 
-	assert!(module_instance.execute_index(1, vec![]).is_err());	
+	assert!(module_instance.execute_index(1, vec![].into()).is_err());	
 }
 
 #[test]
@@ -115,14 +116,14 @@ fn global_get_set() {
 
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
-	assert_eq!(module.execute_index(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(50));
-	assert_eq!(module.execute_index(1, vec![]).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
-	assert_eq!(module.execute_index(2, vec![]).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
+	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
+	assert_eq!(module.execute_index(1, vec![].into()).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
+	assert_eq!(module.execute_index(2, vec![].into()).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
 }
 
 #[test]
 fn with_user_functions() {
-	use interpreter::{UserFunction, UserFunctions, ModuleInstance};
+	use interpreter::{UserFunction, UserFunctions, ExecutionParams, env_native_module};
 
 	let module = module()
 		.with_import(ImportEntry::new("env".into(), "custom_alloc".into(), External::Function(0)))
@@ -144,7 +145,7 @@ fn with_user_functions() {
 		UserFunction {
 			params: vec![ValueType::I32],
 			result: Some(ValueType::I32),
-			closure: Box::new(move |_module: &ModuleInstance, context: CallerContext| {
+			closure: Box::new(move |context: CallerContext| {
 				let prev = top;
 				top = top + context.value_stack.pop_as::<i32>()?;
 				Ok(Some(prev.into()))
@@ -158,36 +159,39 @@ fn with_user_functions() {
 		UserFunction {
 			params: vec![ValueType::I32],
 			result: Some(ValueType::I32),
-			closure: Box::new(move |_module: &ModuleInstance, _context: CallerContext|  {
+			closure: Box::new(move |_context: CallerContext|  {
 				rolling = rolling + 1;
 				Ok(Some(rolling.into()))
 			}),
 		}
 	);	
 
-	let program = ProgramInstance::with_functions(user_functions).unwrap();
-	let module_instance = program.add_module("main", module).unwrap();	
+	let program = ProgramInstance::new().unwrap();
+	let module_instance = program.add_module("main", module).unwrap();
+	let native_env = Arc::new(env_native_module(program.module("env").unwrap(), user_functions).unwrap());
+	let params = ExecutionParams::with_external("env".into(), native_env);
 
 	// internal function using first import
-	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));	
-	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(32));	
-	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(64));	
+	assert_eq!(module_instance.execute_index(2, params.clone()).unwrap().unwrap(), RuntimeValue::I32(0));	
+	assert_eq!(module_instance.execute_index(2, params.clone()).unwrap().unwrap(), RuntimeValue::I32(32));	
+	assert_eq!(module_instance.execute_index(2, params.clone()).unwrap().unwrap(), RuntimeValue::I32(64));	
 	
 	// second import
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10000));	
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10001));	
+	assert_eq!(module_instance.execute_index(1, params.clone()).unwrap().unwrap(), RuntimeValue::I32(10000));
+	assert_eq!(module_instance.execute_index(1, params).unwrap().unwrap(), RuntimeValue::I32(10001));
 }
 
 #[test]
 fn with_user_functions_extended() {
-	use interpreter::{UserFunction, UserFunctions, UserFunctionInterface, ModuleInstance};
+	use interpreter::{UserFunction, UserFunctions, UserFunctionInterface,
+		ExecutionParams, env_native_module};
 
 	struct UserMAlloc {
 		top: i32,
 	}
 
 	impl UserFunctionInterface for UserMAlloc {
-		fn call(&mut self, _module: &ModuleInstance, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+		fn call(&mut self, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 			let prev = self.top;
 			self.top += context.value_stack.pop_as::<i32>()?;
 			Ok(Some(prev.into()))
@@ -216,11 +220,13 @@ fn with_user_functions_extended() {
 		}
 	);
 
-	let program = ProgramInstance::with_functions(user_functions).unwrap();
+	let program = ProgramInstance::new().unwrap();
 	let module_instance = program.add_module("main", module).unwrap();	
+	let native_env = Arc::new(env_native_module(program.module("env").unwrap(), user_functions).unwrap());
+	let params = ExecutionParams::with_external("env".into(), native_env);
 
 	// internal function using first import
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));	
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(32));	
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(64));	
+	assert_eq!(module_instance.execute_index(1, params.clone()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module_instance.execute_index(1, params.clone()).unwrap().unwrap(), RuntimeValue::I32(32));
+	assert_eq!(module_instance.execute_index(1, params).unwrap().unwrap(), RuntimeValue::I32(64));
 }

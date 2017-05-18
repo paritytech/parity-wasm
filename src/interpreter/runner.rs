@@ -1,7 +1,9 @@
 use std::mem;
 use std::ops;
 use std::u32;
+use std::sync::Arc;
 use std::fmt::Display;
+use std::collections::HashMap;
 use elements::{Opcode, BlockType, FunctionType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex};
@@ -18,17 +20,19 @@ pub struct Interpreter;
 /// Function execution context.
 pub struct FunctionContext<'a> {
 	/// Module instance.
-	module: &'a ModuleInstance,
+	pub module: &'a ModuleInstance,
+	/// Execution-local external modules.
+	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface>>,
 	/// Function return type.
-	return_type: BlockType,
+	pub return_type: BlockType,
 	/// Local variables.
-	locals: Vec<VariableInstance>,
+	pub locals: Vec<VariableInstance>,
 	/// Values stack.
-	value_stack: StackWithLimit<RuntimeValue>,
+	pub value_stack: StackWithLimit<RuntimeValue>,
 	/// Blocks frames stack.
-	frame_stack: StackWithLimit<BlockFrame>,
+	pub frame_stack: StackWithLimit<BlockFrame>,
 	/// Current instruction position.
-	position: usize,
+	pub position: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -868,9 +872,10 @@ impl Interpreter {
 }
 
 impl<'a> FunctionContext<'a> {
-	pub fn new(module: &'a ModuleInstance, value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType, body: &[Opcode], args: Vec<VariableInstance>) -> Result<Self, Error> {
+	pub fn new(module: &'a ModuleInstance, externals: &'a HashMap<String, Arc<ModuleInstanceInterface>>, value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType, body: &[Opcode], args: Vec<VariableInstance>) -> Result<Self, Error> {
 		let mut context = FunctionContext {
 			module: module,
+			externals: externals,
 			return_type: function.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult),
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
 			frame_stack: StackWithLimit::with_limit(frame_stack_limit),
@@ -886,6 +891,10 @@ impl<'a> FunctionContext<'a> {
 
 	pub fn module(&self) -> &ModuleInstance {
 		self.module
+	}
+
+	pub fn externals(&self) -> &HashMap<String, Arc<ModuleInstanceInterface>> {
+		&self.externals
 	}
 
 	pub fn call_function(&mut self, index: u32) -> Result<Option<RuntimeValue>, Error> {

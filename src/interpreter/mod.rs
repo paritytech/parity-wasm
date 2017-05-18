@@ -27,6 +27,8 @@ pub enum Error {
 	Interpreter(String),
 	/// Env module error.
 	Env(String),
+	/// Native module error.
+	Native(String),
 	/// Trap.
 	Trap(String),
 }
@@ -46,12 +48,14 @@ impl Into<String> for Error {
 			Error::Interpreter(s) => s,
 			Error::Value(s) => s,
 			Error::Env(s) => s,
+			Error::Native(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
 		}
 	}
 }
 
 mod env;
+mod env_native;
 mod imports;
 mod memory;
 mod module;
@@ -65,7 +69,7 @@ mod variable;
 #[cfg(test)]
 mod tests;
 
-pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, CallerContext};
+pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, CallerContext, ExecutionParams};
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
-pub use self::env::{UserFunctions, UserFunction, UserFunctionInterface};
+pub use self::env_native::{env_native_module, UserFunctions, UserFunction, UserFunctionInterface};

@@ -22,7 +22,7 @@ pub struct FunctionContext<'a> {
 	/// Module instance.
 	pub module: &'a ModuleInstance,
 	/// Execution-local external modules.
-	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface>>,
+	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
 	/// Function return type.
 	pub return_type: BlockType,
 	/// Local variables.
@@ -872,7 +872,7 @@ impl Interpreter {
 }
 
 impl<'a> FunctionContext<'a> {
-	pub fn new(module: &'a ModuleInstance, externals: &'a HashMap<String, Arc<ModuleInstanceInterface>>, value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType, body: &[Opcode], args: Vec<VariableInstance>) -> Result<Self, Error> {
+	pub fn new(module: &'a ModuleInstance, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType, body: &[Opcode], args: Vec<VariableInstance>) -> Result<Self, Error> {
 		let mut context = FunctionContext {
 			module: module,
 			externals: externals,
@@ -893,7 +893,7 @@ impl<'a> FunctionContext<'a> {
 		self.module
 	}
 
-	pub fn externals(&self) -> &HashMap<String, Arc<ModuleInstanceInterface>> {
+	pub fn externals(&self) -> &HashMap<String, Arc<ModuleInstanceInterface + 'a>> {
 		&self.externals
 	}
 

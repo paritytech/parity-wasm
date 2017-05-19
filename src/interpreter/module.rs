@@ -12,13 +12,13 @@ use interpreter::table::TableInstance;
 use interpreter::value::{RuntimeValue, TryInto, TransmuteInto};
 use interpreter::variable::{VariableInstance, VariableType};
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 /// Execution context.
-pub struct ExecutionParams {
+pub struct ExecutionParams<'a> {
 	/// Arguments.
 	pub args: Vec<RuntimeValue>,
 	/// Execution-local external modules.
-	pub externals: HashMap<String, Arc<ModuleInstanceInterface>>,
+	pub externals: HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
 }
 
 /// Module instance API.
@@ -79,12 +79,12 @@ pub struct CallerContext<'a> {
 	/// Stack of the input parameters
 	pub value_stack: &'a mut StackWithLimit<RuntimeValue>,
 	/// Execution-local external modules.
-	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface>>,
+	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
 }
 
-impl ExecutionParams {
+impl<'a> ExecutionParams<'a> {
 	/// Create new execution params with given externa; module override.
-	pub fn with_external(name: String, module: Arc<ModuleInstanceInterface>) -> Self {
+	pub fn with_external(name: String, module: Arc<ModuleInstanceInterface + 'a>) -> Self {
 		let mut externals = HashMap::new();
 		externals.insert(name, module);
 		ExecutionParams {
@@ -92,10 +92,16 @@ impl ExecutionParams {
 			externals: externals,
 		}
 	}
+
+	/// Add argument.
+	pub fn add_argument(mut self, arg: RuntimeValue) -> Self {
+		self.args.push(arg);
+		self
+	}
 }
 
-impl From<Vec<RuntimeValue>> for ExecutionParams {
-	fn from(args: Vec<RuntimeValue>) -> ExecutionParams {
+impl<'a> From<Vec<RuntimeValue>> for ExecutionParams<'a> {
+	fn from(args: Vec<RuntimeValue>) -> ExecutionParams<'a> {
 		ExecutionParams {
 			args: args,
 			externals: HashMap::new(),
@@ -357,7 +363,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 
 impl<'a> CallerContext<'a> {
 	/// Top most args
-	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface>>) -> Self {
+	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>) -> Self {
 		CallerContext {
 			value_stack_limit: 1024,
 			frame_stack_limit: 1024,

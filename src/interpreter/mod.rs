@@ -69,7 +69,10 @@ mod variable;
 #[cfg(test)]
 mod tests;
 
+pub use self::memory::MemoryInstance;
 pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, CallerContext, ExecutionParams};
+pub use self::table::TableInstance;
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
-pub use self::env_native::{env_native_module, UserFunctions, UserFunction, UserFunctionInterface};
+pub use self::variable::VariableInstance;
+pub use self::env_native::{env_native_module, UserFunctions, UserFunction, UserFunctionExecutor};

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::collections::HashMap;
-
+use parking_lot::RwLock;
 use elements::{FunctionType, Internal, ValueType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
@@ -13,54 +13,58 @@ use interpreter::variable::VariableInstance;
 /// Min index of native function.
 pub const NATIVE_INDEX_FUNC_MIN: u32 = 10001;
 
-/// Set of user-defined functions
-pub type UserFunctions = HashMap<String, UserFunction>;
+/// User function closure type.
+// pub type UserFunctionClosure<'a> = &'a mut FnMut(context: CallerContext) -> Result<Option<RuntimeValue>, Error>;
 
-/// User function closure
-pub type UserFunctionClosure = Box<UserFunctionInterface>;
-
-/// User-defined function execution interface
-pub trait UserFunctionInterface {
-	/// Handles the user function invocation
-	fn call(&mut self, context: CallerContext) -> Result<Option<RuntimeValue>, Error>; 
+/// User functions executor.
+pub trait UserFunctionExecutor {
+	/// Execute function with given name.
+	fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error>;
 }
 
-impl<T> UserFunctionInterface for T where T: FnMut(CallerContext) -> Result<Option<RuntimeValue>, Error> {
-	fn call(&mut self, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
-		(&mut *self)(context)
-	}
-}
-
-/// Signature of user-defined env function
+/// User function type.
 pub struct UserFunction {
-	/// User function parameters (for signature matching)
+	/// User function name.
+	pub name: String,
+	/// User function parameters (for signature matching).
 	pub params: Vec<ValueType>,
-	/// User function return type (for signature matching)
+	/// User function return type (for signature matching).
 	pub result: Option<ValueType>,
-	/// Executor of the function
-	pub closure: UserFunctionClosure,
 }
 
-type UserFunctionsInternals = Vec<::std::cell::RefCell<UserFunctionClosure>>;
+/// Set of user-defined functions
+pub struct UserFunctions<'a> {
+	/// Functions list.
+	pub functions: Vec<UserFunction>,
+	/// Functions executor.
+	pub executor: &'a mut UserFunctionExecutor,
+}
 
 /// Native module instance.
-pub struct NativeModuleInstance {
+pub struct NativeModuleInstance<'a> {
+	/// Underllying module reference.
 	env: Arc<ModuleInstanceInterface>,
-	user_functions_names: HashMap<String, u32>,
-	user_functions: UserFunctionsInternals,
+	/// User function executor.
+	executor: RwLock<&'a mut UserFunctionExecutor>,
+	/// By-name functions index.
+	by_name: HashMap<String, u32>,
+	/// User functions list.
+	functions: Vec<UserFunction>,
 }
 
-impl NativeModuleInstance {
-	pub fn new(env: Arc<ModuleInstanceInterface>, user_functions_names: HashMap<String, u32>, user_functions: UserFunctionsInternals) -> Result<Self, Error> {
+impl<'a> NativeModuleInstance<'a> {
+	/// Create new native module
+	pub fn new(env: Arc<ModuleInstanceInterface>, functions: UserFunctions<'a>) -> Result<Self, Error> {
 		Ok(NativeModuleInstance {
 			env: env,
-			user_functions_names: user_functions_names,
-			user_functions: user_functions,
+			executor: RwLock::new(functions.executor),
+			by_name: functions.functions.iter().enumerate().map(|(i, f)| (f.name.clone(), i as u32)).collect(),
+			functions: functions.functions,
 		})
 	}
 }
 
-impl ModuleInstanceInterface for NativeModuleInstance {
+impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	fn execute_main(&self, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.env.execute_main(params)
 	}
@@ -74,8 +78,8 @@ impl ModuleInstanceInterface for NativeModuleInstance {
 	}
 
 	fn export_entry(&self, name: &str) -> Result<Internal, Error> {
-		if let Some(index) = self.user_functions_names.get(name) {
-			return Ok(Internal::Function(*index));
+		if let Some(index) = self.by_name.get(name) {
+			return Ok(Internal::Function(NATIVE_INDEX_FUNC_MIN + *index));
 		}
 
 		self.env.export_entry(name)
@@ -107,24 +111,14 @@ impl ModuleInstanceInterface for NativeModuleInstance {
 		}
 
 		// TODO: check type
-		self.user_functions
+		self.functions
 			.get((index - NATIVE_INDEX_FUNC_MIN) as usize)
 			.ok_or(Error::Native(format!("trying to call native function with index {}", index)))
-			.and_then(|f| f.borrow_mut().call(outer))
+			.and_then(|f| self.executor.write().execute(&f.name, outer))
 	}
 }
 
 /// Create wrapper for env module with given native user functions.
 pub fn env_native_module(env: Arc<ModuleInstanceInterface>, user_functions: UserFunctions) -> Result<NativeModuleInstance, Error> {
-	let mut funcs = user_functions;
-	let mut names = HashMap::new();
-	let mut internals = UserFunctionsInternals::new();
-	let mut index = NATIVE_INDEX_FUNC_MIN;
-	for (func_name, func) in funcs.drain() {
-		internals.push(::std::cell::RefCell::new(func.closure));
-		names.insert(func_name, index);
-		index += 1;
-	}
-
-	NativeModuleInstance::new(env, names, internals)
+	NativeModuleInstance::new(env, user_functions)
 }

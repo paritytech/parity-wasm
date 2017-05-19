@@ -1,10 +1,13 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
+use std::sync::Arc;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, Opcodes, Opcode};
 use interpreter::Error;
-use interpreter::module::{ModuleInstanceInterface, CallerContext};
+use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor};
+use interpreter::memory::MemoryInstance;
+use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams};
 use interpreter::program::ProgramInstance;
 use interpreter::value::RuntimeValue;
 
@@ -38,8 +41,8 @@ fn import_function() {
 	let external_module = program.add_module("external_module", module1).unwrap();
 	let main_module = program.add_module("main", module2).unwrap();
 
-	assert_eq!(external_module.execute_index(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(3));
-	assert_eq!(main_module.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10));
+	assert_eq!(external_module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(3));
+	assert_eq!(main_module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(10));
 }
 
 #[test]
@@ -72,7 +75,7 @@ fn wrong_import() {
 	let _side_module_instance = program.add_module("side_module", side_module).unwrap();
 	let module_instance = program.add_module("main", module).unwrap();
 
-	assert!(module_instance.execute_index(1, vec![]).is_err());	
+	assert!(module_instance.execute_index(1, vec![].into()).is_err());	
 }
 
 #[test]
@@ -115,112 +118,102 @@ fn global_get_set() {
 
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
-	assert_eq!(module.execute_index(0, vec![]).unwrap().unwrap(), RuntimeValue::I32(50));
-	assert_eq!(module.execute_index(1, vec![]).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
-	assert_eq!(module.execute_index(2, vec![]).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
+	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
+	assert_eq!(module.execute_index(1, vec![].into()).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
+	assert_eq!(module.execute_index(2, vec![].into()).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
 }
 
 #[test]
-fn with_user_functions() {
-	use interpreter::{UserFunction, UserFunctions, ModuleInstance};
+fn single_program_different_modules() {
+	// user function executor
+	struct FunctionExecutor {
+		pub memory: Arc<MemoryInstance>,
+		pub values: Vec<i32>,
+	}
+
+	impl UserFunctionExecutor for FunctionExecutor {
+		fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+			match name {
+				"add" => {
+					let memory_value = self.memory.get(0, 1).unwrap()[0];
+					let fn_argument = context.value_stack.pop_as::<u32>().unwrap() as u8;
+					let sum = memory_value + fn_argument;
+					self.memory.set(0, &vec![sum]).unwrap();
+					self.values.push(sum as i32);
+					Ok(Some(RuntimeValue::I32(sum as i32)))
+				},
+				"sub" => {
+					let memory_value = self.memory.get(0, 1).unwrap()[0];
+					let fn_argument = context.value_stack.pop_as::<u32>().unwrap() as u8;
+					let diff = memory_value - fn_argument;
+					self.memory.set(0, &vec![diff]).unwrap();
+					self.values.push(diff as i32);
+					Ok(Some(RuntimeValue::I32(diff as i32)))
+				},
+				_ => Err(Error::Trap("not implemented".into())),
+			}
+		}
+	}
+
+	// create new program
+	let program = ProgramInstance::new().unwrap();
+	// => env module is created
+	let env_instance = program.module("env").unwrap();
+	// => linear memory is created
+	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
 
 	let module = module()
-		.with_import(ImportEntry::new("env".into(), "custom_alloc".into(), External::Function(0)))
-		.with_import(ImportEntry::new("env".into(), "custom_increment".into(), External::Function(0)))
+		.with_import(ImportEntry::new("env".into(), "add".into(), External::Function(0)))
+		.with_import(ImportEntry::new("env".into(), "sub".into(), External::Function(0)))
 		.function()
-			.signature().return_type().i32().build()
+			.signature().param().i32().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
-				Opcode::I32Const(32),
+				Opcode::GetLocal(0),
 				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().param().i32().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::GetLocal(0),
+				Opcode::Call(1),
 				Opcode::End,
 			])).build()
 			.build()
 		.build();
 
-	let mut top = 0i32;
-	let mut user_functions = UserFunctions::new();
-	user_functions.insert(
-		"custom_alloc".to_owned(), 
-		UserFunction {
-			params: vec![ValueType::I32],
-			result: Some(ValueType::I32),
-			closure: Box::new(move |_module: &ModuleInstance, context: CallerContext| {
-				let prev = top;
-				top = top + context.value_stack.pop_as::<i32>()?;
-				Ok(Some(prev.into()))
-			}),
-		}
-	);
+	// load module
+	let module_instance = program.add_module("main", module).unwrap();
 
-	let mut rolling = 9999i32;
-	user_functions.insert(
-		"custom_increment".to_owned(), 
-		UserFunction {
-			params: vec![ValueType::I32],
-			result: Some(ValueType::I32),
-			closure: Box::new(move |_module: &ModuleInstance, _context: CallerContext|  {
-				rolling = rolling + 1;
-				Ok(Some(rolling.into()))
-			}),
-		}
-	);	
+	let mut executor = FunctionExecutor {
+		memory: env_memory.clone(),
+		values: Vec::new(),
+	};
+	{
+		// create native env module with native add && sub implementations
+		let functions: UserFunctions = UserFunctions {
+			executor: &mut executor,
+			functions: vec![UserFunction {
+				name: "add".into(),
+				params: vec![ValueType::I32],
+				result: Some(ValueType::I32),
+			}, UserFunction {
+				name: "sub".into(),
+				params: vec![ValueType::I32],
+				result: Some(ValueType::I32),
+			}],
+		};
+		let native_env_instance = Arc::new(env_native_module(env_instance, functions).unwrap());
 
-	let program = ProgramInstance::with_functions(user_functions).unwrap();
-	let module_instance = program.add_module("main", module).unwrap();	
+		// execute functions
+		let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
-	// internal function using first import
-	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));	
-	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(32));	
-	assert_eq!(module_instance.execute_index(2, vec![]).unwrap().unwrap(), RuntimeValue::I32(64));	
-	
-	// second import
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10000));	
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(10001));	
-}
-
-#[test]
-fn with_user_functions_extended() {
-	use interpreter::{UserFunction, UserFunctions, UserFunctionInterface, ModuleInstance};
-
-	struct UserMAlloc {
-		top: i32,
+		assert_eq!(module_instance.execute_index(2, params.clone().add_argument(RuntimeValue::I32(7))).unwrap().unwrap(), RuntimeValue::I32(7));
+		assert_eq!(module_instance.execute_index(2, params.clone().add_argument(RuntimeValue::I32(50))).unwrap().unwrap(), RuntimeValue::I32(57));
+		assert_eq!(module_instance.execute_index(3, params.clone().add_argument(RuntimeValue::I32(15))).unwrap().unwrap(), RuntimeValue::I32(42));
 	}
 
-	impl UserFunctionInterface for UserMAlloc {
-		fn call(&mut self, _module: &ModuleInstance, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
-			let prev = self.top;
-			self.top += context.value_stack.pop_as::<i32>()?;
-			Ok(Some(prev.into()))
-		}
-	}
-
-	let module = module()
-		.with_import(ImportEntry::new("env".into(), "_malloc".into(), External::Function(0)))
-		.function()
-			.signature().return_type().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![
-				Opcode::I32Const(32),
-				Opcode::Call(0),
-				Opcode::End,
-			])).build()
-			.build()
-		.build();
-
-	let mut user_functions = UserFunctions::new();
-	user_functions.insert(
-		"_malloc".to_owned(), 
-		UserFunction {
-			params: vec![ValueType::I32],
-			result: Some(ValueType::I32),
-			closure: Box::new(UserMAlloc { top: 0 }),
-		}
-	);
-
-	let program = ProgramInstance::with_functions(user_functions).unwrap();
-	let module_instance = program.add_module("main", module).unwrap();	
-
-	// internal function using first import
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(0));	
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(32));	
-	assert_eq!(module_instance.execute_index(1, vec![]).unwrap().unwrap(), RuntimeValue::I32(64));	
+	assert_eq!(executor.memory.get(0, 1).unwrap()[0], 42);
+	assert_eq!(executor.values, vec![7, 57, 42]);
 }

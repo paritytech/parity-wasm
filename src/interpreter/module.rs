@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::iter::repeat;
 use std::sync::{Arc, Weak};
 use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody, Internal};
@@ -11,16 +12,25 @@ use interpreter::table::TableInstance;
 use interpreter::value::{RuntimeValue, TryInto, TransmuteInto};
 use interpreter::variable::{VariableInstance, VariableType};
 
+#[derive(Default, Clone)]
+/// Execution context.
+pub struct ExecutionParams<'a> {
+	/// Arguments.
+	pub args: Vec<RuntimeValue>,
+	/// Execution-local external modules.
+	pub externals: HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
+}
+
 /// Module instance API.
 pub trait ModuleInstanceInterface {
 	/// Execute start function of the module.
-	fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
+	fn execute_main(&self, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
 	/// Execute function with the given index.
-	fn execute_index(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
+	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
 	/// Execute function with the given export name.
-	fn execute_export(&self, name: &str, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error>;
-	/// Get module description reference.
-	fn module(&self) -> &Module;
+	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
+	/// Get export entry.
+	fn export_entry(&self, name: &str) -> Result<Internal, Error>;
 	/// Get table reference.
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error>;
 	/// Get memory reference.
@@ -42,7 +52,7 @@ pub enum ItemIndex {
 	IndexSpace(u32),
 	/// Internal item index (i.e. index of item in items section).
 	Internal(u32),
-	/// External item index (i.e. index of item in the import section).
+	/// External module item index (i.e. index of item in the import section).
 	External(u32),
 }
 
@@ -68,6 +78,35 @@ pub struct CallerContext<'a> {
 	pub frame_stack_limit: usize,
 	/// Stack of the input parameters
 	pub value_stack: &'a mut StackWithLimit<RuntimeValue>,
+	/// Execution-local external modules.
+	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
+}
+
+impl<'a> ExecutionParams<'a> {
+	/// Create new execution params with given externa; module override.
+	pub fn with_external(name: String, module: Arc<ModuleInstanceInterface + 'a>) -> Self {
+		let mut externals = HashMap::new();
+		externals.insert(name, module);
+		ExecutionParams {
+			args: Vec::new(),
+			externals: externals,
+		}
+	}
+
+	/// Add argument.
+	pub fn add_argument(mut self, arg: RuntimeValue) -> Self {
+		self.args.push(arg);
+		self
+	}
+}
+
+impl<'a> From<Vec<RuntimeValue>> for ExecutionParams<'a> {
+	fn from(args: Vec<RuntimeValue>) -> ExecutionParams<'a> {
+		ExecutionParams {
+			args: args,
+			externals: HashMap::new(),
+		}
+	}
 }
 
 impl ModuleInstance {
@@ -149,19 +188,19 @@ impl ModuleInstance {
 }
 
 impl ModuleInstanceInterface for ModuleInstance {
-	fn execute_main(&self, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+	fn execute_main(&self, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		let index = self.module.start_section().ok_or(Error::Program("module has no start section".into()))?;
-		self.execute_index(index, args)
+		self.execute_index(index, params)
 	}
 
-	fn execute_index(&self, index: u32, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
-		let args_len = args.len();
-		let mut args = StackWithLimit::with_data(args, args_len);
-		let caller_context = CallerContext::topmost(&mut args);
+	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
+		let args_len = params.args.len();
+		let mut args = StackWithLimit::with_data(params.args, args_len);
+		let caller_context = CallerContext::topmost(&mut args, &params.externals);
 		self.call_function(caller_context, ItemIndex::IndexSpace(index))
 	}
 
-	fn execute_export(&self, name: &str, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		let index = self.module.export_section()
 			.ok_or(Error::Function("missing export section".into()))
 			.and_then(|s| s.entries().iter()
@@ -175,11 +214,16 @@ impl ModuleInstanceInterface for ModuleInstance {
 					_ => unreachable!(), // checked couple of lines above
 				})
 			)?;
-		self.execute_index(index, args)
+		self.execute_index(index, params)
 	}
 
-	fn module(&self) -> &Module {
-		&self.module
+	fn export_entry(&self, name: &str) -> Result<Internal, Error> {
+		self.module.export_section()
+			.ok_or(Error::Program(format!("trying to import {} from module without export section", name)))
+			.and_then(|s| s.entries().iter()
+				.find(|e| e.field() == name)
+				.map(|e| *e.internal())
+				.ok_or(Error::Program(format!("unresolved import {}", name))))
 	}
 
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
@@ -191,7 +235,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 				.ok_or(Error::Table(format!("trying to access external table with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Table(format!("trying to access external table with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| self.imports.table(e)),
+				.and_then(|e| self.imports.table(None, e)),
 		}
 	}
 
@@ -204,7 +248,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 				.ok_or(Error::Memory(format!("trying to access external memory with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Memory(format!("trying to access external memory with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| self.imports.memory(e)),
+				.and_then(|e| self.imports.memory(None, e)),
 		}
 	}
 
@@ -217,7 +261,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 				.ok_or(Error::Global(format!("trying to access external global with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Global(format!("trying to access external global with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| self.imports.global(e)),
+				.and_then(|e| self.imports.global(None, e)),
 		}
 	}
 
@@ -230,7 +274,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 				.ok_or(Error::Function(format!("trying to access external function with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Function(format!("trying to access external function with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| Ok((self.imports.module(e.module())?, self.imports.function(e)?)))
+				.and_then(|e| Ok((self.imports.module(Some(outer.externals), e.module())?, self.imports.function(Some(outer.externals), e)?)))
 				.and_then(|(m, index)| m.call_internal_function(outer, index, None)),
 		}
 	}
@@ -263,13 +307,13 @@ impl ModuleInstanceInterface for ModuleInstance {
 					.ok_or(Error::Function(format!("trying to access external table with index {} in module without import section", table_index)))
 					.and_then(|s| s.entries().get(table_index as usize)
 						.ok_or(Error::Function(format!("trying to access external table with index {} in module with {}-entries import section", table_index, s.entries().len()))))
-					.and_then(|e| self.imports.module(e.module()))?;
+					.and_then(|e| self.imports.module(Some(outer.externals), e.module()))?;
 				module.call_internal_function(outer, index, Some(function_type))
 			}
 		}
 	}
 
-	fn call_internal_function(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+	fn call_internal_function(&self, mut outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
 		// TODO: cache
 		// internal index = index of function in functions section && index of code in code section
 		// get function type index
@@ -311,19 +355,20 @@ impl ModuleInstanceInterface for ModuleInstance {
 		let function_code = function_body.code().elements();
 		let value_stack_limit = outer.value_stack_limit;
 		let frame_stack_limit = outer.frame_stack_limit;
-		let locals = prepare_function_locals(actual_function_type, function_body, outer)?;
-		let mut innner = FunctionContext::new(self, value_stack_limit, frame_stack_limit, actual_function_type, function_code, locals)?;
+		let locals = prepare_function_locals(actual_function_type, function_body, &mut outer)?;
+		let mut innner = FunctionContext::new(self, outer.externals, value_stack_limit, frame_stack_limit, actual_function_type, function_code, locals)?;
 		Interpreter::run_function(&mut innner, function_code)
 	}
 }
 
 impl<'a> CallerContext<'a> {
 	/// Top most args
-	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>) -> Self {
+	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>) -> Self {
 		CallerContext {
 			value_stack_limit: 1024,
 			frame_stack_limit: 1024,
 			value_stack: args,
+			externals: externals,
 		}
 	}
 
@@ -332,12 +377,13 @@ impl<'a> CallerContext<'a> {
 		CallerContext {
 			value_stack_limit: outer.value_stack().limit() - outer.value_stack().len(),
 			frame_stack_limit: outer.frame_stack().limit() - outer.frame_stack().len(),
-			value_stack: outer.value_stack_mut(),
+			value_stack: &mut outer.value_stack,
+			externals: &outer.externals,
 		}
 	}
 }
 
-fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, outer: CallerContext) -> Result<Vec<VariableInstance>, Error> {
+fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, outer: &mut CallerContext) -> Result<Vec<VariableInstance>, Error> {
 	// locals = function arguments + defined locals
 	function_type.params().iter().rev()
 		.map(|param_type| {
@@ -370,7 +416,7 @@ fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports) ->
 				.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| imports.global(e))
+				.and_then(|e| imports.global(None, e))
 				.map(|g| g.get())
 		},
 		&Opcode::I32Const(val) => Ok(RuntimeValue::I32(val)),

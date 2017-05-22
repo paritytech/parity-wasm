@@ -30,6 +30,7 @@ pub struct VariableInstance {
 }
 
 impl VariableInstance {
+	/// New variable instance
 	pub fn new(is_mutable: bool, variable_type: VariableType, value: RuntimeValue) -> Result<Self, Error> {
 		if !value.is_null() && value.variable_type() != Some(variable_type) {
 			return Err(Error::Variable(format!("trying to initialize variable of type {:?} with value of type {:?}", variable_type, value.variable_type())));
@@ -42,14 +43,17 @@ impl VariableInstance {
 		})
 	}
 
+	/// New global variable
 	pub fn new_global(global_type: &GlobalType, value: RuntimeValue) -> Result<Self, Error> {
 		Self::new(global_type.is_mutable(), global_type.content_type().into(), value)
 	}
 
+	/// Get the value of the variable instance
 	pub fn get(&self) -> RuntimeValue {
 		self.value.read().clone()
 	}
 
+	/// Set the value of the variable instance
 	pub fn set(&self, value: RuntimeValue) -> Result<(), Error> {
 		if !self.is_mutable {
 			return Err(Error::Variable("trying to update immutable variable".into()));

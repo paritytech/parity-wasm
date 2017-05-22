@@ -15,6 +15,7 @@ pub struct TableInstance {
 }
 
 impl TableInstance {
+	/// New instance of the table
 	pub fn new(variable_type: VariableType, table_type: &TableType) -> Result<Arc<Self>, Error> {
 		Ok(Arc::new(TableInstance {
 			variable_type: variable_type,
@@ -24,6 +25,7 @@ impl TableInstance {
 		}))
 	}
 
+	/// Get the specific value in the table
 	pub fn get(&self, offset: u32) -> Result<RuntimeValue, Error> {
 		let buffer = self.buffer.read();
 		let buffer_len = buffer.len();
@@ -32,6 +34,7 @@ impl TableInstance {
 			.ok_or(Error::Table(format!("trying to read table item with index {} when there are only {} items", offset, buffer_len)))
 	}
 
+	/// Set the table value from raw slice
 	pub fn set_raw(&self, mut offset: u32, value: &[u32]) -> Result<(), Error> {
 		for val in value {
 			match self.variable_type {
@@ -43,6 +46,7 @@ impl TableInstance {
 		Ok(())
 	}
 
+	/// Set the table from runtime variable value
 	pub fn set(&self, offset: u32, value: RuntimeValue) -> Result<(), Error> {
 		let mut buffer = self.buffer.write();
 		let buffer_len = buffer.len();

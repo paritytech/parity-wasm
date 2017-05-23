@@ -6,6 +6,8 @@
 
 ## Rust WebAssembly format serializing/deserializing
 
+along with experimental interpreter
+
 ```rust
 
 extern crate parity_wasm;

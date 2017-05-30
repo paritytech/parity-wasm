@@ -152,16 +152,15 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 	}
 }
 
-pub fn env_module() -> Result<EnvModuleInstance, Error> {
-	let env_params = EnvParams::default();
-	debug_assert!(env_params.total_stack < env_params.total_memory);
-	debug_assert!((env_params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
-	debug_assert!((env_params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
+pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
+	debug_assert!(params.total_stack < params.total_memory);
+	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
+	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	let builder = module()
 		// memory regions
 		.memory()
-			.with_min(env_params.total_memory / LINEAR_MEMORY_PAGE_SIZE)
-			.with_max(env_params.max_memory().map(|m| m / LINEAR_MEMORY_PAGE_SIZE))
+			.with_min(params.total_memory / LINEAR_MEMORY_PAGE_SIZE)
+			.with_max(params.max_memory().map(|m| m / LINEAR_MEMORY_PAGE_SIZE))
 			.build()
 			.with_export(ExportEntry::new("memory".into(), Internal::Memory(INDEX_MEMORY)))
 		// tables
@@ -174,13 +173,13 @@ pub fn env_module() -> Result<EnvModuleInstance, Error> {
 			.with_export(ExportEntry::new("STACK_BASE".into(), Internal::Global(INDEX_GLOBAL_STACK_BASE)))
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(DEFAULT_STACK_BASE.transmute_into())])))
 			.with_export(ExportEntry::new("STACKTOP".into(), Internal::Global(INDEX_GLOBAL_STACK_TOP)))
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + env_params.total_stack).transmute_into())])))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack).transmute_into())])))
 			.with_export(ExportEntry::new("STACK_MAX".into(), Internal::Global(INDEX_GLOBAL_STACK_MAX)))
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + env_params.total_stack).transmute_into())])))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack).transmute_into())])))
 			.with_export(ExportEntry::new("DYNAMIC_BASE".into(), Internal::Global(INDEX_GLOBAL_DYNAMIC_BASE)))
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + env_params.total_stack).transmute_into())])))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack).transmute_into())])))
 			.with_export(ExportEntry::new("DYNAMICTOP_PTR".into(), Internal::Global(INDEX_GLOBAL_DYNAMICTOP_PTR)))
-			.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, env_params.allow_memory_growth), InitExpr::new(vec![Opcode::I32Const(env_params.total_memory.transmute_into())])))
+			.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, params.allow_memory_growth), InitExpr::new(vec![Opcode::I32Const(params.total_memory.transmute_into())])))
 			.with_export(ExportEntry::new("TOTAL_MEMORY".into(), Internal::Global(INDEX_GLOBAL_TOTAL_MEMORY)))
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(0)])))
 			.with_export(ExportEntry::new("ABORT".into(), Internal::Global(INDEX_GLOBAL_ABORT)))
@@ -210,7 +209,7 @@ pub fn env_module() -> Result<EnvModuleInstance, Error> {
 			.build()
 			.with_export(ExportEntry::new("getTotalMemory".into(), Internal::Function(INDEX_FUNC_GET_TOTAL_MEMORY)));
 
-	EnvModuleInstance::new(env_params, builder.build())
+	EnvModuleInstance::new(params, builder.build())
 }
 
 impl Default for EnvParams {

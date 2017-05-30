@@ -76,3 +76,4 @@ pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
 pub use self::variable::VariableInstance;
 pub use self::env_native::{env_native_module, UserFunctions, UserFunction, UserFunctionExecutor};
+pub use self::env::EnvParams;

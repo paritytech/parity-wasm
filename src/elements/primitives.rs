@@ -190,7 +190,7 @@ impl Deserialize for VarInt7 {
         // expand sign
         if u8buf[0] & 0b0100_0000 == 0b0100_0000 { u8buf[0] |= 0b1000_0000 }
         // todo check range
-        Ok(VarInt7(unsafe { ::std::mem::transmute (u8buf[0]) }))
+        Ok(VarInt7(u8buf[0] as i8))
     }
 }
 

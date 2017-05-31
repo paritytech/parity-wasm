@@ -9,7 +9,7 @@ use interpreter::program::ProgramInstanceEssence;
 use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::stack::StackWithLimit;
 use interpreter::table::TableInstance;
-use interpreter::value::{RuntimeValue, TryInto, TransmuteInto};
+use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, VariableType};
 
 #[derive(Default, Clone)]
@@ -421,8 +421,8 @@ fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports) ->
 		},
 		&Opcode::I32Const(val) => Ok(RuntimeValue::I32(val)),
 		&Opcode::I64Const(val) => Ok(RuntimeValue::I64(val)),
-		&Opcode::F32Const(val) => Ok(RuntimeValue::F32(val.transmute_into())),
-		&Opcode::F64Const(val) => Ok(RuntimeValue::F64(val.transmute_into())),
+		&Opcode::F32Const(val) => Ok(RuntimeValue::decode_f32(val)),
+		&Opcode::F64Const(val) => Ok(RuntimeValue::decode_f64(val)),
 		_ => Err(Error::Initialization(format!("not-supported {:?} instruction in instantiation-time initializer", first_opcode))),
 	}
 }

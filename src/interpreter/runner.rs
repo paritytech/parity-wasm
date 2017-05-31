@@ -8,8 +8,10 @@ use elements::{Opcode, BlockType, FunctionType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex};
 use interpreter::stack::StackWithLimit;
-use interpreter::value::{RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto, TransmuteInto,
-	ArithmeticOps, Integer, Float, LittleEndianConvert};
+use interpreter::value::{
+	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
+	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
+};
 use interpreter::variable::VariableInstance;
 
 const DEFAULT_MEMORY_INDEX: u32 = 0;

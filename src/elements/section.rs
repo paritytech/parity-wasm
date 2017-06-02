@@ -157,7 +157,9 @@ impl Serialize for Section {
             },
             Section::Start(index) => {
                 VarUint7::from(0x08).serialize(writer)?;
-                VarUint32::from(index).serialize(writer)?;
+                let mut counted_writer = CountedWriter::new(writer);
+                VarUint32::from(index).serialize(&mut counted_writer)?;
+                counted_writer.done()?;
             },
             Section::Element(element_section) => {
                 VarUint7::from(0x09).serialize(writer)?;

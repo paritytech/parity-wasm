@@ -9,16 +9,15 @@ use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex};
 use interpreter::program::ProgramInstance;
 use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::value::{RuntimeValue, TryInto};
-use interpreter::variable::{VariableInstance, VariableType};
 
 fn run_function_i32(body: &Opcodes, arg: i32) -> Result<i32, Error> {
 	let ftype = FunctionType::new(vec![ValueType::I32], Some(ValueType::I32));
 	let module = ModuleInstance::new(Weak::default(), Module::default()).unwrap();
 	let externals = HashMap::new();
 	let mut context = FunctionContext::new(&module, &externals, 1024, 1024, &ftype, body.elements(), vec![
-			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(arg)).unwrap(),	// arg
-			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(0)).unwrap(),		// local1
-			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(0)).unwrap(),		// local2
+			RuntimeValue::I32(arg),	// arg
+			RuntimeValue::I32(0),	// local1
+			RuntimeValue::I32(0),	// local2
 		])?;
 	Interpreter::run_function(&mut context, body.elements())
 		.map(|v| v.unwrap().try_into().unwrap())

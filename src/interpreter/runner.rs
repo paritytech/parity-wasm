@@ -12,7 +12,6 @@ use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
 };
-use interpreter::variable::VariableInstance;
 
 const DEFAULT_MEMORY_INDEX: u32 = 0;
 const DEFAULT_TABLE_INDEX: u32 = 0;
@@ -28,7 +27,7 @@ pub struct FunctionContext<'a> {
 	/// Function return type.
 	pub return_type: BlockType,
 	/// Local variables.
-	pub locals: Vec<VariableInstance>,
+	pub locals: Vec<RuntimeValue>,
 	/// Values stack.
 	pub value_stack: StackWithLimit<RuntimeValue>,
 	/// Blocks frames stack.
@@ -874,7 +873,7 @@ impl Interpreter {
 }
 
 impl<'a> FunctionContext<'a> {
-	pub fn new(module: &'a ModuleInstance, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType, body: &[Opcode], args: Vec<VariableInstance>) -> Result<Self, Error> {
+	pub fn new(module: &'a ModuleInstance, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType, body: &[Opcode], args: Vec<RuntimeValue>) -> Result<Self, Error> {
 		let mut context = FunctionContext {
 			module: module,
 			externals: externals,
@@ -910,14 +909,14 @@ impl<'a> FunctionContext<'a> {
 	pub fn set_local(&mut self, index: usize, value: RuntimeValue) -> Result<InstructionOutcome, Error> {
 		self.locals.get_mut(index)
 			.ok_or(Error::Local(format!("expected to have local with index {}", index)))
-			.and_then(|l| l.set(value))
+			.and_then(|l| Ok(*l = value))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
 	pub fn get_local(&mut self, index: usize) -> Result<RuntimeValue, Error> {
 		self.locals.get(index)
 			.ok_or(Error::Local(format!("expected to have local with index {}", index)))
-			.map(|l| l.get())
+			.map(|v| v.clone())
 	}
 
 	pub fn value_stack(&self) -> &StackWithLimit<RuntimeValue> {

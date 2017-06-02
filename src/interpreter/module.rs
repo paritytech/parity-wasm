@@ -383,7 +383,7 @@ impl<'a> CallerContext<'a> {
 	}
 }
 
-fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, outer: &mut CallerContext) -> Result<Vec<VariableInstance>, Error> {
+fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, outer: &mut CallerContext) -> Result<Vec<RuntimeValue>, Error> {
 	// locals = function arguments + defined locals
 	function_type.params().iter().rev()
 		.map(|param_type| {
@@ -394,13 +394,13 @@ fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBod
 				return Err(Error::Function(format!("invalid parameter type {:?} when expected {:?}", actual_type, expected_type)));
 			}
 
-			VariableInstance::new(true, expected_type, param_value)
+			Ok(param_value)
 		})
 		.collect::<Vec<_>>().into_iter().rev()
 		.chain(function_body.locals()
 			.iter()
 			.flat_map(|l| repeat(l.value_type().into()).take(l.count() as usize))
-			.map(|vt| VariableInstance::new(true, vt, RuntimeValue::default(vt))))
+			.map(|vt| Ok(RuntimeValue::default(vt))))
 		.collect::<Result<Vec<_>, _>>()
 }
 

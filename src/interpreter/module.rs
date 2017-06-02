@@ -356,7 +356,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		let value_stack_limit = outer.value_stack_limit;
 		let frame_stack_limit = outer.frame_stack_limit;
 		let locals = prepare_function_locals(actual_function_type, function_body, &mut outer)?;
-		let mut innner = FunctionContext::new(self, outer.externals, value_stack_limit, frame_stack_limit, actual_function_type, function_code, locals)?;
+		let mut innner = FunctionContext::new(self, outer.externals, value_stack_limit, frame_stack_limit, actual_function_type, locals);
 		Interpreter::run_function(&mut innner, function_code)
 	}
 }

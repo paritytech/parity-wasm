@@ -65,6 +65,9 @@ pub struct BlockFrame {
 
 impl Interpreter {
 	pub fn run_function(context: &mut FunctionContext, body: &[Opcode]) -> Result<Option<RuntimeValue>, Error> {
+		let return_type = context.return_type;
+		context.push_frame(body.len() - 1, body.len() - 1, return_type)?;
+
 		Interpreter::execute_block(context, body)?;
 		match context.return_type {
 			BlockType::Value(_) => Ok(Some(context.value_stack_mut().pop()?)),
@@ -874,8 +877,8 @@ impl Interpreter {
 }
 
 impl<'a> FunctionContext<'a> {
-	pub fn new(module: &'a ModuleInstance, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType, body: &[Opcode], args: Vec<VariableInstance>) -> Result<Self, Error> {
-		let mut context = FunctionContext {
+	pub fn new(module: &'a ModuleInstance, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType, args: Vec<VariableInstance>) -> Self {
+		FunctionContext {
 			module: module,
 			externals: externals,
 			return_type: function.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult),
@@ -883,12 +886,7 @@ impl<'a> FunctionContext<'a> {
 			frame_stack: StackWithLimit::with_limit(frame_stack_limit),
 			locals: args,
 			position: 0,
-		};
-		context.push_frame(body.len() - 1, body.len() - 1, match function.return_type() {
-			Some(value_type) => BlockType::Value(value_type),
-			None => BlockType::NoResult,
-		})?;
-		Ok(context)
+		}
 	}
 
 	pub fn module(&self) -> &ModuleInstance {

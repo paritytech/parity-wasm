@@ -953,4 +953,17 @@ mod tests {
             0x0b,            // function end
         ]);
     }
+
+    #[test]
+    fn start_section() {
+        let section: Section = deserialize_buffer(vec![08u8, 01u8, 00u8]).expect("Start section to deserialize");
+        if let Section::Start(_) = section {
+        } else {
+            panic!("Payload should be a start section");
+        }
+
+        let serialized = serialize(section).expect("Start section to successfully serializen");
+
+        assert_eq!(serialized, vec![08u8, 01u8, 00u8]);
+    }
 }

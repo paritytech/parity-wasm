@@ -157,7 +157,9 @@ impl Serialize for Section {
             },
             Section::Start(index) => {
                 VarUint7::from(0x08).serialize(writer)?;
-                VarUint32::from(index).serialize(writer)?;
+                let mut counted_writer = CountedWriter::new(writer);
+                VarUint32::from(index).serialize(&mut counted_writer)?;
+                counted_writer.done()?;
             },
             Section::Element(element_section) => {
                 VarUint7::from(0x09).serialize(writer)?;
@@ -952,5 +954,18 @@ mod tests {
                 0x0b,        //   block end
             0x0b,            // function end
         ]);
+    }
+
+    #[test]
+    fn start_section() {
+        let section: Section = deserialize_buffer(vec![08u8, 01u8, 00u8]).expect("Start section to deserialize");
+        if let Section::Start(_) = section {
+        } else {
+            panic!("Payload should be a start section");
+        }
+
+        let serialized = serialize(section).expect("Start section to successfully serializen");
+
+        assert_eq!(serialized, vec![08u8, 01u8, 00u8]);
     }
 }

@@ -5,3 +5,4 @@ extern crate serde_json;
 
 mod run;
 mod test;
+mod fixtures;

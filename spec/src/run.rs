@@ -48,7 +48,7 @@ fn run_action(module: &ModuleInstance, action: &test::Action)
     }
 }
 
-fn run_spec(spec_name: &str) {
+pub fn spec(name: &str) {
     let outdir = env::var("OUT_DIR").unwrap();
 
     let mut wast2wasm_path = PathBuf::from(outdir.clone());
@@ -56,18 +56,21 @@ fn run_spec(spec_name: &str) {
     wast2wasm_path.push("wast2wasm");
 
     let mut json_spec_path = PathBuf::from(outdir.clone());
-    json_spec_path.push(&format!("{}.json", spec_name));
+    json_spec_path.push(&format!("{}.json", name));
 
-    let _output = Command::new(wast2wasm_path)
+    let wast2wasm_output = Command::new(wast2wasm_path)
         .arg("--spec")
         .arg("-o")
         .arg(&json_spec_path)
-        .arg(&format!("./testsuite/{}.wast", spec_name))
+        .arg(&format!("./testsuite/{}.wast", name))
         .output()
         .expect("Failed to execute process");
 
-    let mut f = File::open(&format!("{}/{}.json", outdir, spec_name)).unwrap();
-    let spec: test::Spec = serde_json::from_reader(&mut f).unwrap();
+    assert!(wast2wasm_output.status.success(), "wast2wasm terminated with error code");
+
+    let mut f = File::open(&json_spec_path)
+        .expect(&format!("Failed to load json file {}", &json_spec_path.to_string_lossy()));
+    let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
     let first_command = &spec.commands[0];
     let (mut _program, mut module) = match first_command {
@@ -112,9 +115,4 @@ fn run_spec(spec_name: &str) {
             }
         }
     }
-}
-
-#[test]
-fn wast_i32() {
-    run_spec("i32");
 }

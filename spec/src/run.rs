@@ -48,8 +48,7 @@ fn run_action(module: &ModuleInstance, action: &test::Action)
     }
 }
 
-#[test]
-fn i32_tests() {
+fn run_spec(spec_name: &str) {
     let outdir = env::var("OUT_DIR").unwrap();
     println!("outdir {}", outdir);
 
@@ -97,16 +96,29 @@ fn i32_tests() {
                         let spec_expected = runtime_values(expected);
                         let actual_result = result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>();
                         assert_eq!(actual_result, spec_expected);
-                        println!("Action at line {} - success", line);
+                        println!("assert_return at line {} - success", line);
                     },
                     Err(e) => {
                         panic!("Expected action to return value, got error: {:?}", e);
                     }
                 }
             },
-            _ => {
-                panic!("Unsupported fixture");
+            &test::Command::AssertTrap { line, ref action, .. } => {
+                let result = run_action(&*module, action);
+                match result {
+                    Ok(result) => {
+                        panic!("Expected action to result in a trap, got result: {:?}", result);
+                    },
+                    Err(e) => {
+                        println!("assert_trap at line {} - success ({:?})", line, e);                    
+                    }
+                }
             }
         }
     }
+}
+
+#[test]
+fn wast_i32() {
+    run_spec("i32");
 }

@@ -183,6 +183,11 @@ impl Serialize for Section {
 pub struct TypeSection(Vec<Type>);
 
 impl TypeSection {
+    ///  New type section with provided types
+    pub fn with_types(types: Vec<Type>) -> Self {
+        TypeSection(types)
+    }
+
     /// List of type declarations
     pub fn types(&self) -> &[Type] {
         &self.0
@@ -226,6 +231,11 @@ impl Serialize for TypeSection {
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {
+    ///  New import section with provided types
+    pub fn with_entries(entries: Vec<ImportEntry>) -> Self {
+        ImportSection(entries)
+    }
+
     /// List of import entries.
     pub fn entries(&self) -> &[ImportEntry] {
         &self.0
@@ -269,9 +279,9 @@ impl Serialize for ImportSection {
 pub struct FunctionsSection(Vec<Func>);
 
 impl FunctionsSection {
-    /// New functions section
-    pub fn new() -> FunctionsSection {
-        FunctionsSection(Vec::new())
+    ///  New function signatures section with provided entries
+    pub fn with_entries(entries: Vec<Func>) -> Self {
+        FunctionsSection(entries)
     }
 
     /// List of all functions in the section, mutable
@@ -326,6 +336,11 @@ impl TableSection {
         &self.0
     }
 
+    ///  New table section with provided table entries
+    pub fn with_entries(entries: Vec<TableType>) -> Self {
+        TableSection(entries)
+    }    
+
     /// Mutable table entries.
     pub fn entries_mut(&mut self) -> &mut Vec<TableType> {
         &mut self.0
@@ -369,6 +384,11 @@ impl MemorySection {
         &self.0
     }
 
+    ///  New memory section with memory types
+    pub fn with_entries(entries: Vec<MemoryType>) -> Self {
+        MemorySection(entries)
+    }    
+
     /// Mutable list of all memory entries in the section
     pub fn entries_mut(&mut self) -> &mut Vec<MemoryType> {
         &mut self.0
@@ -410,6 +430,11 @@ impl GlobalSection {
     /// List of all global entries in the section
     pub fn entries(&self) -> &[GlobalEntry] {
         &self.0
+    }
+
+    /// New global section from list of global entries
+    pub fn with_entries(entries: Vec<GlobalEntry>) -> Self {
+        GlobalSection(entries)
     }
 
     /// List of all global entries in the section (mutable)
@@ -455,6 +480,11 @@ impl ExportSection {
         &self.0
     }
 
+    /// New export section from list of export entries
+    pub fn with_entries(entries: Vec<ExportEntry>) -> Self {
+        ExportSection(entries)
+    }
+
     /// List of all export entries in the section (mutable)
     pub fn entries_mut(&mut self) -> &mut Vec<ExportEntry> {
         &mut self.0
@@ -493,8 +523,8 @@ impl Serialize for ExportSection {
 pub struct CodeSection(Vec<FuncBody>);
 
 impl CodeSection {
-    /// New code section
-    pub fn new(bodies: Vec<FuncBody>) -> Self {
+    /// New code section with specified function bodies
+    pub fn with_bodies(bodies: Vec<FuncBody>) -> Self {
         CodeSection(bodies)
     }
 
@@ -542,7 +572,7 @@ pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {
     /// New elements section
-    pub fn new(entries: Vec<ElementSegment>) -> Self {
+    pub fn with_entries(entries: Vec<ElementSegment>) -> Self {
         ElementSection(entries)
     }
 
@@ -590,8 +620,8 @@ pub struct DataSection(Vec<DataSegment>);
 
 impl DataSection {
     /// New data section
-    pub fn new(segments: Vec<DataSegment>) -> Self {
-        DataSection(segments)
+    pub fn with_entries(entries: Vec<DataSegment>) -> Self {
+        DataSection(entries)
     }
 
     /// List of all data entries in the section
@@ -868,7 +898,7 @@ mod tests {
 
     #[test]
     fn data_section_ser() {
-        let data_section = DataSection::new(
+        let data_section = DataSection::with_entries(
             vec![DataSegment::new(0u32, InitExpr::empty(), vec![0u8; 16])]
         );
 
@@ -902,7 +932,7 @@ mod tests {
 
     #[test]
     fn element_section_ser() {
-        let element_section = ElementSection::new(
+        let element_section = ElementSection::with_entries(
             vec![ElementSegment::new(0u32, InitExpr::empty(), vec![0u32; 4])]
         );
 
@@ -922,7 +952,7 @@ mod tests {
     fn code_section_ser() {
         use super::super::Opcode::*;
 
-        let code_section = CodeSection::new(
+        let code_section = CodeSection::with_bodies(
             vec![
                 FuncBody::new(
                     vec![Local::new(1, ValueType::I32)],

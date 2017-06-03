@@ -3,8 +3,8 @@
 #[derive(Deserialize)]
 pub struct RuntimeValue {
     #[serde(rename = "type")]
-    value_type: String,
-    value: String,
+    pub value_type: String,
+    pub value: String,
 }
 
 #[derive(Deserialize)]
@@ -34,7 +34,7 @@ pub enum Command {
 }
 
 #[derive(Deserialize)]
-pub struct Commands {
-    source_filename: String,
-    commands: Vec<Command>,
+pub struct Spec {
+    pub source_filename: String,
+    pub commands: Vec<Command>,
 }

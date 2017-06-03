@@ -9,7 +9,7 @@ homepage = "https://github.com/nikvolf/parity-wasm"
 documentation = "https://nikvolf.github.io/parity-wasm/parity_wasm/"
 description = "WebAssembly binary format serialization/deserialization/interpreter"
 keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"] 
-exclude = [ "res/*" ]
+exclude = [ "res/*", "spec/*" ]
 
 [dependencies]
 byteorder = "1.0"

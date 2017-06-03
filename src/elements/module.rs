@@ -123,7 +123,7 @@ impl Module {
     }
 
     /// Functions signatures section, if any.
-    pub fn functions_section(&self) -> Option<&FunctionSection> {
+    pub fn function_section(&self) -> Option<&FunctionSection> {
         for section in self.sections() {
             if let &Section::Function(ref sect) = section { return Some(sect); }
         }

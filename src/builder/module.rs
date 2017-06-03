@@ -445,7 +445,7 @@ mod tests {
             .build();
 
         assert_eq!(module.type_section().expect("type section to exist").types().len(), 1);
-        assert_eq!(module.functions_section().expect("function section to exist").entries().len(), 1);
+        assert_eq!(module.function_section().expect("function section to exist").entries().len(), 1);
         assert_eq!(module.code_section().expect("code section to exist").bodies().len(), 1);
     }
 

@@ -318,7 +318,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		// internal index = index of function in functions section && index of code in code section
 		// get function type index
 		let function_type_index = self.module
-			.functions_section()
+			.function_section()
 			.ok_or(Error::Function(format!("trying to call function with index {} in module without function section", index)))
 			.and_then(|s| s.entries()
 				.get(index as usize)

@@ -22,8 +22,8 @@ fn main() {
             &Section::Export(ref exports_section) => {
                 println!("  Exports: {}", exports_section.entries().len());
             },            
-            &Section::Function(ref functions_section) => {
-                println!("  Functions: {}", functions_section.entries().len());
+            &Section::Function(ref function_section) => {
+                println!("  Functions: {}", function_section.entries().len());
             },
             &Section::Global(ref globals_section) => {
                 println!("  Globals: {}", globals_section.entries().len());                

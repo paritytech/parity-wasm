@@ -23,7 +23,7 @@ pub struct CodeLocation {
 struct ModuleScaffold {
     pub types: elements::TypeSection,
     pub import: elements::ImportSection,
-    pub functions: elements::FunctionsSection,
+    pub functions: elements::FunctionSection,
     pub table: elements::TableSection,
     pub memory: elements::MemorySection,
     pub global: elements::GlobalSection,
@@ -39,7 +39,7 @@ impl From<elements::Module> for ModuleScaffold {
     fn from(module: elements::Module) -> Self {
         let mut types: Option<elements::TypeSection> = None;
         let mut import: Option<elements::ImportSection> = None;
-        let mut funcs: Option<elements::FunctionsSection> = None;
+        let mut funcs: Option<elements::FunctionSection> = None;
         let mut table: Option<elements::TableSection> = None;
         let mut memory: Option<elements::MemorySection> = None;
         let mut global: Option<elements::GlobalSection> = None;
@@ -327,12 +327,12 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     }
 }
 
-impl<F> Invoke<elements::FunctionsSection> for ModuleBuilder<F> 
+impl<F> Invoke<elements::FunctionSection> for ModuleBuilder<F> 
     where F: Invoke<elements::Module>
 {
 	type Result = Self;
 
-	fn invoke(self, section: elements::FunctionsSection) -> Self {
+	fn invoke(self, section: elements::FunctionSection) -> Self {
 		self.with_section(elements::Section::Function(section))
     }    
 }

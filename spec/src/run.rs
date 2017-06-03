@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use std::{self, env};
+use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 use std::fs::File;
@@ -50,9 +50,6 @@ fn run_action(module: &ModuleInstance, action: &test::Action)
 
 fn run_spec(spec_name: &str) {
     let outdir = env::var("OUT_DIR").unwrap();
-    println!("outdir {}", outdir);
-
-    let spec_name = "i32";
 
     let mut wast2wasm_path = PathBuf::from(outdir.clone());
     wast2wasm_path.push("bin");
@@ -73,8 +70,8 @@ fn run_spec(spec_name: &str) {
     let spec: test::Spec = serde_json::from_reader(&mut f).unwrap();
 
     let first_command = &spec.commands[0];
-    let (mut program, mut module) = match first_command {
-        &test::Command::Module { line, ref filename } => {
+    let (mut _program, mut module) = match first_command {
+        &test::Command::Module { ref filename, .. } => {
             setup_program(&outdir, filename)
         },
         _ => {
@@ -84,9 +81,8 @@ fn run_spec(spec_name: &str) {
 
     for command in spec.commands.iter().skip(1) {
         match command {
-            &test::Command::Module { line, ref filename } => {
-                let (new_program, new_module) = setup_program(&outdir, &filename);
-                program = new_program;
+            &test::Command::Module { ref filename, .. } => {
+                let (_new_program, new_module) = setup_program(&outdir, &filename);
                 module = new_module;
             },
             &test::Command::AssertReturn { line, ref action, ref expected } => {

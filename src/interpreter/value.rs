@@ -543,7 +543,14 @@ macro_rules! impl_integer_arithmetic_ops {
 			fn mul(self, other: $type) -> $type { self.wrapping_mul(other) }
 			fn div(self, other: $type) -> Result<$type, Error> { 
 				if other == 0 { Err(Error::Value("Division by zero".to_owned())) }
-				else { Ok(self.wrapping_div(other)) } 
+				else {
+					let (result, overflow) = self.overflowing_div(other);
+					if overflow {
+						return Err(Error::Value("Attempt to divide with overflow".to_owned()));
+					} else {
+						Ok(result)
+					}
+				} 
 			}
 		}
 	}

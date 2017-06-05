@@ -24,6 +24,12 @@ fn setup_program(base_dir: &str, test_module_path: &str) -> (ProgramInstance, Ar
     (program, module_instance)
 }
 
+fn try_load(base_dir: &str, module_path: &str) -> Result<parity_wasm::elements::Module, parity_wasm::elements::Error> {
+    let mut wasm_path = PathBuf::from(base_dir.clone());
+    wasm_path.push(module_path);
+    parity_wasm::deserialize_file(&wasm_path)   
+}
+
 fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {
     match test_val.value_type.as_ref() {
         "i32" => {
@@ -128,6 +134,17 @@ pub fn spec(name: &str) {
                     },
                     Err(e) => {
                         println!("assert_trap at line {} - success ({:?})", line, e);                    
+                    }
+                }
+            },
+            &test::Command::AssertInvalid { line, ref filename, .. } => {
+                let module_load = try_load(&outdir, filename);
+                match module_load {
+                    Ok(result) => {
+                        panic!("Expected invalid module definition, got some module!")
+                    },
+                    Err(e) => {
+                        println!("assert_invalid at line {} - success ({:?})", line, e)
                     }
                 }
             }

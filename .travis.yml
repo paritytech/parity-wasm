@@ -1,8 +1,28 @@
-language: rust
+dist: trusty
+sudo: required
+
+language: 
+  - rust
+  - cpp
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-6
+      - g++-6
+      - cmake
+
 script:
-    - cargo build --release --verbose
-    - cargo test --release --verbose
-    - cargo test --release --manifest-path=spec/Cargo.toml 
+  - ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
+  - ln -s /usr/bin/g++-6 /usr/local/bin/g++
+  - export CC=/usr/bin/gcc-6
+  - export CXX=/usr/bin/g++-6
+  - cargo build --release --verbose
+  - cargo test --release --verbose
+  - cargo test --release --manifest-path=spec/Cargo.toml 
+  
 after_success: |
     cargo doc \
     && echo '<meta http-equiv=refresh content=0;url=parity_wasm/index.html>' > target/doc/index.html && \

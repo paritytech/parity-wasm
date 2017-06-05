@@ -8,3 +8,4 @@ macro_rules! run_test {
 }
 
 run_test!("i32", wasm_i32);
+run_test!("endianness", wasm_endianness);

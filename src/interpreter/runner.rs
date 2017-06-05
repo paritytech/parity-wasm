@@ -758,7 +758,7 @@ impl Interpreter {
 		context
 			.value_stack_mut()
 			.pop_as::<T>()
-			.map(|v| v.round())
+			.map(|v| v.nearest())
 			.map(|v| context.value_stack_mut().push(v.into()))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}

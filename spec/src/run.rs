@@ -30,6 +30,18 @@ fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {
             let unsigned: u32 = test_val.value.parse().expect("Literal parse error");
             parity_wasm::RuntimeValue::I32(unsigned as i32)
         },
+        "i64" => {
+            let unsigned: u64 = test_val.value.parse().expect("Literal parse error");
+            parity_wasm::RuntimeValue::I64(unsigned as i64)
+        },
+        "f32" => {
+            let unsigned: u32 = test_val.value.parse().expect("Literal parse error");
+            parity_wasm::RuntimeValue::decode_f32(unsigned)            
+        },
+        "f64" => {
+            let unsigned: u64 = test_val.value.parse().expect("Literal parse error");
+            parity_wasm::RuntimeValue::decode_f64(unsigned)            
+        },
         _ => panic!("Unknwon runtime value type"),
     }
 }

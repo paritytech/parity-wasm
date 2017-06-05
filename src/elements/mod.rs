@@ -15,7 +15,7 @@ mod segment;
 
 pub use self::module::Module;
 pub use self::section::{
-    Section, FunctionsSection, CodeSection, MemorySection, DataSection,
+    Section, FunctionSection, CodeSection, MemorySection, DataSection,
     ImportSection, ExportSection, GlobalSection, TypeSection, ElementSection,
     TableSection,
 };

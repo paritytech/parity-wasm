@@ -165,9 +165,9 @@ impl<F> Invoke<u32> for SignaturesBuilder<F> {
     }    
 }
 
-impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionsSection> {
+impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionSection> {
     pub fn build(self) -> F::Result {
-        let mut result = elements::FunctionsSection::default();
+        let mut result = elements::FunctionSection::default();
         for f in self.section.into_iter() {
             if let Signature::TypeReference(type_ref) = f {
                 result.entries_mut().push(elements::Func::new(type_ref));

@@ -1,7 +1,7 @@
 use std::io;
 use super::{Deserialize, Serialize, Error, Uint32};
 use super::section::{
-    Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionsSection,
+    Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionSection,
     GlobalSection, TableSection, ElementSection, DataSection, MemorySection
 };
 
@@ -123,7 +123,7 @@ impl Module {
     }
 
     /// Functions signatures section, if any.
-    pub fn functions_section(&self) -> Option<&FunctionsSection> {
+    pub fn function_section(&self) -> Option<&FunctionSection> {
         for section in self.sections() {
             if let &Section::Function(ref sect) = section { return Some(sect); }
         }

@@ -38,7 +38,7 @@ pub enum Section {
     /// Import section
     Import(ImportSection),
     /// Function signatures section
-    Function(FunctionsSection),
+    Function(FunctionSection),
     /// Table definition section
     Table(TableSection),
     /// Memory definition section
@@ -79,7 +79,7 @@ impl Deserialize for Section {
                     Section::Import(ImportSection::deserialize(reader)?)
                 },
                 3 => {
-                    Section::Function(FunctionsSection::deserialize(reader)?)
+                    Section::Function(FunctionSection::deserialize(reader)?)
                 },
                 4 => {
                     Section::Table(TableSection::deserialize(reader)?)
@@ -276,12 +276,12 @@ impl Serialize for ImportSection {
 
 /// Section with function signatures definition.
 #[derive(Default)]
-pub struct FunctionsSection(Vec<Func>);
+pub struct FunctionSection(Vec<Func>);
 
-impl FunctionsSection {
+impl FunctionSection {
     ///  New function signatures section with provided entries
     pub fn with_entries(entries: Vec<Func>) -> Self {
-        FunctionsSection(entries)
+        FunctionSection(entries)
     }
 
     /// List of all functions in the section, mutable
@@ -295,7 +295,7 @@ impl FunctionsSection {
     }
 }
 
-impl Deserialize for FunctionsSection {
+impl Deserialize for FunctionSection {
     type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
@@ -306,11 +306,11 @@ impl Deserialize for FunctionsSection {
             .into_iter()
             .map(|f| Func::new(f.into()))
             .collect();
-        Ok(FunctionsSection(funcs))
+        Ok(FunctionSection(funcs))
     }
 }
 
-impl Serialize for FunctionsSection {
+impl Serialize for FunctionSection {
     type Error = Error;
     
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {

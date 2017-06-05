@@ -10,3 +10,4 @@ macro_rules! run_test {
 run_test!("i32", wasm_i32);
 run_test!("f32", wasm_f32);
 run_test!("f64", wasm_f64);
+run_test!("endianness", wasm_endianness);

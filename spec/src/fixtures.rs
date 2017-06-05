@@ -7,7 +7,9 @@ macro_rules! run_test {
     );
 }
 
-run_test!("i32", wasm_i32);
-run_test!("endianness", wasm_endianness);
-run_test!("i64", wasm_i64);
 run_test!("address", wasm_address);
+run_test!("endianness", wasm_endianness);
+run_test!("f32", wasm_f32);
+run_test!("f64", wasm_f64);
+run_test!("i32", wasm_i32);
+run_test!("i64", wasm_i64);

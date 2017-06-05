@@ -25,6 +25,16 @@ pub enum Command {
         action: Action,
         expected: Vec<RuntimeValue>,
     },
+    #[serde(rename = "assert_return_canonical_nan")]
+    AssertReturnCanonicalNan {
+        line: u64,
+        action: Action,
+    },
+    #[serde(rename = "assert_return_arithmetic_nan")]
+    AssertReturnArithmeticNan {
+        line: u64,
+        action: Action,
+    },
     #[serde(rename = "assert_trap")]
     AssertTrap {
         line: u64,

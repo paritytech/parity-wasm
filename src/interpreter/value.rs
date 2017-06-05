@@ -99,6 +99,8 @@ pub trait Float<T>: ArithmeticOps<T> {
 	fn trunc(self) -> T;
 	/// Returns the nearest integer to a number. Round half-way cases away from 0.0.
 	fn round(self) -> T;
+	/// Returns the nearest integer to a number. Ties are round to even number.
+	fn nearest(self) -> T;
 	/// Takes the square root of a number.
 	fn sqrt(self) -> T;
 	/// Returns the minimum of the two numbers.
@@ -604,17 +606,40 @@ macro_rules! impl_float {
 			fn ceil(self) -> $type { self.ceil() }
 			fn trunc(self) -> $type { self.trunc() }
 			fn round(self) -> $type { self.round() }
+			fn nearest(self) -> $type {
+				let round = self.round();
+				if self.fract().abs() != 0.5 {
+					return round;
+				}
+
+				use std::ops::Rem;
+				if round.rem(2.0) == 1.0 {
+					self.floor()
+				} else if round.rem(2.0) == -1.0 {
+					self.ceil()
+				} else {
+					round
+				}
+			}
 			fn sqrt(self) -> $type { self.sqrt() }
-			// TODO
 			// This instruction corresponds to what is sometimes called "minNaN" in other languages.
-			// This differs from the IEEE 754-2008 minNum operation in that it returns a NaN if either operand is a NaN, and in that the behavior when the operands are zeros of differing signs is fully specified.
-			// This differs from the common x<y?x:y expansion in its handling of negative zero and NaN values.
-			fn min(self, other: $type) -> $type { self.min(other) }
-			// TODO
+			fn min(self, other: $type) -> $type {
+				if self.is_nan() || other.is_nan() {
+					use std::$type;
+					return $type::NAN;
+				}
+
+				self.min(other)
+			}
 			// This instruction corresponds to what is sometimes called "maxNaN" in other languages.
-			// This differs from the IEEE 754-2008 maxNum operation in that it returns a NaN if either operand is a NaN, and in that the behavior when the operands are zeros of differing signs is fully specified.
-			// This differs from the common x>y?x:y expansion in its handling of negative zero and NaN values.
-			fn max(self, other: $type) -> $type { self.max(other) }
+			fn max(self, other: $type) -> $type {
+				if self.is_nan() || other.is_nan() {
+					use std::$type;
+					return $type::NAN;
+				}
+
+				self.max(other)
+			}
 			fn copysign(self, other: $type) -> $type {
 				// TODO: this may be buggy for edge cases
 				if self.is_sign_positive() == other.is_sign_positive() {

@@ -10,6 +10,7 @@ use serde_json;
 use test;
 use parity_wasm;
 use parity_wasm::interpreter::{
+    RuntimeValue,
     ProgramInstance, ModuleInstance, ModuleInstanceInterface, 
     Error as InterpreterError,
 };
@@ -29,6 +30,18 @@ fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {
         "i32" => {
             let unsigned: u32 = test_val.value.parse().expect("Literal parse error");
             parity_wasm::RuntimeValue::I32(unsigned as i32)
+        },
+        "i64" => {
+            let unsigned: u64 = test_val.value.parse().expect("Literal parse error");
+            parity_wasm::RuntimeValue::I64(unsigned as i64)
+        },
+        "f32" => {
+            let unsigned: u32 = test_val.value.parse().expect("Literal parse error");
+            parity_wasm::RuntimeValue::decode_f32(unsigned)
+        },
+        "f64" => {
+            let unsigned: u64 = test_val.value.parse().expect("Literal parse error");
+            parity_wasm::RuntimeValue::decode_f64(unsigned)
         },
         _ => panic!("Unknwon runtime value type"),
     }
@@ -97,6 +110,24 @@ pub fn spec(name: &str) {
                         let actual_result = result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>();
                         assert_eq!(actual_result, spec_expected);
                         println!("assert_return at line {} - success", line);
+                    },
+                    Err(e) => {
+                        panic!("Expected action to return value, got error: {:?}", e);
+                    }
+                }
+            },
+            &test::Command::AssertReturnCanonicalNan { line, ref action } | &test::Command::AssertReturnArithmeticNan { line, ref action } => {
+                let result = run_action(&*module, action);
+                match result {
+                    Ok(result) => {
+                        for actual_result in result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>() {
+                            match actual_result {
+                                RuntimeValue::F32(val) => if !val.is_nan() { panic!("Expected nan value, got {:?}", val) },
+                                RuntimeValue::F64(val) => if !val.is_nan() { panic!("Expected nan value, got {:?}", val) },
+                                val @ _ => panic!("Expected action to return float value, got {:?}", val),
+                            }
+                        }
+                        println!("assert_return_nan at line {} - success", line);
                     },
                     Err(e) => {
                         panic!("Expected action to return value, got error: {:?}", e);

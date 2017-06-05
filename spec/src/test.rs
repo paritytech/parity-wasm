@@ -36,6 +36,11 @@ pub enum Command {
         line: u64,
         filename: String,
         text: String,
+    },
+    #[serde(rename = "action")]
+    Action {
+        line: u64,
+        action: Action,
     }
 }
 

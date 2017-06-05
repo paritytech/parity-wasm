@@ -140,14 +140,22 @@ pub fn spec(name: &str) {
             &test::Command::AssertInvalid { line, ref filename, .. } => {
                 let module_load = try_load(&outdir, filename);
                 match module_load {
-                    Ok(result) => {
+                    Ok(_) => {
                         panic!("Expected invalid module definition, got some module!")
                     },
                     Err(e) => {
                         println!("assert_invalid at line {} - success ({:?})", line, e)
                     }
                 }
-            }
+            },
+            &test::Command::Action { line, ref action } => {
+                match run_action(&*module, action) {
+                    Ok(_) => { },
+                    Err(e) => {
+                        panic!("Failed to invoke action at line {}: {:?}", line, e)
+                    }
+                }
+            },          
         }
     }
 }

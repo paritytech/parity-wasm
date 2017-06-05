@@ -538,7 +538,10 @@ fn f64_from_bits(mut v: u64) -> f64 {
 macro_rules! impl_integer_arithmetic_ops {
 	($type: ident) => {
 		impl ArithmeticOps<$type> for $type {
-			fn add(self, other: $type) -> $type { self.wrapping_add(other) }
+			fn add(self, other: $type) -> $type {
+
+				self.wrapping_add(other) 
+			}
 			fn sub(self, other: $type) -> $type { self.wrapping_sub(other) }
 			fn mul(self, other: $type) -> $type { self.wrapping_mul(other) }
 			fn div(self, other: $type) -> Result<$type, Error> { 

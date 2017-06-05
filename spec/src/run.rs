@@ -83,6 +83,7 @@ pub fn spec(name: &str) {
     };
 
     for command in spec.commands.iter().skip(1) {
+        println!("command {:?}", command);
         match command {
             &test::Command::Module { ref filename, .. } => {
                 let (_new_program, new_module) = setup_program(&outdir, &filename);

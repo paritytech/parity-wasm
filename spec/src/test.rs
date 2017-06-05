@@ -1,20 +1,20 @@
 #![cfg(test)]
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct RuntimeValue {
     #[serde(rename = "type")]
     pub value_type: String,
     pub value: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Action {
     #[serde(rename = "invoke")]
     Invoke { field: String, args: Vec<RuntimeValue> }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Command {
     #[serde(rename = "module")]
@@ -33,7 +33,7 @@ pub enum Command {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Spec {
     pub source_filename: String,
     pub commands: Vec<Command>,

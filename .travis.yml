@@ -1,4 +1,8 @@
 language: rust
+script:
+    - cargo build --release --verbose
+    - cargo test --release --verbose
+    - cargo test --release --manifest-path=spec/Cargo.toml 
 after_success: |
     cargo doc \
     && echo '<meta http-equiv=refresh content=0;url=parity_wasm/index.html>' > target/doc/index.html && \

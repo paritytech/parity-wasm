@@ -68,7 +68,7 @@ pub trait ArithmeticOps<T> {
 	/// Multiply two values.
 	fn mul(self, other: T) -> T;
 	/// Divide two values.
-	fn div(self, other: T) -> T;
+	fn div(self, other: T) -> Result<T, Error>;
 }
 
 /// Integer value.
@@ -84,7 +84,7 @@ pub trait Integer<T>: ArithmeticOps<T> {
 	/// Get right bit rotation result.
 	fn rotr(self, other: T) -> T;
 	/// Get division remainder.
-	fn rem(self, other: T) -> T;
+	fn rem(self, other: T) -> Result<T, Error>;
 }
 
 /// Float-point value.
@@ -541,7 +541,17 @@ macro_rules! impl_integer_arithmetic_ops {
 			fn add(self, other: $type) -> $type { self.wrapping_add(other) }
 			fn sub(self, other: $type) -> $type { self.wrapping_sub(other) }
 			fn mul(self, other: $type) -> $type { self.wrapping_mul(other) }
-			fn div(self, other: $type) -> $type { self.wrapping_div(other) }
+			fn div(self, other: $type) -> Result<$type, Error> { 
+				if other == 0 { Err(Error::Value("Division by zero".to_owned())) }
+				else {
+					let (result, overflow) = self.overflowing_div(other);
+					if overflow {
+						return Err(Error::Value("Attempt to divide with overflow".to_owned()));
+					} else {
+						Ok(result)
+					}
+				} 
+			}
 		}
 	}
 }
@@ -557,7 +567,7 @@ macro_rules! impl_float_arithmetic_ops {
 			fn add(self, other: $type) -> $type { self + other }
 			fn sub(self, other: $type) -> $type { self - other }
 			fn mul(self, other: $type) -> $type { self * other }
-			fn div(self, other: $type) -> $type { self / other }
+			fn div(self, other: $type) -> Result<$type, Error> { Ok(self / other) }
 		}
 	}
 }
@@ -573,7 +583,10 @@ macro_rules! impl_integer {
 			fn count_ones(self) -> $type { self.count_ones() as $type }
 			fn rotl(self, other: $type) -> $type { self.rotate_left(other as u32) }
 			fn rotr(self, other: $type) -> $type { self.rotate_right(other as u32) }
-			fn rem(self, other: $type) -> $type { self.wrapping_rem(other) }
+			fn rem(self, other: $type) -> Result<$type, Error> { 
+				if other == 0 { Err(Error::Value("Division by zero".to_owned())) } 
+				else { Ok(self.wrapping_rem(other)) } 
+			}
 		}
 	}
 }

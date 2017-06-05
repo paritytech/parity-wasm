@@ -613,7 +613,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| (left.transmute_into(), right.transmute_into()))
-			.map(|(left, right)| left.div(right))
+			.map(|(left, right)| left.div(right))?
 			.map(|v| v.transmute_into())
 			.map(|v| context.value_stack_mut().push(v.into()))
 			.map(|_| InstructionOutcome::RunNextInstruction)
@@ -625,7 +625,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| (left.transmute_into(), right.transmute_into()))
-			.map(|(left, right)| left.rem(right))
+			.map(|(left, right)| left.rem(right))?
 			.map(|v| v.transmute_into())
 			.map(|v| context.value_stack_mut().push(v.into()))
 			.map(|_| InstructionOutcome::RunNextInstruction)

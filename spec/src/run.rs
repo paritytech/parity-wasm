@@ -78,7 +78,12 @@ pub fn spec(name: &str) {
         .output()
         .expect("Failed to execute process");
 
-    assert!(wast2wasm_output.status.success(), "wast2wasm terminated with error code");
+    if !wast2wasm_output.status.success() {
+        println!("wasm2wast error code: {}", wast2wasm_output.status);
+        println!("wasm2wast stdout: {}", String::from_utf8_lossy(&wast2wasm_output.stdout));
+        println!("wasm2wast stderr: {}", String::from_utf8_lossy(&wast2wasm_output.stderr));
+        panic!("wasm2wast exited with status {}", wast2wasm_output.status);
+    }
 
     let mut f = File::open(&json_spec_path)
         .expect(&format!("Failed to load json file {}", &json_spec_path.to_string_lossy()));

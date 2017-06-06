@@ -44,7 +44,7 @@ impl MemoryInstance {
 		};
 
 		let buffer = self.buffer.read();
-		if buffer.len() <= end {
+		if buffer.len() < end {
 			return Err(Error::Memory(format!("trying to read region [{}..{}] in memory [0..{}]", begin, end, buffer.len())));
 		}
 

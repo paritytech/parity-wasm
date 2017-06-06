@@ -211,7 +211,9 @@ pub fn spec(name: &str) {
                     }
                 }
             },
-            &test::Command::AssertInvalid { line, ref filename, .. } => {
+            &test::Command::AssertInvalid { line, ref filename, .. }
+            | &test::Command::AssertMalformed { line, ref filename, .. }
+                => {
                 let module_load = try_load(&outdir, filename);
                 match module_load {
                     Ok(_) => {

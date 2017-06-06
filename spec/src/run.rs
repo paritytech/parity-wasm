@@ -81,7 +81,7 @@ pub fn spec(name: &str) {
         .arg("--spec")
         .arg("-o")
         .arg(&json_spec_path)
-        .arg(&format!("./testsuite/{}.wast", name))
+        .arg(&format!("./wabt/third_party/testsuite/{}.wast", name))
         .output()
         .expect("Failed to execute process");
 

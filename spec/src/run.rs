@@ -8,21 +8,40 @@ use std::sync::Arc;
 
 use serde_json;
 use test;
-use parity_wasm;
+use parity_wasm::{self, elements, builder};
 use parity_wasm::interpreter::{
     RuntimeValue,
     ProgramInstance, ModuleInstance, ModuleInstanceInterface, 
     Error as InterpreterError,
 };
 
+fn spec_test_module() -> elements::Module {
+    builder::module()
+        .function()
+            .signature().with_param(elements::ValueType::I32).build()
+            .body().build()
+            .build()
+        .export().field("print").internal().func(0).build()
+        .build()
+}
+
 fn setup_program(base_dir: &str, test_module_path: &str) -> (ProgramInstance, Arc<ModuleInstance>) {
     let mut wasm_path = PathBuf::from(base_dir.clone());
     wasm_path.push(test_module_path);
     let module = parity_wasm::deserialize_file(&wasm_path)
         .expect(&format!("Wasm file {} failed to load", wasm_path.to_string_lossy()));
+
 	let program = ProgramInstance::new().expect("Failed creating program");
+    program.add_module("spectest", spec_test_module()).expect("Failed adding 'spectest' module");
+
 	let module_instance = program.add_module("test", module).expect("Failed adding module");
     (program, module_instance)
+}
+
+fn try_load(base_dir: &str, module_path: &str) -> Result<parity_wasm::elements::Module, parity_wasm::elements::Error> {
+    let mut wasm_path = PathBuf::from(base_dir.clone());
+    wasm_path.push(module_path);
+    parity_wasm::deserialize_file(&wasm_path)   
 }
 
 fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {
@@ -75,11 +94,16 @@ pub fn spec(name: &str) {
         .arg("--spec")
         .arg("-o")
         .arg(&json_spec_path)
-        .arg(&format!("./testsuite/{}.wast", name))
+        .arg(&format!("./wabt/third_party/testsuite/{}.wast", name))
         .output()
         .expect("Failed to execute process");
 
-    assert!(wast2wasm_output.status.success(), "wast2wasm terminated with error code");
+    if !wast2wasm_output.status.success() {
+        println!("wasm2wast error code: {}", wast2wasm_output.status);
+        println!("wasm2wast stdout: {}", String::from_utf8_lossy(&wast2wasm_output.stdout));
+        println!("wasm2wast stderr: {}", String::from_utf8_lossy(&wast2wasm_output.stderr));
+        panic!("wasm2wast exited with status {}", wast2wasm_output.status);
+    }
 
     let mut f = File::open(&json_spec_path)
         .expect(&format!("Failed to load json file {}", &json_spec_path.to_string_lossy()));
@@ -158,7 +182,26 @@ pub fn spec(name: &str) {
                         println!("assert_trap at line {} - success ({:?})", line, e);                    
                     }
                 }
-            }
+            },
+            &test::Command::AssertInvalid { line, ref filename, .. } => {
+                let module_load = try_load(&outdir, filename);
+                match module_load {
+                    Ok(_) => {
+                        panic!("Expected invalid module definition, got some module!")
+                    },
+                    Err(e) => {
+                        println!("assert_invalid at line {} - success ({:?})", line, e)
+                    }
+                }
+            },
+            &test::Command::Action { line, ref action } => {
+                match run_action(&*module, action) {
+                    Ok(_) => { },
+                    Err(e) => {
+                        panic!("Failed to invoke action at line {}: {:?}", line, e)
+                    }
+                }
+            },          
         }
     }
 }

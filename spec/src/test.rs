@@ -41,6 +41,17 @@ pub enum Command {
         action: Action,
         text: String,
     },
+    #[serde(rename = "assert_invalid")]
+    AssertInvalid {
+        line: u64,
+        filename: String,
+        text: String,
+    },
+    #[serde(rename = "action")]
+    Action {
+        line: u64,
+        action: Action,
+    }
 }
 
 #[derive(Deserialize, Debug)]

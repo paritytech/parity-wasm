@@ -8,19 +8,32 @@ use std::sync::Arc;
 
 use serde_json;
 use test;
-use parity_wasm;
+use parity_wasm::{self, elements, builder};
 use parity_wasm::interpreter::{
     RuntimeValue,
     ProgramInstance, ModuleInstance, ModuleInstanceInterface, 
     Error as InterpreterError,
 };
 
+fn spec_test_module() -> elements::Module {
+    builder::module()
+        .function()
+            .signature().with_param(elements::ValueType::I32).build()
+            .body().build()
+            .build()
+        .export().field("print").internal().func(0).build()
+        .build()
+}
+
 fn setup_program(base_dir: &str, test_module_path: &str) -> (ProgramInstance, Arc<ModuleInstance>) {
     let mut wasm_path = PathBuf::from(base_dir.clone());
     wasm_path.push(test_module_path);
     let module = parity_wasm::deserialize_file(&wasm_path)
         .expect(&format!("Wasm file {} failed to load", wasm_path.to_string_lossy()));
+
 	let program = ProgramInstance::new().expect("Failed creating program");
+    program.add_module("spectest", spec_test_module()).expect("Failed adding 'spectest' module");
+
 	let module_instance = program.add_module("test", module).expect("Failed adding module");
     (program, module_instance)
 }

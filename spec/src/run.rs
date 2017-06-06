@@ -119,7 +119,21 @@ pub fn spec(name: &str) {
                     Ok(result) => {
                         let spec_expected = runtime_values(expected);
                         let actual_result = result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>();
-                        assert_eq!(actual_result, spec_expected);
+                        for (actual_result, spec_expected) in actual_result.iter().zip(spec_expected.iter()) {
+                            assert_eq!(actual_result.variable_type(), spec_expected.variable_type());
+                            // f32::NAN != f32::NAN
+                            match spec_expected {
+                                &RuntimeValue::F32(val) if val.is_nan() => match actual_result {
+                                    &RuntimeValue::F32(val) => assert!(val.is_nan()),
+                                    _ => unreachable!(), // checked above that types are same
+                                },
+                                &RuntimeValue::F64(val) if val.is_nan() => match actual_result {
+                                    &RuntimeValue::F64(val) => assert!(val.is_nan()),
+                                    _ => unreachable!(), // checked above that types are same
+                                },
+                                spec_expected @ _ => assert_eq!(actual_result, spec_expected),
+                            }
+                        }
                         println!("assert_return at line {} - success", line);
                     },
                     Err(e) => {

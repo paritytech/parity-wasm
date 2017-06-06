@@ -599,7 +599,7 @@ impl_integer!(i64);
 impl_integer!(u64);
 
 macro_rules! impl_float {
-	($type: ident) => {
+	($type: ident, $int_type: ident) => {
 		impl Float<$type> for $type {
 			fn abs(self) -> $type { self.abs() }
 			fn floor(self) -> $type { self.floor() }
@@ -641,16 +641,28 @@ macro_rules! impl_float {
 				self.max(other)
 			}
 			fn copysign(self, other: $type) -> $type {
-				// TODO: this may be buggy for edge cases
-				if self.is_sign_positive() == other.is_sign_positive() {
+				use std::mem::size_of;
+
+				if self.is_nan() {
+					return self;
+				}
+
+				let sign_mask: $int_type = 1 << ((size_of::<$int_type>() << 3) - 1);
+				let self_int: $int_type = self.transmute_into();
+				let other_int: $int_type = other.transmute_into();
+				let is_self_sign_set = (self_int & sign_mask) != 0;
+				let is_other_sign_set = (other_int & sign_mask) != 0;
+				if is_self_sign_set == is_other_sign_set {
 					self
+				} else if is_other_sign_set {
+					(self_int | sign_mask).transmute_into()
 				} else {
-					self * -1.0
+					(self_int & !sign_mask).transmute_into()
 				}
 			}
 		}
 	}
 }
 
-impl_float!(f32);
-impl_float!(f64);
+impl_float!(f32, i32);
+impl_float!(f64, i64);

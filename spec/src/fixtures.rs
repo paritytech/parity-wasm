@@ -1,4 +1,10 @@
 macro_rules! run_test {
+    ($label: expr, $test_name: ident, fail) => (
+        #[test]
+        fn $test_name() {
+            ::run::failing_spec($label)
+        }
+    );
     ($label: expr, $test_name: ident) => (
         #[test]
         fn $test_name() {
@@ -8,6 +14,7 @@ macro_rules! run_test {
 }
 
 run_test!("address", wasm_address);
+run_test!("address-offset-range.fail", wasm_address_offset_range_fail, fail);
 run_test!("endianness", wasm_endianness);
 run_test!("f32", wasm_f32);
 run_test!("f32_bitwise", wasm_f32_bitwise);

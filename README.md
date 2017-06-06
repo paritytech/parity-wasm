@@ -26,7 +26,7 @@ println!("Function count in wasm file: {}", code_section.bodies().len());
 There is work in progress on supporting wabt test suite (https://github.com/WebAssembly/testsuite), only limited subset of the wabt tests are executed in the moment. To run those tests: 
 
 - make sure you have all prerequisites to build `wabt` (since parity-wasm builds it internally using `cmake`, see https://github.com/WebAssembly/wabt)
-- checkout with submodules (`git submodule update --init`)
+- checkout with submodules (`git submodule update --init --recurive`)
 - run `cargo test --release --manifest-path=spec/Cargo.toml`
 
 # License

@@ -52,6 +52,10 @@ pub trait Serialize {
 pub enum Error {
     /// Unexpected end of input
     UnexpectedEof,
+    /// Invalid magic
+    InvalidMagic,
+    /// Unsupported version
+    UnsupportedVersion(u32),
     /// Inconsistence between declared and actual length
     InconsistentLength { 
         /// Expected length of the definition

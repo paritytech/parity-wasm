@@ -16,3 +16,7 @@ run_test!("f64_bitwise", wasm_f64_bitwise);
 run_test!("forward", wasm_forward);
 run_test!("i32", wasm_i32);
 run_test!("i64", wasm_i64);
+run_test!("tee_local", wasm_tee_local);
+run_test!("traps", wasm_traps);
+run_test!("unreachable", wasm_unreachable);
+run_test!("unwind", wasm_unwind);

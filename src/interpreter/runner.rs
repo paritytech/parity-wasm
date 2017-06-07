@@ -14,9 +14,12 @@ use interpreter::value::{
 };
 use interpreter::variable::VariableInstance;
 
-const DEFAULT_MEMORY_INDEX: u32 = 0;
-const DEFAULT_TABLE_INDEX: u32 = 0;
+/// Index of default linear memory.
+pub const DEFAULT_MEMORY_INDEX: u32 = 0;
+/// Index of default table.
+pub const DEFAULT_TABLE_INDEX: u32 = 0;
 
+/// Function interpreter.
 pub struct Interpreter;
 
 /// Function execution context.
@@ -101,30 +104,30 @@ impl Interpreter {
 			&Opcode::GetGlobal(index) => Interpreter::run_get_global(context, index),
 			&Opcode::SetGlobal(index) => Interpreter::run_set_global(context, index),
 
-			&Opcode::I32Load(offset, align) => Interpreter::run_load::<i32>(context, offset, align),
-			&Opcode::I64Load(offset, align) => Interpreter::run_load::<i64>(context, offset, align),
-			&Opcode::F32Load(offset, align) => Interpreter::run_load::<f32>(context, offset, align),
-			&Opcode::F64Load(offset, align) => Interpreter::run_load::<f64>(context, offset, align),
-			&Opcode::I32Load8S(offset, align) => Interpreter::run_load_extend::<i8, i32>(context, offset, align),
-			&Opcode::I32Load8U(offset, align) => Interpreter::run_load_extend::<u8, i32>(context, offset, align),
-			&Opcode::I32Load16S(offset, align) => Interpreter::run_load_extend::<i16, i32>(context, offset, align),
-			&Opcode::I32Load16U(offset, align) => Interpreter::run_load_extend::<u16, i32>(context, offset, align),
-			&Opcode::I64Load8S(offset, align) => Interpreter::run_load_extend::<i8, i64>(context, offset, align),
-			&Opcode::I64Load8U(offset, align) => Interpreter::run_load_extend::<u8, i64>(context, offset, align),
-			&Opcode::I64Load16S(offset, align) => Interpreter::run_load_extend::<i16, i64>(context, offset, align),
-			&Opcode::I64Load16U(offset, align) => Interpreter::run_load_extend::<u16, i64>(context, offset, align),
-			&Opcode::I64Load32S(offset, align) => Interpreter::run_load_extend::<i32, i64>(context, offset, align),
-			&Opcode::I64Load32U(offset, align) => Interpreter::run_load_extend::<u32, i64>(context, offset, align),
+			&Opcode::I32Load(align, offset) => Interpreter::run_load::<i32>(context, align, offset),
+			&Opcode::I64Load(align, offset) => Interpreter::run_load::<i64>(context, align, offset),
+			&Opcode::F32Load(align, offset) => Interpreter::run_load::<f32>(context, align, offset),
+			&Opcode::F64Load(align, offset) => Interpreter::run_load::<f64>(context, align, offset),
+			&Opcode::I32Load8S(align, offset) => Interpreter::run_load_extend::<i8, i32>(context, align, offset),
+			&Opcode::I32Load8U(align, offset) => Interpreter::run_load_extend::<u8, i32>(context, align, offset),
+			&Opcode::I32Load16S(align, offset) => Interpreter::run_load_extend::<i16, i32>(context, align, offset),
+			&Opcode::I32Load16U(align, offset) => Interpreter::run_load_extend::<u16, i32>(context, align, offset),
+			&Opcode::I64Load8S(align, offset) => Interpreter::run_load_extend::<i8, i64>(context, align, offset),
+			&Opcode::I64Load8U(align, offset) => Interpreter::run_load_extend::<u8, i64>(context, align, offset),
+			&Opcode::I64Load16S(align, offset) => Interpreter::run_load_extend::<i16, i64>(context, align, offset),
+			&Opcode::I64Load16U(align, offset) => Interpreter::run_load_extend::<u16, i64>(context, align, offset),
+			&Opcode::I64Load32S(align, offset) => Interpreter::run_load_extend::<i32, i64>(context, align, offset),
+			&Opcode::I64Load32U(align, offset) => Interpreter::run_load_extend::<u32, i64>(context, align, offset),
 
-			&Opcode::I32Store(offset, align) => Interpreter::run_store::<i32>(context, offset, align),
-			&Opcode::I64Store(offset, align) => Interpreter::run_store::<i64>(context, offset, align),
-			&Opcode::F32Store(offset, align) => Interpreter::run_store::<f32>(context, offset, align),
-			&Opcode::F64Store(offset, align) => Interpreter::run_store::<f64>(context, offset, align),
-			&Opcode::I32Store8(offset, align) => Interpreter::run_store_wrap::<i32, i8>(context, offset, align),
-			&Opcode::I32Store16(offset, align) => Interpreter::run_store_wrap::<i32, i16>(context, offset, align),
-			&Opcode::I64Store8(offset, align) => Interpreter::run_store_wrap::<i64, i8>(context, offset, align),
-			&Opcode::I64Store16(offset, align) => Interpreter::run_store_wrap::<i64, i16>(context, offset, align),
-			&Opcode::I64Store32(offset, align) => Interpreter::run_store_wrap::<i64, i32>(context, offset, align),
+			&Opcode::I32Store(align, offset) => Interpreter::run_store::<i32>(context, align, offset),
+			&Opcode::I64Store(align, offset) => Interpreter::run_store::<i64>(context, align, offset),
+			&Opcode::F32Store(align, offset) => Interpreter::run_store::<f32>(context, align, offset),
+			&Opcode::F64Store(align, offset) => Interpreter::run_store::<f64>(context, align, offset),
+			&Opcode::I32Store8(align, offset) => Interpreter::run_store_wrap::<i32, i8>(context, align, offset),
+			&Opcode::I32Store16(align, offset) => Interpreter::run_store_wrap::<i32, i16>(context, align, offset),
+			&Opcode::I64Store8(align, offset) => Interpreter::run_store_wrap::<i64, i8>(context, align, offset),
+			&Opcode::I64Store16(align, offset) => Interpreter::run_store_wrap::<i64, i16>(context, align, offset),
+			&Opcode::I64Store32(align, offset) => Interpreter::run_store_wrap::<i64, i32>(context, align, offset),
 
 			&Opcode::CurrentMemory(_) => Interpreter::run_current_memory(context),
 			&Opcode::GrowMemory(_) => Interpreter::run_grow_memory(context),

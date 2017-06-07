@@ -5,6 +5,8 @@
 pub enum Error {
 	/// Program-level error.
 	Program(String),
+	/// Validation error.
+	Validation(String),
 	/// Initialization error.
 	Initialization(String),
 	/// Function-level error.
@@ -37,6 +39,7 @@ impl Into<String> for Error {
 	fn into(self) -> String {
 		match self {
 			Error::Program(s) => s,
+			Error::Validation(s) => s,
 			Error::Initialization(s) => s,
 			Error::Function(s) => s,
 			Error::Table(s) => s,
@@ -63,6 +66,7 @@ mod program;
 mod runner;
 mod stack;
 mod table;
+mod validator;
 mod value;
 mod variable;
 

@@ -31,9 +31,17 @@ impl ProgramInstance {
 		})
 	}
 
-	/// Instantiate module.
+	/// Instantiate module with validation.
 	pub fn add_module(&self, name: &str, module: Module) -> Result<Arc<ModuleInstance>, Error> {
 		let module_instance = Arc::new(ModuleInstance::new(Arc::downgrade(&self.essence), module)?);
+		// replace existing module with the same name with new one
+		self.essence.modules.write().insert(name.into(), module_instance.clone());
+		Ok(module_instance)
+	}
+
+	/// Instantiate module without validation.
+	pub fn add_module_without_validation(&self, name: &str, module: Module) -> Result<Arc<ModuleInstance>, Error> {
+		let module_instance = Arc::new(ModuleInstance::new_with_validation_flag(Arc::downgrade(&self.essence), module, false)?);
 		// replace existing module with the same name with new one
 		self.essence.modules.write().insert(name.into(), module_instance.clone());
 		Ok(module_instance)

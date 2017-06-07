@@ -81,7 +81,7 @@ pub struct EnvModuleInstance {
 
 impl EnvModuleInstance {
 	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
-		let instance = ModuleInstance::new(Weak::default(), module)?;
+		let instance = ModuleInstance::new_with_validation_flag(Weak::default(), module, false)?;
 
 		Ok(EnvModuleInstance {
 			_params: params,

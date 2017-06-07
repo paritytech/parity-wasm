@@ -117,7 +117,7 @@ fn global_get_set() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module_without_validation("main", module).unwrap(); // validation is failing (accessing immutable global)
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));

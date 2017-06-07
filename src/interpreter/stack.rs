@@ -44,6 +44,14 @@ impl<T> StackWithLimit<T> where T: Clone {
 			.ok_or(Error::Stack("non-empty stack expected".into()))
 	}
 
+	pub fn get(&self, index: usize) -> Result<&T, Error> {
+		if index >= self.values.len() {
+			return Err(Error::Stack(format!("trying to get value at position {} on stack of size {}", index, self.values.len())));
+		}
+
+		Ok(self.values.get(self.values.len() - 1 - index).expect("checked couple of lines above"))
+	}
+
 	pub fn push(&mut self, value: T) -> Result<(), Error> {
 		if self.values.len() >= self.limit {
 			return Err(Error::Stack(format!("exceeded stack limit {}", self.limit)));

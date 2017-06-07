@@ -38,10 +38,13 @@ fn setup_program(base_dir: &str, test_module_path: &str) -> (ProgramInstance, Ar
     (program, module_instance)
 }
 
-fn try_load(base_dir: &str, module_path: &str) -> Result<parity_wasm::elements::Module, parity_wasm::elements::Error> {
+fn try_load(base_dir: &str, module_path: &str) -> Result<(), parity_wasm::interpreter::Error> {
     let mut wasm_path = PathBuf::from(base_dir.clone());
     wasm_path.push(module_path);
-    parity_wasm::deserialize_file(&wasm_path)   
+    let module = parity_wasm::deserialize_file(&wasm_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
+
+    let program = ProgramInstance::new().expect("Failed creating program");
+    program.add_module("try_load", module).map(|_| ())
 }
 
 fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {

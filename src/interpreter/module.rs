@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::iter::repeat;
 use std::sync::{Arc, Weak};
-use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody, Internal};
+use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody, Internal, BlockType};
 use interpreter::Error;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
@@ -9,8 +9,14 @@ use interpreter::program::ProgramInstanceEssence;
 use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::stack::StackWithLimit;
 use interpreter::table::TableInstance;
+use interpreter::validator::{Validator, FunctionValidationContext};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, VariableType};
+
+/// Maximum number of entries in value stack.
+const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
+/// Maximum number of entries in frame stack.
+const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
 
 #[derive(Default, Clone)]
 /// Execution context.
@@ -112,8 +118,11 @@ impl<'a> From<Vec<RuntimeValue>> for ExecutionParams<'a> {
 impl ModuleInstance {
 	/// Instantiate given module within program context.
 	pub fn new(program: Weak<ProgramInstanceEssence>, module: Module) -> Result<Self, Error> {
-		// TODO: missing validation step
-	
+		Self::new_with_validation_flag(program, module, true)
+	}
+
+	/// Instantiate given module within program context.
+	pub fn new_with_validation_flag(program: Weak<ProgramInstanceEssence>, module: Module, requires_validation: bool) -> Result<Self, Error> {
 		// load entries from import section
 		let imports = ModuleImports::new(program, module.import_section());
 
@@ -155,12 +164,35 @@ impl ModuleInstance {
 			tables: tables,
 			globals: globals,
 		};
-		module.complete_initialization()?;
+		module.complete_initialization(requires_validation)?;
 		Ok(module)
 	}
 
 	/// Complete module initialization.
-	fn complete_initialization(&mut self) -> Result<(), Error> {
+	fn complete_initialization(&mut self, requires_validation: bool) -> Result<(), Error> {
+		if requires_validation {
+			// TODO: missing module validation step
+
+			// validate every function body
+			match (self.module.function_section(), self.module.code_section(), self.module.type_section()) {
+				(Some(function_section), Some(code_section), Some(type_section)) => {
+					for (index, function) in function_section.entries().iter().enumerate() {
+						let function_type = match type_section.types().get(function.type_ref() as usize) {
+							Some(&Type::Function(ref function_type)) => function_type.clone(),
+							_ => return Err(Error::Validation(format!("Missing type for function {}", index))),
+						};
+						let function_body = code_section.bodies().get(index as usize).ok_or(Error::Validation(format!("Missing body for function {}", index)))?;
+						let mut locals = function_type.params().to_vec();
+						locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
+						let mut context = FunctionValidationContext::new(&self.module, &self.imports, &locals, DEFAULT_VALUE_STACK_LIMIT, DEFAULT_FRAME_STACK_LIMIT, &function_type);
+						let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
+						Validator::validate_block(&mut context, block_type, function_body.code().elements(), Opcode::End)?;
+					}
+				},
+				_ => (),
+			}
+		}
+
 		// use data section to initialize linear memory regions
 		if let Some(data_section) = self.module.data_section() {
 			for (data_segment_index, data_segment) in data_section.entries().iter().enumerate() {
@@ -365,8 +397,8 @@ impl<'a> CallerContext<'a> {
 	/// Top most args
 	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>) -> Self {
 		CallerContext {
-			value_stack_limit: 1024,
-			frame_stack_limit: 1024,
+			value_stack_limit: DEFAULT_VALUE_STACK_LIMIT,
+			frame_stack_limit: DEFAULT_FRAME_STACK_LIMIT,
 			value_stack: args,
 			externals: externals,
 		}

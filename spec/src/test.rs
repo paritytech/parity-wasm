@@ -47,6 +47,12 @@ pub enum Command {
         filename: String,
         text: String,
     },
+    #[serde(rename = "assert_malformed")]
+    AssertMalformed {
+        line: u64,
+        filename: String,
+        text: String,
+    },
     #[serde(rename = "action")]
     Action {
         line: u64,

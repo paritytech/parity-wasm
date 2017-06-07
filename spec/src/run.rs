@@ -83,7 +83,12 @@ fn run_action(module: &ModuleInstance, action: &test::Action)
     }
 }
 
-pub fn spec(name: &str) {
+pub struct FixtureParams {
+    failing: bool,
+    json: String,
+}
+
+pub fn run_wast2wasm(name: &str) -> FixtureParams {
     let outdir = env::var("OUT_DIR").unwrap();
 
     let mut wast2wasm_path = PathBuf::from(outdir.clone());
@@ -101,15 +106,38 @@ pub fn spec(name: &str) {
         .output()
         .expect("Failed to execute process");
 
-    if !wast2wasm_output.status.success() {
-        println!("wasm2wast error code: {}", wast2wasm_output.status);
-        println!("wasm2wast stdout: {}", String::from_utf8_lossy(&wast2wasm_output.stdout));
-        println!("wasm2wast stderr: {}", String::from_utf8_lossy(&wast2wasm_output.stderr));
-        panic!("wasm2wast exited with status {}", wast2wasm_output.status);
+    FixtureParams {
+        json: json_spec_path.to_str().unwrap().to_owned(),
+        failing: {
+            if !wast2wasm_output.status.success() {
+                println!("wasm2wast error code: {}", wast2wasm_output.status);
+                println!("wasm2wast stdout: {}", String::from_utf8_lossy(&wast2wasm_output.stdout));
+                println!("wasm2wast stderr: {}", String::from_utf8_lossy(&wast2wasm_output.stderr));
+                true
+            } else {
+                false
+            }     
+        }
+    }
+}
+
+pub fn failing_spec(name: &str) {
+    let fixture = run_wast2wasm(name);
+    if !fixture.failing {
+         panic!("wasm2wast expected to fail, but terminated normally");
+    }
+}
+
+pub fn spec(name: &str) {
+    let outdir = env::var("OUT_DIR").unwrap();
+
+    let fixture = run_wast2wasm(name);
+    if fixture.failing {
+         panic!("wasm2wast terminated abnormally, expected to success");        
     }
 
-    let mut f = File::open(&json_spec_path)
-        .expect(&format!("Failed to load json file {}", &json_spec_path.to_string_lossy()));
+    let mut f = File::open(&fixture.json)
+        .expect(&format!("Failed to load json file {}", &fixture.json));
     let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
     let first_command = &spec.commands[0];
@@ -186,7 +214,9 @@ pub fn spec(name: &str) {
                     }
                 }
             },
-            &test::Command::AssertInvalid { line, ref filename, .. } => {
+            &test::Command::AssertInvalid { line, ref filename, .. }
+            | &test::Command::AssertMalformed { line, ref filename, .. }
+                => {
                 let module_load = try_load(&outdir, filename);
                 match module_load {
                     Ok(_) => {

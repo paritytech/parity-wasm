@@ -1,9 +1,13 @@
 use std::io;
+use byteorder::{LittleEndian, ByteOrder};
+
 use super::{Deserialize, Serialize, Error, Uint32};
 use super::section::{
     Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionSection,
     GlobalSection, TableSection, ElementSection, DataSection, MemorySection
 };
+
+const WASM_MAGIC_NUMBER: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
 
 /// WebAssembly module
 pub struct Module {
@@ -144,8 +148,18 @@ impl Deserialize for Module {
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         let mut sections = Vec::new();
-        let magic = Uint32::deserialize(reader)?;
-        let version = Uint32::deserialize(reader)?;
+
+        let mut magic = [0u8; 4];
+        reader.read(&mut magic)?;
+        if magic != WASM_MAGIC_NUMBER {
+            return Err(Error::InvalidMagic);
+        }
+
+        let version: u32 = Uint32::deserialize(reader)?.into();
+
+        if version != 1 {
+            return Err(Error::UnsupportedVersion(version));
+        }
 
         loop {
             match Section::deserialize(reader) {
@@ -156,8 +170,8 @@ impl Deserialize for Module {
         }
 
         Ok(Module { 
-            magic: magic.into(),
-            version: version.into(),
+            magic: LittleEndian::read_u32(&magic),
+            version: version,
             sections: sections,
         })
     }    

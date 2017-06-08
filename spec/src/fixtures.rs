@@ -26,7 +26,7 @@ run_test!("i32", wasm_i32);
 run_test!("i64", wasm_i64);
 run_test!("tee_local", wasm_tee_local);
 run_test!("traps", wasm_traps);
-// compilation: run_test!("typecheck", wasm_typecheck);
+run_test!("typecheck", wasm_typecheck);
 run_test!("unreachable", wasm_unreachable);
 run_test!("unreached-invalid", wasm_unreached_invalid);
 run_test!("unwind", wasm_unwind);

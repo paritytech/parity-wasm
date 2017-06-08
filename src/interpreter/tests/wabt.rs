@@ -598,7 +598,7 @@ fn call_2() {
 		Opcode::GetLocal(0),
 		Opcode::I32Const(0),
 		Opcode::I32GtS,
-		Opcode::If(BlockType::NoResult,
+		Opcode::If(BlockType::Value(ValueType::I32),
 			Opcodes::new(vec![
 				Opcode::GetLocal(0),
 				Opcode::GetLocal(0),

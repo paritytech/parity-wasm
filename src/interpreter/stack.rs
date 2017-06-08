@@ -44,6 +44,12 @@ impl<T> StackWithLimit<T> where T: Clone {
 			.ok_or(Error::Stack("non-empty stack expected".into()))
 	}
 
+	pub fn top_mut(&mut self) -> Result<&mut T, Error> {
+		self.values
+			.back_mut()
+			.ok_or(Error::Stack("non-empty stack expected".into()))
+	}
+
 	pub fn get(&self, index: usize) -> Result<&T, Error> {
 		if index >= self.values.len() {
 			return Err(Error::Stack(format!("trying to get value at position {} on stack of size {}", index, self.values.len())));

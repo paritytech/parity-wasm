@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::iter::repeat;
 use std::sync::{Arc, Weak};
-use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody, Internal, BlockType};
+use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody, Internal, External, BlockType, ResizableLimits};
 use interpreter::Error;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
@@ -122,7 +122,7 @@ impl ModuleInstance {
 	}
 
 	/// Instantiate given module within program context.
-	pub fn new_with_validation_flag(program: Weak<ProgramInstanceEssence>, module: Module, requires_validation: bool) -> Result<Self, Error> {
+	pub fn new_with_validation_flag(program: Weak<ProgramInstanceEssence>, module: Module, is_user_module: bool) -> Result<Self, Error> {
 		// load entries from import section
 		let imports = ModuleImports::new(program, module.import_section());
 
@@ -164,32 +164,92 @@ impl ModuleInstance {
 			tables: tables,
 			globals: globals,
 		};
-		module.complete_initialization(requires_validation)?;
+		module.complete_initialization(is_user_module)?;
 		Ok(module)
 	}
 
 	/// Complete module initialization.
-	fn complete_initialization(&mut self, requires_validation: bool) -> Result<(), Error> {
-		if requires_validation {
-			// TODO: missing module validation step
+	fn complete_initialization(&mut self, is_user_module: bool) -> Result<(), Error> {
+		// validate start section
+		if let Some(start_function) = self.module.start_section() {
+			self.require_function(ItemIndex::IndexSpace(start_function))?;
+		}
 
-			// validate every function body
-			match (self.module.function_section(), self.module.code_section(), self.module.type_section()) {
-				(Some(function_section), Some(code_section), Some(type_section)) => {
-					for (index, function) in function_section.entries().iter().enumerate() {
-						let function_type = match type_section.types().get(function.type_ref() as usize) {
-							Some(&Type::Function(ref function_type)) => function_type.clone(),
-							_ => return Err(Error::Validation(format!("Missing type for function {}", index))),
-						};
-						let function_body = code_section.bodies().get(index as usize).ok_or(Error::Validation(format!("Missing body for function {}", index)))?;
-						let mut locals = function_type.params().to_vec();
-						locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
-						let mut context = FunctionValidationContext::new(&self.module, &self.imports, &locals, DEFAULT_VALUE_STACK_LIMIT, DEFAULT_FRAME_STACK_LIMIT, &function_type);
-						let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
-						Validator::validate_block(&mut context, block_type, function_body.code().elements(), Opcode::End)?;
+		// validate export section
+		if is_user_module { // TODO: env module exports STACKTOP global, which is mutable => check is failed
+			if let Some(export_section) = self.module.export_section() {
+				// duplicate name check is not on specification, but it seems logical
+				let mut names = BTreeSet::new();
+				for export in export_section.entries() {
+					if !names.insert(export.field()) {
+						return Err(Error::Validation(format!("duplicate export with name {}", export.field())));
 					}
-				},
-				_ => (),
+
+					// this allows reexporting
+					match export.internal() {
+						&Internal::Function(function_index) =>
+							self.require_function(ItemIndex::IndexSpace(function_index))?,
+						&Internal::Global(global_index) =>
+							self.global(ItemIndex::IndexSpace(global_index))
+								.and_then(|g| if g.is_mutable() {
+									Err(Error::Validation(format!("trying to export mutable global {}", export.field())))
+								} else {
+									Ok(())
+								})?,
+						&Internal::Memory(memory_index) =>
+							self.memory(ItemIndex::IndexSpace(memory_index)).map(|_| ())?,
+						&Internal::Table(table_index) =>
+							self.table(ItemIndex::IndexSpace(table_index)).map(|_| ())?,
+					}
+				}
+			}
+		}
+
+		// validate import section
+		if let Some(import_section) = self.module.import_section() {
+			// external module + its export existance is checked on runtime
+			for import in import_section.entries() {
+				match import.external() {
+					&External::Function(ref function_index) => self.require_function_type(*function_index).map(|_| ())?,
+					&External::Global(ref global_type) => if global_type.is_mutable() {
+						return Err(Error::Validation(format!("trying to import mutable global {}", import.field())))
+					},
+					&External::Memory(ref memory_type) => check_limits(memory_type.limits())?,
+					&External::Table(ref table_type) => check_limits(table_type.limits())?,
+				}
+			}
+		}
+
+		// there must be no greater than 1 table in tables index space
+		if self.imports.tables_len() + self.tables.len() > 1 {
+			return Err(Error::Validation(format!("too many tables in index space: {}", self.imports.tables_len() + self.tables.len())));
+		}
+
+		// there must be no greater than 1 memory region in memory regions index space
+		if self.imports.memory_regions_len() + self.memory.len() > 1 {
+			return Err(Error::Validation(format!("too many memory regions in index space: {}", self.imports.memory_regions_len() + self.memory.len())));
+		}
+
+		// for every function section entry there must be corresponding entry in code section and type && vice versa
+		let function_section_len = self.module.function_section().map(|s| s.entries().len()).unwrap_or(0);
+		let code_section_len = self.module.code_section().map(|s| s.bodies().len()).unwrap_or(0);
+		if function_section_len != code_section_len {
+			return Err(Error::Validation(format!("length of function section is {}, while len of code section is {}", function_section_len, code_section_len)));
+		}
+
+		// validate every function body in user modules
+		if is_user_module && function_section_len != 0 {
+			let function_section = self.module.function_section().expect("function_section_len != 0; qed");
+			let code_section = self.module.code_section().expect("function_section_len != 0; function_section_len == code_section_len; qed");
+			// check every function body
+			for (index, function) in function_section.entries().iter().enumerate() {
+				let function_type = self.require_function_type(function.type_ref())?;
+				let function_body = code_section.bodies().get(index as usize).ok_or(Error::Validation(format!("Missing body for function {}", index)))?;
+				let mut locals = function_type.params().to_vec();
+				locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
+				let mut context = FunctionValidationContext::new(&self.module, &self.imports, &locals, DEFAULT_VALUE_STACK_LIMIT, DEFAULT_FRAME_STACK_LIMIT, &function_type);
+				let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
+				Validator::validate_block(&mut context, block_type, function_body.code().elements(), Opcode::End)?;
 			}
 		}
 
@@ -208,6 +268,10 @@ impl ModuleInstance {
 		if let Some(element_section) = self.module.elements_section() {
 			for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
 				let offset: u32 = get_initializer(element_segment.offset(), &self.module, &self.imports)?.try_into()?;
+				for function_index in element_segment.members() {
+					self.require_function(ItemIndex::IndexSpace(*function_index))?;
+				}
+
 				self.table(ItemIndex::IndexSpace(element_segment.index()))
 					.map_err(|e| Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}: {:?}", element_segment_index, element_segment.index(), e)))
 					.and_then(|m| m.set_raw(offset, element_segment.members()))
@@ -216,6 +280,31 @@ impl ModuleInstance {
 		}
 
 		Ok(())
+	}
+
+	fn require_function(&self, index: ItemIndex) -> Result<(), Error> {
+		match self.imports.parse_function_index(index) {
+			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
+			ItemIndex::Internal(index) => self.module.function_section()
+				.ok_or(Error::Function(format!("initializing table element to value {}, without corresponding internal function", index)))
+				.and_then(|s| s.entries().get(index as usize)
+					.ok_or(Error::Function(format!("initializing table element to value {}, without corresponding internal function", index))))
+				.map(|_| ()),
+			ItemIndex::External(index) => self.module.import_section()
+				.ok_or(Error::Function(format!("initializing table element to value {}, without corresponding external function", index)))
+				.and_then(|s| s.entries().get(index as usize)
+					.ok_or(Error::Function(format!("initializing table element to value {}, without corresponding external function", index))))
+				.map(|_| ()),
+		}
+	}
+
+	fn require_function_type(&self, type_index: u32) -> Result<&FunctionType, Error> {
+		self.module.type_section()
+			.ok_or(Error::Validation(format!("type reference {} exists in module without type section", type_index)))
+			.and_then(|s| match s.types().get(type_index as usize) {
+				Some(&Type::Function(ref function_type)) => Ok(function_type),
+				_ => Err(Error::Validation(format!("missing function type with index {}", type_index))),
+			})
 	}
 }
 
@@ -413,6 +502,16 @@ impl<'a> CallerContext<'a> {
 			externals: &outer.externals,
 		}
 	}
+}
+
+pub fn check_limits(limits: &ResizableLimits) -> Result<(), Error> {
+	if let Some(maximum) = limits.maximum() {
+		if maximum < limits.initial() {
+			return Err(Error::Validation(format!("maximum limit {} is lesser than minimum {}", maximum, limits.initial())));
+		}
+	}
+
+	Ok(())
 }
 
 fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, outer: &mut CallerContext) -> Result<Vec<VariableInstance>, Error> {

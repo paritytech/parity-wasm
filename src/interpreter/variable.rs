@@ -32,6 +32,7 @@ pub struct VariableInstance {
 impl VariableInstance {
 	/// New variable instance
 	pub fn new(is_mutable: bool, variable_type: VariableType, value: RuntimeValue) -> Result<Self, Error> {
+		// TODO: there is nothing about null value in specification + there is nothing about initializing missing table elements? => runtime check for nulls
 		if !value.is_null() && value.variable_type() != Some(variable_type) {
 			return Err(Error::Variable(format!("trying to initialize variable of type {:?} with value of type {:?}", variable_type, value.variable_type())));
 		}
@@ -46,6 +47,11 @@ impl VariableInstance {
 	/// New global variable
 	pub fn new_global(global_type: &GlobalType, value: RuntimeValue) -> Result<Self, Error> {
 		Self::new(global_type.is_mutable(), global_type.content_type().into(), value)
+	}
+
+	/// Is mutable
+	pub fn is_mutable(&self) -> bool {
+		self.is_mutable
 	}
 
 	/// Get the value of the variable instance

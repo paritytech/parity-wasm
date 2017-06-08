@@ -3,6 +3,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use elements::MemoryType;
 use interpreter::Error;
+use interpreter::module::check_limits;
 
 /// Linear memory page size.
 pub const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
@@ -18,6 +19,8 @@ pub struct MemoryInstance {
 impl MemoryInstance {
 	/// Create new linear memory instance.
 	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error> {
+		check_limits(memory_type.limits())?;
+
 		let memory = MemoryInstance {
 			buffer: RwLock::new(Vec::new()), // TODO: with_capacity
 			maximum_size: memory_type.limits().maximum()

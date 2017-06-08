@@ -3,6 +3,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use elements::TableType;
 use interpreter::Error;
+use interpreter::module::check_limits;
 use interpreter::variable::{VariableInstance, VariableType};
 use interpreter::value::RuntimeValue;
 
@@ -17,6 +18,8 @@ pub struct TableInstance {
 impl TableInstance {
 	/// New instance of the table
 	pub fn new(variable_type: VariableType, table_type: &TableType) -> Result<Arc<Self>, Error> {
+		check_limits(table_type.limits())?;
+
 		Ok(Arc::new(TableInstance {
 			variable_type: variable_type,
 			buffer: RwLock::new(

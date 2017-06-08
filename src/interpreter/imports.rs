@@ -50,6 +50,16 @@ impl ModuleImports {
 		}
 	}
 
+	/// Number of imported tables.
+	pub fn tables_len(&self) -> usize {
+		self.tables.len()
+	}
+
+	/// Number of imported memory regions.
+	pub fn memory_regions_len(&self) -> usize {
+		self.memory.len()
+	}
+
 	/// Parse function index.
 	pub fn parse_function_index(&self, index: ItemIndex) -> ItemIndex {
 		match index {

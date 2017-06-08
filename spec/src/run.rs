@@ -140,25 +140,18 @@ pub fn spec(name: &str) {
         .expect(&format!("Failed to load json file {}", &fixture.json));
     let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
-    let first_command = &spec.commands[0];
-    let (mut _program, mut module) = match first_command {
-        &test::Command::Module { ref filename, .. } => {
-            setup_program(&outdir, filename)
-        },
-        _ => {
-            panic!("First command supposed to specify module");
-        }
-    };
-
-    for command in spec.commands.iter().skip(1) {
+    let mut _program = None;
+    let mut module = None;
+    for command in &spec.commands {
         println!("command {:?}", command);
         match command {
             &test::Command::Module { ref filename, .. } => {
-                let (_new_program, new_module) = setup_program(&outdir, &filename);
-                module = new_module;
+                let (new_program, new_module) = setup_program(&outdir, &filename);
+                _program = Some(new_program);
+                module = Some(new_module);
             },
             &test::Command::AssertReturn { line, ref action, ref expected } => {
-                let result = run_action(&*module, action);
+                let result = run_action(&*module.as_ref().unwrap(), action);
                 match result {
                     Ok(result) => {
                         let spec_expected = runtime_values(expected);
@@ -186,7 +179,7 @@ pub fn spec(name: &str) {
                 }
             },
             &test::Command::AssertReturnCanonicalNan { line, ref action } | &test::Command::AssertReturnArithmeticNan { line, ref action } => {
-                let result = run_action(&*module, action);
+                let result = run_action(&*module.as_ref().unwrap(), action);
                 match result {
                     Ok(result) => {
                         for actual_result in result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>() {
@@ -204,7 +197,7 @@ pub fn spec(name: &str) {
                 }
             },
             &test::Command::AssertTrap { line, ref action, .. } => {
-                let result = run_action(&*module, action);
+                let result = run_action(&*module.as_ref().unwrap(), action);
                 match result {
                     Ok(result) => {
                         panic!("Expected action to result in a trap, got result: {:?}", result);
@@ -228,7 +221,7 @@ pub fn spec(name: &str) {
                 }
             },
             &test::Command::Action { line, ref action } => {
-                match run_action(&*module, action) {
+                match run_action(&*module.as_ref().unwrap(), action) {
                     Ok(_) => { },
                     Err(e) => {
                         panic!("Failed to invoke action at line {}: {:?}", line, e)

@@ -487,4 +487,16 @@ mod tests {
 
         assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);        
     }
+
+    #[test]
+    fn data() {
+        let module = module()
+            .data()
+                .offset(::elements::Opcode::I32Const(16))
+                .value(vec![0u8, 15, 10, 5, 25])
+                .build()
+            .build();
+
+        assert_eq!(module.data_section().expect("data section to exist").entries().len(), 1);
+    }
  }

@@ -516,7 +516,7 @@ fn return_void() {
 
 	let module = module()
 		.memory().build()
-		.function().main()
+		.function()
 			.signature().param().i32().build()
 			.body().with_opcodes(body).build()
 			.build()
@@ -524,11 +524,11 @@ fn return_void() {
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
 
-	module.execute_main(vec![RuntimeValue::I32(0)].into()).unwrap();
+	module.execute_index(0, vec![RuntimeValue::I32(0)].into()).unwrap();
 	let memory = module.memory(ItemIndex::IndexSpace(0)).unwrap();
 	assert_eq!(memory.get(0, 4).unwrap(), vec![0, 0, 0, 0]);
 
-	module.execute_main(vec![RuntimeValue::I32(1)].into()).unwrap();
+	module.execute_index(0, vec![RuntimeValue::I32(1)].into()).unwrap();
 	let memory = module.memory(ItemIndex::IndexSpace(0)).unwrap();
 	assert_eq!(memory.get(0, 4).unwrap(), vec![1, 0, 0, 0]);
 }
@@ -564,7 +564,7 @@ fn call_1() {
 
 	let module = module()
 		.memory().build()
-		.function().main()
+		.function()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(body1).build()
 			.build()
@@ -582,7 +582,7 @@ fn call_1() {
 
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
-	assert_eq!(module.execute_main(vec![].into()).unwrap().unwrap(), RuntimeValue::I32(10));
+	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(10));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/call.txt#L23
@@ -616,7 +616,7 @@ fn call_2() {
 	]);
 
 	let module = module()
-		.function().main()
+		.function()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(body1).build()
 			.build()
@@ -631,7 +631,7 @@ fn call_2() {
 
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
-	assert_eq!(module.execute_main(vec![].into()).unwrap().unwrap(), RuntimeValue::I32(3628800));
+	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(3628800));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/call-zero-args.txt
@@ -669,14 +669,14 @@ fn call_zero_args() {
 				.build()
 			.body().with_opcodes(body2).build()
 			.build()
-		.function().main()
+		.function()
 			.body().with_opcodes(body3).build()
 			.build()
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
-	assert_eq!(module.execute_main(vec![].into()).unwrap().unwrap(), RuntimeValue::I32(43));
+	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(43));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callindirect.txt#L31
@@ -711,7 +711,7 @@ fn callindirect_1() {
 			.signature().return_type().i32().build()
 			.body().with_opcodes(body2).build()
 			.build()
-		.function().main()
+		.function()
 			.signature()
 				.param().i32()
 				.return_type().i32()
@@ -722,8 +722,8 @@ fn callindirect_1() {
 
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
-	assert_eq!(module.execute_main(vec![RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(module.execute_main(vec![RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(module.execute_index(2, vec![RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(module.execute_index(2, vec![RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callindirect.txt#L39
@@ -782,7 +782,7 @@ fn callindirect_2() {
 				.return_type().i32().build()
 			.body().with_opcodes(body3).build()
 			.build()
-		.function().main()
+		.function()
 			.signature()
 				.param().i32()
 				.param().i32()
@@ -795,11 +795,11 @@ fn callindirect_2() {
 
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module).unwrap();
-	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(14));
-	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(6));
-	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)].into()).unwrap_err(),
+	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(14));
+	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(6));
+	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)].into()).unwrap_err(),
 		Error::Function("expected function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
-	assert_eq!(module.execute_main(vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)].into()).unwrap_err(),
+	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)].into()).unwrap_err(),
 		Error::Table("trying to read table item with index 3 when there are only 3 items".into()));
 }
 

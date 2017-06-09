@@ -91,10 +91,6 @@ impl EnvModuleInstance {
 }
 
 impl ModuleInstanceInterface for EnvModuleInstance {
-	fn execute_main(&self, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		self.instance.execute_main(params)
-	}
-
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.instance.execute_index(index, params)
 	}

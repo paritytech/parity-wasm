@@ -16,7 +16,7 @@ use interpreter::variable::{VariableInstance, VariableType};
 /// Maximum number of entries in value stack.
 const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
 /// Maximum number of entries in frame stack.
-const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
+const DEFAULT_FRAME_STACK_LIMIT: usize = 128; // TODO: fix runner to support bigger depth
 
 #[derive(Default, Clone)]
 /// Execution context.
@@ -29,8 +29,6 @@ pub struct ExecutionParams<'a> {
 
 /// Module instance API.
 pub trait ModuleInstanceInterface {
-	/// Execute start function of the module.
-	fn execute_main(&self, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
 	/// Execute function with the given index.
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
 	/// Execute function with the given export name.
@@ -172,7 +170,13 @@ impl ModuleInstance {
 	fn complete_initialization(&mut self, is_user_module: bool) -> Result<(), Error> {
 		// validate start section
 		if let Some(start_function) = self.module.start_section() {
-			self.require_function(ItemIndex::IndexSpace(start_function))?;
+			let func_type_index = self.require_function(ItemIndex::IndexSpace(start_function))?;
+			if is_user_module { // tests use non-empty main functions
+				let func_type = self.require_function_type(func_type_index)?;
+				if func_type.return_type() != None || func_type.params().len() != 0 {
+					return Err(Error::Validation("start function expected to have type [] -> []".into()));
+				}
+			}
 		}
 
 		// validate export section
@@ -188,7 +192,7 @@ impl ModuleInstance {
 					// this allows reexporting
 					match export.internal() {
 						&Internal::Function(function_index) =>
-							self.require_function(ItemIndex::IndexSpace(function_index))?,
+							self.require_function(ItemIndex::IndexSpace(function_index)).map(|_| ())?,
 						&Internal::Global(global_index) =>
 							self.global(ItemIndex::IndexSpace(global_index))
 								.and_then(|g| if g.is_mutable() {
@@ -238,7 +242,7 @@ impl ModuleInstance {
 		}
 
 		// validate every function body in user modules
-		if is_user_module && function_section_len != 0 {
+		if is_user_module && function_section_len != 0 { // tests use invalid code
 			let function_section = self.module.function_section().expect("function_section_len != 0; qed");
 			let code_section = self.module.code_section().expect("function_section_len != 0; function_section_len == code_section_len; qed");
 			// check every function body
@@ -279,22 +283,30 @@ impl ModuleInstance {
 			}
 		}
 
+		// execute start function (if any)
+		if let Some(start_function) = self.module.start_section() {
+			self.execute_index(start_function, ExecutionParams::default())?;
+		}
+
 		Ok(())
 	}
 
-	fn require_function(&self, index: ItemIndex) -> Result<(), Error> {
+	fn require_function(&self, index: ItemIndex) -> Result<u32, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.module.function_section()
-				.ok_or(Error::Function(format!("initializing table element to value {}, without corresponding internal function", index)))
+				.ok_or(Error::Function(format!("missing internal function {}", index)))
 				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Function(format!("initializing table element to value {}, without corresponding internal function", index))))
-				.map(|_| ()),
+					.ok_or(Error::Function(format!("missing internal function {}", index))))
+				.map(|f| f.type_ref()),
 			ItemIndex::External(index) => self.module.import_section()
-				.ok_or(Error::Function(format!("initializing table element to value {}, without corresponding external function", index)))
+				.ok_or(Error::Function(format!("missing external function {}", index)))
 				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Function(format!("initializing table element to value {}, without corresponding external function", index))))
-				.map(|_| ()),
+					.ok_or(Error::Function(format!("missing external function {}", index))))
+				.and_then(|import| match import.external() {
+					&External::Function(type_idx) => Ok(type_idx),
+					_ => Err(Error::Function(format!("external function {} is pointing to non-function import", index))),
+				}),
 		}
 	}
 
@@ -309,11 +321,6 @@ impl ModuleInstance {
 }
 
 impl ModuleInstanceInterface for ModuleInstance {
-	fn execute_main(&self, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		let index = self.module.start_section().ok_or(Error::Program("module has no start section".into()))?;
-		self.execute_index(index, params)
-	}
-
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		let args_len = params.args.len();
 		let mut args = StackWithLimit::with_data(params.args, args_len);
@@ -536,7 +543,12 @@ fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBod
 }
 
 fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports) -> Result<RuntimeValue, Error> {
-	let first_opcode = expr.code().get(0).ok_or(Error::Initialization(format!("empty instantiation-time initializer")))?;
+	let first_opcode = match expr.code().len() {
+		1 => &expr.code()[0],
+		2 if expr.code().len() == 2 && expr.code()[1] == Opcode::End => &expr.code()[0],
+		_ => return Err(Error::Initialization(format!("expected 1-instruction len initializer. Got {:?}", expr.code()))),
+	};
+
 	match first_opcode {
 		&Opcode::GetGlobal(index) => {
 			let index = match imports.parse_global_index(ItemIndex::IndexSpace(index)) {

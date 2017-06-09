@@ -1,3 +1,4 @@
+use std::u32;
 use elements::{Module, Opcode, BlockType, FunctionType, ValueType, External, Type};
 use interpreter::Error;
 use interpreter::runner::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
@@ -5,6 +6,9 @@ use interpreter::imports::ModuleImports;
 use interpreter::module::ItemIndex;
 use interpreter::stack::StackWithLimit;
 use interpreter::variable::VariableType;
+
+/// Constant from wabt' validator.cc to skip alignment validation (not a part of spec).
+const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
 
 /// Function validation context.
 pub struct FunctionValidationContext<'a> {
@@ -354,8 +358,10 @@ impl Validator {
 	}
 
 	fn validate_load(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
-		if align > max_align {
-			return Err(Error::Validation(format!("Too large memory alignment {} (expected at most {})", align, max_align)));
+		if align != NATURAL_ALIGNMENT {
+			if 1u32.checked_shl(align).unwrap_or(u32::MAX) > max_align {
+				return Err(Error::Validation(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
+			}
 		}
 
 		context.pop_value(ValueType::I32.into())?;
@@ -365,8 +371,10 @@ impl Validator {
 	}
 
 	fn validate_store(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
-		if align > max_align {
-			return Err(Error::Validation(format!("Too large memory alignment {} (expected at most {})", align, max_align)));
+		if align != NATURAL_ALIGNMENT {
+			if 1u32.checked_shl(align).unwrap_or(u32::MAX) > max_align {
+				return Err(Error::Validation(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
+			}
 		}
 
 		context.require_memory(DEFAULT_MEMORY_INDEX)?;

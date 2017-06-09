@@ -7,6 +7,8 @@ use interpreter::module::check_limits;
 
 /// Linear memory page size.
 pub const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
+/// Maximal number of pages.
+const LINEAR_MEMORY_MAX_PAGES: u32 = 65536;
 
 /// Linear memory instance.
 pub struct MemoryInstance {
@@ -20,6 +22,12 @@ impl MemoryInstance {
 	/// Create new linear memory instance.
 	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error> {
 		check_limits(memory_type.limits())?;
+
+		if let Some(maximum_pages) = memory_type.limits().maximum() {
+			if maximum_pages > LINEAR_MEMORY_MAX_PAGES {
+				return Err(Error::Memory(format!("memory size must be at most 65536 pages")));
+			}
+		}
 
 		let memory = MemoryInstance {
 			buffer: RwLock::new(Vec::new()), // TODO: with_capacity
@@ -64,7 +72,7 @@ impl MemoryInstance {
 		};
 
 		let mut buffer = self.buffer.write();
-		if buffer.len() <= end {
+		if buffer.len() < end {
 			return Err(Error::Memory(format!("trying to update region [{}..{}] in memory [0..{}]", begin, end, buffer.len())));
 		}
 

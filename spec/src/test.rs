@@ -53,11 +53,28 @@ pub enum Command {
         filename: String,
         text: String,
     },
+    #[serde(rename = "assert_uninstantiable")]
+    AssertUninstantiable {
+        line: u64,
+        filename: String,
+        text: String,
+    },
+    #[serde(rename = "assert_exhaustion")]
+    AssertExhaustion {
+        line: u64,
+        action: Action,
+    },
+    #[serde(rename = "assert_unlinkable")]
+    AssertUnlinkable {
+        line: u64,
+        filename: String,
+        text: String,
+    },
     #[serde(rename = "action")]
     Action {
         line: u64,
         action: Action,
-    }
+    },
 }
 
 #[derive(Deserialize, Debug)]

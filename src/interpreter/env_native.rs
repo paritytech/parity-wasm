@@ -65,10 +65,6 @@ impl<'a> NativeModuleInstance<'a> {
 }
 
 impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
-	fn execute_main(&self, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		self.env.execute_main(params)
-	}
-
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.env.execute_index(index, params)
 	}

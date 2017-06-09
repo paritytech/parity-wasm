@@ -460,7 +460,7 @@ impl Interpreter {
 		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.map(|m| m.size())
-			.and_then(|s| context.value_stack_mut().push(RuntimeValue::I64(s as i64)))
+			.and_then(|s| context.value_stack_mut().push(RuntimeValue::I32(s as i32)))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 

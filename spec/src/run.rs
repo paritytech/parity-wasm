@@ -18,10 +18,12 @@ use parity_wasm::interpreter::{
 fn spec_test_module() -> elements::Module {
     builder::module()
         .function()
-            .signature().with_param(elements::ValueType::I32).build()
+            .signature().build()
             .body().build()
             .build()
+        .global().value_type().i32().init_expr(elements::Opcode::I32Const(0)).build()
         .export().field("print").internal().func(0).build()
+        .export().field("global").internal().global(0).build()
         .build()
 }
 
@@ -196,6 +198,13 @@ pub fn spec(name: &str) {
                     }
                 }
             },
+            &test::Command::AssertExhaustion { line, ref action, .. } => {
+                let result = run_action(&*module.as_ref().unwrap(), action);
+                match result {
+                    Ok(result) => panic!("Expected exhaustion, got result: {:?}", result),
+                    Err(e) => println!("assert_exhaustion at line {} - success ({:?})", line, e),
+                }
+            },
             &test::Command::AssertTrap { line, ref action, .. } => {
                 let result = run_action(&*module.as_ref().unwrap(), action);
                 match result {
@@ -209,6 +218,7 @@ pub fn spec(name: &str) {
             },
             &test::Command::AssertInvalid { line, ref filename, .. }
             | &test::Command::AssertMalformed { line, ref filename, .. }
+            | &test::Command::AssertUnlinkable { line, ref filename, .. }
                 => {
                 let module_load = try_load(&outdir, filename);
                 match module_load {
@@ -218,6 +228,12 @@ pub fn spec(name: &str) {
                     Err(e) => {
                         println!("assert_invalid at line {} - success ({:?})", line, e)
                     }
+                }
+            },
+            &test::Command::AssertUninstantiable { line, ref filename, .. } => {
+                match try_load(&outdir, &filename) {
+                    Ok(_) => panic!("Expected error running start function at line {}", line),
+                    Err(e) => println!("assert_uninstantiable - success ({:?})", e),
                 }
             },
             &test::Command::Action { line, ref action } => {

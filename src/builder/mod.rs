@@ -9,6 +9,7 @@ mod memory;
 mod table;
 mod export;
 mod global;
+mod data;
 
 pub use self::module::{module, from_module, ModuleBuilder};
 pub use self::code::{signatures, signature, function};

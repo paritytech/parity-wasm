@@ -2,7 +2,7 @@ use super::invoke::{Invoke, Identity};
 use super::code::{self, SignaturesBuilder, FunctionBuilder};
 use super::memory::{self, MemoryBuilder};
 use super::table::{self, TableBuilder};
-use super::{import, export, global};
+use super::{import, export, global, data};
 use elements;
 
 /// Module builder
@@ -321,6 +321,17 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         global::GlobalBuilder::with_callback(self)
     }
 
+    /// Add data segment to the builder
+    pub fn with_data_segment(mut self, segment: elements::DataSegment) -> Self {
+        self.module.data.entries_mut().push(segment);
+        self
+    }
+
+    /// Data entry builder
+    pub fn data(self) -> data::DataSegmentBuilder<Self> {
+        data::DataSegmentBuilder::with_callback(self)
+    }
+
     /// Build module (final step)
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.module.into())
@@ -414,6 +425,16 @@ impl<F> Invoke<elements::GlobalEntry> for ModuleBuilder<F>
     }
 }
 
+impl<F> Invoke<elements::DataSegment> for ModuleBuilder<F> 
+    where F: Invoke<elements::Module>
+{
+	type Result = Self;
+
+	fn invoke(self, segment: elements::DataSegment) -> Self {
+		self.with_data_segment(segment)
+    }    
+}
+
 /// Start new module builder
 pub fn module() -> ModuleBuilder {
     ModuleBuilder::new()
@@ -465,5 +486,17 @@ mod tests {
             .build();
 
         assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);        
+    }
+
+    #[test]
+    fn data() {
+        let module = module()
+            .data()
+                .offset(::elements::Opcode::I32Const(16))
+                .value(vec![0u8, 15, 10, 5, 25])
+                .build()
+            .build();
+
+        assert_eq!(module.data_section().expect("data section to exist").entries().len(), 1);
     }
  }

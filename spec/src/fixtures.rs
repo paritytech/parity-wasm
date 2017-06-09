@@ -16,6 +16,7 @@ macro_rules! run_test {
 run_test!("address", wasm_address);
 run_test!("address-offset-range.fail", wasm_address_offset_range_fail, fail);
 run_test!("binary", wasm_binary);
+run_test!("call", wasm_call);
 run_test!("endianness", wasm_endianness);
 run_test!("f32", wasm_f32);
 run_test!("f32_bitwise", wasm_f32_bitwise);

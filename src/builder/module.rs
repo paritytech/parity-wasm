@@ -2,7 +2,7 @@ use super::invoke::{Invoke, Identity};
 use super::code::{self, SignaturesBuilder, FunctionBuilder};
 use super::memory::{self, MemoryBuilder};
 use super::table::{self, TableBuilder};
-use super::{import, export, global};
+use super::{import, export, global, data};
 use elements;
 
 /// Module builder
@@ -321,6 +321,17 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         global::GlobalBuilder::with_callback(self)
     }
 
+    /// Add data segment to the builder
+    pub fn with_data_segment(mut self, segment: elements::DataSegment) -> Self {
+        self.module.data.entries_mut().push(segment);
+        self
+    }
+
+    /// Data entry builder
+    pub fn data(self) -> data::DataSegmentBuilder<Self> {
+        data::DataSegmentBuilder::with_callback(self)
+    }
+
     /// Build module (final step)
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.module.into())
@@ -412,6 +423,16 @@ impl<F> Invoke<elements::GlobalEntry> for ModuleBuilder<F>
     fn invoke(self, entry: elements::GlobalEntry) -> Self::Result {
         self.with_global(entry)
     }
+}
+
+impl<F> Invoke<elements::DataSegment> for ModuleBuilder<F> 
+    where F: Invoke<elements::Module>
+{
+	type Result = Self;
+
+	fn invoke(self, segment: elements::DataSegment) -> Self {
+		self.with_data_segment(segment)
+    }    
 }
 
 /// Start new module builder

@@ -13,7 +13,7 @@ use interpreter::variable::{VariableInstance, VariableType};
 
 fn run_function_i32(body: &Opcodes, arg: i32) -> Result<i32, Error> {
 	let ftype = FunctionType::new(vec![ValueType::I32], Some(ValueType::I32));
-	let module = ModuleInstance::new(Weak::default(), Module::default()).unwrap();
+	let module = ModuleInstance::new(Weak::default(), "test".into(), Module::default()).unwrap();
 	let externals = HashMap::new();
 	let mut context = FunctionContext::new(&module, &externals, 1024, 1024, &ftype, vec![
 			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(arg)).unwrap(),	// arg
@@ -522,7 +522,7 @@ fn return_void() {
 			.build()
 		.build();
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 
 	module.execute_index(0, vec![RuntimeValue::I32(0)].into()).unwrap();
 	let memory = module.memory(ItemIndex::IndexSpace(0)).unwrap();
@@ -581,7 +581,7 @@ fn call_1() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(10));
 }
 
@@ -630,7 +630,7 @@ fn call_2() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(3628800));
 }
 
@@ -675,7 +675,7 @@ fn call_zero_args() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(43));
 }
 
@@ -721,7 +721,7 @@ fn callindirect_1() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(2, vec![RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(0));
 	assert_eq!(module.execute_index(2, vec![RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
@@ -794,7 +794,7 @@ fn callindirect_2() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(14));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(6));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)].into()).unwrap_err(),
@@ -862,7 +862,7 @@ fn select() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(2));
 	assert_eq!(module.execute_index(0, vec![RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute_index(1, vec![RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I64(2));
@@ -1015,7 +1015,7 @@ fn binary_i32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(3));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(16));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(21));
@@ -1175,7 +1175,7 @@ fn binary_i64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(3));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(16));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(21));
@@ -1265,7 +1265,7 @@ fn binary_f32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(5.000000));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(-9995.500000));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(-8487.187500));
@@ -1347,7 +1347,7 @@ fn binary_f64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(1111111110.000000));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(123400000000000007812762268812638756607430593436581896388608.000000));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(-15179717820000.000000));
@@ -1400,7 +1400,7 @@ fn cast() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(4.5));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-1067450368)); // 3227516928
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(125.125000));
@@ -1666,7 +1666,7 @@ fn compare_i32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(0));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
@@ -1956,7 +1956,7 @@ fn compare_i64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(0));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
@@ -2140,7 +2140,7 @@ fn compare_f32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(0));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
@@ -2312,7 +2312,7 @@ fn compare_f64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(0));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
@@ -2380,7 +2380,7 @@ fn convert_i32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-1));				// 4294967295
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-100));			// 4294967196
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-1294967296));	// 3000000000
@@ -2453,7 +2453,7 @@ fn convert_i64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(4294967295));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(-1)); // 18446744073709551615
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
@@ -2511,7 +2511,7 @@ fn convert_f32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(-1.000000));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(4294967296.000000));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(12345679.000000));
@@ -2568,7 +2568,7 @@ fn convert_f64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(-1.000000));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(4294967295.000000));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(12345679.000000));
@@ -2628,7 +2628,7 @@ fn load_i32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-1));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-1));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-1));
@@ -2704,7 +2704,7 @@ fn load_i64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(-1));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(-1));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(-1));
@@ -2734,7 +2734,7 @@ fn load_f32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(25.750000));
 }
 
@@ -2758,7 +2758,7 @@ fn load_f64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(1023.875000));
 }
 
@@ -2815,7 +2815,7 @@ fn store_i32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-16909061));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-859059511));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-123456));
@@ -2885,7 +2885,7 @@ fn store_i64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(4278058235));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(3435907785));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(4294843840));
@@ -2913,7 +2913,7 @@ fn store_f32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1069547520));
 }
 
@@ -2938,7 +2938,7 @@ fn store_f64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(-1064352256));
 }
 
@@ -2989,7 +2989,7 @@ fn unary_i32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(0));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(24));
@@ -3044,7 +3044,7 @@ fn unary_i64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(0));
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::I64(56));
@@ -3143,7 +3143,7 @@ fn unary_f32() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(-100.000000));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::F32(100.000000));
 	assert_eq!(module.execute_index(3, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));
@@ -3246,7 +3246,7 @@ fn unary_f64() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module("main", module).unwrap();
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(1, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(-100.000000));
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap().unwrap(), RuntimeValue::F64(100.000000));
 	assert_eq!(module.execute_index(3, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(1));

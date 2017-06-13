@@ -1,4 +1,5 @@
 use std::sync::{Arc, Weak};
+use std::collections::HashMap;
 
 use builder::module;
 use elements::{Module, FunctionType, ExportEntry, Internal, GlobalEntry, GlobalType,
@@ -6,11 +7,11 @@ use elements::{Module, FunctionType, ExportEntry, Internal, GlobalEntry, GlobalT
 use interpreter::Error;
 use interpreter::env_native::NATIVE_INDEX_FUNC_MIN;
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
-	ItemIndex, CallerContext};
+	ItemIndex, CallerContext, ExportEntryType};
 use interpreter::memory::{MemoryInstance, LINEAR_MEMORY_PAGE_SIZE};
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
-use interpreter::variable::VariableInstance;
+use interpreter::variable::{VariableInstance, VariableType};
 
 /// Memory address, at which stack begins.
 const DEFAULT_STACK_BASE: u32 = 0;
@@ -81,7 +82,7 @@ pub struct EnvModuleInstance {
 
 impl EnvModuleInstance {
 	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
-		let instance = ModuleInstance::new_with_validation_flag(Weak::default(), module, false)?;
+		let instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 
 		Ok(EnvModuleInstance {
 			_params: params,
@@ -91,6 +92,10 @@ impl EnvModuleInstance {
 }
 
 impl ModuleInstanceInterface for EnvModuleInstance {
+	fn instantiate<'a>(&self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
+		self.instance.instantiate(is_user_module, externals)
+	}
+
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.instance.execute_index(index, params)
 	}
@@ -99,8 +104,12 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.execute_export(name, params)
 	}
 
-	fn export_entry(&self, name: &str) -> Result<Internal, Error> {
-		self.instance.export_entry(name)
+	fn export_entry<'a>(&self, name: &str, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, required_type: &ExportEntryType) -> Result<Internal, Error> {
+		self.instance.export_entry(name, externals, required_type)
+	}
+
+	fn function_type<'a>(&self, function_index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<FunctionType, Error> {
+		self.instance.function_type(function_index, externals)
 	}
 
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
@@ -111,12 +120,12 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.memory(index)
 	}
 
-	fn global(&self, index: ItemIndex) -> Result<Arc<VariableInstance>, Error> {
-		self.instance.global(index)
+	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
+		self.instance.global(index, variable_type)
 	}
 
-	fn call_function(&self, outer: CallerContext, index: ItemIndex) -> Result<Option<RuntimeValue>, Error> {
-		self.instance.call_function(outer, index)
+	fn call_function(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+		self.instance.call_function(outer, index, function_type)
 	}
 
 	fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
@@ -127,19 +136,19 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		// TODO: check function type
 		// to make interpreter independent of *SCRIPTEN runtime, just make abort/assert = interpreter Error
 		match index {
-			INDEX_FUNC_ABORT => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT))
+			INDEX_FUNC_ABORT => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32))
 				.and_then(|g| g.set(RuntimeValue::I32(1)))
 				.and_then(|_| Err(Error::Trap("abort".into()))),
 			INDEX_FUNC_ASSERT => outer.value_stack.pop_as::<i32>()
 				.and_then(|condition| if condition == 0 {
-					self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT))
+					self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32))
 						.and_then(|g| g.set(RuntimeValue::I32(1)))
 						.and_then(|_| Err(Error::Trap("assertion failed".into())))
 				} else {
 					Ok(None)
 				}),
 			INDEX_FUNC_ENLARGE_MEMORY => Ok(Some(RuntimeValue::I32(0))), // TODO: support memory enlarge
-			INDEX_FUNC_GET_TOTAL_MEMORY => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_TOTAL_MEMORY))
+			INDEX_FUNC_GET_TOTAL_MEMORY => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_TOTAL_MEMORY), Some(VariableType::I32))
 				.map(|g| g.get())
 				.map(Some),
 			INDEX_FUNC_MIN_NONUSED ... INDEX_FUNC_MAX => Err(Error::Trap("unimplemented".into())),

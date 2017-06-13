@@ -311,6 +311,12 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         self
     }
 
+    /// With table
+    pub fn with_table(mut self, table: elements::TableType) -> Self {
+        self.module.table.entries_mut().push(table);
+        self
+    }
+
     /// Export entry builder
     pub fn export(self) -> export::ExportBuilder<Self> {
         export::ExportBuilder::with_callback(self)

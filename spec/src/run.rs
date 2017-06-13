@@ -11,42 +11,56 @@ use test;
 use parity_wasm::{self, elements, builder};
 use parity_wasm::interpreter::{
     RuntimeValue,
-    ProgramInstance, ModuleInstance, ModuleInstanceInterface, 
+    ProgramInstance, ModuleInstance, 
+    ItemIndex, ExportEntryType,
     Error as InterpreterError,
 };
 
 fn spec_test_module() -> elements::Module {
     builder::module()
-        .function()
-            .signature().build()
-            .body().build()
-            .build()
-        .global().value_type().i32().init_expr(elements::Opcode::I32Const(0)).build()
+        .function().signature().build().body().build().build()
+        .function().signature().param().i32().build().body().build().build()
+        .function().signature().param().i64().build().body().build().build()
+        .function().signature().param().f32().build().body().build().build()
+        .function().signature().param().f64().build().body().build().build()
+        .function().signature().param().i32().param().f32().build().body().build().build()
+        .function().signature().param().f64().param().f64().build().body().build().build()
+        .global().value_type().i32().init_expr(elements::Opcode::I32Const(666)).build()
+        .with_table(elements::TableType::new(100, None))
+        .memory().with_min(1).with_max(Some(2)).build()
         .export().field("print").internal().func(0).build()
+        .export().field("print").internal().func(1).build()
+        .export().field("print").internal().func(2).build()
+        .export().field("print").internal().func(3).build()
+        .export().field("print").internal().func(4).build()
+        .export().field("print").internal().func(5).build()
+        .export().field("print").internal().func(6).build()
         .export().field("global").internal().global(0).build()
+        .export().field("table").internal().table(0).build()
+        .export().field("memory").internal().memory(0).build()
         .build()
 }
 
-fn setup_program(base_dir: &str, test_module_path: &str) -> (ProgramInstance, Arc<ModuleInstance>) {
+fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &ProgramInstance) -> Arc<ModuleInstance> {
+    let module = try_deserialize(base_dir, path).expect(&format!("Wasm file {} failed to load", path));
+
+    program.add_module("spectest", spec_test_module(), None).expect("Failed adding 'spectest' module");
+
+    let module_name = name.as_ref().map(|s| s.as_ref()).unwrap_or("wasm_test").trim_left_matches('$');
+    let module_instance = program.add_module(module_name, module, None).expect(&format!("Failed adding {} module", module_name));
+    module_instance
+}
+
+fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module, elements::Error> {
     let mut wasm_path = PathBuf::from(base_dir.clone());
-    wasm_path.push(test_module_path);
-    let module = parity_wasm::deserialize_file(&wasm_path)
-        .expect(&format!("Wasm file {} failed to load", wasm_path.to_string_lossy()));
-
-	let program = ProgramInstance::new().expect("Failed creating program");
-    program.add_module("spectest", spec_test_module()).expect("Failed adding 'spectest' module");
-
-	let module_instance = program.add_module("test", module).expect("Failed adding module");
-    (program, module_instance)
+    wasm_path.push(module_path);
+    parity_wasm::deserialize_file(&wasm_path)
 }
 
 fn try_load(base_dir: &str, module_path: &str) -> Result<(), parity_wasm::interpreter::Error> {
-    let mut wasm_path = PathBuf::from(base_dir.clone());
-    wasm_path.push(module_path);
-    let module = parity_wasm::deserialize_file(&wasm_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
-
+    let module = try_deserialize(base_dir, module_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
     let program = ProgramInstance::new().expect("Failed creating program");
-    program.add_module("try_load", module).map(|_| ())
+    program.add_module("try_load", module, None).map(|_| ())
 }
 
 fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {
@@ -75,12 +89,27 @@ fn runtime_values(test_vals: &[test::RuntimeValue]) -> Vec<parity_wasm::RuntimeV
     test_vals.iter().map(runtime_value).collect::<Vec<parity_wasm::RuntimeValue>>()
 }
 
-fn run_action(module: &ModuleInstance, action: &test::Action) 
+fn run_action(program: &ProgramInstance, action: &test::Action) 
     -> Result<Option<parity_wasm::RuntimeValue>, InterpreterError> 
 {
     match *action {
-        test::Action::Invoke { ref field, ref args} => {
+        test::Action::Invoke { ref module, ref field, ref args } => {
+            let module = module.clone().unwrap_or("wasm_test".into());
+            let module = module.trim_left_matches('$');
+            let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
             module.execute_export(field, runtime_values(args).into())
+        },
+        test::Action::Get { ref module, ref field, .. } => {
+            let module = module.clone().unwrap_or("wasm_test".into());
+            let module = module.trim_left_matches('$');
+            let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
+
+            module.export_entry(field.as_ref(), None, &ExportEntryType::Any)
+                .and_then(|i| match i {
+                    elements::Internal::Global(global_index) => Ok(ItemIndex::IndexSpace(global_index)),
+                    _ => Err(InterpreterError::Global(format!("Expected to have exported global with name {}", field))),
+                })
+                .and_then(|g| module.global(g, None).map(|g| Some(g.get())))
         }
     }
 }
@@ -142,18 +171,16 @@ pub fn spec(name: &str) {
         .expect(&format!("Failed to load json file {}", &fixture.json));
     let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
-    let mut _program = None;
-    let mut module = None;
+    let program = ProgramInstance::new().expect("Failed creating program");
+    let mut last_module = None;
     for command in &spec.commands {
         println!("command {:?}", command);
         match command {
-            &test::Command::Module { ref filename, .. } => {
-                let (new_program, new_module) = setup_program(&outdir, &filename);
-                _program = Some(new_program);
-                module = Some(new_module);
+            &test::Command::Module { ref name, ref filename, .. } => {
+                last_module = Some(load_module(&outdir, &filename, &name, &program));
             },
             &test::Command::AssertReturn { line, ref action, ref expected } => {
-                let result = run_action(&*module.as_ref().unwrap(), action);
+                let result = run_action(&program, action);
                 match result {
                     Ok(result) => {
                         let spec_expected = runtime_values(expected);
@@ -181,7 +208,7 @@ pub fn spec(name: &str) {
                 }
             },
             &test::Command::AssertReturnCanonicalNan { line, ref action } | &test::Command::AssertReturnArithmeticNan { line, ref action } => {
-                let result = run_action(&*module.as_ref().unwrap(), action);
+                let result = run_action(&program, action);
                 match result {
                     Ok(result) => {
                         for actual_result in result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>() {
@@ -199,14 +226,14 @@ pub fn spec(name: &str) {
                 }
             },
             &test::Command::AssertExhaustion { line, ref action, .. } => {
-                let result = run_action(&*module.as_ref().unwrap(), action);
+                let result = run_action(&program, action);
                 match result {
                     Ok(result) => panic!("Expected exhaustion, got result: {:?}", result),
                     Err(e) => println!("assert_exhaustion at line {} - success ({:?})", line, e),
                 }
             },
             &test::Command::AssertTrap { line, ref action, .. } => {
-                let result = run_action(&*module.as_ref().unwrap(), action);
+                let result = run_action(&program, action);
                 match result {
                     Ok(result) => {
                         panic!("Expected action to result in a trap, got result: {:?}", result);
@@ -236,14 +263,20 @@ pub fn spec(name: &str) {
                     Err(e) => println!("assert_uninstantiable - success ({:?})", e),
                 }
             },
+            &test::Command::Register { ref name, ref as_name, .. } => {
+                match name {
+                    &Some(ref name) => assert_eq!(name.trim_left_matches('$'), as_name), // we have already registered this module without $ prefix
+                    &None => program.insert_loaded_module(as_name, last_module.take().expect("Last module must be set for this command")).map(|_| ()).unwrap(),
+                }
+            },
             &test::Command::Action { line, ref action } => {
-                match run_action(&*module.as_ref().unwrap(), action) {
+                match run_action(&program, action) {
                     Ok(_) => { },
                     Err(e) => {
                         panic!("Failed to invoke action at line {}: {:?}", line, e)
                     }
                 }
-            },          
+            },
         }
     }
 }

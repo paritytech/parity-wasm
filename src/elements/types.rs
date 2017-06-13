@@ -116,7 +116,7 @@ impl Serialize for BlockType {
 }
 
 /// Function signature type.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionType {
     form: u8,
     params: Vec<ValueType>,

@@ -9,8 +9,8 @@ use interpreter::variable::VariableType;
 pub enum RuntimeValue {
 	/// Null value.
 	Null,
-	/// Reference to the function in the same module.
-	AnyFunc(u32),
+	/// Reference to the function in the given module' function index space.
+	AnyFunc(String, u32),
 	/// 32b-length signed/unsigned int.
 	I32(i32),
 	/// 64b-length signed/unsigned int.
@@ -115,7 +115,7 @@ impl RuntimeValue {
 	/// Creates new default value of given type.
 	pub fn default(variable_type: VariableType) -> Self {
 		match variable_type {
-			VariableType::AnyFunc => RuntimeValue::AnyFunc(0),
+			VariableType::AnyFunc => RuntimeValue::AnyFunc("".into(), 0),
 			VariableType::I32 => RuntimeValue::I32(0),
 			VariableType::I64 => RuntimeValue::I64(0),
 			VariableType::F32 => RuntimeValue::F32(0f32),
@@ -141,19 +141,11 @@ impl RuntimeValue {
 		}
 	}
 
-	/// Gets function index, if type of value is AnyFunc.
-	pub fn as_any_func_index(&self) -> Option<u32> {
-		match *self {
-			RuntimeValue::AnyFunc(idx) => Some(idx),
-			_ => None,
-		}
-	}
-
 	/// Get variable type for this value.
 	pub fn variable_type(&self) -> Option<VariableType> {
 		match *self {
 			RuntimeValue::Null => None,
-			RuntimeValue::AnyFunc(_) => Some(VariableType::AnyFunc),
+			RuntimeValue::AnyFunc(_, _) => Some(VariableType::AnyFunc),
 			RuntimeValue::I32(_) => Some(VariableType::I32),
 			RuntimeValue::I64(_) => Some(VariableType::I64),
 			RuntimeValue::F32(_) => Some(VariableType::F32),
@@ -275,16 +267,18 @@ macro_rules! impl_try_truncate_into {
 	($from: ident, $into: ident) => {
 		impl TryTruncateInto<$into, Error> for $from {
 			fn try_truncate_into(self) -> Result<$into, Error> {
-				if !self.is_normal() {
+				// Casting from a float to an integer will round the float towards zero
+				// NOTE: currently this will cause Undefined Behavior if the rounded value cannot be represented by the
+				// target integer type. This includes Inf and NaN. This is a bug and will be fixed.
+				if self.is_nan() || self.is_infinite() {
 					return Err(Error::Value("invalid float value for this operation".into()));
 				}
 
-				let truncated = self.trunc();
-				if truncated < $into::MIN as $from || truncated > $into::MAX as $from {
+				if self < $into::MIN as $from || self > $into::MAX as $from {
 					return Err(Error::Value("invalid float value for this operation".into()));
 				}
 
-				Ok(truncated as $into)
+				Ok(self as $into)
 			}
 		}
 	}

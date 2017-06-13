@@ -39,7 +39,9 @@ pub enum StackValueType {
 
 /// Function validation frame.
 #[derive(Debug, Clone)]
-struct ValidationFrame {
+pub struct ValidationFrame {
+	/// Is loop frame?
+	pub is_loop: bool,
 	/// Return type.
 	pub block_type: BlockType,
 	/// Value stack len.
@@ -59,12 +61,12 @@ pub enum InstructionOutcome {
 }
 
 impl Validator {
-	pub fn validate_block(context: &mut FunctionValidationContext, block_type: BlockType, body: &[Opcode], end_instr: Opcode) -> Result<InstructionOutcome, Error> {
+	pub fn validate_block(context: &mut FunctionValidationContext, is_loop: bool, block_type: BlockType, body: &[Opcode], end_instr: Opcode) -> Result<InstructionOutcome, Error> {
 		if body.is_empty() || body[body.len() - 1] != end_instr {
 			return Err(Error::Validation("Every block must end with end/else instruction".into()));
 		}
 
-		context.push_label(block_type)?;
+		context.push_label(is_loop, block_type)?;
 		for opcode in body {
 			match Validator::validate_instruction(context, opcode)? {
 				InstructionOutcome::RunNextInstruction => (),
@@ -75,10 +77,11 @@ impl Validator {
 	}
 
 	pub fn validate_instruction(context: &mut FunctionValidationContext, opcode: &Opcode) -> Result<InstructionOutcome, Error> {
+		// println!("=== VALIDATING {:?}: {:?}", opcode, context.value_stack);
 		match opcode {
 			&Opcode::Unreachable => Ok(InstructionOutcome::Unreachable),
 			&Opcode::Nop => Ok(InstructionOutcome::RunNextInstruction),
-			&Opcode::Block(block_type, ref ops) => Validator::validate_block(context, block_type, ops.elements(), Opcode::End),
+			&Opcode::Block(block_type, ref ops) => Validator::validate_block(context, false, block_type, ops.elements(), Opcode::End),
 			&Opcode::Loop(block_type, ref ops) => Validator::validate_loop(context, block_type, ops.elements()),
 			&Opcode::If(block_type, ref ops) => Validator::validate_if(context, block_type, ops.elements()),
 			&Opcode::Else => Ok(InstructionOutcome::RunNextInstruction),
@@ -384,7 +387,7 @@ impl Validator {
 	}
 
 	fn validate_loop(context: &mut FunctionValidationContext, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome, Error> {
-		Validator::validate_block(context, block_type, body, Opcode::End)
+		Validator::validate_block(context, true, block_type, body, Opcode::End)
 	}
 
 	fn validate_if(context: &mut FunctionValidationContext, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome, Error> {
@@ -395,32 +398,43 @@ impl Validator {
 			.position(|op| *op == Opcode::Else)
 			.unwrap_or(body_len - 1);
 		if separator_index != body_len - 1 {
-			Validator::validate_block(context, block_type, &body[..separator_index + 1], Opcode::Else)?;
-			Validator::validate_block(context, block_type, &body[separator_index+1..], Opcode::End)
+			Validator::validate_block(context, false, block_type, &body[..separator_index + 1], Opcode::Else)?;
+			Validator::validate_block(context, false, block_type, &body[separator_index+1..], Opcode::End)
 		} else {
-			Validator::validate_block(context, block_type, body, Opcode::End)
+			if block_type != BlockType::NoResult {
+				return Err(Error::Validation(format!("If block without else required to have NoResult block type. But it have {:?} type", block_type)));
+			}
+
+			Validator::validate_block(context, false, block_type, body, Opcode::End)
 		}
 	}
 
 	fn validate_br(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
-		if let BlockType::Value(value_type) = context.require_label(idx)? {
-			context.tee_value(value_type.into())?;
+		let (frame_is_loop, frame_block_type) = {
+			let frame = context.require_label(idx)?;
+			(frame.is_loop, frame.block_type)
+		};
+
+		if !frame_is_loop {
+			if let BlockType::Value(value_type) = frame_block_type {
+				context.tee_value(value_type.into())?;
+			}
 		}
 		Ok(InstructionOutcome::Unreachable)
 	}
 
 	fn validate_br_if(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
 		context.pop_value(ValueType::I32.into())?;
-		if let BlockType::Value(value_type) = context.require_label(idx)? {
+		if let BlockType::Value(value_type) = context.require_label(idx)?.block_type {
 			context.tee_value(value_type.into())?;
 		}
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
 	fn validate_br_table(context: &mut FunctionValidationContext, table: &Vec<u32>, default: u32) -> Result<InstructionOutcome, Error> {
-		let default_block_type = context.require_label(default)?;
+		let default_block_type = context.require_label(default)?.block_type;
 		for label in table {
-			let label_block_type = context.require_label(*label)?;
+			let label_block_type = context.require_label(*label)?.block_type;
 			if default_block_type != label_block_type {
 				return Err(Error::Validation(format!("Default label in br_table points to block of type {:?}, while other points to {:?}", default_block_type, label_block_type)));
 			}
@@ -454,6 +468,8 @@ impl Validator {
 
 	fn validate_call_indirect(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
 		context.require_table(DEFAULT_TABLE_INDEX, VariableType::AnyFunc)?;
+
+		context.pop_value(ValueType::I32.into())?;
 		let (argument_types, return_type) = context.require_function_type(idx)?;
 		for argument_type in argument_types.iter().rev() {
 			context.pop_value((*argument_type).into())?;
@@ -537,8 +553,9 @@ impl<'a> FunctionValidationContext<'a> {
 		self.value_stack.push(StackValueType::AnyUnlimited)
 	}
 
-	pub fn push_label(&mut self, block_type: BlockType) -> Result<(), Error> {
+	pub fn push_label(&mut self, is_loop: bool, block_type: BlockType) -> Result<(), Error> {
 		self.frame_stack.push(ValidationFrame {
+			is_loop: is_loop,
 			block_type: block_type,
 			value_stack_len: self.value_stack.len()
 		})
@@ -555,7 +572,7 @@ impl<'a> FunctionValidationContext<'a> {
 
 		match frame.block_type {
 			BlockType::NoResult if actual_value_type.map(|vt| vt.is_any_unlimited()).unwrap_or(true) => (),
-			BlockType::Value(required_value_type) if actual_value_type.map(|vt| vt == required_value_type).unwrap_or(false) =>(),
+			BlockType::Value(required_value_type) if actual_value_type.map(|vt| vt == required_value_type).unwrap_or(false) => (),
 			_ => return Err(Error::Validation(format!("Expected block to return {:?} while it has returned {:?}", frame.block_type, actual_value_type))),
 		}
 		if let BlockType::Value(value_type) = frame.block_type {
@@ -565,8 +582,8 @@ impl<'a> FunctionValidationContext<'a> {
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	pub fn require_label(&self, idx: u32) -> Result<BlockType, Error> {
-		self.frame_stack.get(idx as usize).map(|ref frame| frame.block_type)	
+	pub fn require_label(&self, idx: u32) -> Result<&ValidationFrame, Error> {
+		self.frame_stack.get(idx as usize)	
 	}
 
 	pub fn return_type(&self) -> Result<BlockType, Error> {

@@ -38,10 +38,10 @@ impl TableInstance {
 	}
 
 	/// Set the table value from raw slice
-	pub fn set_raw(&self, mut offset: u32, value: &[u32]) -> Result<(), Error> {
+	pub fn set_raw(&self, mut offset: u32, module_name: String, value: &[u32]) -> Result<(), Error> {
 		for val in value {
 			match self.variable_type {
-				VariableType::AnyFunc => self.set(offset, RuntimeValue::AnyFunc(*val))?,
+				VariableType::AnyFunc => self.set(offset, RuntimeValue::AnyFunc(module_name.clone(), *val))?,
 				_ => return Err(Error::Table(format!("table of type {:?} is not supported", self.variable_type))),
 			}
 			offset += 1;

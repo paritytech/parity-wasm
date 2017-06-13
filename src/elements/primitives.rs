@@ -428,7 +428,11 @@ impl Deserialize for VarUint1 {
         let mut u8buf = [0u8; 1];
         reader.read_exact(&mut u8buf)?;
         // todo check range
-        Ok(VarUint1(u8buf[0] == 1))
+        match u8buf[0] {
+            0 => Ok(VarUint1(false)),
+            1 => Ok(VarUint1(true)),
+            v @ _ => Err(Error::InvalidVarUint1(v)),
+        }
     }
 }
 

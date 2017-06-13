@@ -77,7 +77,7 @@ impl Validator {
 	}
 
 	pub fn validate_instruction(context: &mut FunctionValidationContext, opcode: &Opcode) -> Result<InstructionOutcome, Error> {
-		// println!("=== VALIDATING {:?}: {:?}", opcode, context.value_stack);
+		debug!(target: "validator", "validating {:?}", opcode);
 		match opcode {
 			&Opcode::Unreachable => Ok(InstructionOutcome::Unreachable),
 			&Opcode::Nop => Ok(InstructionOutcome::RunNextInstruction),

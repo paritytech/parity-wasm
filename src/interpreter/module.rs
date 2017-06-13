@@ -40,7 +40,7 @@ pub enum ExportEntryType {
 
 /// Module instance API.
 pub trait ModuleInstanceInterface {
-	/// Run instantiation-time procedures (validation and start function call). Module is not completely validated until this call.
+	/// Run instantiation-time procedures (validation and start function [if any] call). Module is not completely validated until this call.
 	fn instantiate<'a>(&self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error>;
 	/// Execute function with the given index.
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;

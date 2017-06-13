@@ -858,7 +858,7 @@ impl Interpreter {
 		loop {
 			let instruction = &body[context.position];
 
-			// println!("=== RUNNING {:?}", instruction); // TODO: trace
+			debug!(target: "interpreter", "running {:?}", instruction);
 			match Interpreter::run_instruction(context, instruction)? {
 				InstructionOutcome::RunInstruction => (),
 				InstructionOutcome::RunNextInstruction => context.position += 1,

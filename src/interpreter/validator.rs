@@ -432,17 +432,32 @@ impl Validator {
 	}
 
 	fn validate_br_table(context: &mut FunctionValidationContext, table: &Vec<u32>, default: u32) -> Result<InstructionOutcome, Error> {
-		let default_block_type = context.require_label(default)?.block_type;
-		for label in table {
-			let label_block_type = context.require_label(*label)?.block_type;
-			if default_block_type != label_block_type {
-				return Err(Error::Validation(format!("Default label in br_table points to block of type {:?}, while other points to {:?}", default_block_type, label_block_type)));
+		let mut required_block_type = None;
+		
+		{
+			let default_block = context.require_label(default)?;
+			if !default_block.is_loop {
+				required_block_type = Some(default_block.block_type);
+			}
+
+			for label in table {
+				let label_block = context.require_label(*label)?;
+				if !label_block.is_loop {
+					if let Some(required_block_type) = required_block_type {
+						if required_block_type != label_block.block_type {
+							return Err(Error::Validation(format!("Labels in br_table points to block of different types: {:?} and {:?}", required_block_type, label_block.block_type)));
+						}
+					}
+					required_block_type = Some(label_block.block_type);
+				}
 			}
 		}
 
 		context.pop_value(ValueType::I32.into())?;
-		if let BlockType::Value(value_type) = default_block_type {
-			context.tee_value(value_type.into())?;
+		if let Some(required_block_type) = required_block_type {
+			if let BlockType::Value(value_type) = required_block_type {
+				context.tee_value(value_type.into())?;
+			}
 		}
 
 		Ok(InstructionOutcome::Unreachable)

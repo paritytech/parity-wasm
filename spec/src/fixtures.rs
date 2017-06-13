@@ -20,7 +20,7 @@ run_test!("block-end-label-mismatch.fail", wasm_block_end_label_mismatch_fail, f
 run_test!("block-end-label-superfluous.fail", wasm_block_end_label_superfluous_fail, fail);
 run_test!("block", wasm_block);
 run_test!("br_if", wasm_br_if);
-// TODO: run_test!("br_table", wasm_br_table);
+run_test!("br_table", wasm_br_table);
 run_test!("br", wasm_br);
 run_test!("break-drop", wasm_break_drop);
 // TODO: run_test!("call_indirect", wasm_call_indirect);

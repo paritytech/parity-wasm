@@ -77,6 +77,8 @@ pub enum Error {
     UnknownInternalKind(u8),
     /// Unknown opcode encountered
     UnknownOpcode(u8),
+    /// Invalid VarUint1 value
+    InvalidVarUint1(u8),
 }
 
 impl From<io::Error> for Error {

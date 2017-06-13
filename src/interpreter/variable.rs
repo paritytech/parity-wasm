@@ -54,6 +54,11 @@ impl VariableInstance {
 		self.is_mutable
 	}
 
+	/// Get variable type.
+	pub fn variable_type(&self) -> VariableType {
+		self.variable_type
+	}
+
 	/// Get the value of the variable instance
 	pub fn get(&self) -> RuntimeValue {
 		self.value.read().clone()

@@ -56,6 +56,8 @@ pub enum InstructionOutcome {
 
 #[derive(Debug, Clone)]
 pub struct BlockFrame {
+	/// Is loop frame?
+	is_loop: bool,
 	// A label for reference from branch instructions.
 	branch_position: usize,
 	// A label for reference from end instructions.
@@ -69,7 +71,7 @@ pub struct BlockFrame {
 impl Interpreter {
 	pub fn run_function(context: &mut FunctionContext, body: &[Opcode]) -> Result<Option<RuntimeValue>, Error> {
 		let return_type = context.return_type;
-		context.push_frame(body.len() - 1, body.len() - 1, return_type)?;
+		context.push_frame(false, body.len() - 1, body.len() - 1, return_type)?;
 
 		Interpreter::execute_block(context, body)?;
 		match context.return_type {
@@ -282,13 +284,13 @@ impl Interpreter {
 
 	fn run_block(context: &mut FunctionContext, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome, Error> {
 		let frame_position = context.position + 1;
-		context.push_frame(frame_position, frame_position, block_type.clone())?;
+		context.push_frame(false, frame_position, frame_position, block_type.clone())?;
 		Interpreter::execute_block(context, body)
 	}
 
 	fn run_loop(context: &mut FunctionContext, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome, Error> {
 		let frame_position = context.position;
-		context.push_frame(frame_position, frame_position + 1, block_type.clone())?;
+		context.push_frame(true, frame_position, frame_position + 1, block_type.clone())?;
 		Interpreter::execute_block(context,  body)
 	}
 
@@ -303,7 +305,7 @@ impl Interpreter {
 
 		if begin_index != end_index {
 			let frame_position = context.position + 1;
-			context.push_frame(frame_position, frame_position, block_type.clone())?;
+			context.push_frame(false, frame_position, frame_position, block_type.clone())?;
 			Interpreter::execute_block(context, &body[begin_index..end_index])
 		} else {
 			Ok(InstructionOutcome::RunNextInstruction)
@@ -394,7 +396,7 @@ impl Interpreter {
 
 	fn run_get_global(context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome, Error> {
 		context.module()
-			.global(ItemIndex::IndexSpace(index))
+			.global(ItemIndex::IndexSpace(index), None)
 			.and_then(|g| context.value_stack_mut().push(g.get()))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
@@ -403,7 +405,7 @@ impl Interpreter {
 		context
 			.value_stack_mut()
 			.pop()
-			.and_then(|v| context.module().global(ItemIndex::IndexSpace(index)).and_then(|g| g.set(v)))
+			.and_then(|v| context.module().global(ItemIndex::IndexSpace(index), None).and_then(|g| g.set(v)))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -856,7 +858,7 @@ impl Interpreter {
 		loop {
 			let instruction = &body[context.position];
 
-			//println!("=== RUNNING {:?}", instruction); // TODO: trace
+			debug!(target: "interpreter", "running {:?}", instruction);
 			match Interpreter::run_instruction(context, instruction)? {
 				InstructionOutcome::RunInstruction => (),
 				InstructionOutcome::RunNextInstruction => context.position += 1,
@@ -901,7 +903,7 @@ impl<'a> FunctionContext<'a> {
 	}
 
 	pub fn call_function(&mut self, index: u32) -> Result<Option<RuntimeValue>, Error> {
-		self.module.call_function(CallerContext::nested(self), ItemIndex::IndexSpace(index))
+		self.module.call_function(CallerContext::nested(self), ItemIndex::IndexSpace(index), None)
 	}
 
 	pub fn call_function_indirect(&mut self, table_index: u32, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
@@ -933,8 +935,9 @@ impl<'a> FunctionContext<'a> {
 		&self.frame_stack
 	}
 
-	pub fn push_frame(&mut self, branch_position: usize, end_position: usize, signature: BlockType) -> Result<(), Error> {
+	pub fn push_frame(&mut self, is_loop: bool, branch_position: usize, end_position: usize, signature: BlockType) -> Result<(), Error> {
 		self.frame_stack.push(BlockFrame {
+			is_loop: is_loop,
 			branch_position: branch_position,
 			end_position: end_position,
 			value_limit: self.value_stack.len(),
@@ -952,10 +955,10 @@ impl<'a> FunctionContext<'a> {
 		if frame.value_limit > self.value_stack.len() {
 			return Err(Error::Stack("invalid stack len".into()));
 		}
-
+ 
 		let frame_value = match frame.signature {
-			BlockType::Value(_) => Some(self.value_stack.pop()?),
-			BlockType::NoResult => None,
+			BlockType::Value(_) if !frame.is_loop || !is_branch => Some(self.value_stack.pop()?),
+			_ => None,
 		};
 		self.value_stack.resize(frame.value_limit, RuntimeValue::I32(0));
 		self.position = if is_branch { frame.branch_position } else { frame.end_position };
@@ -970,6 +973,7 @@ impl<'a> FunctionContext<'a> {
 impl BlockFrame {
 	pub fn invalid() -> Self {
 		BlockFrame {
+			is_loop: false,
 			branch_position: usize::max_value(),
 			end_position: usize::max_value(),
 			value_limit: usize::max_value(),

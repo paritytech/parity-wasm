@@ -20,7 +20,7 @@ fn main() {
         }
     ).expect("Failed to load program");
     let module = parity_wasm::deserialize_file(&args[1]).expect("Failed to load module");
-    let module = program.add_module("main", module).expect("Failed to initialize module");
+    let module = program.add_module("main", module, None).expect("Failed to initialize module");
     let argument: i32 = args[2].parse().expect("Integer argument required");
     println!("Result: {:?}", module.execute_export("_call", vec![parity_wasm::RuntimeValue::I32(argument)].into()));
 }

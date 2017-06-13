@@ -12,5 +12,6 @@ keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"]
 exclude = [ "res/*", "spec/*" ]
 
 [dependencies]
+log = "0.3"
 byteorder = "1.0"
 parking_lot = "0.4"

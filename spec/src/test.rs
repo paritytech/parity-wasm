@@ -11,14 +11,27 @@ pub struct RuntimeValue {
 #[serde(tag = "type")]
 pub enum Action {
     #[serde(rename = "invoke")]
-    Invoke { field: String, args: Vec<RuntimeValue> }
+    Invoke {
+        module: Option<String>,
+        field: String,
+        args: Vec<RuntimeValue>,
+    },
+    #[serde(rename = "get")]
+    Get {
+        module: Option<String>,
+        field: String,
+    }
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Command {
     #[serde(rename = "module")]
-    Module { line: u64, filename: String },
+    Module {
+        line: u64,
+        name: Option<String>,
+        filename: String
+    },
     #[serde(rename = "assert_return")]
     AssertReturn { 
         line: u64, 
@@ -69,6 +82,13 @@ pub enum Command {
         line: u64,
         filename: String,
         text: String,
+    },
+    #[serde(rename = "register")]
+    Register {
+        line: u64,
+        name: Option<String>,
+        #[serde(rename = "as")]
+        as_name: String,
     },
     #[serde(rename = "action")]
     Action {

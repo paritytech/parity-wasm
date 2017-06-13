@@ -1,12 +1,12 @@
 use std::sync::{Arc, Weak};
 use std::collections::HashMap;
-use elements::{ImportSection, ImportEntry, External, Internal};
+use elements::{ImportSection, ImportEntry, External, Internal, FunctionType};
 use interpreter::Error;
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstanceInterface, ItemIndex};
+use interpreter::module::{ModuleInstanceInterface, ItemIndex, ExportEntryType};
 use interpreter::program::ProgramInstanceEssence;
 use interpreter::table::TableInstance;
-use interpreter::variable::VariableInstance;
+use interpreter::variable::{VariableInstance, VariableType};
 
 // TODO: cache Internal-s to fasten access
 /// Module imports.
@@ -119,8 +119,8 @@ impl ModuleImports {
 	}
 
 	/// Get function index.
-	pub fn function<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry) -> Result<u32, Error> {
-		let (_, export) = self.external_export(externals, import)?;
+	pub fn function<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry, required_type: Option<&FunctionType>) -> Result<u32, Error> {
+		let (_, export) = self.external_export(externals, import, &required_type.map(|ft| ExportEntryType::Function(ft.clone())).unwrap_or(ExportEntryType::Any))?;
 		if let Internal::Function(external_index) = export {
 			return Ok(external_index);
 		}
@@ -130,7 +130,7 @@ impl ModuleImports {
 
 	/// Get table reference.
 	pub fn table<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry) -> Result<Arc<TableInstance>, Error> {
-		let (module, export) = self.external_export(externals, import)?;
+		let (module, export) = self.external_export(externals, import, &ExportEntryType::Any)?;
 		if let Internal::Table(external_index) = export {
 			return module.table(ItemIndex::Internal(external_index));
 		}
@@ -140,7 +140,7 @@ impl ModuleImports {
 
 	/// Get memory reference.
 	pub fn memory<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry) -> Result<Arc<MemoryInstance>, Error> {
-		let (module, export) = self.external_export(externals, import)?;
+		let (module, export) = self.external_export(externals, import, &ExportEntryType::Any)?;
 		if let Internal::Memory(external_index) = export {
 			return module.memory(ItemIndex::Internal(external_index));
 		}
@@ -149,19 +149,19 @@ impl ModuleImports {
 	}
 
 	/// Get global reference.
-	pub fn global<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry) -> Result<Arc<VariableInstance>, Error> {
-		let (module, export) = self.external_export(externals, import)?;
+	pub fn global<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry, required_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
+		let (module, export) = self.external_export(externals, import, &required_type.clone().map(|rt| ExportEntryType::Global(rt)).unwrap_or(ExportEntryType::Any))?;
 		if let Internal::Global(external_index) = export {
-			return module.global(ItemIndex::Internal(external_index));
+			return module.global(ItemIndex::Internal(external_index), required_type);
 		}
 
 		Err(Error::Program(format!("wrong import {} from module {} (expecting global)", import.field(), import.module())))
 	}
 
-	fn external_export<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry) -> Result<(Arc<ModuleInstanceInterface + 'a>, Internal), Error> {
+	fn external_export<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry, required_type: &ExportEntryType) -> Result<(Arc<ModuleInstanceInterface + 'a>, Internal), Error> {
 		self.module(externals, import.module())
 			.and_then(|m|
-				m.export_entry(import.field())
+				m.export_entry(import.field(), externals, required_type)
 					.map(|e| (m, e)))
 	}
 }

@@ -314,7 +314,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 				locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
 				let mut context = FunctionValidationContext::new(&self.module, &self.imports, &locals, DEFAULT_VALUE_STACK_LIMIT, DEFAULT_FRAME_STACK_LIMIT, &function_type);
 				let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
-				Validator::validate_block(&mut context, false, block_type, function_body.code().elements(), Opcode::End)?;
+				Validator::validate_function(&mut context, block_type, function_body.code().elements())?;
 			}
 		}
 

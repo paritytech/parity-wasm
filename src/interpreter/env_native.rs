@@ -26,7 +26,9 @@ pub trait UserFunctionExecutor {
 /// User function descriptor
 #[derive(Clone)]
 pub enum UserFunctionDescriptor {
+	/// Static function definition
 	Static(&'static str, &'static [ValueType]),
+	/// Dynamic heap function definition
 	Heap(String, Vec<ValueType>),
 }
 

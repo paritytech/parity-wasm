@@ -1,14 +1,16 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
-	InitExpr, ValueType, Opcodes, Opcode};
+	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
 use interpreter::Error;
 use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor};
+use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams};
 use interpreter::program::ProgramInstance;
+use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::RuntimeValue;
 
 #[test]
@@ -214,4 +216,27 @@ fn single_program_different_modules() {
 
 	assert_eq!(executor.memory.get(0, 1).unwrap()[0], 42);
 	assert_eq!(executor.values, vec![7, 57, 42]);
+}
+
+#[test]
+fn if_else_with_return_type_validation() {
+	let module = module().build();
+	let imports = ModuleImports::new(Weak::default(), None);
+	let mut context = FunctionValidationContext::new(&module, &imports, &[], 1024, 1024, &FunctionType::default());
+
+	Validator::validate_block(&mut context, false, BlockType::NoResult, &[
+		Opcode::I32Const(1),
+		Opcode::If(BlockType::NoResult, Opcodes::new(vec![
+			Opcode::I32Const(1),
+			Opcode::If(BlockType::Value(ValueType::I32), Opcodes::new(vec![
+				Opcode::I32Const(1),
+				Opcode::Else,
+				Opcode::I32Const(2),
+				Opcode::End,
+			])),
+			Opcode::Drop,
+			Opcode::End,
+		])),
+		Opcode::End,
+	], Opcode::End).unwrap();
 }

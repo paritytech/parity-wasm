@@ -399,6 +399,10 @@ impl Validator {
 			.unwrap_or(body_len - 1);
 		if separator_index != body_len - 1 {
 			Validator::validate_block(context, false, block_type, &body[..separator_index + 1], Opcode::Else)?;
+			if let BlockType::Value(value_type) = block_type {
+				context.pop_value(value_type.into())?;
+			}
+
 			Validator::validate_block(context, false, block_type, &body[separator_index+1..], Opcode::End)
 		} else {
 			if block_type != BlockType::NoResult {

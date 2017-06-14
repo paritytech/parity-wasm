@@ -18,6 +18,18 @@ pub struct MemoryInstance {
 	maximum_size: u32,
 }
 
+struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {
+	_buffer: &'a B,
+	offset: usize,
+	size: usize,
+}
+
+impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> {
+	fn range(&self) -> ::std::ops::Range<usize> {
+		self.offset..self.offset+self.size
+	}
+}
+
 impl MemoryInstance {
 	/// Create new linear memory instance.
 	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error> {
@@ -48,36 +60,18 @@ impl MemoryInstance {
 
 	/// Get data at given offset.
 	pub fn get(&self, offset: u32, size: usize) -> Result<Vec<u8>, Error> {
-		let begin = offset as usize;
-		let end = match begin.checked_add(size) {
-			Some(end) => end,
-			None => return Err(Error::Memory(format!("trying to read memory block of size {} from offset {}", size, offset))),
-		};
-
 		let buffer = self.buffer.read();
-		if buffer.len() < end {
-			return Err(Error::Memory(format!("trying to read region [{}..{}] in memory [0..{}]", begin, end, buffer.len())));
-		}
+		let region = self.checked_region(&buffer, offset as usize, size)?;
 
-		Ok(buffer[begin..end].to_vec())
+		Ok(buffer[region.range()].to_vec())
 	}
 
 	/// Set data at given offset.
 	pub fn set(&self, offset: u32, value: &[u8]) -> Result<(), Error> {
-		let size = value.len();
-		let begin = offset as usize;
-		let end = match begin.checked_add(size) {
-			Some(end) => end,
-			None => return Err(Error::Memory(format!("trying to update memory block of size {} from offset {}", size, offset))),
-		};
-
 		let mut buffer = self.buffer.write();
-		if buffer.len() < end {
-			return Err(Error::Memory(format!("trying to update region [{}..{}] in memory [0..{}]", begin, end, buffer.len())));
-		}
+		let range = self.checked_region(&buffer, offset as usize, value.len())?.range();
 
-		let mut mut_buffer = buffer.as_mut_slice();
-		mut_buffer[begin..end].copy_from_slice(value);
+		buffer[range].copy_from_slice(value);
 
 		Ok(())
 	}
@@ -95,5 +89,37 @@ impl MemoryInstance {
 				Ok(old_size / LINEAR_MEMORY_PAGE_SIZE)
 			},
 		}
+	}
+
+	fn checked_region<'a, B>(&self, buffer: &'a B, offset: usize, size: usize) -> Result<CheckedRegion<'a, B>, Error> 
+		where B: ::std::ops::Deref<Target=Vec<u8>>
+	{
+		let end = offset.checked_add(size)
+			.ok_or(Error::Memory(format!("trying to access memory block of size {} from offset {}", size, offset)))?;
+
+		if end > buffer.len() {
+			return Err(Error::Memory(format!("trying to access region [{}..{}] in memory [0..{}]", offset, end, buffer.len())));
+		}
+
+		Ok(CheckedRegion {
+			_buffer: buffer,
+			offset: offset,
+			size: size,
+		})
+	}
+
+	pub fn copy(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error> {
+		let buffer = self.buffer.write();
+
+		let read_region = self.checked_region(&buffer, src_offset, len)?;
+		let write_region = self.checked_region(&buffer, dst_offset, len)?;
+
+		unsafe { ::std::ptr::copy(
+			buffer[read_region.range()].as_ptr(), 
+			buffer[write_region.range()].as_ptr() as *mut _,
+			len,
+		)} 
+
+		Ok(())
 	}
 }

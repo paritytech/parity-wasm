@@ -5,7 +5,7 @@ use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
 use interpreter::Error;
-use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor};
+use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams};
@@ -123,6 +123,25 @@ fn global_get_set() {
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
 }
 
+const SIGNATURE_I32: &'static [ValueType] = &[ValueType::I32];
+
+const SIGNATURES: &'static [UserFunction] = &[
+	UserFunction {
+		desc: UserFunctionDescriptor::Static(
+			"add",
+			SIGNATURE_I32,
+		),
+		result: Some(ValueType::I32),
+	},
+	UserFunction {
+		desc: UserFunctionDescriptor::Static(
+			"sub",
+			SIGNATURE_I32,
+		),
+		result: Some(ValueType::I32),
+	},
+];
+
 #[test]
 fn single_program_different_modules() {
 	// user function executor
@@ -170,15 +189,7 @@ fn single_program_different_modules() {
 	{
 		let functions: UserFunctions = UserFunctions {
 			executor: &mut executor,
-			functions: vec![UserFunction {
-				name: "add".into(),
-				params: vec![ValueType::I32],
-				result: Some(ValueType::I32),
-			}, UserFunction {
-				name: "sub".into(),
-				params: vec![ValueType::I32],
-				result: Some(ValueType::I32),
-			}],
+			functions: ::std::borrow::Cow::from(SIGNATURES),
 		};
 		let native_env_instance = Arc::new(env_native_module(env_instance, functions).unwrap());
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);

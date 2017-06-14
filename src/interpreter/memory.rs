@@ -127,4 +127,13 @@ impl MemoryInstance {
 
 		Ok(())
 	}
+
+	/// Zero memory region
+	pub fn zero(&self, offset: usize, len: usize) -> Result<(), Error> {
+		let mut buffer = self.buffer.write();
+
+		let range = self.checked_region(&buffer, offset, len)?.range();
+		for val in &mut buffer[range] { *val = 0 }
+		Ok(())
+	}
 }

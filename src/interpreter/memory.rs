@@ -30,7 +30,7 @@ impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> 
 	}
 
 	fn slice(&self) -> &[u8] {
-		&*self.buffer
+		&self.buffer[self.range()]
 	}
 }
 

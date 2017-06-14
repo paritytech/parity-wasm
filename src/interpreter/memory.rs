@@ -19,7 +19,7 @@ pub struct MemoryInstance {
 }
 
 struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {
-	_buffer: &'a B,
+	buffer: &'a B,
 	offset: usize,
 	size: usize,
 }
@@ -27,6 +27,10 @@ struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {
 impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> {
 	fn range(&self) -> ::std::ops::Range<usize> {
 		self.offset..self.offset+self.size
+	}
+
+	fn slice(&self) -> &[u8] {
+		&*self.buffer
 	}
 }
 
@@ -63,7 +67,7 @@ impl MemoryInstance {
 		let buffer = self.buffer.read();
 		let region = self.checked_region(&buffer, offset as usize, size)?;
 
-		Ok(buffer[region.range()].to_vec())
+		Ok(region.slice().to_vec())
 	}
 
 	/// Set data at given offset.
@@ -102,12 +106,13 @@ impl MemoryInstance {
 		}
 
 		Ok(CheckedRegion {
-			_buffer: buffer,
+			buffer: buffer,
 			offset: offset,
 			size: size,
 		})
 	}
 
+	/// Copy memory region
 	pub fn copy(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error> {
 		let buffer = self.buffer.write();
 

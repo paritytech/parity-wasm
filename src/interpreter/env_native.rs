@@ -23,6 +23,7 @@ pub trait UserFunctionExecutor {
 	fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error>;
 }
 
+/// User function descriptor
 #[derive(Clone)]
 pub enum UserFunctionDescriptor {
 	Static(&'static str, &'static [ValueType]),
@@ -32,7 +33,9 @@ pub enum UserFunctionDescriptor {
 /// User function type.
 #[derive(Clone)]
 pub struct UserFunction {
+	/// Descriptor with variable-length definitions
 	pub desc: UserFunctionDescriptor,
+	/// Return type of the signature
 	pub result: Option<ValueType>,
 }
 

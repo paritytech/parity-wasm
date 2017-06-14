@@ -495,7 +495,14 @@ impl Validator {
 }
 
 impl<'a> FunctionValidationContext<'a> {
-	pub fn new(module: &'a Module, imports: &'a ModuleImports, locals: &'a [ValueType], value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType) -> Self {
+	pub fn new(
+		module: &'a Module, 
+		imports: &'a ModuleImports, 
+		locals: &'a [ValueType], 
+		value_stack_limit: usize, 
+		frame_stack_limit: usize, 
+		function: &FunctionType,
+	) -> Self {
 		FunctionValidationContext {
 			module: module,
 			imports: imports,

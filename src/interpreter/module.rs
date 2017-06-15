@@ -38,6 +38,14 @@ pub enum ExportEntryType {
 	Global(VariableType),
 }
 
+/// Call result. To eliminate recursion, module must return function body to interpreter or execute function itself if no body available.
+pub enum CallResult<'a> {
+	/// Function is executed with given result.
+	Executed(Option<RuntimeValue>),
+	/// Function execution is scheduled.
+	Scheduled(FunctionContext<'a>, &'a [Opcode]),
+}
+
 /// Module instance API.
 pub trait ModuleInstanceInterface {
 	/// Run instantiation-time procedures (validation and start function call). Module is not completely validated until this call.
@@ -57,11 +65,11 @@ pub trait ModuleInstanceInterface {
 	/// Get global reference.
 	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error>;
 	/// Call function with given index in functions index space.
-	fn call_function(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error>;
+	fn call_function<'a>(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<CallResult<'a>, Error>;
 	/// Call function with given index in the given table.
-	fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error>;
+	fn call_function_indirect<'a>(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<CallResult<'a>, Error>;
 	/// Call function with internal index.
-	fn call_internal_function(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error>;
+	fn call_internal_function<'a>(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<CallResult<'a>, Error>;
 }
 
 /// Item index in items index space.
@@ -203,6 +211,13 @@ impl ModuleInstance {
 				Some(&Type::Function(ref function_type)) => Ok(function_type),
 				_ => Err(Error::Validation(format!("missing function type with index {}", type_index))),
 			})
+	}
+
+	fn unwrap_call_result(&self, call_result: CallResult) -> Result<Option<RuntimeValue>, Error> {
+		match call_result {
+			CallResult::Executed(v) => Ok(v),
+			CallResult::Scheduled(context, body) => Interpreter::run_function(context, body)
+		}
 	}
 }
 
@@ -356,7 +371,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		let args_len = params.args.len();
 		let mut args = StackWithLimit::with_data(params.args, args_len);
 		let caller_context = CallerContext::topmost(&mut args, &params.externals);
-		self.call_function(caller_context, ItemIndex::IndexSpace(index), None)
+		self.unwrap_call_result(self.call_function(caller_context, ItemIndex::IndexSpace(index), None)?)
 	}
 
 	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
@@ -451,7 +466,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		}
 	}
 
-	fn call_function(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+	fn call_function<'a>(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<CallResult<'a>, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.call_internal_function(outer, index, function_type),
@@ -465,7 +480,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		}
 	}
 
-	fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+	fn call_function_indirect<'a>(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<CallResult<'a>, Error> {
 		let function_type = match self.module.type_section()
 			.ok_or(Error::Function(format!("trying to indirect call function {} with non-existent function section", func_index)))
 			.and_then(|s| s.types().get(type_index as usize)
@@ -483,7 +498,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		module.call_function(outer, ItemIndex::IndexSpace(index), Some(function_type))
 	}
 
-	fn call_internal_function(&self, mut outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+	fn call_internal_function<'a>(&self, mut outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<CallResult<'a>, Error> {
 		// TODO: cache
 		// internal index = index of function in functions section && index of code in code section
 		// get function type index
@@ -527,7 +542,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		let frame_stack_limit = outer.frame_stack_limit;
 		let locals = prepare_function_locals(actual_function_type, function_body, &mut outer)?;
 		let mut innner = FunctionContext::new(self, outer.externals, value_stack_limit, frame_stack_limit, actual_function_type, locals);
-		Interpreter::run_function(&mut innner, function_code)
+		Interpreter::run_function(innner, function_code).map(CallResult::Executed)
 	}
 }
 

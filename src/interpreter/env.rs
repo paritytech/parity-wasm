@@ -7,7 +7,7 @@ use elements::{Module, FunctionType, ExportEntry, Internal, GlobalEntry, GlobalT
 use interpreter::Error;
 use interpreter::env_native::NATIVE_INDEX_FUNC_MIN;
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
-	ItemIndex, CallerContext, ExportEntryType};
+	ItemIndex, CallerContext, CallResult, ExportEntryType};
 use interpreter::memory::{MemoryInstance, LINEAR_MEMORY_PAGE_SIZE};
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
@@ -124,15 +124,15 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.global(index, variable_type)
 	}
 
-	fn call_function(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+	fn call_function<'a>(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<CallResult<'a>, Error> {
 		self.instance.call_function(outer, index, function_type)
 	}
 
-	fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
+	fn call_function_indirect<'a>(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<CallResult<'a>, Error> {
 		self.instance.call_function_indirect(outer, table_index, type_index, func_index)
 	}
 
-	fn call_internal_function(&self, outer: CallerContext, index: u32, _function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+	fn call_internal_function<'a>(&self, outer: CallerContext, index: u32, _function_type: Option<&FunctionType>) -> Result<CallResult<'a>, Error> {
 		// TODO: check function type
 		// to make interpreter independent of *SCRIPTEN runtime, just make abort/assert = interpreter Error
 		match index {
@@ -145,12 +145,12 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 						.and_then(|g| g.set(RuntimeValue::I32(1)))
 						.and_then(|_| Err(Error::Trap("assertion failed".into())))
 				} else {
-					Ok(None)
+					Ok(CallResult::Executed(None))
 				}),
-			INDEX_FUNC_ENLARGE_MEMORY => Ok(Some(RuntimeValue::I32(0))), // TODO: support memory enlarge
+			INDEX_FUNC_ENLARGE_MEMORY => Ok(CallResult::Executed(Some(RuntimeValue::I32(0)))), // TODO: support memory enlarge
 			INDEX_FUNC_GET_TOTAL_MEMORY => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_TOTAL_MEMORY), Some(VariableType::I32))
 				.map(|g| g.get())
-				.map(Some),
+				.map(|v| CallResult::Executed(Some(v))),
 			INDEX_FUNC_MIN_NONUSED ... INDEX_FUNC_MAX => Err(Error::Trap("unimplemented".into())),
 			_ => Err(Error::Trap(format!("trying to call function with index {} in env module", index))),
 		}

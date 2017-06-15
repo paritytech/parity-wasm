@@ -20,7 +20,7 @@ fn run_function_i32(body: &Opcodes, arg: i32) -> Result<i32, Error> {
 			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(0)).unwrap(),		// local1
 			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(0)).unwrap(),		// local2
 		]);
-	Interpreter::run_function(&mut context, body.elements())
+	Interpreter::run_function(context, body.elements())
 		.map(|v| v.unwrap().try_into().unwrap())
 }
 

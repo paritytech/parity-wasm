@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use parking_lot::RwLock;
-use elements::{FunctionType, Internal, ValueType};
+use elements::{FunctionType, Internal, ValueType, Opcode};
 use interpreter::Error;
 use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
-	CallerContext, CallResult, ExportEntryType};
+	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction};
 use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
@@ -113,15 +113,19 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		self.env.global(index, variable_type)
 	}
 
-	fn call_function<'b>(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<CallResult<'b>, Error> {
-		self.env.call_function(outer, index, function_type)
+	fn function_reference<'b>(&self, index: ItemIndex, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<InternalFunctionReference<'b>, Error> {
+		self.env.function_reference(index, externals)
 	}
 
-	fn call_function_indirect<'b>(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<CallResult<'b>, Error> {
-		self.env.call_function_indirect(outer, table_index, type_index, func_index)
+	fn function_reference_indirect<'b>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<InternalFunctionReference<'b>, Error> {
+		self.env.function_reference_indirect(table_idx, type_idx, func_idx, externals)
 	}
 
-	fn call_internal_function<'b>(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<CallResult<'b>, Error> {
+	fn function_body<'b>(&'b self, internal_index: u32) -> Result<Option<InternalFunction<'b>>, Error> {
+		self.env.function_body(internal_index)
+	}
+
+	fn call_internal_function(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
 		if index < NATIVE_INDEX_FUNC_MIN {
 			return self.env.call_internal_function(outer, index, function_type);
 		}
@@ -131,7 +135,6 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 			.get((index - NATIVE_INDEX_FUNC_MIN) as usize)
 			.ok_or(Error::Native(format!("trying to call native function with index {}", index)))
 			.and_then(|f| self.executor.write().execute(&f.name, outer))
-			.map(CallResult::Executed)
 	}
 }
 

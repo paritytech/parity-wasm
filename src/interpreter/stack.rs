@@ -38,16 +38,22 @@ impl<T> StackWithLimit<T> where T: Clone {
 		self.limit
 	}
 
+	pub fn values(&self) -> &VecDeque<T> {
+		&self.values
+	}
+
 	pub fn top(&self) -> Result<&T, Error> {
 		self.values
 			.back()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
+.map_err(|e| { panic!("1") })
 	}
 
 	pub fn top_mut(&mut self) -> Result<&mut T, Error> {
 		self.values
 			.back_mut()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
+.map_err(|e| { panic!("2") })
 	}
 
 	pub fn get(&self, index: usize) -> Result<&T, Error> {
@@ -67,10 +73,24 @@ impl<T> StackWithLimit<T> where T: Clone {
 		Ok(())
 	}
 
+	pub fn push_penultimate(&mut self, value: T) -> Result<(), Error> {
+		if self.values.is_empty() {
+			return Err(Error::Stack("trying to insert penultimate element into empty stack".into()));
+		}
+		self.push(value)?;
+
+		let last_index = self.values.len() - 1;
+		let penultimate_index = last_index - 1;
+		self.values.swap(last_index, penultimate_index);
+
+		Ok(())
+	}
+
 	pub fn pop(&mut self) -> Result<T, Error> {
 		self.values
 			.pop_back()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
+.map_err(|e| { panic!("3") })
 	}
 
 	pub fn resize(&mut self, new_size: usize, dummy: T) {

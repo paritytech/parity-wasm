@@ -1,14 +1,16 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
-	InitExpr, ValueType, Opcodes, Opcode};
+	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
 use interpreter::Error;
-use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor};
+use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
+use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams};
 use interpreter::program::ProgramInstance;
+use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::RuntimeValue;
 
 #[test]
@@ -121,6 +123,25 @@ fn global_get_set() {
 	assert_eq!(module.execute_index(2, vec![].into()).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
 }
 
+const SIGNATURE_I32: &'static [ValueType] = &[ValueType::I32];
+
+const SIGNATURES: &'static [UserFunction] = &[
+	UserFunction {
+		desc: UserFunctionDescriptor::Static(
+			"add",
+			SIGNATURE_I32,
+		),
+		result: Some(ValueType::I32),
+	},
+	UserFunction {
+		desc: UserFunctionDescriptor::Static(
+			"sub",
+			SIGNATURE_I32,
+		),
+		result: Some(ValueType::I32),
+	},
+];
+
 #[test]
 fn single_program_different_modules() {
 	// user function executor
@@ -168,15 +189,7 @@ fn single_program_different_modules() {
 	{
 		let functions: UserFunctions = UserFunctions {
 			executor: &mut executor,
-			functions: vec![UserFunction {
-				name: "add".into(),
-				params: vec![ValueType::I32],
-				result: Some(ValueType::I32),
-			}, UserFunction {
-				name: "sub".into(),
-				params: vec![ValueType::I32],
-				result: Some(ValueType::I32),
-			}],
+			functions: ::std::borrow::Cow::from(SIGNATURES),
 		};
 		let native_env_instance = Arc::new(env_native_module(env_instance, functions).unwrap());
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);
@@ -214,4 +227,27 @@ fn single_program_different_modules() {
 
 	assert_eq!(executor.memory.get(0, 1).unwrap()[0], 42);
 	assert_eq!(executor.values, vec![7, 57, 42]);
+}
+
+#[test]
+fn if_else_with_return_type_validation() {
+	let module = module().build();
+	let imports = ModuleImports::new(Weak::default(), None);
+	let mut context = FunctionValidationContext::new(&module, &imports, &[], 1024, 1024, &FunctionType::default());
+
+	Validator::validate_block(&mut context, false, BlockType::NoResult, &[
+		Opcode::I32Const(1),
+		Opcode::If(BlockType::NoResult, Opcodes::new(vec![
+			Opcode::I32Const(1),
+			Opcode::If(BlockType::Value(ValueType::I32), Opcodes::new(vec![
+				Opcode::I32Const(1),
+				Opcode::Else,
+				Opcode::I32Const(2),
+				Opcode::End,
+			])),
+			Opcode::Drop,
+			Opcode::End,
+		])),
+		Opcode::End,
+	], Opcode::End).unwrap();
 }

@@ -187,8 +187,6 @@ impl Interpreter {
 					let instruction = &body_stack.back().expect("TODO")[top_frame.begin_position];
 					let block_body = Interpreter::into_block(instruction, top_frame.frame_type)?;
 					body_stack.push_back(block_body);
-					//body_stack.insert(block_body.len() - 1, block_body);
-					//function_context.frame_stack_mut().push_penultimate(block_frame)?;
 				},
 				InstructionOutcome::ExecuteCall(func_ref) => return Ok(RunResult::NestedCall(function_context.nested(func_ref)?)),
 				InstructionOutcome::End if !function_context.frame_stack().is_empty() => {
@@ -206,6 +204,7 @@ impl Interpreter {
 		loop {
 			let instruction = &body[context.position];
 
+			debug!(target: "interpreter", "running {:?}", instruction);
 			match Interpreter::run_instruction(context, instruction)? {
 				InstructionOutcome::RunInstruction => (),
 				InstructionOutcome::RunNextInstruction => context.position += 1,

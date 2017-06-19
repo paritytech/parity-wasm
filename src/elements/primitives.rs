@@ -427,7 +427,6 @@ impl Deserialize for VarUint1 {
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         let mut u8buf = [0u8; 1];
         reader.read_exact(&mut u8buf)?;
-        // todo check range
         match u8buf[0] {
             0 => Ok(VarUint1(false)),
             1 => Ok(VarUint1(true)),

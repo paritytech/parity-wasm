@@ -122,6 +122,8 @@ pub enum Opcode {
     GetGlobal(u32),
     SetGlobal(u32),
 
+    // All store/load opcodes operate with 'memory immediates'
+    // which represented here as (flag, offset) tuple
     I32Load(u32, u32),
     I64Load(u32, u32),
     F32Load(u32, u32),
@@ -145,6 +147,7 @@ pub enum Opcode {
     I64Store8(u32, u32),
     I64Store16(u32, u32),
     I64Store32(u32, u32),
+
     CurrentMemory(bool),
     GrowMemory(bool),
 
@@ -649,97 +652,97 @@ impl Serialize for Opcode {
             SetGlobal(index) => op!(writer, 0x24, {
                 VarUint32::from(index).serialize(writer)?;
             }),
-            I32Load(from, to) => op!(writer, 0x28, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I32Load(flags, offset) => op!(writer, 0x28, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            I64Load(from, to) => op!(writer, 0x29, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Load(flags, offset) => op!(writer, 0x29, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            F32Load(from, to) => op!(writer, 0x2a, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            F32Load(flags, offset) => op!(writer, 0x2a, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            F64Load(from, to) => op!(writer, 0x2b, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            F64Load(flags, offset) => op!(writer, 0x2b, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            I32Load8S(from, to) => op!(writer, 0x2c, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I32Load8S(flags, offset) => op!(writer, 0x2c, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),       
-            I32Load8U(from, to) => op!(writer, 0x2d, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I32Load8U(flags, offset) => op!(writer, 0x2d, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),       
-            I32Load16S(from, to) => op!(writer, 0x2e, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I32Load16S(flags, offset) => op!(writer, 0x2e, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),      
-            I32Load16U(from, to) => op!(writer, 0x2f, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I32Load16U(flags, offset) => op!(writer, 0x2f, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),                                    
-            I64Load8S(from, to) => op!(writer, 0x30, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Load8S(flags, offset) => op!(writer, 0x30, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            I64Load8U(from, to) => op!(writer, 0x31, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Load8U(flags, offset) => op!(writer, 0x31, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),      
-            I64Load16S(from, to) => op!(writer, 0x32, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Load16S(flags, offset) => op!(writer, 0x32, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),                         
-            I64Load16U(from, to) => op!(writer, 0x33, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Load16U(flags, offset) => op!(writer, 0x33, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),          
-            I64Load32S(from, to) => op!(writer, 0x34, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Load32S(flags, offset) => op!(writer, 0x34, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),         
-            I64Load32U(from, to) => op!(writer, 0x35, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Load32U(flags, offset) => op!(writer, 0x35, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),           
-            I32Store(from, to) => op!(writer, 0x36, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I32Store(flags, offset) => op!(writer, 0x36, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),                     
-            I64Store(from, to) => op!(writer, 0x37, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Store(flags, offset) => op!(writer, 0x37, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),       
-            F32Store(from, to) => op!(writer, 0x38, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            F32Store(flags, offset) => op!(writer, 0x38, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),   
-            F64Store(from, to) => op!(writer, 0x39, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            F64Store(flags, offset) => op!(writer, 0x39, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            I32Store8(from, to) => op!(writer, 0x3a, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I32Store8(flags, offset) => op!(writer, 0x3a, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            I32Store16(from, to) => op!(writer, 0x3b, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I32Store16(flags, offset) => op!(writer, 0x3b, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),        
-            I64Store8(from, to) => op!(writer, 0x3c, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Store8(flags, offset) => op!(writer, 0x3c, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            I64Store16(from, to) => op!(writer, 0x3d, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Store16(flags, offset) => op!(writer, 0x3d, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
-            I64Store32(from, to) => op!(writer, 0x3e, {
-                VarUint32::from(from).serialize(writer)?;
-                VarUint32::from(to).serialize(writer)?;
+            I64Store32(flags, offset) => op!(writer, 0x3e, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
             }),
             CurrentMemory(flag) => op!(writer, 0x3f, {
                 VarUint1::from(flag).serialize(writer)?;

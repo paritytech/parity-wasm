@@ -1,6 +1,6 @@
 [package]
 name = "parity-wasm"
-version = "0.8.5"
+version = "0.10.0"
 authors = ["Nikolay Volf <nikvolf@gmail.com>", "Svyatoslav Nikolsky <svyatonik@yandex.ru>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -12,5 +12,6 @@ keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"]
 exclude = [ "res/*", "spec/*" ]
 
 [dependencies]
+log = "0.3"
 byteorder = "1.0"
 parking_lot = "0.4"

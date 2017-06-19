@@ -130,7 +130,7 @@ impl Validator {
 	}
 
 	pub fn validate_instruction<'a>(context: &mut FunctionValidationContext, opcode: &'a Opcode) -> Result<InstructionOutcome<'a>, Error> {
-		// println!("=== VALIDATING {:?}: {:?}", opcode, context.value_stack);
+		debug!(target: "validator", "validating {:?}", opcode);
 		match opcode {
 			&Opcode::Unreachable => Ok(InstructionOutcome::Unreachable),
 			&Opcode::Nop => Ok(InstructionOutcome::ValidateNextInstruction),
@@ -581,7 +581,14 @@ impl Validator {
 }
 
 impl<'a> FunctionValidationContext<'a> {
-	pub fn new(module: &'a Module, imports: &'a ModuleImports, locals: &'a [ValueType], value_stack_limit: usize, frame_stack_limit: usize, function: &FunctionType) -> Self {
+	pub fn new(
+		module: &'a Module, 
+		imports: &'a ModuleImports, 
+		locals: &'a [ValueType], 
+		value_stack_limit: usize, 
+		frame_stack_limit: usize, 
+		function: &FunctionType,
+	) -> Self {
 		FunctionValidationContext {
 			module: module,
 			imports: imports,

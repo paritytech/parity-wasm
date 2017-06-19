@@ -41,7 +41,7 @@ pub enum ExportEntryType {
 
 /// Module instance API.
 pub trait ModuleInstanceInterface {
-	/// Run instantiation-time procedures (validation and start function call). Module is not completely validated until this call.
+	/// Run instantiation-time procedures (validation and start function [if any] call). Module is not completely validated until this call.
 	fn instantiate<'a>(&self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error>;
 	/// Execute function with the given index.
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
@@ -335,9 +335,23 @@ impl ModuleInstanceInterface for ModuleInstance {
 				let function_body = code_section.bodies().get(index as usize).ok_or(Error::Validation(format!("Missing body for function {}", index)))?;
 				let mut locals = function_type.params().to_vec();
 				locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
-				let mut context = FunctionValidationContext::new(&self.module, &self.imports, &locals, DEFAULT_VALUE_STACK_LIMIT, DEFAULT_FRAME_STACK_LIMIT, &function_type);
+				let mut context = FunctionValidationContext::new(
+					&self.module, 
+					&self.imports, 
+					&locals, 
+					DEFAULT_VALUE_STACK_LIMIT, 
+					DEFAULT_FRAME_STACK_LIMIT, 
+					&function_type);
+
 				let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
 				Validator::validate_function(&mut context, block_type, function_body.code().elements())?;
+					.map_err(|e| { 
+						if let Error::Validation(msg) = e { 
+							Error::Validation(format!("Function #{} validation error: {}", index, msg))
+						} else {
+							e
+						}
+					})?;
 			}
 		}
 

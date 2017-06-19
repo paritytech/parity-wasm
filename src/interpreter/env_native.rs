@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::borrow::Cow;
 use parking_lot::RwLock;
 use elements::{FunctionType, Internal, ValueType};
 use interpreter::Error;
@@ -19,20 +20,67 @@ pub trait UserFunctionExecutor {
 	fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error>;
 }
 
+/// User function descriptor
+#[derive(Clone)]
+pub enum UserFunctionDescriptor {
+	/// Static function definition
+	Static(&'static str, &'static [ValueType]),
+	/// Dynamic heap function definition
+	Heap(String, Vec<ValueType>),
+}
+
 /// User function type.
+#[derive(Clone)]
 pub struct UserFunction {
-	/// User function name.
-	pub name: String,
-	/// User function parameters (for signature matching).
-	pub params: Vec<ValueType>,
-	/// User function return type (for signature matching).
+	/// Descriptor with variable-length definitions
+	pub desc: UserFunctionDescriptor,
+	/// Return type of the signature
 	pub result: Option<ValueType>,
+}
+
+impl UserFunction {
+	/// New function with statically known params
+	pub fn statik(name: &'static str, params: &'static [ValueType], result: Option<ValueType>) -> Self {
+		UserFunction {
+			desc: UserFunctionDescriptor::Static(name, params),
+			result: result,
+		}
+	}
+
+	/// New function with statically unknown params
+	pub fn heap(name: String, params: Vec<ValueType>, result: Option<ValueType>) -> Self {
+		UserFunction {
+			desc: UserFunctionDescriptor::Heap(name, params),
+			result: result,
+		}	
+	}
+
+	/// Name of the function
+	pub fn name(&self) -> &str {
+		match self.desc {
+			UserFunctionDescriptor::Static(name, _) => name,
+			UserFunctionDescriptor::Heap(ref name, _) => name,
+		}
+	}
+
+	/// Arguments of the function
+	pub fn params(&self) -> &[ValueType] {
+		match self.desc {
+			UserFunctionDescriptor::Static(_, params) => params,
+			UserFunctionDescriptor::Heap(_, ref params) => params,
+		}		
+	}
+
+	/// Return type of the function
+	pub fn result(&self) -> Option<ValueType> {
+		self.result
+	}
 }
 
 /// Set of user-defined functions
 pub struct UserFunctions<'a> {
 	/// Functions list.
-	pub functions: Vec<UserFunction>,
+	pub functions: Cow<'static, [UserFunction]>,
 	/// Functions executor.
 	pub executor: &'a mut UserFunctionExecutor,
 }
@@ -46,7 +94,7 @@ pub struct NativeModuleInstance<'a> {
 	/// By-name functions index.
 	by_name: HashMap<String, u32>,
 	/// User functions list.
-	functions: Vec<UserFunction>,
+	functions: Cow<'static, [UserFunction]>,
 }
 
 impl<'a> NativeModuleInstance<'a> {
@@ -55,7 +103,7 @@ impl<'a> NativeModuleInstance<'a> {
 		Ok(NativeModuleInstance {
 			env: env,
 			executor: RwLock::new(functions.executor),
-			by_name: functions.functions.iter().enumerate().map(|(i, f)| (f.name.clone(), i as u32)).collect(),
+			by_name: functions.functions.iter().enumerate().map(|(i, f)| (f.name().to_owned(), i as u32)).collect(),
 			functions: functions.functions,
 		})
 	}
@@ -108,7 +156,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		self.functions
 			.get((index - NATIVE_INDEX_FUNC_MIN) as usize)
 			.ok_or(Error::Native(format!("missing native env function with index {}", index)))
-			.map(|f| FunctionType::new(f.params.clone(), f.result.clone()))
+			.map(|f| FunctionType::new(f.params().to_vec(), f.result().clone()))
 	}
 
 	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error> {
@@ -135,7 +183,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		self.functions
 			.get((index - NATIVE_INDEX_FUNC_MIN) as usize)
 			.ok_or(Error::Native(format!("trying to call native function with index {}", index)))
-			.and_then(|f| self.executor.write().execute(&f.name, outer))
+			.and_then(|f| self.executor.write().execute(&f.name(), outer))
 	}
 }
 

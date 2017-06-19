@@ -56,7 +56,6 @@ impl<F> GlobalBuilder<F> where F: Invoke<elements::GlobalEntry> {
     }
 }
 
-
 impl<F> Invoke<elements::ValueType> for GlobalBuilder<F> {
     type Result = Self;
     fn invoke(self, the_type: elements::ValueType) -> Self {

@@ -161,7 +161,7 @@ impl ModuleImports {
 	fn external_export<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry, required_type: &ExportEntryType) -> Result<(Arc<ModuleInstanceInterface + 'a>, Internal), Error> {
 		self.module(externals, import.module())
 			.and_then(|m|
-				m.export_entry(import.field(), externals, required_type)
+				m.export_entry(import.field(), required_type)
 					.map(|e| (m, e)))
 	}
 }

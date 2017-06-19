@@ -7,7 +7,7 @@ use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, FunctionType, Local};
 use interpreter::Error;
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, InternalFunctionReference};
+use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, InternalFunctionReference};
 use interpreter::stack::StackWithLimit;
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
@@ -220,8 +220,8 @@ impl Interpreter {
 		match opcode {
 			&Opcode::Unreachable => Interpreter::run_unreachable(context),
 			&Opcode::Nop => Interpreter::run_nop(context),
-			&Opcode::Block(block_type, ref ops) => Interpreter::run_block(context, block_type, ops.elements()),
-			&Opcode::Loop(block_type, ref ops) => Interpreter::run_loop(context, block_type, ops.elements()),
+			&Opcode::Block(block_type, _) => Interpreter::run_block(context, block_type),
+			&Opcode::Loop(block_type, _) => Interpreter::run_loop(context, block_type),
 			&Opcode::If(block_type, ref ops) => Interpreter::run_if(context, block_type, ops.elements()),
 			&Opcode::Else => Interpreter::run_else(context),
 			&Opcode::End => Interpreter::run_end(context),
@@ -438,13 +438,13 @@ impl Interpreter {
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_block<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_block<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		let frame_position = context.position;
 		context.push_frame(BlockFrameType::Block, frame_position, frame_position + 1, frame_position + 1, block_type)?;
 		Ok(InstructionOutcome::ExecuteBlock)
 	}
 
-	fn run_loop<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_loop<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		let frame_position = context.position;
 		context.push_frame(BlockFrameType::Loop, frame_position, frame_position, frame_position + 1, block_type)?;
 		Ok(InstructionOutcome::ExecuteBlock)
@@ -501,7 +501,7 @@ impl Interpreter {
 		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
 		let function_reference = context.module().function_reference_indirect(DEFAULT_TABLE_INDEX, type_idx, table_func_idx, Some(context.externals))?;
 		let required_function_type = context.module().function_type_by_index(type_idx)?;
-		let actual_function_type = function_reference.module.function_type(ItemIndex::Internal(function_reference.internal_index), Some(context.externals))?;
+		let actual_function_type = function_reference.module.function_type(ItemIndex::Internal(function_reference.internal_index))?;
 		if required_function_type != actual_function_type {
 			return Err(Error::Function(format!("expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
 				required_function_type.params(), required_function_type.return_type(),
@@ -1022,7 +1022,7 @@ impl<'a> FunctionContext<'a> {
 	}
 
 	pub fn nested(&mut self, function: InternalFunctionReference<'a>) -> Result<Self, Error> {
-		let function_type = function.module.function_type(ItemIndex::Internal(function.internal_index), Some(self.externals))?;
+		let function_type = function.module.function_type(ItemIndex::Internal(function.internal_index))?;
 		let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
 		let function_locals = prepare_function_args(&function_type, &mut self.value_stack)?;
 

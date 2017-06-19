@@ -807,7 +807,7 @@ fn callindirect_2() {
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(14));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(6));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)].into()).unwrap_err(),
-		Error::Function("expected function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
+		Error::Function("expected indirect function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)].into()).unwrap_err(),
 		Error::Table("trying to read table item with index 3 when there are only 3 items".into()));
 }

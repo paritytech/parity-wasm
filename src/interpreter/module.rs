@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::iter::repeat;
 use std::sync::{Arc, Weak};
 use std::fmt;
-use elements::{Module, InitExpr, Opcode, Type, FunctionType, FuncBody, Internal, External, BlockType, ResizableLimits, Local};
+use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, BlockType, ResizableLimits, Local};
 use interpreter::Error;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
@@ -48,7 +48,7 @@ pub trait ModuleInstanceInterface {
 	/// Execute function with the given export name.
 	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
 	/// Get export entry.
-	fn export_entry<'a>(&self, name: &str, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, required_type: &ExportEntryType) -> Result<Internal, Error>;
+	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error>;
 	/// Get table reference.
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error>;
 	/// Get memory reference.
@@ -56,9 +56,9 @@ pub trait ModuleInstanceInterface {
 	/// Get global reference.
 	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error>;
 	/// Get function type for given function index.
-	fn function_type<'a>(&self, function_index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<FunctionType, Error>;
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionType, Error>;
 	/// Get function type for given function index.
-	fn function_type_by_index<'a>(&self, type_index: u32) -> Result<FunctionType, Error>;
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error>;
 	/// Get function reference.
 	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error>;
 	/// Get function indirect reference.
@@ -66,7 +66,7 @@ pub trait ModuleInstanceInterface {
 	/// Get internal function for interpretation.
 	fn function_body<'a>(&'a self, internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error>;
 	/// Call function with given internal index.
-	fn call_internal_function<'a>(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error>;
+	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error>;
 }
 
 /// Item index in items index space.
@@ -227,19 +227,6 @@ impl ModuleInstance {
 				}),
 		}
 	}
-
-	fn check_function_type(&self, function_index: ItemIndex, required_function_type: Option<&FunctionType>, externals: Option<&HashMap<String, Arc<ModuleInstanceInterface>>>) -> Result<(), Error> {
-		if let Some(ref required_function_type) = required_function_type {
-			let actual_function_type = self.function_type(function_index, externals)?;
-			if **required_function_type != actual_function_type {
-				return Err(Error::Function(format!("expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-					required_function_type.params(), required_function_type.return_type(),
-					actual_function_type.params(), actual_function_type.return_type())));
-			}
-		}
-
-		Ok(())
-	}
 }
 
 impl ModuleInstanceInterface for ModuleInstance {
@@ -289,12 +276,12 @@ impl ModuleInstanceInterface for ModuleInstance {
 
 						// get export entry in external module
 						let external_module = self.imports.module(externals, import.module())?;
-						let export_entry = external_module.export_entry(import.field(), externals, &ExportEntryType::Function(import_function_type.clone()))?;
+						let export_entry = external_module.export_entry(import.field(), &ExportEntryType::Function(import_function_type.clone()))?;
 
 						// export entry points to function in function index space
 						// and Internal::Function points to type in type section
 						let export_function_type = match export_entry {
-							Internal::Function(function_index) => external_module.function_type(ItemIndex::IndexSpace(function_index), externals)?,
+							Internal::Function(function_index) => external_module.function_type(ItemIndex::IndexSpace(function_index))?,
 							_ => return Err(Error::Validation(format!("Export with name {} from module {} is not a function", import.field(), import.module()))),
 						};
 
@@ -413,7 +400,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		self.execute_index(index, params)
 	}
 
-	fn export_entry<'a>(&self, name: &str, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, required_type: &ExportEntryType) -> Result<Internal, Error> {
+	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
 		self.module.export_section()
 			.ok_or(Error::Program(format!("trying to import {} from module without export section", name)))
 			.and_then(|s| s.entries().iter()
@@ -425,7 +412,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 					},
 					&ExportEntryType::Function(ref required_type) => match e.internal() {
 						&Internal::Function(function_index) =>
-							self.function_type(ItemIndex::IndexSpace(function_index), externals)
+							self.function_type(ItemIndex::IndexSpace(function_index))
 								.map(|ft| &ft == required_type)
 								.unwrap_or(false),
 						_ => false,
@@ -474,7 +461,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		}
 	}
 
-	fn function_type<'a>(&self, function_index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<FunctionType, Error> {
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionType, Error> {
 		match self.imports.parse_function_index(function_index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.require_function(ItemIndex::Internal(index))
@@ -490,7 +477,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		}
 	}
 
-	fn function_type_by_index<'a>(&self, type_index: u32) -> Result<FunctionType, Error> {
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error> {
 		self.module.type_section()
 			.ok_or(Error::Validation(format!("type reference {} exists in module without type section", type_index)))
 			.and_then(|s| match s.types().get(type_index as usize) {
@@ -512,7 +499,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 					.expect("parse_function_index has returned External(index); it is only returned when import section exists; qed")
 					.entries().get(index as usize)
 					.expect("parse_function_index has returned External(index); it is only returned when entry with index exists in import section exists; qed");
-				let required_function_type = self.function_type(ItemIndex::External(index), externals)?;
+				let required_function_type = self.function_type(ItemIndex::External(index))?;
 				let internal_function_index = self.imports.function(externals, import_entry, Some(&required_function_type))?;
 				Ok(InternalFunctionReference {
 					module: self.imports.module(externals, import_entry.module())?,
@@ -531,7 +518,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 
 		let module = self.imports.module(externals, &module)?;
 		let required_function_type = self.function_type_by_index(type_idx)?;
-		let actual_function_type = module.function_type(ItemIndex::IndexSpace(index), externals)?;
+		let actual_function_type = module.function_type(ItemIndex::IndexSpace(index))?;
 		if required_function_type != actual_function_type {
 			return Err(Error::Function(format!("expected indirect function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
 				required_function_type.params(), required_function_type.return_type(),
@@ -556,8 +543,8 @@ impl ModuleInstanceInterface for ModuleInstance {
 	}
 
 	fn call_internal_function(&self, mut outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
-		let function_type = self.function_type(ItemIndex::Internal(index), None)?;
-		let mut args = prepare_function_args(&function_type, outer.value_stack)?;
+		let function_type = self.function_type(ItemIndex::Internal(index))?;
+		let args = prepare_function_args(&function_type, outer.value_stack)?;
 		let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };
 		let inner = FunctionContext::new(function_ref, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
 		Interpreter::run_function(inner)

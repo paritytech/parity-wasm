@@ -104,8 +104,8 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.execute_export(name, params)
 	}
 
-	fn export_entry<'a>(&self, name: &str, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, required_type: &ExportEntryType) -> Result<Internal, Error> {
-		self.instance.export_entry(name, externals, required_type)
+	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
+		self.instance.export_entry(name, required_type)
 	}
 
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
@@ -120,11 +120,11 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.global(index, variable_type)
 	}
 
-	fn function_type<'a>(&self, function_index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<FunctionType, Error> {
-		self.instance.function_type(function_index, externals)
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionType, Error> {
+		self.instance.function_type(function_index)
 	}
 
-	fn function_type_by_index<'a>(&self, type_index: u32) -> Result<FunctionType, Error> {
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error> {
 		self.instance.function_type_by_index(type_index)
 	}
 

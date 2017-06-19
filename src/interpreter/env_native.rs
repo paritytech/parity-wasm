@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use parking_lot::RwLock;
-use elements::{FunctionType, Internal, ValueType, Opcode};
+use elements::{FunctionType, Internal, ValueType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
 	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction};
@@ -74,12 +74,13 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		self.env.execute_export(name, params)
 	}
 
-	fn export_entry<'b>(&self, name: &str, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>, required_type: &ExportEntryType) -> Result<Internal, Error> {
+	fn export_entry<'b>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
 		if let Some(index) = self.by_name.get(name) {
+			// TODO: check type
 			return Ok(Internal::Function(NATIVE_INDEX_FUNC_MIN + *index));
 		}
 
-		self.env.export_entry(name, externals, required_type)
+		self.env.export_entry(name, required_type)
 	}
 
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
@@ -94,14 +95,14 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		self.env.global(index, variable_type)
 	}
 
-	fn function_type<'b>(&self, function_index: ItemIndex, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<FunctionType, Error> {
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionType, Error> {
 		let index = match function_index {
 			ItemIndex::IndexSpace(index) | ItemIndex::Internal(index) => index,
 			ItemIndex::External(_) => unreachable!("trying to call function, exported by native env module"),
 		};
 
 		if index < NATIVE_INDEX_FUNC_MIN {
-			return self.env.function_type(function_index, externals);
+			return self.env.function_type(function_index);
 		}
 
 		self.functions
@@ -110,8 +111,8 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 			.map(|f| FunctionType::new(f.params.clone(), f.result.clone()))
 	}
 
-	fn function_type_by_index<'b>(&self, type_index: u32) -> Result<FunctionType, Error> {
-		self.function_type(ItemIndex::Internal(type_index), None)
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error> {
+		self.function_type(ItemIndex::Internal(type_index))
 	}
 
 	fn function_reference<'b>(&self, index: ItemIndex, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<InternalFunctionReference<'b>, Error> {
@@ -139,6 +140,6 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 }
 
 /// Create wrapper for env module with given native user functions.
-pub fn env_native_module(env: Arc<ModuleInstanceInterface>, user_functions: UserFunctions) -> Result<NativeModuleInstance, Error> {
+pub fn env_native_module<'a>(env: Arc<ModuleInstanceInterface>, user_functions: UserFunctions<'a>) -> Result<NativeModuleInstance, Error> {
 	NativeModuleInstance::new(env, user_functions)
 }

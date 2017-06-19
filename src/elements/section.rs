@@ -32,7 +32,7 @@ pub enum Section {
         payload: Vec<u8>,
     },
     /// Custom section (`id=0`)
-    Custom(Vec<u8>),
+    Custom(CustomSection),
     /// Types section
     Type(TypeSection),
     /// Import section
@@ -70,7 +70,7 @@ impl Deserialize for Section {
         Ok(
             match id.into() {
                 0 => {
-                    Section::Custom(Unparsed::deserialize(reader)?.into())
+                    Section::Custom(CustomSection::deserialize(reader)?.into())
                 },
                 1 => {
                     Section::Type(TypeSection::deserialize(reader)?)
@@ -121,7 +121,7 @@ impl Serialize for Section {
         match self {
             Section::Custom(custom_section) => {
                 VarUint7::from(0x00).serialize(writer)?;
-                writer.write_all(&custom_section[..])?;
+                custom_section.serialize(writer)?;
             },
             Section::Unparsed { id, payload } => {
                 VarUint7::from(id).serialize(writer)?;
@@ -176,6 +176,41 @@ impl Serialize for Section {
         }
         Ok(())
     }
+}
+
+pub struct CustomSection {
+    name: String,
+    payload: Vec<u8>,
+}
+
+impl Deserialize for CustomSection {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        // todo: maybe use reader.take(section_length)
+        let section_length: u32 = VarUint32::deserialize(reader)?.into();
+
+        let name = String::deserialize(reader)?;
+        let payload_left = section_length - (name.len() as u32 + name.len() as u32 / 128 + 1);
+        let mut payload = vec![0u8; payload_left as usize];
+        reader.read_exact(&mut payload[..])?;
+                
+        Ok(CustomSection { name: name, payload: payload })
+    }   
+}
+
+impl Serialize for CustomSection {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        use std::io::Write;
+
+        let mut counted_writer = CountedWriter::new(writer);
+        self.name.serialize(&mut counted_writer)?;
+        counted_writer.write_all(&self.payload[..])?;
+        counted_writer.done()?;
+        Ok(())
+    }    
 }
 
 /// Section with type declarations

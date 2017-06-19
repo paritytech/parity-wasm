@@ -344,7 +344,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 					&function_type);
 
 				let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
-				Validator::validate_function(&mut context, block_type, function_body.code().elements())?;
+				Validator::validate_function(&mut context, block_type, function_body.code().elements())
 					.map_err(|e| { 
 						if let Error::Validation(msg) = e { 
 							Error::Validation(format!("Function #{} validation error: {}", index, msg))

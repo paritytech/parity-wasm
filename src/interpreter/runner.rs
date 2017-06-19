@@ -333,9 +333,9 @@ impl Interpreter {
 			&Opcode::I32And => Interpreter::run_and::<i32>(context),
 			&Opcode::I32Or => Interpreter::run_or::<i32>(context),
 			&Opcode::I32Xor => Interpreter::run_xor::<i32>(context),
-			&Opcode::I32Shl => Interpreter::run_shl::<i32>(context),
-			&Opcode::I32ShrS => Interpreter::run_shr::<i32, i32>(context),
-			&Opcode::I32ShrU => Interpreter::run_shr::<i32, u32>(context),
+			&Opcode::I32Shl => Interpreter::run_shl::<i32>(context, 0x1F),
+			&Opcode::I32ShrS => Interpreter::run_shr::<i32, i32>(context, 0x1F),
+			&Opcode::I32ShrU => Interpreter::run_shr::<i32, u32>(context, 0x1F),
 			&Opcode::I32Rotl => Interpreter::run_rotl::<i32>(context),
 			&Opcode::I32Rotr => Interpreter::run_rotr::<i32>(context),
 
@@ -352,9 +352,9 @@ impl Interpreter {
 			&Opcode::I64And => Interpreter::run_and::<i64>(context),
 			&Opcode::I64Or => Interpreter::run_or::<i64>(context),
 			&Opcode::I64Xor => Interpreter::run_xor::<i64>(context),
-			&Opcode::I64Shl => Interpreter::run_shl::<i64>(context),
-			&Opcode::I64ShrS => Interpreter::run_shr::<i64, i64>(context),
-			&Opcode::I64ShrU => Interpreter::run_shr::<i64, u64>(context),
+			&Opcode::I64Shl => Interpreter::run_shl::<i64>(context, 0x3F),
+			&Opcode::I64ShrS => Interpreter::run_shr::<i64, i64>(context, 0x3F),
+			&Opcode::I64ShrU => Interpreter::run_shr::<i64, u64>(context, 0x3F),
 			&Opcode::I64Rotl => Interpreter::run_rotl::<i64>(context),
 			&Opcode::I64Rotr => Interpreter::run_rotr::<i64>(context),
 
@@ -829,23 +829,23 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_shl<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
-		where RuntimeValue: From<<T as ops::Shl<T>>::Output> + TryInto<T, Error>, T: ops::Shl<T> {
+	fn run_shl<'a, T>(context: &mut FunctionContext, mask: T) -> Result<InstructionOutcome<'a>, Error>
+		where RuntimeValue: From<<T as ops::Shl<T>>::Output> + TryInto<T, Error>, T: ops::Shl<T> + ops::BitAnd<T, Output=T> {
 		context
 			.value_stack_mut()
 			.pop_pair_as::<T>()
-			.map(|(left, right)| left.shl(right))
+			.map(|(left, right)| left.shl(right & mask))
 			.map(|v| context.value_stack_mut().push(v.into()))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_shr<'a, T, U>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
-		where RuntimeValue: From<T> + TryInto<T, Error>, T: TransmuteInto<U>, U: ops::Shr<U>, <U as ops::Shr<U>>::Output: TransmuteInto<T> {
+	fn run_shr<'a, T, U>(context: &mut FunctionContext, mask: U) -> Result<InstructionOutcome<'a>, Error>
+		where RuntimeValue: From<T> + TryInto<T, Error>, T: TransmuteInto<U>, U: ops::Shr<U> + ops::BitAnd<U, Output=U>, <U as ops::Shr<U>>::Output: TransmuteInto<T> {
 		context
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| (left.transmute_into(), right.transmute_into()))
-			.map(|(left, right)| left.shr(right))
+			.map(|(left, right)| left.shr(right & mask))
 			.map(|v| v.transmute_into())
 			.map(|v| context.value_stack_mut().push(v.into()))
 			.map(|_| InstructionOutcome::RunNextInstruction)

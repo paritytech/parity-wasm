@@ -1,15 +1,12 @@
 ///! Tests from https://github.com/WebAssembly/wabt/tree/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp
 
-use std::sync::{Arc, Weak};
-use std::collections::HashMap;
+use std::sync::Arc;
 use builder::module;
-use elements::{Module, ValueType, Opcodes, Opcode, BlockType, FunctionType, Local};
+use elements::{ValueType, Opcodes, Opcode, BlockType, Local};
 use interpreter::Error;
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex};
+use interpreter::module::{ModuleInstanceInterface, ItemIndex};
 use interpreter::program::ProgramInstance;
-use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::value::{RuntimeValue, TryInto};
-use interpreter::variable::{VariableInstance, VariableType};
 
 fn make_function_i32(body: Opcodes) -> (ProgramInstance, Arc<ModuleInstanceInterface>) {
 	let module = module()

@@ -235,7 +235,7 @@ fn if_else_with_return_type_validation() {
 	let imports = ModuleImports::new(Weak::default(), None);
 	let mut context = FunctionValidationContext::new(&module, &imports, &[], 1024, 1024, &FunctionType::default());
 
-	Validator::validate_block(&mut context, false, BlockType::NoResult, &[
+	Validator::validate_function(&mut context, BlockType::NoResult, &[
 		Opcode::I32Const(1),
 		Opcode::If(BlockType::NoResult, Opcodes::new(vec![
 			Opcode::I32Const(1),
@@ -249,5 +249,5 @@ fn if_else_with_return_type_validation() {
 			Opcode::End,
 		])),
 		Opcode::End,
-	], Opcode::End).unwrap();
+	]).unwrap();
 }

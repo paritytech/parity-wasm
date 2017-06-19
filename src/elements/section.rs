@@ -178,9 +178,33 @@ impl Serialize for Section {
     }
 }
 
+/// Custom section
 pub struct CustomSection {
     name: String,
     payload: Vec<u8>,
+}
+
+impl CustomSection {
+
+    /// Name of the custom section
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Payload of the custom secion
+    pub fn payload(&self) -> &[u8] {
+        &self.payload
+    }
+
+    /// Name of the custom section (mutable)
+    pub fn name_mut(&mut self) -> &mut String {
+        &mut self.name
+    }
+
+    /// Payload of the custom section (mutable)
+    pub fn payload_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.payload
+    }
 }
 
 impl Deserialize for CustomSection {

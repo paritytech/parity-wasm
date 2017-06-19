@@ -104,7 +104,7 @@ fn run_action(program: &ProgramInstance, action: &test::Action)
             let module = module.trim_left_matches('$');
             let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
 
-            module.export_entry(field.as_ref(), None, &ExportEntryType::Any)
+            module.export_entry(field.as_ref(), &ExportEntryType::Any)
                 .and_then(|i| match i {
                     elements::Internal::Global(global_index) => Ok(ItemIndex::IndexSpace(global_index)),
                     _ => Err(InterpreterError::Global(format!("Expected to have exported global with name {}", field))),

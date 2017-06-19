@@ -1,54 +1,60 @@
 ///! Tests from https://github.com/WebAssembly/wabt/tree/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp
 
-use std::sync::Weak;
-use std::collections::HashMap;
+use std::sync::Arc;
 use builder::module;
-use elements::{Module, ValueType, Opcodes, Opcode, BlockType, FunctionType};
+use elements::{ValueType, Opcodes, Opcode, BlockType, Local};
 use interpreter::Error;
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex};
+use interpreter::module::{ModuleInstanceInterface, ItemIndex};
 use interpreter::program::ProgramInstance;
-use interpreter::runner::{Interpreter, FunctionContext};
 use interpreter::value::{RuntimeValue, TryInto};
-use interpreter::variable::{VariableInstance, VariableType};
 
-fn run_function_i32(body: &Opcodes, arg: i32) -> Result<i32, Error> {
-	let ftype = FunctionType::new(vec![ValueType::I32], Some(ValueType::I32));
-	let module = ModuleInstance::new(Weak::default(), "test".into(), Module::default()).unwrap();
-	let externals = HashMap::new();
-	let mut context = FunctionContext::new(&module, &externals, 1024, 1024, &ftype, vec![
-			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(arg)).unwrap(),	// arg
-			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(0)).unwrap(),		// local1
-			VariableInstance::new(true, VariableType::I32, RuntimeValue::I32(0)).unwrap(),		// local2
-		]);
-	Interpreter::run_function(&mut context, body.elements())
-		.map(|v| v.unwrap().try_into().unwrap())
+fn make_function_i32(body: Opcodes) -> (ProgramInstance, Arc<ModuleInstanceInterface>) {
+	let module = module()
+		.function()
+			.signature().param().i32().return_type().i32().build()
+			.body()
+				.with_locals(vec![Local::new(2, ValueType::I32)])
+				.with_opcodes(body)
+				.build()
+			.build()
+		.build();
+
+	let program = ProgramInstance::new().unwrap();
+	let module = program.add_module("main", module, None).unwrap();
+	(program, module)
+}
+
+fn run_function_i32(module: &Arc<ModuleInstanceInterface>, arg: i32) -> Result<i32, Error> {
+	module
+		.execute_index(0, vec![RuntimeValue::I32(arg)].into())
+		.map(|r| r.unwrap().try_into().unwrap())
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unreachable.txt
 #[test]
 fn unreachable() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Unreachable,	// trap
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap_err(), Error::Trap("programmatic".into()));
+	assert_eq!(run_function_i32(&module, 0).unwrap_err(), Error::Trap("programmatic".into()));
 }
 
 #[test]
 fn nop() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Nop,			// nop
 		Opcode::I32Const(1),	// [1]
 		Opcode::Nop,			// nop
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 1);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/expr-block.txt
 #[test]
 fn expr_block() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::Value(ValueType::I32),	// mark block
 			Opcodes::new(vec![
 				Opcode::I32Const(10),		// [10]
@@ -56,15 +62,15 @@ fn expr_block() {
 				Opcode::I32Const(1),		// [1]
 				Opcode::End,
 			])),
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 1);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/loop.txt
 #[test]
 fn loop_test() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Loop(BlockType::NoResult,	// loop
 			Opcodes::new(vec![
 				Opcode::GetLocal(1),		//   [local1]
@@ -85,15 +91,15 @@ fn loop_test() {
 					])),
 				Opcode::End])),				// end loop
 		Opcode::GetLocal(1),				// [local1]
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 10);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 10);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/if.txt#L3
 #[test]
 fn if_1() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::I32Const(0),				// [0]
 		Opcode::SetLocal(0),				// [] + arg = 0
 		Opcode::I32Const(1),				// [1]
@@ -115,15 +121,15 @@ fn if_1() {
 				Opcode::End,				// end if
 			])),
 		Opcode::GetLocal(0),				// [arg]
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 1);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/if.txt#L23
 #[test]
 fn if_2() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::I32Const(1),				// [1]
 		Opcode::If(BlockType::NoResult,		// if 1
 			Opcodes::new(vec![
@@ -147,15 +153,15 @@ fn if_2() {
 		Opcode::GetLocal(0),				// [arg]
 		Opcode::GetLocal(1),				// [arg, local1]
 		Opcode::I32Add,						// [arg + local1]
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 9);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 9);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/expr-if.txt
 #[test]
 fn expr_if() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::GetLocal(0),							// [arg]
 		Opcode::I32Const(0),							// [arg, 0]
 		Opcode::I32Eq,									// [arg == 0]
@@ -166,16 +172,16 @@ fn expr_if() {
 				Opcode::I32Const(2),					//   [2]
 				Opcode::End,							// end if
 			])),
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 1);
-	assert_eq!(run_function_i32(&body, 1).unwrap(), 2);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
+	assert_eq!(run_function_i32(&module, 1).unwrap(), 2);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/nested-if.txt
 #[test]
 fn nested_if() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::NoResult,
 			Opcodes::new(vec![
 				Opcode::I32Const(1),
@@ -194,15 +200,15 @@ fn nested_if() {
 				Opcode::End,
 			])),
 		Opcode::I32Const(4),
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 4);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 4);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/br.txt#L4
 #[test]
 fn br_0() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::NoResult,			// mark block
 			Opcodes::new(vec![
 				Opcode::I32Const(1),				//   [1]
@@ -224,15 +230,15 @@ fn br_0() {
 		Opcode::I32Const(1),						// [arg == 0, local1, 1]
 		Opcode::I32Eq,								// [arg == 0, local1 == 1]
 		Opcode::I32Add,								// [arg == 0 + local1 == 1]
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 2);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 2);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/br.txt#L26
 #[test]
 fn br_1() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::NoResult,					// block1
 			Opcodes::new(vec![
 				Opcode::Block(BlockType::NoResult,			//   block2
@@ -264,15 +270,15 @@ fn br_1() {
 		Opcode::I32Const(1),								// [arg == 0 + local1 == 0, local2, 1]
 		Opcode::I32Eq,										// [arg == 0 + local1 == 0, local2 == 1]
 		Opcode::I32Add,										// [arg == 0 + local1 == 0 + local2 == 1]
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 3);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 3);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/br.txt#L56
 #[test]
 fn br_2() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::NoResult,					// block1
 			Opcodes::new(vec![
 				Opcode::Block(BlockType::NoResult,			//   block2
@@ -291,15 +297,15 @@ fn br_2() {
 			])),
 		Opcode::I32Const(2),								// [2]
 		Opcode::Return,										// return 2
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 2);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 2);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/br.txt#L71
 #[test]
 fn br_3() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::NoResult,					// block1
 			Opcodes::new(vec![
 				Opcode::Loop(BlockType::NoResult,			//   loop
@@ -333,15 +339,15 @@ fn br_3() {
 			])),
 		Opcode::GetLocal(1),								// [local1]
 		Opcode::Return,										// return local1
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 3);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 3);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/expr-br.txt
 #[test]
 fn expr_br() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::Value(ValueType::I32),		// block1
 			Opcodes::new(vec![
 				Opcode::GetLocal(0),						//   [arg]
@@ -356,16 +362,16 @@ fn expr_br() {
 				Opcode::I32Const(2),						//   [2]
 				Opcode::End,								// end (block1)
 			])),
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 1);
-	assert_eq!(run_function_i32(&body, 1).unwrap(), 2);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
+	assert_eq!(run_function_i32(&module, 1).unwrap(), 2);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/brif.txt
 #[test]
 fn brif() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::NoResult,					// block1
 			Opcodes::new(vec![
 				Opcode::GetLocal(0),						//   [arg]
@@ -376,16 +382,16 @@ fn brif() {
 			])),
 		Opcode::I32Const(2),								// [2]
 		Opcode::Return,										// return 2
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 1);
-	assert_eq!(run_function_i32(&body, 1).unwrap(), 2);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
+	assert_eq!(run_function_i32(&module, 1).unwrap(), 2);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/brif-loop.txt
 #[test]
 fn brif_loop() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Loop(BlockType::NoResult,					// loop
 			Opcodes::new(vec![
 				Opcode::GetLocal(1),						//   [local1]
@@ -400,16 +406,16 @@ fn brif_loop() {
 			])),
 		Opcode::GetLocal(1),								// [local1]
 		Opcode::Return,										// return
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 3).unwrap(), 3);
-	assert_eq!(run_function_i32(&body, 10).unwrap(), 10);
+	assert_eq!(run_function_i32(&module, 3).unwrap(), 3);
+	assert_eq!(run_function_i32(&module, 10).unwrap(), 10);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/expr-brif.txt
 #[test]
 fn expr_brif() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Loop(BlockType::NoResult,		// loop
 			Opcodes::new(vec![
 				Opcode::GetLocal(1),			//   [local1]
@@ -423,16 +429,16 @@ fn expr_brif() {
 				Opcode::End,					// end (loop)
 			])),
 		Opcode::GetLocal(1),					// [local1]
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 3).unwrap(), 3);
-	assert_eq!(run_function_i32(&body, 10).unwrap(), 10);
+	assert_eq!(run_function_i32(&module, 3).unwrap(), 3);
+	assert_eq!(run_function_i32(&module, 10).unwrap(), 10);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/brtable.txt
 #[test]
 fn brtable() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::Block(BlockType::NoResult,										// block3
 			Opcodes::new(vec![
 				Opcode::Block(BlockType::NoResult,								//   block2
@@ -457,18 +463,18 @@ fn brtable() {
 			])),
 		Opcode::I32Const(2),													// [2]
 		Opcode::Return,															// return 2
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 0);
-	assert_eq!(run_function_i32(&body, 1).unwrap(), 1);
-	assert_eq!(run_function_i32(&body, 2).unwrap(), 2);
-	assert_eq!(run_function_i32(&body, 3).unwrap(), 2);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 0);
+	assert_eq!(run_function_i32(&module, 1).unwrap(), 1);
+	assert_eq!(run_function_i32(&module, 2).unwrap(), 2);
+	assert_eq!(run_function_i32(&module, 3).unwrap(), 2);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/return.txt
 #[test]
 fn return_test() {
-	let body = Opcodes::new(vec![
+	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::GetLocal(0),
 		Opcode::I32Const(0),
 		Opcode::I32Eq,
@@ -489,11 +495,11 @@ fn return_test() {
 			])),
 		Opcode::I32Const(3),
 		Opcode::Return,
-		Opcode::End]);
+		Opcode::End]));
 
-	assert_eq!(run_function_i32(&body, 0).unwrap(), 1);
-	assert_eq!(run_function_i32(&body, 1).unwrap(), 2);
-	assert_eq!(run_function_i32(&body, 5).unwrap(), 3);
+	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
+	assert_eq!(run_function_i32(&module, 1).unwrap(), 2);
+	assert_eq!(run_function_i32(&module, 5).unwrap(), 3);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/return-void.txt
@@ -798,7 +804,7 @@ fn callindirect_2() {
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(14));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(6));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)].into()).unwrap_err(),
-		Error::Function("expected function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
+		Error::Function("expected indirect function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)].into()).unwrap_err(),
 		Error::Table("trying to read table item with index 3 when there are only 3 items".into()));
 }

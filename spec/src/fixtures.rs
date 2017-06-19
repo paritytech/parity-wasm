@@ -20,13 +20,15 @@ run_test!("block-end-label-mismatch.fail", wasm_block_end_label_mismatch_fail, f
 run_test!("block-end-label-superfluous.fail", wasm_block_end_label_superfluous_fail, fail);
 run_test!("block", wasm_block);
 run_test!("br_if", wasm_br_if);
-// TODO: run_test!("br_table", wasm_br_table);
+run_test!("br_table", wasm_br_table);
 run_test!("br", wasm_br);
 run_test!("break-drop", wasm_break_drop);
-// TODO: run_test!("call_indirect", wasm_call_indirect);
-// TODO: run_test!("call", wasm_call);
+run_test!("call_indirect", wasm_call_indirect);
+run_test!("call", wasm_call);
 run_test!("comments", wasm_comments);
-// TODO: run_test!("conversions", wasm_conversions);
+// TODO: commented out until sNaN issue is resolved:
+// https://github.com/NikVolf/parity-wasm/blob/b5aaf103cf28f1e36df832f4883f55043e67894b/src/interpreter/value.rs#L510
+// run_test!("conversions", wasm_conversions);
 // TODO: run_test!("custom_section", wasm_custom_section);
 run_test!("endianness", wasm_endianness);
 run_test!("f32_exports", wasm_exports);

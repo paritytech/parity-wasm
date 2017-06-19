@@ -38,6 +38,10 @@ impl<T> StackWithLimit<T> where T: Clone {
 		self.limit
 	}
 
+	pub fn values(&self) -> &VecDeque<T> {
+		&self.values
+	}
+
 	pub fn top(&self) -> Result<&T, Error> {
 		self.values
 			.back()
@@ -64,6 +68,19 @@ impl<T> StackWithLimit<T> where T: Clone {
 		}
 
 		self.values.push_back(value);
+		Ok(())
+	}
+
+	pub fn push_penultimate(&mut self, value: T) -> Result<(), Error> {
+		if self.values.is_empty() {
+			return Err(Error::Stack("trying to insert penultimate element into empty stack".into()));
+		}
+		self.push(value)?;
+
+		let last_index = self.values.len() - 1;
+		let penultimate_index = last_index - 1;
+		self.values.swap(last_index, penultimate_index);
+
 		Ok(())
 	}
 

@@ -17,7 +17,7 @@ pub use self::module::Module;
 pub use self::section::{
     Section, FunctionSection, CodeSection, MemorySection, DataSection,
     ImportSection, ExportSection, GlobalSection, TypeSection, ElementSection,
-    TableSection,
+    TableSection, CustomSection,
 };
 pub use self::import_entry::{ImportEntry, ResizableLimits, MemoryType, TableType, GlobalType, External};
 pub use self::export_entry::{ExportEntry, Internal};

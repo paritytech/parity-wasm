@@ -274,7 +274,9 @@ macro_rules! impl_try_truncate_into {
 					return Err(Error::Value("invalid float value for this operation".into()));
 				}
 
-				if self < $into::MIN as $from || self > $into::MAX as $from {
+				// range check
+				let result = self as $into;
+				if result as $from != self.trunc() {
 					return Err(Error::Value("invalid float value for this operation".into()));
 				}
 

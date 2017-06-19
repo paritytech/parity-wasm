@@ -108,14 +108,6 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.export_entry(name, externals, required_type)
 	}
 
-	fn function_type<'a>(&self, function_index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<FunctionType, Error> {
-		self.instance.function_type(function_index, externals)
-	}
-
-	fn function_type_by_index<'a>(&self, type_index: u32) -> Result<FunctionType, Error> {
-		self.instance.function_type_by_index(type_index)
-	}
-
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
 		self.instance.table(index)
 	}
@@ -128,6 +120,14 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.global(index, variable_type)
 	}
 
+	fn function_type<'a>(&self, function_index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<FunctionType, Error> {
+		self.instance.function_type(function_index, externals)
+	}
+
+	fn function_type_by_index<'a>(&self, type_index: u32) -> Result<FunctionType, Error> {
+		self.instance.function_type_by_index(type_index)
+	}
+
 	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
 		self.instance.function_reference(index, externals)
 	}
@@ -136,21 +136,11 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.function_reference_indirect(table_idx, type_idx, func_idx, externals)
 	}
 
-	fn function_body<'a>(&'a self, internal_index: u32, function_type: Option<&FunctionType>) -> Result<Option<InternalFunction<'a>>, Error> {
+	fn function_body<'a>(&'a self, _internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error> {
 		Ok(None)
-		//self.instance.function_body(internal_index, function_type)
 	}
 
-	/*fn call_function(&self, outer: CallerContext, index: ItemIndex, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
-		self.instance.call_function(outer, index, function_type)
-	}
-
-	fn call_function_indirect(&self, outer: CallerContext, table_index: ItemIndex, type_index: u32, func_index: u32) -> Result<Option<RuntimeValue>, Error> {
-		self.instance.call_function_indirect(outer, table_index, type_index, func_index)
-	}*/
-
-	fn call_internal_function(&self, outer: CallerContext, index: u32, _function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
-		// TODO: check function type
+	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
 		// to make interpreter independent of *SCRIPTEN runtime, just make abort/assert = interpreter Error
 		match index {
 			INDEX_FUNC_ABORT => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32))

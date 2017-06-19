@@ -100,7 +100,7 @@ impl Interpreter {
 		loop {
 			let mut function_context = function_stack.pop_back().expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
 			let function_ref = function_context.function.clone();
-			let function_body = function_ref.module.function_body(function_ref.internal_index, None)?;
+			let function_body = function_ref.module.function_body(function_ref.internal_index)?;
 
 			let function_return = match function_body {
 				Some(function_body) => {
@@ -120,7 +120,7 @@ impl Interpreter {
 					}
 
 					let nested_context = CallerContext::nested(&mut function_context);
-					RunResult::Return(function_ref.module.call_internal_function(nested_context, function_ref.internal_index, None)?)
+					RunResult::Return(function_ref.module.call_internal_function(nested_context, function_ref.internal_index)?)
 				},
 			};
 

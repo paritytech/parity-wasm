@@ -85,12 +85,24 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		self.env.export_entry(name, externals, required_type)
 	}
 
+	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
+		self.env.table(index)
+	}
+
+	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
+		self.env.memory(index)
+	}
+
+	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
+		self.env.global(index, variable_type)
+	}
+
 	fn function_type<'b>(&self, function_index: ItemIndex, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<FunctionType, Error> {
 		let index = match function_index {
 			ItemIndex::IndexSpace(index) | ItemIndex::Internal(index) => index,
 			ItemIndex::External(_) => unreachable!("trying to call function, exported by native env module"),
 		};
-println!("=== env_native.function_type({})", index);
+
 		if index < NATIVE_INDEX_FUNC_MIN {
 			return self.env.function_type(function_index, externals);
 		}
@@ -105,18 +117,6 @@ println!("=== env_native.function_type({})", index);
 		self.function_type(ItemIndex::Internal(type_index), None)
 	}
 
-	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
-		self.env.table(index)
-	}
-
-	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
-		self.env.memory(index)
-	}
-
-	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
-		self.env.global(index, variable_type)
-	}
-
 	fn function_reference<'b>(&self, index: ItemIndex, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<InternalFunctionReference<'b>, Error> {
 		self.env.function_reference(index, externals)
 	}
@@ -125,17 +125,15 @@ println!("=== env_native.function_type({})", index);
 		self.env.function_reference_indirect(table_idx, type_idx, func_idx, externals)
 	}
 
-	fn function_body<'b>(&'b self, internal_index: u32, function_type: Option<&FunctionType>) -> Result<Option<InternalFunction<'b>>, Error> {
+	fn function_body<'b>(&'b self, _internal_index: u32) -> Result<Option<InternalFunction<'b>>, Error> {
 		Ok(None)
-		//self.env.function_body(internal_index, function_type)
 	}
 
-	fn call_internal_function(&self, outer: CallerContext, index: u32, function_type: Option<&FunctionType>) -> Result<Option<RuntimeValue>, Error> {
+	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
 		if index < NATIVE_INDEX_FUNC_MIN {
-			return self.env.call_internal_function(outer, index, function_type);
+			return self.env.call_internal_function(outer, index);
 		}
-println!("=== env_native.args({:?})", outer.value_stack);
-		// TODO: check type
+
 		self.functions
 			.get((index - NATIVE_INDEX_FUNC_MIN) as usize)
 			.ok_or(Error::Native(format!("trying to call native function with index {}", index)))

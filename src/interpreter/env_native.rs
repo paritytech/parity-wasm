@@ -13,9 +13,6 @@ use interpreter::variable::{VariableInstance, VariableType};
 /// Min index of native function.
 pub const NATIVE_INDEX_FUNC_MIN: u32 = 10001;
 
-/// User function closure type.
-// pub type UserFunctionClosure<'a> = &'a mut FnMut(context: CallerContext) -> Result<Option<RuntimeValue>, Error>;
-
 /// User functions executor.
 pub trait UserFunctionExecutor {
 	/// Execute function with given name.

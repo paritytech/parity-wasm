@@ -142,7 +142,7 @@ impl Interpreter {
 	}
 
 	fn do_run_function<'a>(function_context: &mut FunctionContext<'a>, function_body: &[Opcode]) -> Result<RunResult<'a>, Error> {
-		// TODO: slow!!! remove this after 'plaining' function instructions
+		// TODO: remove this after 'plaining' function instructions
 		let mut body_stack = VecDeque::with_capacity(function_context.frame_stack().values().len());
 		body_stack.push_back(function_body);
 		for frame in function_context.frame_stack().values().iter().skip(1) {
@@ -152,10 +152,8 @@ impl Interpreter {
 		}
 
 		loop {
-			//let block_frame = function_context.frame_stack_mut().pop().expect("TODO");
-			//let block_body = body_stack.back().expect("TODO");
 			let block_result = Interpreter::run_block_instructions(function_context, body_stack.back().expect("TODO"))?;
-println!("=== block_result = {:?}", block_result);
+
 			match block_result {
 				InstructionOutcome::RunInstruction | InstructionOutcome::RunNextInstruction => unreachable!("managed by run_block_instructions"),
 				InstructionOutcome::Branch(mut index) => {
@@ -219,7 +217,6 @@ println!("=== block_result = {:?}", block_result);
 	}
 
 	fn run_instruction<'a, 'b>(context: &'b mut FunctionContext<'a>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
-		println!("=== RUNNING {:?}", opcode);
 		match opcode {
 			&Opcode::Unreachable => Interpreter::run_unreachable(context),
 			&Opcode::Nop => Interpreter::run_nop(context),
@@ -1028,8 +1025,7 @@ impl<'a> FunctionContext<'a> {
 		let function_type = function.module.function_type(ItemIndex::Internal(function.internal_index), Some(self.externals))?;
 		let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
 		let function_locals = prepare_function_args(&function_type, &mut self.value_stack)?;
-println!("=== nested_call.function_type: {:?}", function_type);
-println!("=== nested_call.function_locals: {:?}", function_locals);
+
 		Ok(FunctionContext {
 			is_initialized: false,
 			function: function,
@@ -1158,25 +1154,3 @@ pub fn prepare_function_args(function_type: &FunctionType, caller_stack: &mut St
 	args.reverse();
 	Ok(args)
 }
-
-/*fn prepare_function_locals(function_type: &FunctionType, function_body: &FuncBody, value_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<VariableInstance>, Error> {
-	// locals = function arguments + defined locals
-	function_type.params().iter().rev()
-		.map(|param_type| {
-			let param_value = outer.value_stack.pop()?;
-			let actual_type = param_value.variable_type();
-			let expected_type = (*param_type).into();
-			if actual_type != Some(expected_type) {
-				return Err(Error::Function(format!("invalid parameter type {:?} when expected {:?}", actual_type, expected_type)));
-			}
-
-			VariableInstance::new(true, expected_type, param_value)
-		})
-		.collect::<Vec<_>>().into_iter().rev()
-		.chain(function_body.locals()
-			.iter()
-			.flat_map(|l| repeat(l.value_type().into()).take(l.count() as usize))
-			.map(|vt| VariableInstance::new(true, vt, RuntimeValue::default(vt))))
-		.collect::<Result<Vec<_>, _>>()
-}
-*/

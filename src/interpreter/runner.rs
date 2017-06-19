@@ -79,16 +79,24 @@ pub struct BlockFrame {
 	signature: BlockType,
 }
 
+/// Type of block frame.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BlockFrameType {
+	/// Usual block frame.
 	Block,
+	/// Loop frame (branching to the beginning of block).
 	Loop,
+	/// True-subblock of if expression.
 	IfTrue,
+	/// False-subblock of if expression.
 	IfElse,
 }
 
+/// Function run result.
 enum RunResult<'a> {
+	/// Function has returned (optional) value.
 	Return(Option<RuntimeValue>),
+	/// Function is calling other function.
 	NestedCall(FunctionContext<'a>),
 }
 

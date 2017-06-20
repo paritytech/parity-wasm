@@ -283,8 +283,8 @@ pub fn spec(name: &str) {
 }
 
 // Convert json string to correct rust UTF8 string.
-// The reason is that, for example, rust character "\u{FEEF}" (3-byte UTF8 BOM) is represented as "\u00ef\u00bb\u00bf" in json.
-// It is incorrect. Correct "\uFEFF" => we need to do a double utf8 parse here.
+// The reason is that, for example, rust character "\u{FEEF}" (3-byte UTF8 BOM) is represented as "\u00ef\u00bb\u00bf" in spec json.
+// It is incorrect. Correct BOM representation in json is "\uFEFF" => we need to do a double utf8-parse here.
 // This conversion is incorrect in general case (casting char to u8)!!!
 fn jstring_to_rstring(jstring: &str) -> String {
     let jstring_chars: Vec<u8> = jstring.chars().map(|c| c as u8).collect();

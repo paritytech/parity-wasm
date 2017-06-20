@@ -101,7 +101,7 @@ run_test!("loop", wasm_loop);
 run_test!("memory_redundancy", wasm_memory_redundancy);
 run_test!("memory_trap", wasm_memory_trap);
 run_test!("memory", wasm_memory);
-// TODO: fix comparison??? run_test!("names", wasm_names);
+run_test!("names", wasm_names);
 run_test!("nop", wasm_nop);
 run_test!("of_string-overflow-hex-u32.fail", wasm_of_string_overflow_hex_u32_fail, fail);
 run_test!("of_string-overflow-hex-u64.fail", wasm_of_string_overflow_hex_u64_fail, fail);

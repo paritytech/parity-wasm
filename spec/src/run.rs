@@ -97,12 +97,13 @@ fn run_action(program: &ProgramInstance, action: &test::Action)
             let module = module.clone().unwrap_or("wasm_test".into());
             let module = module.trim_left_matches('$');
             let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
-            module.execute_export(field, runtime_values(args).into())
+            module.execute_export(&jstring_to_rstring(field), runtime_values(args).into())
         },
         test::Action::Get { ref module, ref field, .. } => {
             let module = module.clone().unwrap_or("wasm_test".into());
             let module = module.trim_left_matches('$');
             let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
+            let field = jstring_to_rstring(&field);
 
             module.export_entry(field.as_ref(), &ExportEntryType::Any)
                 .and_then(|i| match i {
@@ -279,4 +280,14 @@ pub fn spec(name: &str) {
             },
         }
     }
+}
+
+// Convert json string to correct rust UTF8 string.
+// The reason is that, for example, rust character "\u{FEEF}" (3-byte UTF8 BOM) is represented as "\u00ef\u00bb\u00bf" in spec json.
+// It is incorrect. Correct BOM representation in json is "\uFEFF" => we need to do a double utf8-parse here.
+// This conversion is incorrect in general case (casting char to u8)!!!
+fn jstring_to_rstring(jstring: &str) -> String {
+    let jstring_chars: Vec<u8> = jstring.chars().map(|c| c as u8).collect();
+    let rstring = String::from_utf8(jstring_chars).unwrap();
+    rstring
 }

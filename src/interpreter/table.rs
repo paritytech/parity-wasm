@@ -17,9 +17,10 @@ pub struct TableInstance {
 
 impl TableInstance {
 	/// New instance of the table
-	pub fn new(variable_type: VariableType, table_type: &TableType) -> Result<Arc<Self>, Error> {
+	pub fn new(table_type: &TableType) -> Result<Arc<Self>, Error> {
 		check_limits(table_type.limits())?;
 
+		let variable_type = table_type.elem_type().into();
 		Ok(Arc::new(TableInstance {
 			variable_type: variable_type,
 			buffer: RwLock::new(

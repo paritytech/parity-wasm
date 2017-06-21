@@ -8,7 +8,7 @@ use interpreter::Error;
 use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams};
+use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType};
 use interpreter::program::ProgramInstance;
 use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::RuntimeValue;
@@ -142,38 +142,38 @@ const SIGNATURES: &'static [UserFunction] = &[
 	},
 ];
 
-#[test]
-fn single_program_different_modules() {
-	// user function executor
-	struct FunctionExecutor {
-		pub memory: Arc<MemoryInstance>,
-		pub values: Vec<i32>,
-	}
+// user function executor
+struct FunctionExecutor {
+	pub memory: Arc<MemoryInstance>,
+	pub values: Vec<i32>,
+}
 
-	impl UserFunctionExecutor for FunctionExecutor {
-		fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
-			match name {
-				"add" => {
-					let memory_value = self.memory.get(0, 1).unwrap()[0];
-					let fn_argument = context.value_stack.pop_as::<u32>().unwrap() as u8;
-					let sum = memory_value + fn_argument;
-					self.memory.set(0, &vec![sum]).unwrap();
-					self.values.push(sum as i32);
-					Ok(Some(RuntimeValue::I32(sum as i32)))
-				},
-				"sub" => {
-					let memory_value = self.memory.get(0, 1).unwrap()[0];
-					let fn_argument = context.value_stack.pop_as::<u32>().unwrap() as u8;
-					let diff = memory_value - fn_argument;
-					self.memory.set(0, &vec![diff]).unwrap();
-					self.values.push(diff as i32);
-					Ok(Some(RuntimeValue::I32(diff as i32)))
-				},
-				_ => Err(Error::Trap("not implemented".into())),
-			}
+impl UserFunctionExecutor for FunctionExecutor {
+	fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+		match name {
+			"add" => {
+				let memory_value = self.memory.get(0, 1).unwrap()[0];
+				let fn_argument = context.value_stack.pop_as::<u32>().unwrap() as u8;
+				let sum = memory_value + fn_argument;
+				self.memory.set(0, &vec![sum]).unwrap();
+				self.values.push(sum as i32);
+				Ok(Some(RuntimeValue::I32(sum as i32)))
+			},
+			"sub" => {
+				let memory_value = self.memory.get(0, 1).unwrap()[0];
+				let fn_argument = context.value_stack.pop_as::<u32>().unwrap() as u8;
+				let diff = memory_value - fn_argument;
+				self.memory.set(0, &vec![diff]).unwrap();
+				self.values.push(diff as i32);
+				Ok(Some(RuntimeValue::I32(diff as i32)))
+			},
+			_ => Err(Error::Trap("not implemented".into())),
 		}
 	}
+}
 
+#[test]
+fn single_program_different_modules() {
 	// create new program
 	let program = ProgramInstance::new().unwrap();
 	// => env module is created
@@ -227,6 +227,24 @@ fn single_program_different_modules() {
 
 	assert_eq!(executor.memory.get(0, 1).unwrap()[0], 42);
 	assert_eq!(executor.values, vec![7, 57, 42]);
+}
+
+#[test]
+fn env_native_export_entry_type_check() {
+	let program = ProgramInstance::new().unwrap();
+	let mut function_executor = FunctionExecutor {
+		memory: program.module("env").unwrap().memory(ItemIndex::Internal(0)).unwrap(),
+		values: Vec::new(),
+	};
+	let native_env_instance = Arc::new(env_native_module(program.module("env").unwrap(), UserFunctions {
+		executor: &mut function_executor,
+		functions: ::std::borrow::Cow::from(SIGNATURES),
+	}).unwrap());
+
+	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionType::new(vec![ValueType::I32], Some(ValueType::I32)))).is_ok());
+	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionType::new(vec![], Some(ValueType::I32)))).is_err());
+	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionType::new(vec![ValueType::I32], None))).is_err());
+	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionType::new(vec![ValueType::I32], Some(ValueType::I64)))).is_err());
 }
 
 #[test]

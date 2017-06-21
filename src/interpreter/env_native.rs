@@ -124,8 +124,14 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 
 	fn export_entry<'b>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
 		if let Some(index) = self.by_name.get(name) {
-			// TODO: check type
-			return Ok(Internal::Function(NATIVE_INDEX_FUNC_MIN + *index));
+			let composite_index = NATIVE_INDEX_FUNC_MIN + *index;
+			match required_type {
+				&ExportEntryType::Function(ref required_type)
+					if required_type == &self.function_type(ItemIndex::Internal(composite_index))
+						.expect("by_name contains index; function_type succeeds for all functions from by_name; qed")
+					=> return Ok(Internal::Function(composite_index)),
+				_ => (),
+			}
 		}
 
 		self.env.export_entry(name, required_type)

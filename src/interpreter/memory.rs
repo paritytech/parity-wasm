@@ -39,21 +39,23 @@ impl MemoryInstance {
 	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error> {
 		check_limits(memory_type.limits())?;
 
-		if let Some(maximum_pages) = memory_type.limits().maximum() {
-			if maximum_pages > LINEAR_MEMORY_MAX_PAGES {
-				return Err(Error::Memory(format!("memory size must be at most 65536 pages")));
-			}
-		}
+		let maximum_size = match memory_type.limits().maximum() {
+			Some(maximum_pages) if maximum_pages > LINEAR_MEMORY_MAX_PAGES =>
+				return Err(Error::Memory(format!("maximum memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES))),
+			Some(maximum_pages) => maximum_pages.saturating_mul(LINEAR_MEMORY_PAGE_SIZE),
+			None => u32::MAX,
+		};
+		let initial_size = calculate_memory_size(0, memory_type.limits().initial(), maximum_size)
+			.ok_or(Error::Memory(format!("initial memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES)))?;
 
 		let memory = MemoryInstance {
-			buffer: RwLock::new(Vec::new()), // TODO: with_capacity
-			maximum_size: memory_type.limits().maximum()
-				.map(|s| s.saturating_mul(LINEAR_MEMORY_PAGE_SIZE))
-				.unwrap_or(u32::MAX),
+			buffer: RwLock::new(Vec::with_capacity(initial_size as usize)),
+			maximum_size: maximum_size,
 		};
 		if memory.grow(memory_type.limits().initial())? == u32::MAX {
-			return Err(Error::Memory(format!("error initializing {}-pages linear memory region", memory_type.limits().initial())));
+			return Err(Error::Memory(format!("error initializing {}-bytes linear memory region", initial_size)));
 		}
+
 		Ok(Arc::new(memory))
 	}
 
@@ -85,11 +87,10 @@ impl MemoryInstance {
 	pub fn grow(&self, pages: u32) -> Result<u32, Error> {
 		let mut buffer = self.buffer.write();
 		let old_size = buffer.len() as u32;
-		match pages.checked_mul(LINEAR_MEMORY_PAGE_SIZE).and_then(|bytes| old_size.checked_add(bytes)) {
+		match calculate_memory_size(old_size, pages, self.maximum_size) {
 			None => Ok(u32::MAX),
-			Some(new_size) if new_size > self.maximum_size => Ok(u32::MAX),
 			Some(new_size) => {
-				buffer.extend(vec![0; (new_size - old_size) as usize]);
+				buffer.resize(new_size as usize, 0);
 				Ok(old_size / LINEAR_MEMORY_PAGE_SIZE)
 			},
 		}
@@ -136,4 +137,15 @@ impl MemoryInstance {
 		for val in &mut buffer[range] { *val = 0 }
 		Ok(())
 	}
+}
+
+fn calculate_memory_size(old_size: u32, additional_pages: u32, maximum_size: u32) -> Option<u32> {
+	additional_pages
+		.checked_mul(LINEAR_MEMORY_PAGE_SIZE)
+		.and_then(|size| size.checked_add(old_size))
+		.and_then(|size| if size > maximum_size {
+			None
+		} else {
+			Some(size)
+		})
 }

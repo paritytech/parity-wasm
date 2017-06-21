@@ -159,7 +159,7 @@ impl Interpreter {
 			body_stack.push_back(instruction_body);
 		}
 
-		let non_empty_stack_reason: &'static str = "body_stack contains entry for every frame_stack; frame_stack is not empty; qed";
+		let non_empty_stack_reason = "body_stack contains entry for every frame_stack; frame_stack is not empty; qed";
 		loop {
 			let block_result = Interpreter::run_block_instructions(function_context, body_stack.back().expect(non_empty_stack_reason))?;
 

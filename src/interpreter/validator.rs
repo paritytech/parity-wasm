@@ -735,18 +735,26 @@ impl<'a> FunctionValidationContext<'a> {
 		}
 	}
 
-	pub fn require_table(&self, idx: u32, _variable_type: VariableType) -> Result<(), Error> {
+	pub fn require_table(&self, idx: u32, variable_type: VariableType) -> Result<(), Error> {
 		match self.imports.parse_table_index(ItemIndex::IndexSpace(idx)) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_table_index is intended to resolve this"),
 			ItemIndex::Internal(internal_idx) => self.module
 				.table_section().ok_or(Error::Validation(format!("Trying to access internal table {} in module without table section", internal_idx)))
 				.and_then(|s| s.entries().get(internal_idx as usize).ok_or(Error::Validation(format!("Trying to access internal table {} in module with {} tables", internal_idx, s.entries().len()))))
-				.and_then(|_| Ok(())), // TODO: check variable type
+				.and_then(|t| if variable_type == t.elem_type().into() {
+					Ok(())
+				} else {
+					Err(Error::Validation(format!("Internal table {} has element type {:?} while {:?} expected", internal_idx, t.elem_type(), variable_type)))
+				}),
 			ItemIndex::External(external_idx) => self.module
 				.import_section().ok_or(Error::Validation(format!("Trying to access external table {} in module without import section", external_idx)))
 				.and_then(|s| s.entries().get(external_idx as usize).ok_or(Error::Validation(format!("Trying to access external table with index {} in module with {}-entries import section", external_idx, s.entries().len()))))
 				.and_then(|e| match e.external() {
-					&External::Table(_) => Ok(()), // TODO: check variable type
+					&External::Table(ref t) => if variable_type == t.elem_type().into() {
+						Ok(())
+					} else {
+						Err(Error::Validation(format!("External table {} has element type {:?} while {:?} expected", external_idx, t.elem_type(), variable_type)))
+					},
 					_ => Err(Error::Validation(format!("Import entry {} expected to import table", external_idx)))
 				}),
 		}

@@ -167,31 +167,31 @@ impl ModuleInstance {
 		// instantiate linear memory regions, if any
 		let memory = match module.memory_section() {
 			Some(memory_section) => memory_section.entries()
-										.iter()
-										.map(MemoryInstance::new)
-										.collect::<Result<Vec<_>, _>>()?,
+				.iter()
+				.map(MemoryInstance::new)
+				.collect::<Result<Vec<_>, _>>()?,
 			None => Vec::new(),
 		};
 
 		// instantiate tables, if any
 		let tables = match module.table_section() {
 			Some(table_section) => table_section.entries()
-										.iter()
-										.map(|tt| TableInstance::new(VariableType::AnyFunc, tt)) // TODO: actual table type
-										.collect::<Result<Vec<_>, _>>()?,
+				.iter()
+				.map(|tt| TableInstance::new(tt))
+				.collect::<Result<Vec<_>, _>>()?,
 			None => Vec::new(),
 		};
 
 		// instantiate globals, if any
 		let globals = match module.global_section() {
 			Some(global_section) => global_section.entries()
-										.iter()
-										.map(|g| {
-											get_initializer(g.init_expr(), &module, &imports, g.global_type().content_type().into())
-												.map_err(|e| Error::Initialization(e.into()))
-												.and_then(|v| VariableInstance::new_global(g.global_type(), v).map(Arc::new))
-										})
-										.collect::<Result<Vec<_>, _>>()?,
+				.iter()
+				.map(|g| {
+					get_initializer(g.init_expr(), &module, &imports, g.global_type().content_type().into())
+						.map_err(|e| Error::Initialization(e.into()))
+						.and_then(|v| VariableInstance::new_global(g.global_type(), v).map(Arc::new))
+				})
+				.collect::<Result<Vec<_>, _>>()?,
 			None => Vec::new(),
 		};
 

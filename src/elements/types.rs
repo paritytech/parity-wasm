@@ -200,3 +200,35 @@ impl Serialize for FunctionType {
         Ok(())
     }
 }
+
+/// Table element type.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum TableElementType {
+    /// A reference to a function with any signature.
+    AnyFunc,
+}
+
+impl Deserialize for TableElementType {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let val = VarInt7::deserialize(reader)?;
+
+        match val.into() {
+            -0x10 => Ok(TableElementType::AnyFunc),
+            _ => Err(Error::UnknownTableElementType(val.into())),
+        }
+    }    
+}
+
+impl Serialize for TableElementType {
+    type Error = Error;
+    
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        let val: VarInt7 = match self {
+            TableElementType::AnyFunc => 0x70,
+        }.into();
+        val.serialize(writer)?;
+        Ok(())
+    }
+}

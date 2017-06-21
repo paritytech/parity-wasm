@@ -1,7 +1,7 @@
 use std::io;
 use super::{
     Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint32, VarUint1, 
-    ValueType
+    ValueType, TableElementType
 };
 
 /// Global definition struct
@@ -53,7 +53,7 @@ impl Serialize for GlobalType {
 /// Table entry
 #[derive(Debug)]
 pub struct TableType {
-    elem_type: i8,
+    elem_type: TableElementType,
     limits: ResizableLimits,
 }
 
@@ -61,22 +61,26 @@ impl TableType {
     /// New table definition
     pub fn new(min: u32, max: Option<u32>) -> Self {
         TableType {
-            elem_type: 0,
+            elem_type: TableElementType::AnyFunc,
             limits: ResizableLimits::new(min, max),
         }
     }
+
     /// Table memory specification
     pub fn limits(&self) -> &ResizableLimits { &self.limits }
+
+    /// Table element type
+    pub fn elem_type(&self) -> TableElementType { self.elem_type }
 }
 
 impl Deserialize for TableType {
     type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-        let elem_type = VarInt7::deserialize(reader)?;
+        let elem_type = TableElementType::deserialize(reader)?;
         let limits = ResizableLimits::deserialize(reader)?;
         Ok(TableType {
-            elem_type: elem_type.into(),
+            elem_type: elem_type,
             limits: limits,
         })
     }    
@@ -86,7 +90,7 @@ impl Serialize for TableType {
     type Error = Error;
 
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-        VarInt7::from(self.elem_type).serialize(writer)?;
+        self.elem_type.serialize(writer)?;
         self.limits.serialize(writer)
     }
 }

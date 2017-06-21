@@ -26,7 +26,7 @@ pub use self::primitives::{
     VarUint32, VarUint7, VarUint1, VarInt7, Uint32, VarInt32, VarInt64,
     Uint64, VarUint64, CountedList, CountedWriter, CountedListWriter,
 };
-pub use self::types::{Type, ValueType, BlockType, FunctionType};
+pub use self::types::{Type, ValueType, BlockType, FunctionType, TableElementType};
 pub use self::ops::{Opcode, Opcodes, InitExpr};
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
@@ -69,6 +69,8 @@ pub enum Error {
     HeapOther(String),
     /// Invalid/unknown value type declaration
     UnknownValueType(i8),
+    /// Invalid/unknown table element type declaration
+    UnknownTableElementType(i8),
     /// Non-utf8 string
     NonUtf8String,
     /// Unknown external kind code

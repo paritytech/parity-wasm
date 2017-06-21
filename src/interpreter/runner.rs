@@ -159,8 +159,9 @@ impl Interpreter {
 			body_stack.push_back(instruction_body);
 		}
 
+		let non_empty_stack_reason: &'static str = "body_stack contains entry for every frame_stack; frame_stack is not empty; qed";
 		loop {
-			let block_result = Interpreter::run_block_instructions(function_context, body_stack.back().expect("TODO"))?;
+			let block_result = Interpreter::run_block_instructions(function_context, body_stack.back().expect(non_empty_stack_reason))?;
 
 			match block_result {
 				InstructionOutcome::RunInstruction | InstructionOutcome::RunNextInstruction => unreachable!("managed by run_block_instructions"),
@@ -183,8 +184,9 @@ impl Interpreter {
 				},
 				InstructionOutcome::ExecuteBlock => {
 					function_context.position = 0;
-					let top_frame = function_context.frame_stack().top().expect("TODO");
-					let instruction = &body_stack.back().expect("TODO")[top_frame.begin_position];
+
+					let top_frame = function_context.frame_stack().top().expect(non_empty_stack_reason);
+					let instruction = &body_stack.back().expect(non_empty_stack_reason)[top_frame.begin_position];
 					let block_body = Interpreter::into_block(instruction, top_frame.frame_type)?;
 					body_stack.push_back(block_body);
 				},

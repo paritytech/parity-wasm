@@ -90,7 +90,7 @@ impl MemoryInstance {
 		match calculate_memory_size(old_size, pages, self.maximum_size) {
 			None => Ok(u32::MAX),
 			Some(new_size) => {
-				buffer.extend(vec![0; (new_size - old_size) as usize]);
+				buffer.resize(new_size as usize, 0);
 				Ok(old_size / LINEAR_MEMORY_PAGE_SIZE)
 			},
 		}

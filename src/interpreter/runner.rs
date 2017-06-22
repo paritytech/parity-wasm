@@ -1,6 +1,6 @@
 use std::mem;
 use std::ops;
-use std::u32;
+use std::{u32, usize};
 use std::sync::Arc;
 use std::fmt::{self, Display};
 use std::iter::repeat;
@@ -31,6 +31,8 @@ pub struct FunctionContext<'a> {
 	pub function: InternalFunctionReference<'a>,
 	/// Execution-local external modules.
 	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
+	/// Function labels.
+	pub function_labels: HashMap<usize, usize>,
 	/// Function return type.
 	pub return_type: BlockType,
 	/// Local variables.
@@ -52,8 +54,10 @@ pub enum InstructionOutcome<'a> {
 	RunNextInstruction,
 	/// Branch to given frame.
 	Branch(usize),
-	/// Execute block.
-	ExecuteBlock,
+	/// Skip if-false (aka else) branch.
+	SkipIfFalse,
+	/// Run if-false (aka else) branch (if any).
+	RunIfFalse,
 	/// Execute function call.
 	ExecuteCall(InternalFunctionReference<'a>),
 	/// End current frame.
@@ -82,6 +86,8 @@ pub struct BlockFrame {
 /// Type of block frame.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BlockFrameType {
+	/// Function frame.
+	Function,
 	/// Usual block frame.
 	Block,
 	/// Loop frame (branching to the beginning of block).
@@ -89,7 +95,7 @@ pub enum BlockFrameType {
 	/// True-subblock of if expression.
 	IfTrue,
 	/// False-subblock of if expression.
-	IfElse,
+	IfFalse,
 }
 
 /// Function run result.
@@ -112,10 +118,12 @@ impl Interpreter {
 
 			let function_return = match function_body {
 				Some(function_body) => {
+println!("=== body: {:?}", function_body.body);
+println!("=== labels: {:?}", function_context.function_labels);
 					if !function_context.is_initialized() {
 						let return_type = function_context.return_type;
-						function_context.initialize(function_body.locals)?;
-						function_context.push_frame(BlockFrameType::Block, 0, function_body.body.len() - 1, function_body.body.len() - 1, return_type)?;
+						function_context.initialize(function_body.locals, function_body.labels.clone())?;
+						function_context.push_frame(BlockFrameType::Function, return_type)?;
 					}
 
 					Interpreter::do_run_function(&mut function_context, function_body.body)?
@@ -150,88 +158,90 @@ impl Interpreter {
 	}
 
 	fn do_run_function<'a>(function_context: &mut FunctionContext<'a>, function_body: &[Opcode]) -> Result<RunResult<'a>, Error> {
-		// TODO: remove this after 'plaining' function instructions
-		let mut body_stack = VecDeque::with_capacity(function_context.frame_stack().values().len());
-		body_stack.push_back(function_body);
-		for frame in function_context.frame_stack().values().iter().skip(1) {
-			let instruction = &body_stack.back().unwrap()[frame.begin_position];
-			let instruction_body = Interpreter::into_block(instruction, frame.frame_type)?;
-			body_stack.push_back(instruction_body);
-		}
-
-		let non_empty_stack_reason = "body_stack contains entry for every frame_stack; frame_stack is not empty; qed";
 		loop {
-			let block_result = Interpreter::run_block_instructions(function_context, body_stack.back().expect(non_empty_stack_reason))?;
+			let instruction = &function_body[function_context.position];
 
-			match block_result {
-				InstructionOutcome::RunInstruction | InstructionOutcome::RunNextInstruction => unreachable!("managed by run_block_instructions"),
+			debug!(target: "interpreter", "running {:?}", instruction);
+println!("running {:?} at {}", instruction, function_context.position);
+			match Interpreter::run_instruction(function_context, instruction)? {
+				InstructionOutcome::RunInstruction => (),
+				InstructionOutcome::RunNextInstruction => function_context.position += 1,
 				InstructionOutcome::Branch(mut index) => {
 					// discard index - 1 blocks
 					while index >= 1 {
 						function_context.discard_frame()?;
-						assert!(body_stack.pop_back().is_some());
 						index -= 1;
 					}
 
 					function_context.pop_frame(true)?;
-					assert!(body_stack.pop_back().is_some());
 					if function_context.frame_stack().is_empty() {
-						return Ok(RunResult::Return(match function_context.return_type {
-							BlockType::Value(_) => Some(function_context.value_stack_mut().pop()?),
-							BlockType::NoResult => None,
-						}));
+						break;
 					}
 				},
-				InstructionOutcome::ExecuteBlock => {
-					function_context.position = 0;
+				InstructionOutcome::SkipIfFalse => {
+					// skip until else/end is found
+					let mut block_count = 1;
+					loop {
+						function_context.position += 1;
+						debug_assert!(function_context.position < function_body.len());
 
-					let top_frame = function_context.frame_stack().top().expect(non_empty_stack_reason);
-					let instruction = &body_stack.back().expect(non_empty_stack_reason)[top_frame.begin_position];
-					let block_body = Interpreter::into_block(instruction, top_frame.frame_type)?;
-					body_stack.push_back(block_body);
+						let instruction = &function_body[function_context.position];
+						match instruction {
+							&Opcode::End if block_count == 1 => break,
+							&Opcode::Block(_) | &Opcode::Loop(_) | &Opcode::If(_) => block_count += 1,
+							&Opcode::End => block_count -= 1,
+							_ => (),
+						}
+					}
+					function_context.position += 1;
 				},
-				InstructionOutcome::ExecuteCall(func_ref) => return Ok(RunResult::NestedCall(function_context.nested(func_ref)?)),
-				InstructionOutcome::End if !function_context.frame_stack().is_empty() => {
-					assert!(body_stack.pop_back().is_some());
+				InstructionOutcome::RunIfFalse => {
+					// skip until else/end is found
+					let mut block_count = 1;
+					loop {
+						function_context.position += 1;
+						debug_assert!(function_context.position < function_body.len());
+
+						let instruction = &function_body[function_context.position];
+						match instruction {
+							&Opcode::End | &Opcode::Else if block_count == 1 => break,
+							&Opcode::Block(_) | &Opcode::Loop(_) | &Opcode::If(_) => block_count += 1,
+							&Opcode::End => block_count -= 1,
+							_ => (),
+						}
+					}
+					function_context.position += 1;
 				},
-				InstructionOutcome::End | InstructionOutcome::Return => return Ok(RunResult::Return(match function_context.return_type {
-					BlockType::Value(_) => Some(function_context.value_stack_mut().pop()?),
-					BlockType::NoResult => None,
-				})),
-			}
-		}
-	}
-
-	fn run_block_instructions<'a, 'b>(context: &'b mut FunctionContext<'a>, body: &[Opcode]) -> Result<InstructionOutcome<'a>, Error> {
-		loop {
-			let instruction = &body[context.position];
-
-			debug!(target: "interpreter", "running {:?}", instruction);
-			match Interpreter::run_instruction(context, instruction)? {
-				InstructionOutcome::RunInstruction => (),
-				InstructionOutcome::RunNextInstruction => context.position += 1,
-				InstructionOutcome::Branch(index) => return Ok(InstructionOutcome::Branch(index)),
-				InstructionOutcome::ExecuteBlock => return Ok(InstructionOutcome::ExecuteBlock),
 				InstructionOutcome::ExecuteCall(func_ref) => {
-					context.position += 1;
-					return Ok(InstructionOutcome::ExecuteCall(func_ref));
+					function_context.position += 1;
+					return Ok(RunResult::NestedCall(function_context.nested(func_ref)?));
 				},
 				InstructionOutcome::End => {
-					context.pop_frame(false)?;
-					return Ok(InstructionOutcome::End);
+					if function_context.frame_stack().is_empty() {
+						break;
+					}
+
+					//function_context.position += 1;
 				},
-				InstructionOutcome::Return => return Ok(InstructionOutcome::Return),
+				InstructionOutcome::Return => break,
 			}
+//println!("=== {:?}", function_context.frame_stack().len());
 		}
+
+		Ok(RunResult::Return(match function_context.return_type {
+			BlockType::Value(_) => Some(function_context.value_stack_mut().pop()?),
+			BlockType::NoResult => None,
+		}))
 	}
 
 	fn run_instruction<'a, 'b>(context: &'b mut FunctionContext<'a>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
+//println!("running {:?}", opcode);
 		match opcode {
 			&Opcode::Unreachable => Interpreter::run_unreachable(context),
 			&Opcode::Nop => Interpreter::run_nop(context),
-			&Opcode::Block(block_type, _) => Interpreter::run_block(context, block_type),
-			&Opcode::Loop(block_type, _) => Interpreter::run_loop(context, block_type),
-			&Opcode::If(block_type, ref ops) => Interpreter::run_if(context, block_type, ops.elements()),
+			&Opcode::Block(block_type) => Interpreter::run_block(context, block_type),
+			&Opcode::Loop(block_type) => Interpreter::run_loop(context, block_type),
+			&Opcode::If(block_type) => Interpreter::run_if(context, block_type),
 			&Opcode::Else => Interpreter::run_else(context),
 			&Opcode::End => Interpreter::run_end(context),
 			&Opcode::Br(idx) => Interpreter::run_br(context, idx),
@@ -419,26 +429,6 @@ impl Interpreter {
 		}
 	}
 
-	fn into_block(opcode: &Opcode, frame_type: BlockFrameType) -> Result<&[Opcode], Error> {
-		match opcode {
-			&Opcode::Block(_, ref ops) if frame_type != BlockFrameType::IfElse => Ok(ops.elements()),
-			&Opcode::Loop(_, ref ops) if frame_type != BlockFrameType::IfElse => Ok(ops.elements()),
-			&Opcode::If(_, ref ops) => Ok(Interpreter::separate_if(ops.elements(), frame_type)),
-			_ => Err(Error::Interpreter("trying to read block from non-bock instruction".into()))
-		}
-	}
-
-	fn separate_if(body: &[Opcode], frame_type: BlockFrameType) -> &[Opcode] {
-		let body_len = body.len();
-		let else_index = body.iter().position(|op| *op == Opcode::Else).unwrap_or(body_len - 1);
-		let (begin_index, end_index) = if frame_type == BlockFrameType::IfTrue {
-			(0, else_index + 1)
-		} else {
-			(else_index + 1, body_len)
-		};
-		&body[begin_index..end_index]
-	}
-
 	fn run_unreachable<'a>(_context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		Err(Error::Trap("programmatic".into()))
 	}
@@ -448,36 +438,46 @@ impl Interpreter {
 	}
 
 	fn run_block<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
-		let frame_position = context.position;
-		context.push_frame(BlockFrameType::Block, frame_position, frame_position + 1, frame_position + 1, block_type)?;
-		Ok(InstructionOutcome::ExecuteBlock)
+		context.push_frame(BlockFrameType::Block, block_type)?;
+		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_loop<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
-		let frame_position = context.position;
-		context.push_frame(BlockFrameType::Loop, frame_position, frame_position, frame_position + 1, block_type)?;
-		Ok(InstructionOutcome::ExecuteBlock)
+		context.push_frame(BlockFrameType::Loop, block_type)?;
+		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_if<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType, body: &[Opcode]) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_if<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		let branch = context.value_stack_mut().pop_as()?;
-		let block_frame_type = if branch { BlockFrameType::IfTrue } else { BlockFrameType::IfElse };
-		let branch_body = Interpreter::separate_if(body, block_frame_type);
+		let block_frame_type = if branch { BlockFrameType::IfTrue } else {
+//println!("=== position = {}", context.position);
+			let else_pos = context.function_labels[&context.position];
+//println!("=== else_pos = {}", else_pos);
+//println!("=== labels[else_pos] = {:?}", context.function_labels.get(&else_pos));
+			if !context.function_labels.contains_key(&else_pos) {
+				context.position = else_pos;
+				return Ok(InstructionOutcome::RunNextInstruction);
+			}
 
-		if branch_body.len() != 0 {
-			let frame_position = context.position;
-			context.push_frame(block_frame_type, frame_position, frame_position + 1, frame_position + 1, block_type)?;
-			Ok(InstructionOutcome::ExecuteBlock)
-		} else {
+			context.position = else_pos;
+			BlockFrameType::IfFalse
+		};
+		context.push_frame(block_frame_type, block_type)?;
+
+		//if branch {
 			Ok(InstructionOutcome::RunNextInstruction)
-		}
+		/*} else {
+			Ok(InstructionOutcome::RunIfFalse)
+		}*/
 	}
 
-	fn run_else<'a>(_context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
-		Ok(InstructionOutcome::End)
+	fn run_else<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+		context.pop_frame(false)?;
+		Ok(InstructionOutcome::SkipIfFalse)
 	}
 
-	fn run_end<'a>(_context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_end<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+		context.pop_frame(false)?;
 		Ok(InstructionOutcome::End)
 	}
 
@@ -1017,11 +1017,12 @@ impl Interpreter {
 }
 
 impl<'a> FunctionContext<'a> {
-	pub fn new(function: InternalFunctionReference<'a>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<VariableInstance>) -> Self {
+	pub fn new(function: InternalFunctionReference<'a>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, function_labels: HashMap<usize, usize>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<VariableInstance>) -> Self {
 		FunctionContext {
 			is_initialized: false,
 			function: function,
 			externals: externals,
+			function_labels: function_labels,
 			return_type: function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult),
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
 			frame_stack: StackWithLimit::with_limit(frame_stack_limit),
@@ -1039,6 +1040,7 @@ impl<'a> FunctionContext<'a> {
 			is_initialized: false,
 			function: function,
 			externals: self.externals,
+			function_labels: HashMap::new(),
 			return_type: function_return_type,
 			value_stack: StackWithLimit::with_limit(self.value_stack.limit() - self.value_stack.len()),
 			frame_stack: StackWithLimit::with_limit(self.frame_stack.limit() - self.frame_stack.len()),
@@ -1051,7 +1053,7 @@ impl<'a> FunctionContext<'a> {
 		self.is_initialized
 	}
 
-	pub fn initialize(&mut self, locals: &[Local]) -> Result<(), Error> {
+	pub fn initialize(&mut self, locals: &[Local], labels: HashMap<usize, usize>) -> Result<(), Error> {
 		debug_assert!(!self.is_initialized);
 		self.is_initialized = true;
 
@@ -1060,6 +1062,7 @@ impl<'a> FunctionContext<'a> {
 			.map(|vt| VariableInstance::new(true, vt, RuntimeValue::default(vt)))
 			.collect::<Result<Vec<_>, _>>()?;
 		self.locals.extend(locals);
+		self.function_labels = labels;
 		Ok(())
 	}
 
@@ -1100,7 +1103,24 @@ impl<'a> FunctionContext<'a> {
 		&mut self.frame_stack
 	}
 
-	pub fn push_frame(&mut self, frame_type: BlockFrameType, begin_position: usize, branch_position: usize, end_position: usize, signature: BlockType) -> Result<(), Error> {
+	pub fn push_frame(&mut self, frame_type: BlockFrameType, signature: BlockType) -> Result<(), Error> {
+		let begin_position = self.position;
+		let branch_position = match frame_type {
+			BlockFrameType::Function => usize::MAX,
+			BlockFrameType::Loop => begin_position,
+			BlockFrameType::IfTrue => {
+				let else_pos = self.function_labels[&begin_position];
+				1usize + match self.function_labels.get(&else_pos) {
+					Some(end_pos) => *end_pos,
+					None => else_pos,
+				}
+			},
+			_ => self.function_labels[&begin_position] + 1,
+		};
+		let end_position = match frame_type {
+			BlockFrameType::Function => usize::MAX,
+			_ => self.function_labels[&begin_position] + 1,
+		};
 		self.frame_stack.push(BlockFrame {
 			frame_type: frame_type,
 			begin_position: begin_position,
@@ -1128,6 +1148,7 @@ impl<'a> FunctionContext<'a> {
 		};
 		self.value_stack.resize(frame.value_limit, RuntimeValue::I32(0));
 		self.position = if is_branch { frame.branch_position } else { frame.end_position };
+//println!("=== pop_frame: position = {}", self.position);
 		if let Some(frame_value) = frame_value {
 			self.value_stack.push(frame_value)?;
 		}

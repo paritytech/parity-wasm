@@ -1,5 +1,5 @@
 use std::u32;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use elements::{Module, Opcode, BlockType, FunctionType, ValueType, External, Type};
 use interpreter::Error;
 use interpreter::runner::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
@@ -7,6 +7,8 @@ use interpreter::imports::ModuleImports;
 use interpreter::module::ItemIndex;
 use interpreter::stack::StackWithLimit;
 use interpreter::variable::VariableType;
+
+use interpreter::runner::BlockFrameType;
 
 /// Constant from wabt' validator.cc to skip alignment validation (not a part of spec).
 const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
@@ -17,6 +19,8 @@ pub struct FunctionValidationContext<'a> {
 	module: &'a Module,
 	/// Module imports.
 	imports: &'a ModuleImports,
+	/// Position.
+	position: usize,
 	/// Local variables.
 	locals: &'a [ValueType],
 	/// Value stack.
@@ -25,6 +29,8 @@ pub struct FunctionValidationContext<'a> {
 	frame_stack: StackWithLimit<ValidationFrame>,
 	/// Function return type. None if validating expression.
 	return_type: Option<BlockType>,
+	/// Labels positions.
+	labels: HashMap<usize, usize>,
 }
 
 /// Value type on the stack.
@@ -41,12 +47,14 @@ pub enum StackValueType {
 /// Function validation frame.
 #[derive(Debug, Clone)]
 pub struct ValidationFrame {
-	/// Is loop frame?
-	pub is_loop: bool,
+	/// Frame type
+	pub frame_type: BlockFrameType,
 	/// Return type.
 	pub block_type: BlockType,
 	/// Value stack len.
 	pub value_stack_len: usize,
+	/// Frame instruction position.
+	pub position: usize,
 }
 
 /// Function validator.
@@ -54,65 +62,48 @@ pub struct Validator;
 
 /// Instruction outcome.
 #[derive(Debug, Clone)]
-pub enum InstructionOutcome<'a> {
+pub enum InstructionOutcome {
 	/// Continue with next instruction.
 	ValidateNextInstruction,
 	/// Unreachable instruction reached.
 	Unreachable,
 	/// Validate block.
-	ValidateBlock(bool, BlockType, &'a [Opcode]),
-	/// Validate 2 blocks.
-	ValidateBlock2(bool, BlockType, &'a [Opcode], &'a [Opcode]),
+	ValidateBlock(BlockFrameType, BlockType),
 }
 
 impl Validator {
 	pub fn validate_function(context: &mut FunctionValidationContext, block_type: BlockType, body: &[Opcode]) -> Result<(), Error> {
-		context.push_label(false, block_type)?;
-		Validator::validate_block(context, body)?;
+		context.push_label(BlockFrameType::Function, block_type)?;
+		Validator::validate_function_block(context, body)?;
 		while !context.frame_stack.is_empty() {
-			context.pop_label()?;
+			context.pop_label(false)?;
 		}
 
 		Ok(())
 	}
 
-	fn validate_block<'a>(context: &mut FunctionValidationContext, mut body: &[Opcode]) -> Result<InstructionOutcome<'a>, Error> {
-		let mut block_stack = VecDeque::new();
-		let mut position = 0;
+	fn validate_function_block<'a>(context: &mut FunctionValidationContext, mut body: &[Opcode]) -> Result<InstructionOutcome, Error> {
 		loop {
-			let opcode = if position < body.len() {
-				&body[position]
-			} else {
-				let body_and_position = match block_stack.pop_back() {
-					Some((new_body, new_position, need_pop_value)) => (new_body, new_position, need_pop_value),
-					None => return Ok(InstructionOutcome::ValidateNextInstruction),
-				};
-				context.pop_label()?;
+			if context.position >= body.len() {
+				return Ok(InstructionOutcome::ValidateNextInstruction);
+			}
 
-				if body_and_position.2 {
-					context.pop_any_value()?;
-				}
-
-				body = body_and_position.0;
-				position = body_and_position.1;
-
-				continue;
-			};
-
+			let opcode = &body[context.position];
 			match Validator::validate_instruction(context, opcode)? {
-				InstructionOutcome::ValidateNextInstruction => position += 1,
+				InstructionOutcome::ValidateNextInstruction => context.position += 1,
 				InstructionOutcome::Unreachable => {
 					context.unreachable()?;
-					position += 1;
+					context.position += 1;
 				},
-				InstructionOutcome::ValidateBlock(is_loop, block_type, new_body) => {
-					context.push_label(is_loop, block_type)?;
-					block_stack.push_back((body, position + 1, false));
+				InstructionOutcome::ValidateBlock(frame_type, block_type) => {
+					context.push_label(frame_type, block_type)?;
+					context.position += 1;
+					//block_stack.push_back((body, position + 1, false));
 
-					body = new_body;
-					position = 0;
+					//body = new_body;
+					//position = 0;
 				},
-				InstructionOutcome::ValidateBlock2(is_loop, block_type, new_body, new_body2) => {
+				/*InstructionOutcome::ValidateBlock2(is_loop, block_type, new_body, new_body2) => {
 					let need_pop_value = match block_type {
 						BlockType::NoResult => false,
 						BlockType::Value(_) => true,
@@ -124,21 +115,22 @@ impl Validator {
 
 					body = new_body;
 					position = 0;
-				},
+				},*/
 			}
 		}
 	}
 
-	pub fn validate_instruction<'a>(context: &mut FunctionValidationContext, opcode: &'a Opcode) -> Result<InstructionOutcome<'a>, Error> {
+	pub fn validate_instruction<'a>(context: &mut FunctionValidationContext, opcode: &'a Opcode) -> Result<InstructionOutcome, Error> {
 		debug!(target: "validator", "validating {:?}", opcode);
+println!("validating {:?} at {}, len: {}", opcode, context.position, context.value_stack.len());
 		match opcode {
 			&Opcode::Unreachable => Ok(InstructionOutcome::Unreachable),
 			&Opcode::Nop => Ok(InstructionOutcome::ValidateNextInstruction),
-			&Opcode::Block(block_type, ref ops) => Validator::schedule_validate_block(false, block_type, ops.elements(), Opcode::End),
-			&Opcode::Loop(block_type, ref ops) => Validator::validate_loop(context, block_type, ops.elements()),
-			&Opcode::If(block_type, ref ops) => Validator::validate_if(context, block_type, ops.elements()),
-			&Opcode::Else => Ok(InstructionOutcome::ValidateNextInstruction),
-			&Opcode::End => Ok(InstructionOutcome::ValidateNextInstruction),
+			&Opcode::Block(block_type) => Validator::validate_block(context, block_type),
+			&Opcode::Loop(block_type) => Validator::validate_loop(context, block_type),
+			&Opcode::If(block_type) => Validator::validate_if(context, block_type),
+			&Opcode::Else => Validator::validate_else(context),
+			&Opcode::End => Validator::validate_end(context),
 			&Opcode::Br(idx) => Validator::validate_br(context, idx),
 			&Opcode::BrIf(idx) => Validator::validate_br_if(context, idx),
 			&Opcode::BrTable(ref table, default) => Validator::validate_br_table(context, table, default),
@@ -324,49 +316,49 @@ impl Validator {
 		}
 	}
 
-	fn validate_const<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_const<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		context.push_value(value_type)?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_unop<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_unop<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		context.pop_value(value_type)?;
 		context.push_value(value_type)?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_binop<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_binop<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		context.pop_value(value_type)?;
 		context.pop_value(value_type)?;
 		context.push_value(value_type)?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_testop<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_testop<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		context.pop_value(value_type)?;
 		context.push_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_relop<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_relop<'a>(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		context.pop_value(value_type)?;
 		context.pop_value(value_type)?;
 		context.push_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_cvtop<'a>(context: &mut FunctionValidationContext, value_type1: StackValueType, value_type2: StackValueType) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_cvtop<'a>(context: &mut FunctionValidationContext, value_type1: StackValueType, value_type2: StackValueType) -> Result<InstructionOutcome, Error> {
 		context.pop_value(value_type1)?;
 		context.push_value(value_type2)?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_drop<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_drop<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
 		context.pop_any_value().map(|_| ())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_select<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_select<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
 		context.pop_value(ValueType::I32.into())?;
 		let select_type = context.pop_any_value()?;
 		context.pop_value(select_type)?;
@@ -374,13 +366,13 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_get_local<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_get_local<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome, Error> {
 		let local_type = context.require_local(index)?;
 		context.push_value(local_type)?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_set_local<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_set_local<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome, Error> {
 		let local_type = context.require_local(index)?;
 		let value_type = context.pop_any_value()?;
 		if local_type != value_type {
@@ -389,7 +381,7 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_tee_local<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_tee_local<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome, Error> {
 		let local_type = context.require_local(index)?;
 		let value_type = context.tee_any_value()?;
 		if local_type != value_type {
@@ -398,13 +390,13 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_get_global<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_get_global<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome, Error> {
 		let global_type = context.require_global(index, None)?;
 		context.push_value(global_type)?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_set_global<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_set_global<'a>(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome, Error> {
 		let global_type = context.require_global(index, Some(true))?;
 		let value_type = context.pop_any_value()?;
 		if global_type != value_type {
@@ -413,7 +405,7 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_load<'a>(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_load<'a>(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		if align != NATURAL_ALIGNMENT {
 			if 1u32.checked_shl(align).unwrap_or(u32::MAX) > max_align {
 				return Err(Error::Validation(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
@@ -426,7 +418,7 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_store<'a>(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_store<'a>(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		if align != NATURAL_ALIGNMENT {
 			if 1u32.checked_shl(align).unwrap_or(u32::MAX) > max_align {
 				return Err(Error::Validation(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
@@ -439,13 +431,18 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_loop<'a>(_context: &mut FunctionValidationContext, block_type: BlockType, body: &'a [Opcode]) -> Result<InstructionOutcome<'a>, Error> {
-		Validator::schedule_validate_block(true, block_type, body, Opcode::End)
+	fn validate_block<'a>(_context: &mut FunctionValidationContext, block_type: BlockType) -> Result<InstructionOutcome, Error> {
+		Validator::schedule_validate_block(BlockFrameType::Block, block_type, Opcode::End)
 	}
 
-	fn validate_if<'a>(context: &mut FunctionValidationContext, block_type: BlockType, body: &'a [Opcode]) -> Result<InstructionOutcome<'a>, Error> {
-		context.pop_value(ValueType::I32.into())?;
+	fn validate_loop<'a>(_context: &mut FunctionValidationContext, block_type: BlockType) -> Result<InstructionOutcome, Error> {
+		Validator::schedule_validate_block(BlockFrameType::Loop, block_type, Opcode::End)
+	}
 
+	fn validate_if<'a>(context: &mut FunctionValidationContext, block_type: BlockType) -> Result<InstructionOutcome, Error> {
+		context.pop_value(ValueType::I32.into())?;
+		Validator::schedule_validate_block(BlockFrameType::IfTrue, block_type, Opcode::End) // TODO: else???
+/*
 		let body_len = body.len();
 		let separator_index = body.iter()
 			.position(|op| *op == Opcode::Else)
@@ -458,16 +455,26 @@ impl Validator {
 			}
 
 			Validator::schedule_validate_block(false, block_type, body, Opcode::End)
-		}
+		}*/
 	}
 
-	fn validate_br<'a>(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome<'a>, Error> {
-		let (frame_is_loop, frame_block_type) = {
+	fn validate_else(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
+		context.pop_label(true)?;
+		Ok(InstructionOutcome::ValidateNextInstruction)
+	}
+
+	fn validate_end(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
+		context.pop_label(false)?;
+		Ok(InstructionOutcome::ValidateNextInstruction)
+	}
+
+	fn validate_br<'a>(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
+		let (frame_type, frame_block_type) = {
 			let frame = context.require_label(idx)?;
-			(frame.is_loop, frame.block_type)
+			(frame.frame_type, frame.block_type)
 		};
 
-		if !frame_is_loop {
+		if frame_type != BlockFrameType::Loop {
 			if let BlockType::Value(value_type) = frame_block_type {
 				context.tee_value(value_type.into())?;
 			}
@@ -475,7 +482,7 @@ impl Validator {
 		Ok(InstructionOutcome::Unreachable)
 	}
 
-	fn validate_br_if<'a>(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_br_if<'a>(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
 		context.pop_value(ValueType::I32.into())?;
 		if let BlockType::Value(value_type) = context.require_label(idx)?.block_type {
 			context.tee_value(value_type.into())?;
@@ -483,18 +490,18 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_br_table<'a>(context: &mut FunctionValidationContext, table: &Vec<u32>, default: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_br_table<'a>(context: &mut FunctionValidationContext, table: &Vec<u32>, default: u32) -> Result<InstructionOutcome, Error> {
 		let mut required_block_type = None;
 		
 		{
 			let default_block = context.require_label(default)?;
-			if !default_block.is_loop {
+			if default_block.frame_type != BlockFrameType::Loop {
 				required_block_type = Some(default_block.block_type);
 			}
 
 			for label in table {
 				let label_block = context.require_label(*label)?;
-				if !label_block.is_loop {
+				if label_block.frame_type != BlockFrameType::Loop {
 					if let Some(required_block_type) = required_block_type {
 						if required_block_type != label_block.block_type {
 							return Err(Error::Validation(format!("Labels in br_table points to block of different types: {:?} and {:?}", required_block_type, label_block.block_type)));
@@ -515,14 +522,14 @@ impl Validator {
 		Ok(InstructionOutcome::Unreachable)
 	}
 
-	fn validate_return<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_return<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
 		if let BlockType::Value(value_type) = context.return_type()? {
 			context.tee_value(value_type.into())?;
 		}
 		Ok(InstructionOutcome::Unreachable)
 	}
 
-	fn validate_call<'a>(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_call<'a>(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
 		let (argument_types, return_type) = context.require_function(idx)?;
 		for argument_type in argument_types.iter().rev() {
 			context.pop_value((*argument_type).into())?;
@@ -533,7 +540,7 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_call_indirect<'a>(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_call_indirect<'a>(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
 		context.require_table(DEFAULT_TABLE_INDEX, VariableType::AnyFunc)?;
 
 		context.pop_value(ValueType::I32.into())?;
@@ -547,36 +554,24 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_current_memory<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_current_memory<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
 		context.require_memory(DEFAULT_MEMORY_INDEX)?;
 		context.push_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_grow_memory<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn validate_grow_memory<'a>(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
 		context.require_memory(DEFAULT_MEMORY_INDEX)?;
 		context.pop_value(ValueType::I32.into())?;
 		context.push_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn schedule_validate_block<'a>(is_loop: bool, block_type: BlockType, body: &'a [Opcode], end_instr: Opcode) -> Result<InstructionOutcome<'a>, Error> {
-		if body.is_empty() || body[body.len() - 1] != end_instr {
+	fn schedule_validate_block<'a>(frame_type: BlockFrameType, block_type: BlockType, end_instr: Opcode) -> Result<InstructionOutcome, Error> {
+		/*if body.is_empty() || body[body.len() - 1] != end_instr {
 			return Err(Error::Validation("Every block must end with end/else instruction".into()));
-		}
-
-		Ok(InstructionOutcome::ValidateBlock(is_loop, block_type, body))
-	}
-
-	fn schedule_validate_block2<'a>(is_loop: bool, block_type: BlockType, body: &'a [Opcode], end_instr: Opcode, body2: &'a [Opcode], end_instr2: Opcode) -> Result<InstructionOutcome<'a>, Error> {
-		if body.is_empty() || body[body.len() - 1] != end_instr {
-			return Err(Error::Validation("Every block must end with end/else instruction".into()));
-		}
-		if body2.is_empty() || body2[body2.len() - 1] != end_instr2 {
-			return Err(Error::Validation("Every block must end with end/else instruction".into()));
-		}
-
-		Ok(InstructionOutcome::ValidateBlock2(is_loop, block_type, body, body2))
+		}*/
+		Ok(InstructionOutcome::ValidateBlock(frame_type, block_type))
 	}
 }
 
@@ -592,10 +587,12 @@ impl<'a> FunctionValidationContext<'a> {
 		FunctionValidationContext {
 			module: module,
 			imports: imports,
+			position: 0,
 			locals: locals,
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
 			frame_stack: StackWithLimit::with_limit(frame_stack_limit),
 			return_type: Some(function.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult)),
+			labels: HashMap::new(),
 		}
 	}
 
@@ -646,15 +643,17 @@ impl<'a> FunctionValidationContext<'a> {
 		self.value_stack.push(StackValueType::AnyUnlimited)
 	}
 
-	pub fn push_label(&mut self, is_loop: bool, block_type: BlockType) -> Result<(), Error> {
+	pub fn push_label(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
+//println!("=== validating.push_label({})", self.position);
 		self.frame_stack.push(ValidationFrame {
-			is_loop: is_loop,
+			frame_type: frame_type,
 			block_type: block_type,
-			value_stack_len: self.value_stack.len()
+			value_stack_len: self.value_stack.len(),
+			position: self.position,
 		})
 	}
 
-	pub fn pop_label(&mut self) -> Result<InstructionOutcome, Error> {
+	pub fn pop_label(&mut self, is_else: bool) -> Result<InstructionOutcome, Error> {
 		let frame = self.frame_stack.pop()?;
 		let actual_value_type = if self.value_stack.len() > frame.value_stack_len {
 			Some(self.value_stack.pop()?)
@@ -663,12 +662,24 @@ impl<'a> FunctionValidationContext<'a> {
 		};
 		self.value_stack.resize(frame.value_stack_len, StackValueType::Any);
 
+		if !is_else && frame.frame_type == BlockFrameType::IfTrue {
+			if frame.block_type != BlockType::NoResult {
+				return Err(Error::Validation(format!("If block without else required to have NoResult block type. But it have {:?} type", frame.block_type)));
+			}
+		}
+
+//println!("=== validating.pop_label({}) -> {}. block_type = {:?}. value = {:?}. len: {}", frame.position, self.position, frame.block_type, actual_value_type, self.value_stack.len());
 		match frame.block_type {
 			BlockType::NoResult if actual_value_type.map(|vt| vt.is_any_unlimited()).unwrap_or(true) => (),
 			BlockType::Value(required_value_type) if actual_value_type.map(|vt| vt == required_value_type).unwrap_or(false) => (),
 			_ => return Err(Error::Validation(format!("Expected block to return {:?} while it has returned {:?}", frame.block_type, actual_value_type))),
 		}
-		if let BlockType::Value(value_type) = frame.block_type {
+		if !self.frame_stack.is_empty() {
+			self.labels.insert(frame.position, self.position);
+		}
+		if is_else {
+			self.push_label(BlockFrameType::IfFalse, frame.block_type)?;
+		} else if let BlockType::Value(value_type) = frame.block_type {
 			self.push_value(value_type.into())?;
 		}
 
@@ -785,6 +796,10 @@ impl<'a> FunctionValidationContext<'a> {
 				Some(&Type::Function(ref function_type)) => Ok((function_type.params().to_vec(), function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult))),
 				_ => Err(Error::Validation(format!("Trying to access internal function {} with wrong type", idx))),
 			})
+	}
+
+	pub fn function_labels(self) -> HashMap<usize, usize> {
+		self.labels
 	}
 
 	fn check_stack_access(&self) -> Result<(), Error> {

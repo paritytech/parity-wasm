@@ -39,10 +39,14 @@ pub enum ExportEntryType {
 	Global(VariableType),
 }
 
+pub struct InstantiationParams {
+	
+}
+
 /// Module instance API.
 pub trait ModuleInstanceInterface {
 	/// Run instantiation-time procedures (validation and start function [if any] call). Module is not completely validated until this call.
-	fn instantiate<'a>(&self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error>;
+	//fn instantiate<'a>(&self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error>;
 	/// Execute function with the given index.
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
 	/// Execute function with the given export name.
@@ -86,6 +90,8 @@ pub struct ModuleInstance {
 	name: String,
 	/// Module.
 	module: Module,
+	/// Function labels.
+	functions_labels: HashMap<u32, HashMap<usize, usize>>,
 	/// Module imports.
 	imports: ModuleImports,
 	/// Tables.
@@ -129,6 +135,8 @@ pub struct InternalFunction<'a> {
 	pub locals: &'a [Local],
 	/// Function body.
 	pub body: &'a [Opcode],
+	/// Function labels.
+	pub labels: &'a HashMap<usize, usize>,
 }
 
 impl<'a> ExecutionParams<'a> {
@@ -199,38 +207,14 @@ impl ModuleInstance {
 			name: name,
 			module: module,
 			imports: imports,
+			functions_labels: HashMap::new(),
 			memory: memory,
 			tables: tables,
 			globals: globals,
 		})
 	}
 
-	fn self_ref<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
-		self.imports.module(externals, &self.name)
-	}
-
-	fn require_function(&self, index: ItemIndex) -> Result<u32, Error> {
-		match self.imports.parse_function_index(index) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
-			ItemIndex::Internal(index) => self.module.function_section()
-				.ok_or(Error::Function(format!("missing internal function {}", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Function(format!("missing internal function {}", index))))
-				.map(|f| f.type_ref()),
-			ItemIndex::External(index) => self.module.import_section()
-				.ok_or(Error::Function(format!("missing external function {}", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Function(format!("missing external function {}", index))))
-				.and_then(|import| match import.external() {
-					&External::Function(type_idx) => Ok(type_idx),
-					_ => Err(Error::Function(format!("external function {} is pointing to non-function import", index))),
-				}),
-		}
-	}
-}
-
-impl ModuleInstanceInterface for ModuleInstance {
-	fn instantiate<'a>(&self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
+	pub fn instantiate<'a>(&mut self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
 		// validate start section
 		if let Some(start_function) = self.module.start_section() {
 			let func_type_index = self.require_function(ItemIndex::IndexSpace(start_function))?;
@@ -352,6 +336,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 							e
 						}
 					})?;
+				self.functions_labels.insert(index as u32, context.function_labels());
 			}
 		}
 
@@ -381,14 +366,42 @@ impl ModuleInstanceInterface for ModuleInstance {
 			}
 		}
 
+		Ok(())
+	}
+
+	pub fn run_start_function(&self) -> Result<(), Error> {
 		// execute start function (if any)
 		if let Some(start_function) = self.module.start_section() {
 			self.execute_index(start_function, ExecutionParams::default())?;
 		}
-
 		Ok(())
 	}
 
+	fn self_ref<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
+		self.imports.module(externals, &self.name).map_err(|_| panic!("xxx"))
+	}
+
+	fn require_function(&self, index: ItemIndex) -> Result<u32, Error> {
+		match self.imports.parse_function_index(index) {
+			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
+			ItemIndex::Internal(index) => self.module.function_section()
+				.ok_or(Error::Function(format!("missing internal function {}", index)))
+				.and_then(|s| s.entries().get(index as usize)
+					.ok_or(Error::Function(format!("missing internal function {}", index))))
+				.map(|f| f.type_ref()),
+			ItemIndex::External(index) => self.module.import_section()
+				.ok_or(Error::Function(format!("missing external function {}", index)))
+				.and_then(|s| s.entries().get(index as usize)
+					.ok_or(Error::Function(format!("missing external function {}", index))))
+				.and_then(|import| match import.external() {
+					&External::Function(type_idx) => Ok(type_idx),
+					_ => Err(Error::Function(format!("external function {} is pointing to non-function import", index))),
+				}),
+		}
+	}
+}
+
+impl ModuleInstanceInterface for ModuleInstance {
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		let ExecutionParams { args, externals } = params;
 		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
@@ -549,18 +562,22 @@ impl ModuleInstanceInterface for ModuleInstance {
 			.and_then(|s| s.bodies()
 				.get(internal_index as usize)
 				.ok_or(Error::Function(format!("trying to call function with index {} in module with {} functions codes", internal_index, s.bodies().len()))))?;
+		let function_labels = self.functions_labels.get(&internal_index)
+			.ok_or(Error::Function(format!("trying to call non-validated internal function {}", internal_index)))?;
 
 		Ok(Some(InternalFunction {
 			locals: function_body.locals(),
 			body: function_body.code().elements(),
+			labels: function_labels,
 		}))
 	}
 
 	fn call_internal_function(&self, mut outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
+		let function_labels = self.functions_labels.get(&index).ok_or(Error::Function(format!("trying to call non-validated internal function {}", index)))?;
 		let function_type = self.function_type(ItemIndex::Internal(index))?;
 		let args = prepare_function_args(&function_type, outer.value_stack)?;
 		let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };
-		let inner = FunctionContext::new(function_ref, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
+		let inner = FunctionContext::new(function_ref, outer.externals, function_labels.clone(), outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
 		Interpreter::run_function(inner)
 	}
 }

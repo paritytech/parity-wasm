@@ -33,7 +33,14 @@ impl ProgramInstance {
 
 	/// Instantiate module with validation.
 	pub fn add_module<'a>(&self, name: &str, module: Module, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstance>, Error> {
-		let module_instance = Arc::new(ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?);
+		let mut module_instance = ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?;
+		module_instance.instantiate(true, externals)?;
+
+		let module_instance = Arc::new(module_instance);
+		self.essence.modules.write().insert(name.into(), module_instance.clone());
+		module_instance.run_start_function()?;
+		Ok(module_instance)
+		/*let module_instance = Arc::new(ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?);
 		self.essence.modules.write().insert(name.into(), module_instance.clone());
 		// replace existing module with the same name with new one
 		match module_instance.instantiate(true, externals) {
@@ -42,21 +49,7 @@ impl ProgramInstance {
 				self.essence.modules.write().remove(name.into());
 				Err(err)
 			}
-		}
-	}
-
-	/// Instantiate module without validation.
-	pub fn add_module_without_validation<'a>(&self, name: &str, module: Module, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstance>, Error> {
-		let module_instance = Arc::new(ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?);
-		self.essence.modules.write().insert(name.into(), module_instance.clone());
-		// replace existing module with the same name with new one
-		match module_instance.instantiate(false, externals) {
-			Ok(()) => Ok(module_instance),
-			Err(err) => {
-				self.essence.modules.write().remove(name.into());
-				Err(err)
-			}
-		}
+		}*/
 	}
 
 	/// Insert instantiated module.

@@ -110,9 +110,9 @@ impl<'a> NativeModuleInstance<'a> {
 }
 
 impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
-	fn instantiate<'b>(&self, is_user_module: bool, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<(), Error> {
+	/*fn instantiate<'b>(&self, is_user_module: bool, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<(), Error> {
 		self.env.instantiate(is_user_module, externals)
-	}
+	}*/
 
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.env.execute_index(index, params)

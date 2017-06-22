@@ -33,12 +33,18 @@ impl Deserialize for Opcodes {
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         let mut opcodes = Vec::new();
+        let mut block_count = 1usize;
 
         loop {
             let opcode = Opcode::deserialize(reader)?;
-            let is_terminal = opcode.is_terminal();
+            if opcode.is_terminal() {
+                block_count -= 1;
+            } else if opcode.is_block() {
+                block_count = block_count.checked_add(1).ok_or(Error::Other("too many opcodes"))?;
+            }
+
             opcodes.push(opcode);
-            if is_terminal {
+            if block_count == 0 {
                 break;
             }
         }
@@ -100,9 +106,9 @@ impl Deserialize for InitExpr {
 pub enum Opcode {
     Unreachable,
     Nop,
-    Block(BlockType, Opcodes),
-    Loop(BlockType, Opcodes),
-    If(BlockType, Opcodes),
+    Block(BlockType),
+    Loop(BlockType),
+    If(BlockType),
     Else,
     End,
     Br(u32),
@@ -289,6 +295,14 @@ pub enum Opcode {
 }
 
 impl Opcode {
+    /// Is this opcode starts the new block (which should end with terminal opcode).
+    pub fn is_block(&self) -> bool {
+        match self {
+            &Opcode::Block(_) | &Opcode::Loop(_) | &Opcode::If(_) => true,
+            _ => false,
+        }
+    }
+
     /// Is this opcode determines the termination of opcode sequence
     /// `true` for `Opcode::End`
     pub fn is_terminal(&self) -> bool { 
@@ -311,9 +325,9 @@ impl Deserialize for Opcode {
             match val {
                 0x00 => Unreachable,
                 0x01 => Nop,
-                0x02 => Block(BlockType::deserialize(reader)?, Opcodes::deserialize(reader)?),
-                0x03 => Loop(BlockType::deserialize(reader)?, Opcodes::deserialize(reader)?),
-                0x04 => If(BlockType::deserialize(reader)?, Opcodes::deserialize(reader)?),
+                0x02 => Block(BlockType::deserialize(reader)?),
+                0x03 => Loop(BlockType::deserialize(reader)?),
+                0x04 => If(BlockType::deserialize(reader)?),
                 0x05 => Else,
                 0x0b => End,
 
@@ -599,17 +613,14 @@ impl Serialize for Opcode {
         match self {
             Unreachable => op!(writer, 0x00),
             Nop => op!(writer, 0x01),
-            Block(block_type, ops) => op!(writer, 0x02, {
+            Block(block_type) => op!(writer, 0x02, {
                block_type.serialize(writer)?;
-               ops.serialize(writer)?;
             }),
-            Loop(block_type, ops) => op!(writer, 0x03, {
+            Loop(block_type) => op!(writer, 0x03, {
                block_type.serialize(writer)?;
-               ops.serialize(writer)?;
             }),
-            If(block_type, ops) => op!(writer, 0x04, {
+            If(block_type) => op!(writer, 0x04, {
                block_type.serialize(writer)?;
-               ops.serialize(writer)?;
             }),
             Else => op!(writer, 0x05),
             End => op!(writer, 0x0b),
@@ -926,20 +937,19 @@ impl Serialize for InitExpr {
 #[test]
 fn ifelse() {
     // see if-else.wast/if-else.wasm
-    let opcode = super::deserialize_buffer::<Opcode>(vec![0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B])
+    let opcode = super::deserialize_buffer::<Opcodes>(vec![0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B])
         .expect("valid hex of if instruction");
-    match opcode {
-        Opcode::If(_, ops) => {
-            let before_else = ops.elements().iter()
-                .take_while(|op| match **op { Opcode::Else => false, _ => true }).count();
-            let after_else = ops.elements().iter()
-                .skip_while(|op| match **op { Opcode::Else => false, _ => true })
-                .take_while(|op| match **op { Opcode::End => false, _ => true })
-                .count() 
-                - 1; // minus Opcode::Else itself
-
-            assert_eq!(before_else, after_else);
-        },
-        _ => { panic!("Should be deserialized as if opcode"); }
+    let opcodes = opcode.elements();
+    match &opcodes[0] {
+        &Opcode::If(_) => (),
+        _ => panic!("Should be deserialized as if opcode"),
     }
+    let before_else = opcodes.iter().skip(1)
+        .take_while(|op| match **op { Opcode::Else => false, _ => true }).count();
+    let after_else = opcodes.iter().skip(1)
+        .skip_while(|op| match **op { Opcode::Else => false, _ => true })
+        .take_while(|op| match **op { Opcode::End => false, _ => true })
+        .count() 
+        - 1; // minus Opcode::Else itself
+    assert_eq!(before_else, after_else);
 }

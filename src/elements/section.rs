@@ -1016,13 +1016,9 @@ mod tests {
                 FuncBody::new(
                     vec![Local::new(1, ValueType::I32)],
                     Opcodes::new(vec![
-                        Block(
-                            BlockType::Value(ValueType::I32),
-                            Opcodes::new(vec![
-                                GetGlobal(0),
-                                End
-                            ])
-                        ),
+                        Block(BlockType::Value(ValueType::I32)),
+                        GetGlobal(0),
+                        End,
                         End,
                     ])
                 )

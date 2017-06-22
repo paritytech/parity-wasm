@@ -122,7 +122,6 @@ impl Validator {
 
 	pub fn validate_instruction<'a>(context: &mut FunctionValidationContext, opcode: &'a Opcode) -> Result<InstructionOutcome, Error> {
 		debug!(target: "validator", "validating {:?}", opcode);
-println!("validating {:?} at {}, len: {}", opcode, context.position, context.value_stack.len());
 		match opcode {
 			&Opcode::Unreachable => Ok(InstructionOutcome::Unreachable),
 			&Opcode::Nop => Ok(InstructionOutcome::ValidateNextInstruction),
@@ -644,7 +643,6 @@ impl<'a> FunctionValidationContext<'a> {
 	}
 
 	pub fn push_label(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
-//println!("=== validating.push_label({})", self.position);
 		self.frame_stack.push(ValidationFrame {
 			frame_type: frame_type,
 			block_type: block_type,
@@ -668,7 +666,6 @@ impl<'a> FunctionValidationContext<'a> {
 			}
 		}
 
-//println!("=== validating.pop_label({}) -> {}. block_type = {:?}. value = {:?}. len: {}", frame.position, self.position, frame.block_type, actual_value_type, self.value_stack.len());
 		match frame.block_type {
 			BlockType::NoResult if actual_value_type.map(|vt| vt.is_any_unlimited()).unwrap_or(true) => (),
 			BlockType::Value(required_value_type) if actual_value_type.map(|vt| vt == required_value_type).unwrap_or(false) => (),

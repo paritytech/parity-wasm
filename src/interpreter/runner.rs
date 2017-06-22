@@ -118,8 +118,6 @@ impl Interpreter {
 
 			let function_return = match function_body {
 				Some(function_body) => {
-println!("=== body: {:?}", function_body.body);
-println!("=== labels: {:?}", function_context.function_labels);
 					if !function_context.is_initialized() {
 						let return_type = function_context.return_type;
 						function_context.initialize(function_body.locals, function_body.labels.clone())?;
@@ -162,7 +160,6 @@ println!("=== labels: {:?}", function_context.function_labels);
 			let instruction = &function_body[function_context.position];
 
 			debug!(target: "interpreter", "running {:?}", instruction);
-println!("running {:?} at {}", instruction, function_context.position);
 			match Interpreter::run_instruction(function_context, instruction)? {
 				InstructionOutcome::RunInstruction => (),
 				InstructionOutcome::RunNextInstruction => function_context.position += 1,
@@ -225,7 +222,6 @@ println!("running {:?} at {}", instruction, function_context.position);
 				},
 				InstructionOutcome::Return => break,
 			}
-//println!("=== {:?}", function_context.frame_stack().len());
 		}
 
 		Ok(RunResult::Return(match function_context.return_type {
@@ -235,7 +231,6 @@ println!("running {:?} at {}", instruction, function_context.position);
 	}
 
 	fn run_instruction<'a, 'b>(context: &'b mut FunctionContext<'a>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
-//println!("running {:?}", opcode);
 		match opcode {
 			&Opcode::Unreachable => Interpreter::run_unreachable(context),
 			&Opcode::Nop => Interpreter::run_nop(context),
@@ -450,10 +445,7 @@ println!("running {:?} at {}", instruction, function_context.position);
 	fn run_if<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		let branch = context.value_stack_mut().pop_as()?;
 		let block_frame_type = if branch { BlockFrameType::IfTrue } else {
-//println!("=== position = {}", context.position);
 			let else_pos = context.function_labels[&context.position];
-//println!("=== else_pos = {}", else_pos);
-//println!("=== labels[else_pos] = {:?}", context.function_labels.get(&else_pos));
 			if !context.function_labels.contains_key(&else_pos) {
 				context.position = else_pos;
 				return Ok(InstructionOutcome::RunNextInstruction);
@@ -1148,7 +1140,6 @@ impl<'a> FunctionContext<'a> {
 		};
 		self.value_stack.resize(frame.value_limit, RuntimeValue::I32(0));
 		self.position = if is_branch { frame.branch_position } else { frame.end_position };
-//println!("=== pop_frame: position = {}", self.position);
 		if let Some(frame_value) = frame_value {
 			self.value_stack.push(frame_value)?;
 		}

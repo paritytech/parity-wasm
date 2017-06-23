@@ -377,7 +377,7 @@ impl ModuleInstance {
 	}
 
 	fn self_ref<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
-		self.imports.module(externals, &self.name).map_err(|_| panic!("xxx"))
+		self.imports.module(externals, &self.name)
 	}
 
 	fn require_function(&self, index: ItemIndex) -> Result<u32, Error> {

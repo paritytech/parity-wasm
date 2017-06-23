@@ -46,14 +46,12 @@ impl<T> StackWithLimit<T> where T: Clone {
 		self.values
 			.back()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
-.map_err(|_| panic!("1"))
 	}
 
 	pub fn top_mut(&mut self) -> Result<&mut T, Error> {
 		self.values
 			.back_mut()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
-.map_err(|_| panic!("2"))
 	}
 
 	pub fn get(&self, index: usize) -> Result<&T, Error> {
@@ -90,7 +88,6 @@ impl<T> StackWithLimit<T> where T: Clone {
 		self.values
 			.pop_back()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
-.map_err(|_| panic!("3"))
 	}
 
 	pub fn resize(&mut self, new_size: usize, dummy: T) {

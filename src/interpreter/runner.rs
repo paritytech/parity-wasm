@@ -156,7 +156,7 @@ impl Interpreter {
 		}))
 	}
 
-	fn run_instruction<'a, 'b>(context: &'b mut FunctionContext<'a>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_instruction<'a>(context: &mut FunctionContext<'a>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
 		match opcode {
 			&Opcode::Unreachable => Interpreter::run_unreachable(context),
 			&Opcode::Nop => Interpreter::run_nop(context),
@@ -358,17 +358,17 @@ impl Interpreter {
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_block<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_block<'a>(context: &mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		context.push_frame(BlockFrameType::Block, block_type)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_loop<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_loop<'a>(context: &mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		context.push_frame(BlockFrameType::Loop, block_type)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_if<'a, 'b>(context: &'b mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_if<'a>(context: &mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		let branch = context.value_stack_mut().pop_as()?;
 		let block_frame_type = if branch { BlockFrameType::IfTrue } else {
 			let else_pos = context.function_labels[&context.position];
@@ -416,11 +416,11 @@ impl Interpreter {
 		Ok(InstructionOutcome::Return)
 	}
 
-	fn run_call<'a, 'b>(context: &'b mut FunctionContext<'a>, func_idx: u32) -> Result<InstructionOutcome<'a>, Error> where 'a: 'b {
+	fn run_call<'a>(context: &mut FunctionContext<'a>, func_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
 		Ok(InstructionOutcome::ExecuteCall(context.module().function_reference(ItemIndex::IndexSpace(func_idx), Some(context.externals))?))
 	}
 
-	fn run_call_indirect<'a, 'b>(context: &'b mut FunctionContext<'a>, type_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_call_indirect<'a>(context: &mut FunctionContext<'a>, type_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
 		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
 		let function_reference = context.module().function_reference_indirect(DEFAULT_TABLE_INDEX, type_idx, table_func_idx, Some(context.externals))?;
 		let required_function_type = context.module().function_type_by_index(type_idx)?;

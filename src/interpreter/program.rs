@@ -40,16 +40,6 @@ impl ProgramInstance {
 		self.essence.modules.write().insert(name.into(), module_instance.clone());
 		module_instance.run_start_function()?;
 		Ok(module_instance)
-		/*let module_instance = Arc::new(ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?);
-		self.essence.modules.write().insert(name.into(), module_instance.clone());
-		// replace existing module with the same name with new one
-		match module_instance.instantiate(true, externals) {
-			Ok(()) => Ok(module_instance),
-			Err(err) => {
-				self.essence.modules.write().remove(name.into());
-				Err(err)
-			}
-		}*/
 	}
 
 	/// Insert instantiated module.

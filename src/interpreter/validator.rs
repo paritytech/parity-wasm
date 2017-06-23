@@ -114,7 +114,7 @@ impl Validator {
 		}
 	}
 
-	pub fn validate_instruction<'a>(context: &mut FunctionValidationContext, opcode: &'a Opcode) -> Result<InstructionOutcome, Error> {
+	fn validate_instruction<'a>(context: &mut FunctionValidationContext, opcode: &'a Opcode) -> Result<InstructionOutcome, Error> {
 		debug!(target: "validator", "validating {:?}", opcode);
 		match opcode {
 			&Opcode::Unreachable => Ok(InstructionOutcome::Unreachable),

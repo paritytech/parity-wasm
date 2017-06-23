@@ -49,16 +49,10 @@ pub struct FunctionContext<'a> {
 /// Interpreter action to execute after executing instruction.
 #[derive(Debug)]
 pub enum InstructionOutcome<'a> {
-	/// Continue with current instruction.
-	RunInstruction,
 	/// Continue with next instruction.
 	RunNextInstruction,
 	/// Branch to given frame.
 	Branch(usize),
-	/// Skip if-false (aka else) branch.
-	SkipIfFalse,
-	/// Run if-false (aka else) branch (if any).
-	RunIfFalse,
 	/// Execute function call.
 	ExecuteCall(InternalFunctionReference<'a>),
 	/// End current frame.
@@ -130,7 +124,6 @@ impl Interpreter {
 
 			debug!(target: "interpreter", "running {:?}", instruction);
 			match Interpreter::run_instruction(function_context, instruction)? {
-				InstructionOutcome::RunInstruction => (),
 				InstructionOutcome::RunNextInstruction => function_context.position += 1,
 				InstructionOutcome::Branch(mut index) => {
 					// discard index - 1 blocks
@@ -144,40 +137,6 @@ impl Interpreter {
 						break;
 					}
 				},
-				InstructionOutcome::SkipIfFalse => {
-					// skip until else/end is found
-					let mut block_count = 1;
-					loop {
-						function_context.position += 1;
-						debug_assert!(function_context.position < function_body.len());
-
-						let instruction = &function_body[function_context.position];
-						match instruction {
-							&Opcode::End if block_count == 1 => break,
-							&Opcode::Block(_) | &Opcode::Loop(_) | &Opcode::If(_) => block_count += 1,
-							&Opcode::End => block_count -= 1,
-							_ => (),
-						}
-					}
-					function_context.position += 1;
-				},
-				InstructionOutcome::RunIfFalse => {
-					// skip until else/end is found
-					let mut block_count = 1;
-					loop {
-						function_context.position += 1;
-						debug_assert!(function_context.position < function_body.len());
-
-						let instruction = &function_body[function_context.position];
-						match instruction {
-							&Opcode::End | &Opcode::Else if block_count == 1 => break,
-							&Opcode::Block(_) | &Opcode::Loop(_) | &Opcode::If(_) => block_count += 1,
-							&Opcode::End => block_count -= 1,
-							_ => (),
-						}
-					}
-					function_context.position += 1;
-				},
 				InstructionOutcome::ExecuteCall(func_ref) => {
 					function_context.position += 1;
 					return Ok(RunResult::NestedCall(function_context.nested(func_ref)?));
@@ -186,8 +145,6 @@ impl Interpreter {
 					if function_context.frame_stack().is_empty() {
 						break;
 					}
-
-					//function_context.position += 1;
 				},
 				InstructionOutcome::Return => break,
 			}
@@ -423,18 +380,14 @@ impl Interpreter {
 			context.position = else_pos;
 			BlockFrameType::IfFalse
 		};
-		context.push_frame(block_frame_type, block_type)?;
-
-		//if branch {
-			Ok(InstructionOutcome::RunNextInstruction)
-		/*} else {
-			Ok(InstructionOutcome::RunIfFalse)
-		}*/
+		context.push_frame(block_frame_type, block_type).map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_else<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+		let end_pos = context.function_labels[&context.position];
 		context.pop_frame(false)?;
-		Ok(InstructionOutcome::SkipIfFalse)
+		context.position = end_pos;
+		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_end<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {

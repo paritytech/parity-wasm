@@ -320,8 +320,8 @@ impl ModuleInstance {
 				let mut locals = function_type.params().to_vec();
 				locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
 				let mut context = FunctionValidationContext::new(
-					&self.module, 
-					&self.imports, 
+					&self.module,
+					&self.imports,
 					&locals, 
 					DEFAULT_VALUE_STACK_LIMIT, 
 					DEFAULT_FRAME_STACK_LIMIT, 

@@ -13,6 +13,7 @@ use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
 };
+use interpreter::validator::{BlockFrame, BlockFrameType};
 use interpreter::variable::VariableInstance;
 
 /// Index of default linear memory.
@@ -64,38 +65,6 @@ pub enum InstructionOutcome<'a> {
 	End,
 	/// Return from current function block.
 	Return,
-}
-
-/// Control stack frame.
-#[derive(Debug, Clone)]
-pub struct BlockFrame {
-	/// Frame type.
-	frame_type: BlockFrameType,
-	/// A label for reference to block instruction.
-	begin_position: usize,
-	/// A label for reference from branch instructions.
-	branch_position: usize,
-	/// A label for reference from end instructions.
-	end_position: usize,
-	/// A limit integer value, which is an index into the value stack indicating where to reset it to on a branch to that label.
-	value_limit: usize,
-	/// A signature, which is a block signature type indicating the number and types of result values of the region.
-	signature: BlockType,
-}
-
-/// Type of block frame.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BlockFrameType {
-	/// Function frame.
-	Function,
-	/// Usual block frame.
-	Block,
-	/// Loop frame (branching to the beginning of block).
-	Loop,
-	/// True-subblock of if expression.
-	IfTrue,
-	/// False-subblock of if expression.
-	IfFalse,
 }
 
 /// Function run result.
@@ -1095,7 +1064,7 @@ impl<'a> FunctionContext<'a> {
 		&mut self.frame_stack
 	}
 
-	pub fn push_frame(&mut self, frame_type: BlockFrameType, signature: BlockType) -> Result<(), Error> {
+	pub fn push_frame(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
 		let begin_position = self.position;
 		let branch_position = match frame_type {
 			BlockFrameType::Function => usize::MAX,
@@ -1115,11 +1084,11 @@ impl<'a> FunctionContext<'a> {
 		};
 		self.frame_stack.push(BlockFrame {
 			frame_type: frame_type,
+			block_type: block_type,
 			begin_position: begin_position,
 			branch_position: branch_position,
 			end_position: end_position,
-			value_limit: self.value_stack.len(),
-			signature: signature,
+			value_stack_len: self.value_stack.len(),
 		})
 	}
 
@@ -1130,15 +1099,15 @@ impl<'a> FunctionContext<'a> {
 
 	pub fn pop_frame(&mut self, is_branch: bool) -> Result<(), Error> {
 		let frame = self.frame_stack.pop()?;
-		if frame.value_limit > self.value_stack.len() {
+		if frame.value_stack_len > self.value_stack.len() {
 			return Err(Error::Stack("invalid stack len".into()));
 		}
  
-		let frame_value = match frame.signature {
+		let frame_value = match frame.block_type {
 			BlockType::Value(_) if frame.frame_type != BlockFrameType::Loop || !is_branch => Some(self.value_stack.pop()?),
 			_ => None,
 		};
-		self.value_stack.resize(frame.value_limit, RuntimeValue::I32(0));
+		self.value_stack.resize(frame.value_stack_len, RuntimeValue::I32(0));
 		self.position = if is_branch { frame.branch_position } else { frame.end_position };
 		if let Some(frame_value) = frame_value {
 			self.value_stack.push(frame_value)?;

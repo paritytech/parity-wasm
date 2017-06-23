@@ -8,8 +8,6 @@ use interpreter::module::ItemIndex;
 use interpreter::stack::StackWithLimit;
 use interpreter::variable::VariableType;
 
-use interpreter::runner::BlockFrameType;
-
 /// Constant from wabt' validator.cc to skip alignment validation (not a part of spec).
 const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
 
@@ -19,14 +17,14 @@ pub struct FunctionValidationContext<'a> {
 	module: &'a Module,
 	/// Module imports.
 	imports: &'a ModuleImports,
-	/// Position.
+	/// Current instruction position.
 	position: usize,
 	/// Local variables.
 	locals: &'a [ValueType],
 	/// Value stack.
 	value_stack: StackWithLimit<StackValueType>,
 	/// Frame stack.
-	frame_stack: StackWithLimit<ValidationFrame>,
+	frame_stack: StackWithLimit<BlockFrame>,
 	/// Function return type. None if validating expression.
 	return_type: Option<BlockType>,
 	/// Labels positions.
@@ -44,17 +42,36 @@ pub enum StackValueType {
 	Specific(ValueType),
 }
 
-/// Function validation frame.
+/// Control stack frame.
 #[derive(Debug, Clone)]
-pub struct ValidationFrame {
-	/// Frame type
+pub struct BlockFrame {
+	/// Frame type.
 	pub frame_type: BlockFrameType,
-	/// Return type.
+	/// A signature, which is a block signature type indicating the number and types of result values of the region.
 	pub block_type: BlockType,
-	/// Value stack len.
+	/// A label for reference to block instruction.
+	pub begin_position: usize,
+	/// A label for reference from branch instructions.
+	pub branch_position: usize,
+	/// A label for reference from end instructions.
+	pub end_position: usize,
+	/// A limit integer value, which is an index into the value stack indicating where to reset it to on a branch to that label.
 	pub value_stack_len: usize,
-	/// Frame instruction position.
-	pub position: usize,
+}
+
+/// Type of block frame.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BlockFrameType {
+	/// Function frame.
+	Function,
+	/// Usual block frame.
+	Block,
+	/// Loop frame (branching to the beginning of block).
+	Loop,
+	/// True-subblock of if expression.
+	IfTrue,
+	/// False-subblock of if expression.
+	IfFalse,
 }
 
 /// Function validator.
@@ -103,19 +120,6 @@ impl Validator {
 					//body = new_body;
 					//position = 0;
 				},
-				/*InstructionOutcome::ValidateBlock2(is_loop, block_type, new_body, new_body2) => {
-					let need_pop_value = match block_type {
-						BlockType::NoResult => false,
-						BlockType::Value(_) => true,
-					};
-					context.push_label(is_loop, block_type)?;
-					context.push_label(is_loop, block_type)?;
-					block_stack.push_back((body, position + 1, false));
-					block_stack.push_back((new_body2, 0, need_pop_value));
-
-					body = new_body;
-					position = 0;
-				},*/
 			}
 		}
 	}
@@ -643,11 +647,13 @@ impl<'a> FunctionValidationContext<'a> {
 	}
 
 	pub fn push_label(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
-		self.frame_stack.push(ValidationFrame {
+		self.frame_stack.push(BlockFrame {
 			frame_type: frame_type,
 			block_type: block_type,
+			begin_position: self.position,
+			branch_position: self.position,
+			end_position: self.position,
 			value_stack_len: self.value_stack.len(),
-			position: self.position,
 		})
 	}
 
@@ -672,7 +678,7 @@ impl<'a> FunctionValidationContext<'a> {
 			_ => return Err(Error::Validation(format!("Expected block to return {:?} while it has returned {:?}", frame.block_type, actual_value_type))),
 		}
 		if !self.frame_stack.is_empty() {
-			self.labels.insert(frame.position, self.position);
+			self.labels.insert(frame.begin_position, self.position);
 		}
 		if is_else {
 			self.push_label(BlockFrameType::IfFalse, frame.block_type)?;
@@ -683,7 +689,7 @@ impl<'a> FunctionValidationContext<'a> {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	pub fn require_label(&self, idx: u32) -> Result<&ValidationFrame, Error> {
+	pub fn require_label(&self, idx: u32) -> Result<&BlockFrame, Error> {
 		self.frame_stack.get(idx as usize)	
 	}
 

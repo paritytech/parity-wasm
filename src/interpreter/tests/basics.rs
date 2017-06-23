@@ -6,9 +6,8 @@ use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, Global
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
 use interpreter::Error;
 use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
-use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType};
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType};
 use interpreter::program::ProgramInstance;
 use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::RuntimeValue;
@@ -82,33 +81,12 @@ fn wrong_import() {
 fn global_get_set() {
 	let module = module()
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(42)])))
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(777)])))
 		.function()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
 				Opcode::GetGlobal(0),
 				Opcode::I32Const(8),
 				Opcode::I32Add,
-				Opcode::SetGlobal(0),
-				Opcode::GetGlobal(0),
-				Opcode::End,
-			])).build()
-			.build()
-		.function()
-			.signature().return_type().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![
-				Opcode::GetGlobal(1),
-				Opcode::I32Const(8),
-				Opcode::I32Add,
-				Opcode::SetGlobal(1),
-				Opcode::GetGlobal(1),
-				Opcode::End,
-			])).build()
-			.build()
-		.function()
-			.signature().return_type().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![
-				Opcode::I64Const(8),
 				Opcode::SetGlobal(0),
 				Opcode::GetGlobal(0),
 				Opcode::End,
@@ -117,10 +95,8 @@ fn global_get_set() {
 		.build();
 
 	let program = ProgramInstance::new().unwrap();
-	let module = program.add_module_without_validation("main", module, None).unwrap(); // validation is failing (accessing immutable global)
+	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
-	assert_eq!(module.execute_index(1, vec![].into()).unwrap_err(), Error::Variable("trying to update immutable variable".into()));
-	assert_eq!(module.execute_index(2, vec![].into()).unwrap_err(), Error::Variable("trying to update variable of type I32 with value of type Some(I64)".into()));
 }
 
 const SIGNATURE_I32: &'static [ValueType] = &[ValueType::I32];
@@ -249,23 +225,20 @@ fn env_native_export_entry_type_check() {
 
 #[test]
 fn if_else_with_return_type_validation() {
-	let module = module().build();
-	let imports = ModuleImports::new(Weak::default(), None);
-	let mut context = FunctionValidationContext::new(&module, &imports, &[], 1024, 1024, &FunctionType::default());
+	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
+	let mut context = FunctionValidationContext::new(&module_instance, &[], 1024, 1024, &FunctionType::default());
 
 	Validator::validate_function(&mut context, BlockType::NoResult, &[
 		Opcode::I32Const(1),
-		Opcode::If(BlockType::NoResult, Opcodes::new(vec![
+		Opcode::If(BlockType::NoResult),
 			Opcode::I32Const(1),
-			Opcode::If(BlockType::Value(ValueType::I32), Opcodes::new(vec![
+			Opcode::If(BlockType::Value(ValueType::I32)),
 				Opcode::I32Const(1),
-				Opcode::Else,
+			Opcode::Else,
 				Opcode::I32Const(2),
-				Opcode::End,
-			])),
-			Opcode::Drop,
 			Opcode::End,
-		])),
+		Opcode::Drop,
+		Opcode::End,
 		Opcode::End,
 	]).unwrap();
 }

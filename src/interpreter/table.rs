@@ -29,6 +29,11 @@ impl TableInstance {
 		}))
 	}
 
+	/// Get variable type for this table.
+	pub fn variable_type(&self) -> VariableType {
+		self.variable_type
+	}
+
 	/// Get the specific value in the table
 	pub fn get(&self, offset: u32) -> Result<RuntimeValue, Error> {
 		let buffer = self.buffer.read();

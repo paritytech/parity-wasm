@@ -55,13 +55,11 @@ fn nop() {
 #[test]
 fn expr_block() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::Value(ValueType::I32),	// mark block
-			Opcodes::new(vec![
-				Opcode::I32Const(10),		// [10]
-				Opcode::Drop,
-				Opcode::I32Const(1),		// [1]
-				Opcode::End,
-			])),
+		Opcode::Block(BlockType::Value(ValueType::I32)),
+			Opcode::I32Const(10),		// [10]
+			Opcode::Drop,
+			Opcode::I32Const(1),		// [1]
+		Opcode::End,
 		Opcode::End]));
 
 	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
@@ -71,26 +69,23 @@ fn expr_block() {
 #[test]
 fn loop_test() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Loop(BlockType::NoResult,	// loop
-			Opcodes::new(vec![
-				Opcode::GetLocal(1),		//   [local1]
-				Opcode::GetLocal(0),		//   [local1, arg]
-				Opcode::I32Add,				//   [arg + local1]
-				Opcode::SetLocal(1),		//   [] + local1 = arg + local1
-				Opcode::GetLocal(0),		//   [arg]
-				Opcode::I32Const(1),		//   [arg, 1]
-				Opcode::I32Add,				//   [arg + 1]
-				Opcode::SetLocal(0),		//   [] + arg = arg + 1
-				Opcode::GetLocal(0),		//   [arg]
-				Opcode::I32Const(5),		//   [arg, 5]
-				Opcode::I32LtS,				//   [arg < 5]
-				Opcode::If(BlockType::NoResult,
-					Opcodes::new(vec![
-						Opcode::Br(1),		//   break loop
-						Opcode::End,
-					])),
-				Opcode::End])),				// end loop
-		Opcode::GetLocal(1),				// [local1]
+		Opcode::Loop(BlockType::NoResult),	// loop
+			Opcode::GetLocal(1),		//   [local1]
+			Opcode::GetLocal(0),		//   [local1, arg]
+			Opcode::I32Add,				//   [arg + local1]
+			Opcode::SetLocal(1),		//   [] + local1 = arg + local1
+			Opcode::GetLocal(0),		//   [arg]
+			Opcode::I32Const(1),		//   [arg, 1]
+			Opcode::I32Add,				//   [arg + 1]
+			Opcode::SetLocal(0),		//   [] + arg = arg + 1
+			Opcode::GetLocal(0),		//   [arg]
+			Opcode::I32Const(5),		//   [arg, 5]
+			Opcode::I32LtS,				//   [arg < 5]
+			Opcode::If(BlockType::NoResult),
+				Opcode::Br(1),			//   break loop
+			Opcode::End,
+		Opcode::End,					// end loop
+		Opcode::GetLocal(1),			// [local1]
 		Opcode::End]));
 
 	assert_eq!(run_function_i32(&module, 0).unwrap(), 10);
@@ -103,23 +98,19 @@ fn if_1() {
 		Opcode::I32Const(0),				// [0]
 		Opcode::SetLocal(0),				// [] + arg = 0
 		Opcode::I32Const(1),				// [1]
-		Opcode::If(BlockType::NoResult,		// if 1
-			Opcodes::new(vec![
-				Opcode::GetLocal(0),		//   [arg]
-				Opcode::I32Const(1),		//   [arg, 1]
-				Opcode::I32Add,				//   [arg + 1]
-				Opcode::SetLocal(0),		//   [] + arg = arg + 1
-				Opcode::End,				// end if
-			])),
+		Opcode::If(BlockType::NoResult),	// if 1
+			Opcode::GetLocal(0),			//   [arg]
+			Opcode::I32Const(1),			//   [arg, 1]
+			Opcode::I32Add,					//   [arg + 1]
+			Opcode::SetLocal(0),			//   [] + arg = arg + 1
+		Opcode::End,						// end if
 		Opcode::I32Const(0),				// [0]
-		Opcode::If(BlockType::NoResult,		// if 0
-			Opcodes::new(vec![
-				Opcode::GetLocal(0),		//   [arg]
-				Opcode::I32Const(1),		//   [arg, 1]
-				Opcode::I32Add,				//   [arg + 1]
-				Opcode::SetLocal(0),		//   [] + arg = arg + 1
-				Opcode::End,				// end if
-			])),
+		Opcode::If(BlockType::NoResult),	// if 0
+			Opcode::GetLocal(0),			//   [arg]
+			Opcode::I32Const(1),			//   [arg, 1]
+			Opcode::I32Add,					//   [arg + 1]
+			Opcode::SetLocal(0),			//   [] + arg = arg + 1
+		Opcode::End,						// end if
 		Opcode::GetLocal(0),				// [arg]
 		Opcode::End]));
 
@@ -131,25 +122,21 @@ fn if_1() {
 fn if_2() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
 		Opcode::I32Const(1),				// [1]
-		Opcode::If(BlockType::NoResult,		// if 1
-			Opcodes::new(vec![
-				Opcode::I32Const(1),		//   [1]
-				Opcode::SetLocal(0),		//   [] + arg = 1
-				Opcode::Else,				// else
-				Opcode::I32Const(2),		//   [2]
-				Opcode::SetLocal(0),		//   [] + arg = 2
-				Opcode::End,				// end if
-			])),
+		Opcode::If(BlockType::NoResult),	// if 1
+			Opcode::I32Const(1),			//   [1]
+			Opcode::SetLocal(0),			//   [] + arg = 1
+		Opcode::Else,						// else
+			Opcode::I32Const(2),			//   [2]
+			Opcode::SetLocal(0),			//   [] + arg = 2
+		Opcode::End,						// end if
 		Opcode::I32Const(0),				// [0]
-		Opcode::If(BlockType::NoResult,		// if 0
-			Opcodes::new(vec![
-				Opcode::I32Const(4),		//   [4]
-				Opcode::SetLocal(1),		//   [] + local1 = 4
-				Opcode::Else,				// else
-				Opcode::I32Const(8),		//   [8]
-				Opcode::SetLocal(1),		//   [] + local1 = 8
-				Opcode::End,				// end if
-			])),
+		Opcode::If(BlockType::NoResult),	// if 0
+			Opcode::I32Const(4),			//   [4]
+			Opcode::SetLocal(1),			//   [] + local1 = 4
+		Opcode::Else,						// else
+			Opcode::I32Const(8),			//   [8]
+			Opcode::SetLocal(1),			//   [] + local1 = 8
+		Opcode::End,						// end if
 		Opcode::GetLocal(0),				// [arg]
 		Opcode::GetLocal(1),				// [arg, local1]
 		Opcode::I32Add,						// [arg + local1]
@@ -165,13 +152,11 @@ fn expr_if() {
 		Opcode::GetLocal(0),							// [arg]
 		Opcode::I32Const(0),							// [arg, 0]
 		Opcode::I32Eq,									// [arg == 0]
-		Opcode::If(BlockType::Value(ValueType::I32),	// if arg == 0
-			Opcodes::new(vec![
-				Opcode::I32Const(1),					//   [1]
-				Opcode::Else,							// else
-				Opcode::I32Const(2),					//   [2]
-				Opcode::End,							// end if
-			])),
+		Opcode::If(BlockType::Value(ValueType::I32)),	// if arg == 0
+			Opcode::I32Const(1),						//   [1]
+		Opcode::Else,									// else
+			Opcode::I32Const(2),						//   [2]
+		Opcode::End,									// end if
 		Opcode::End]));
 
 	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
@@ -182,23 +167,17 @@ fn expr_if() {
 #[test]
 fn nested_if() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::NoResult,
-			Opcodes::new(vec![
-				Opcode::I32Const(1),
-				Opcode::If(BlockType::NoResult,
-					Opcodes::new(vec![
-						Opcode::I32Const(2),
-						Opcode::Drop,
-						Opcode::I32Const(3),
-						Opcode::If(BlockType::NoResult,
-							Opcodes::new(vec![
-								Opcode::Br(2),
-								Opcode::End,
-							])),
-						Opcode::End,
-					])),
+		Opcode::Block(BlockType::NoResult),
+			Opcode::I32Const(1),
+			Opcode::If(BlockType::NoResult),
+				Opcode::I32Const(2),
+				Opcode::Drop,
+				Opcode::I32Const(3),
+				Opcode::If(BlockType::NoResult),
+					Opcode::Br(2),
 				Opcode::End,
-			])),
+			Opcode::End,
+		Opcode::End,
 		Opcode::I32Const(4),
 		Opcode::End]));
 
@@ -209,18 +188,14 @@ fn nested_if() {
 #[test]
 fn br_0() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::NoResult,			// mark block
-			Opcodes::new(vec![
-				Opcode::I32Const(1),				//   [1]
-				Opcode::If(BlockType::NoResult,		//   if 1
-					Opcodes::new(vec![
-						Opcode::Br(1),				//     break from block
-						Opcode::End,				//   end if
-					])),
-				Opcode::I32Const(1),				//   [1]
-				Opcode::SetLocal(0),				//   [] + arg = 1
-				Opcode::End,						// end block
-			])),
+		Opcode::Block(BlockType::NoResult),			// mark block
+			Opcode::I32Const(1),					//   [1]
+			Opcode::If(BlockType::NoResult),		//   if 1
+				Opcode::Br(1),						//     break from block
+			Opcode::End,							//   end if
+			Opcode::I32Const(1),					//   [1]
+			Opcode::SetLocal(0),					//   [] + arg = 1
+		Opcode::End,								// end block
 		Opcode::I32Const(1),						// [1]
 		Opcode::SetLocal(1),						// [] + local1 = 1
 		Opcode::GetLocal(0),						// [arg]
@@ -239,24 +214,18 @@ fn br_0() {
 #[test]
 fn br_1() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::NoResult,					// block1
-			Opcodes::new(vec![
-				Opcode::Block(BlockType::NoResult,			//   block2
-					Opcodes::new(vec![
-						Opcode::I32Const(1),				//     [1]
-						Opcode::If(BlockType::NoResult,		//     if 1
-							Opcodes::new(vec![
-								Opcode::Br(2),				//       break from block2
-								Opcode::End,				//     end if
-							])),
-						Opcode::I32Const(1),				//     [1]
-						Opcode::SetLocal(0),				//     [] + arg = 1
-						Opcode::End,						//   end (block2)
-					])),
-				Opcode::I32Const(1),						//   [1]
-				Opcode::SetLocal(1),						//   [] + local1 = 1
-				Opcode::End,								// end (block1)
-			])),
+		Opcode::Block(BlockType::NoResult),					// block1
+			Opcode::Block(BlockType::NoResult),				//   block2
+				Opcode::I32Const(1),						//     [1]
+				Opcode::If(BlockType::NoResult),			//     if 1
+					Opcode::Br(2),							//       break from block2
+				Opcode::End,								//     end if
+				Opcode::I32Const(1),						//     [1]
+				Opcode::SetLocal(0),						//     [] + arg = 1
+			Opcode::End,									//   end (block2)
+			Opcode::I32Const(1),							//   [1]
+			Opcode::SetLocal(1),							//   [] + local1 = 1
+		Opcode::End,										// end (block1)
 		Opcode::I32Const(1),								// [1]
 		Opcode::SetLocal(2),								// [] + local2 = 1
 		Opcode::GetLocal(0),								// [arg]
@@ -279,22 +248,16 @@ fn br_1() {
 #[test]
 fn br_2() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::NoResult,					// block1
-			Opcodes::new(vec![
-				Opcode::Block(BlockType::NoResult,			//   block2
-					Opcodes::new(vec![
-						Opcode::I32Const(1),				//     [1]
-						Opcode::If(BlockType::NoResult,		//     if 1
-							Opcodes::new(vec![
-								Opcode::Br(2),				//       break from block2
-								Opcode::End,				//     end if
-							])),
-						Opcode::I32Const(1),				//     [1]
-						Opcode::Return,						//     return 1
-						Opcode::End,						//   end (block2)
-					])),
-				Opcode::End,								// end (block1)
-			])),
+		Opcode::Block(BlockType::NoResult),					// block1
+			Opcode::Block(BlockType::NoResult),				//   block2
+				Opcode::I32Const(1),						//     [1]
+				Opcode::If(BlockType::NoResult),			//     if 1
+					Opcode::Br(2),							//       break from block2
+				Opcode::End,								//     end if
+				Opcode::I32Const(1),						//     [1]
+				Opcode::Return,								//     return 1
+			Opcode::End,									//   end (block2)
+		Opcode::End,										// end (block1)
 		Opcode::I32Const(2),								// [2]
 		Opcode::Return,										// return 2
 		Opcode::End]));
@@ -306,37 +269,29 @@ fn br_2() {
 #[test]
 fn br_3() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::NoResult,					// block1
-			Opcodes::new(vec![
-				Opcode::Loop(BlockType::NoResult,			//   loop
-					Opcodes::new(vec![
-						Opcode::GetLocal(0),				//     [arg]
-						Opcode::I32Const(1),				//     [arg, 1]
-						Opcode::I32Add,						//     [arg + 1]
-						Opcode::SetLocal(0),				//     [] + arg = arg + 1
-						Opcode::GetLocal(0),				//     [arg]
-						Opcode::I32Const(5),				//     [arg, 5]
-						Opcode::I32GeS,						//     [5 >= arg]
-						Opcode::If(BlockType::NoResult,		//     if 5 >= arg
-							Opcodes::new(vec![
-								Opcode::Br(2),				//       break from block1
-								Opcode::End,				//     end
-							])),
-						Opcode::GetLocal(0),				//     [arg]
-						Opcode::I32Const(4),				//     [arg, 4]
-						Opcode::I32Eq,						//     [arg == 4]
-						Opcode::If(BlockType::NoResult,		//     if arg == 4
-							Opcodes::new(vec![
-								Opcode::Br(1),				//       break from loop
-								Opcode::End,				//     end
-							])),
-						Opcode::GetLocal(0),				//     [arg]
-						Opcode::SetLocal(1),				//     [] + local1 = arg
-						Opcode::Br(0),						//     continue loop
-						Opcode::End,						//   end (loop)
-					])),
-				Opcode::End,								// end (block1)
-			])),
+		Opcode::Block(BlockType::NoResult),					// block1
+			Opcode::Loop(BlockType::NoResult),				//   loop
+				Opcode::GetLocal(0),						//     [arg]
+				Opcode::I32Const(1),						//     [arg, 1]
+				Opcode::I32Add,								//     [arg + 1]
+				Opcode::SetLocal(0),						//     [] + arg = arg + 1
+				Opcode::GetLocal(0),						//     [arg]
+				Opcode::I32Const(5),						//     [arg, 5]
+				Opcode::I32GeS,								//     [5 >= arg]
+				Opcode::If(BlockType::NoResult),			//     if 5 >= arg
+					Opcode::Br(2),							//       break from block1
+				Opcode::End,								//     end
+				Opcode::GetLocal(0),						//     [arg]
+				Opcode::I32Const(4),						//     [arg, 4]
+				Opcode::I32Eq,								//     [arg == 4]
+				Opcode::If(BlockType::NoResult),			//     if arg == 4
+					Opcode::Br(1),							//       break from loop
+				Opcode::End,								//     end
+				Opcode::GetLocal(0),						//     [arg]
+				Opcode::SetLocal(1),						//     [] + local1 = arg
+				Opcode::Br(0),								//     continue loop
+			Opcode::End,									//   end (loop)
+		Opcode::End,										// end (block1)
 		Opcode::GetLocal(1),								// [local1]
 		Opcode::Return,										// return local1
 		Opcode::End]));
@@ -348,20 +303,16 @@ fn br_3() {
 #[test]
 fn expr_br() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::Value(ValueType::I32),		// block1
-			Opcodes::new(vec![
-				Opcode::GetLocal(0),						//   [arg]
-				Opcode::I32Const(0),						//   [arg, 0]
-				Opcode::I32Eq,								//   [arg == 0]
-				Opcode::If(BlockType::NoResult,				//   if arg == 0
-					Opcodes::new(vec![
-						Opcode::I32Const(1),				//     [1]
-						Opcode::Br(1),						//     break from block1
-						Opcode::End,						//   end (if)
-					])),
-				Opcode::I32Const(2),						//   [2]
-				Opcode::End,								// end (block1)
-			])),
+		Opcode::Block(BlockType::Value(ValueType::I32)),	// block1
+			Opcode::GetLocal(0),							//   [arg]
+			Opcode::I32Const(0),							//   [arg, 0]
+			Opcode::I32Eq,									//   [arg == 0]
+			Opcode::If(BlockType::NoResult),				//   if arg == 0
+				Opcode::I32Const(1),						//     [1]
+				Opcode::Br(1),								//     break from block1
+			Opcode::End,									//   end (if)
+			Opcode::I32Const(2),							//   [2]
+		Opcode::End,										// end (block1)
 		Opcode::End]));
 
 	assert_eq!(run_function_i32(&module, 0).unwrap(), 1);
@@ -372,14 +323,12 @@ fn expr_br() {
 #[test]
 fn brif() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::NoResult,					// block1
-			Opcodes::new(vec![
-				Opcode::GetLocal(0),						//   [arg]
-				Opcode::BrIf(0),							//   if arg != 0: break from block1
-				Opcode::I32Const(1),						//   [1]
-				Opcode::Return,								//   return 1
-				Opcode::End,								// end (block1)
-			])),
+		Opcode::Block(BlockType::NoResult),					// block1
+			Opcode::GetLocal(0),							//   [arg]
+			Opcode::BrIf(0),								//   if arg != 0: break from block1
+			Opcode::I32Const(1),							//   [1]
+			Opcode::Return,									//   return 1
+		Opcode::End,										// end (block1)
 		Opcode::I32Const(2),								// [2]
 		Opcode::Return,										// return 2
 		Opcode::End]));
@@ -392,18 +341,16 @@ fn brif() {
 #[test]
 fn brif_loop() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Loop(BlockType::NoResult,					// loop
-			Opcodes::new(vec![
-				Opcode::GetLocal(1),						//   [local1]
-				Opcode::I32Const(1),						//   [local1, 1]
-				Opcode::I32Add,								//   [local1 + 1]
-				Opcode::SetLocal(1),						//   [] + local1 = local1 + 1
-				Opcode::GetLocal(1),						//   [local1]
-				Opcode::GetLocal(0),						//   [local1, arg]
-				Opcode::I32LtS,								//   [local1 < arg]
-				Opcode::BrIf(0),							//   break loop if local1 < arg
-				Opcode::End,								// end (loop)
-			])),
+		Opcode::Loop(BlockType::NoResult),					// loop
+			Opcode::GetLocal(1),							//   [local1]
+			Opcode::I32Const(1),							//   [local1, 1]
+			Opcode::I32Add,									//   [local1 + 1]
+			Opcode::SetLocal(1),							//   [] + local1 = local1 + 1
+			Opcode::GetLocal(1),							//   [local1]
+			Opcode::GetLocal(0),							//   [local1, arg]
+			Opcode::I32LtS,									//   [local1 < arg]
+			Opcode::BrIf(0),								//   break loop if local1 < arg
+		Opcode::End,										// end (loop)
 		Opcode::GetLocal(1),								// [local1]
 		Opcode::Return,										// return
 		Opcode::End]));
@@ -416,18 +363,16 @@ fn brif_loop() {
 #[test]
 fn expr_brif() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Loop(BlockType::NoResult,		// loop
-			Opcodes::new(vec![
-				Opcode::GetLocal(1),			//   [local1]
-				Opcode::I32Const(1),			//   [local1, 1]
-				Opcode::I32Add,					//   [local1 + 1]
-				Opcode::SetLocal(1),			//   [] + local1 = local1 + 1
-				Opcode::GetLocal(1),			//   [local1]
-				Opcode::GetLocal(0),			//   [local1, local0]
-				Opcode::I32LtS,					//   [local1 < local0]
-				Opcode::BrIf(0),				//   if local1 < local0: break from loop
-				Opcode::End,					// end (loop)
-			])),
+		Opcode::Loop(BlockType::NoResult),		// loop
+			Opcode::GetLocal(1),			//   [local1]
+			Opcode::I32Const(1),			//   [local1, 1]
+			Opcode::I32Add,					//   [local1 + 1]
+			Opcode::SetLocal(1),			//   [] + local1 = local1 + 1
+			Opcode::GetLocal(1),			//   [local1]
+			Opcode::GetLocal(0),			//   [local1, local0]
+			Opcode::I32LtS,					//   [local1 < local0]
+			Opcode::BrIf(0),				//   if local1 < local0: break from loop
+		Opcode::End,					// end (loop)
 		Opcode::GetLocal(1),					// [local1]
 		Opcode::End]));
 
@@ -439,30 +384,22 @@ fn expr_brif() {
 #[test]
 fn brtable() {
 	let (_program, module) = make_function_i32(Opcodes::new(vec![
-		Opcode::Block(BlockType::NoResult,										// block3
-			Opcodes::new(vec![
-				Opcode::Block(BlockType::NoResult,								//   block2
-					Opcodes::new(vec![
-						Opcode::Block(BlockType::NoResult,						//     block1
-							Opcodes::new(vec![
-								Opcode::Block(BlockType::NoResult,				//       block0
-									Opcodes::new(vec![
-										Opcode::GetLocal(0),					//         [arg]
-										Opcode::BrTable(vec![0, 1, 2], 3),		//         br_table
-										Opcode::End,							//       end (block0)
-									])),
-								Opcode::I32Const(0),							//       [0]
-								Opcode::Return,									//       return 0
-								Opcode::End,									//     end (block1)
-							])),
-						Opcode::I32Const(1),									//       [1]
-						Opcode::Return,											//       return 1
-						Opcode::End,											//   end (block2)
-					])),
-				Opcode::End,													// end (block3)
-			])),
-		Opcode::I32Const(2),													// [2]
-		Opcode::Return,															// return 2
+		Opcode::Block(BlockType::NoResult),					// block3
+			Opcode::Block(BlockType::NoResult),				//   block2
+				Opcode::Block(BlockType::NoResult),			//     block1
+					Opcode::Block(BlockType::NoResult),		//       block0
+						Opcode::GetLocal(0),				//         [arg]
+						Opcode::BrTable(vec![0, 1, 2], 3),	//         br_table
+					Opcode::End,							//       end (block0)
+					Opcode::I32Const(0),					//       [0]
+					Opcode::Return,							//       return 0
+				Opcode::End,								//     end (block1)
+				Opcode::I32Const(1),						//       [1]
+				Opcode::Return,								//       return 1
+			Opcode::End,									//   end (block2)
+		Opcode::End,										// end (block3)
+		Opcode::I32Const(2),								// [2]
+		Opcode::Return,										// return 2
 		Opcode::End]));
 
 	assert_eq!(run_function_i32(&module, 0).unwrap(), 0);
@@ -478,21 +415,17 @@ fn return_test() {
 		Opcode::GetLocal(0),
 		Opcode::I32Const(0),
 		Opcode::I32Eq,
-		Opcode::If(BlockType::NoResult,
-			Opcodes::new(vec![
-				Opcode::I32Const(1),
-				Opcode::Return,
-				Opcode::End,
-			])),
+		Opcode::If(BlockType::NoResult),
+			Opcode::I32Const(1),
+			Opcode::Return,
+		Opcode::End,
 		Opcode::GetLocal(0),
 		Opcode::I32Const(1),
 		Opcode::I32Eq,
-		Opcode::If(BlockType::NoResult,
-			Opcodes::new(vec![
-				Opcode::I32Const(2),
-				Opcode::Return,
-				Opcode::End,
-			])),
+		Opcode::If(BlockType::NoResult),
+			Opcode::I32Const(2),
+			Opcode::Return,
+		Opcode::End,
 		Opcode::I32Const(3),
 		Opcode::Return,
 		Opcode::End]));
@@ -509,11 +442,9 @@ fn return_void() {
 		Opcode::GetLocal(0),
 		Opcode::I32Const(0),
 		Opcode::I32Eq,
-		Opcode::If(BlockType::NoResult,
-			Opcodes::new(vec![
-				Opcode::Return,
-				Opcode::End,
-			])),
+		Opcode::If(BlockType::NoResult),
+			Opcode::Return,
+		Opcode::End,
 		Opcode::I32Const(0),
 		Opcode::I32Const(1),
 		Opcode::I32Store(2, 0),
@@ -604,20 +535,18 @@ fn call_2() {
 		Opcode::GetLocal(0),
 		Opcode::I32Const(0),
 		Opcode::I32GtS,
-		Opcode::If(BlockType::Value(ValueType::I32),
-			Opcodes::new(vec![
-				Opcode::GetLocal(0),
-				Opcode::GetLocal(0),
-				Opcode::I32Const(1),
-				Opcode::I32Sub,
-				Opcode::Call(1),
-				Opcode::I32Mul,
-				Opcode::Return,
-				Opcode::Else,
-				Opcode::I32Const(1),
-				Opcode::Return,
-				Opcode::End,
-			])),
+		Opcode::If(BlockType::Value(ValueType::I32)),
+			Opcode::GetLocal(0),
+			Opcode::GetLocal(0),
+			Opcode::I32Const(1),
+			Opcode::I32Sub,
+			Opcode::Call(1),
+			Opcode::I32Mul,
+			Opcode::Return,
+		Opcode::Else,
+			Opcode::I32Const(1),
+		Opcode::Return,
+		Opcode::End,
 		Opcode::End,
 	]);
 

@@ -92,10 +92,6 @@ impl EnvModuleInstance {
 }
 
 impl ModuleInstanceInterface for EnvModuleInstance {
-	fn instantiate<'a>(&self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
-		self.instance.instantiate(is_user_module, externals)
-	}
-
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.instance.execute_index(index, params)
 	}

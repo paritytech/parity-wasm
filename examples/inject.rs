@@ -7,16 +7,22 @@ use parity_wasm::builder;
 
 pub fn inject_nop(opcodes: &mut elements::Opcodes) {
     use parity_wasm::elements::Opcode::*;
-    for opcode in opcodes.elements_mut().iter_mut() {
-        match opcode {
-            &mut Block(_, ref mut block) | &mut If(_, ref mut block) => {
-                inject_nop(block)
-            },
-            _ => { }
+    let opcodes = opcodes.elements_mut();
+    let mut position = 0;
+    loop {
+        let need_inject = match &opcodes[position] {
+            &Block(_) | &If(_) => true,
+            _ => false,
+        };
+        if need_inject {
+            opcodes.insert(position + 1, Nop);
+        }
+
+        position += 1;
+        if position >= opcodes.len() {
+            break;
         }
     }
-
-    opcodes.elements_mut().insert(0, Nop);
 }
 
 fn main() {

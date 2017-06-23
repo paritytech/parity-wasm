@@ -6,9 +6,8 @@ use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, Global
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
 use interpreter::Error;
 use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
-use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType};
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType};
 use interpreter::program::ProgramInstance;
 use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::RuntimeValue;
@@ -226,9 +225,8 @@ fn env_native_export_entry_type_check() {
 
 #[test]
 fn if_else_with_return_type_validation() {
-	let module = module().build();
-	let imports = ModuleImports::new(Weak::default(), None);
-	let mut context = FunctionValidationContext::new(&module, &imports, &[], 1024, 1024, &FunctionType::default());
+	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
+	let mut context = FunctionValidationContext::new(&module_instance, &[], 1024, 1024, &FunctionType::default());
 
 	Validator::validate_function(&mut context, BlockType::NoResult, &[
 		Opcode::I32Const(1),

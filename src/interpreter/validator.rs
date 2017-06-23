@@ -1,10 +1,9 @@
 use std::u32;
-use std::collections::{HashMap, VecDeque};
-use elements::{Module, Opcode, BlockType, FunctionType, ValueType, External, Type};
+use std::collections::HashMap;
+use elements::{Opcode, BlockType, FunctionType, ValueType};
 use interpreter::Error;
 use interpreter::runner::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
-use interpreter::imports::ModuleImports;
-use interpreter::module::ItemIndex;
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex};
 use interpreter::stack::StackWithLimit;
 use interpreter::variable::VariableType;
 
@@ -13,10 +12,8 @@ const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
 
 /// Function validation context.
 pub struct FunctionValidationContext<'a> {
-	/// Wasm module.
-	module: &'a Module,
-	/// Module imports.
-	imports: &'a ModuleImports,
+	/// Wasm module instance (in process of instantiation).
+	module_instance: &'a ModuleInstance,
 	/// Current instruction position.
 	position: usize,
 	/// Local variables.
@@ -571,16 +568,14 @@ impl Validator {
 
 impl<'a> FunctionValidationContext<'a> {
 	pub fn new(
-		module: &'a Module, 
-		imports: &'a ModuleImports, 
+		module_instance: &'a ModuleInstance, 
 		locals: &'a [ValueType], 
 		value_stack_limit: usize, 
 		frame_stack_limit: usize, 
 		function: &FunctionType,
 	) -> Self {
 		FunctionValidationContext {
-			module: module,
-			imports: imports,
+			module_instance: module_instance,
 			position: 0,
 			locals: locals,
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
@@ -692,100 +687,45 @@ impl<'a> FunctionValidationContext<'a> {
 	}
 
 	pub fn require_global(&self, idx: u32, mutability: Option<bool>) -> Result<StackValueType, Error> {
-		match self.imports.parse_global_index(ItemIndex::IndexSpace(idx)) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_global_index is intended to resolve this"),
-			ItemIndex::Internal(internal_idx) => self.module
-				.global_section().ok_or(Error::Validation(format!("Trying to access internal global {} in module without global section", internal_idx)))
-				.and_then(|s| s.entries().get(internal_idx as usize).ok_or(Error::Validation(format!("Trying to access internal global {} in module with {} globals", internal_idx, s.entries().len()))))
-				.and_then(|g| match mutability {
-					Some(true) if !g.global_type().is_mutable() => Err(Error::Validation(format!("Expected internal global {} to be mutable", internal_idx))),
-					Some(false) if g.global_type().is_mutable() => Err(Error::Validation(format!("Expected internal global {} to be immutable", internal_idx))),
-					_ => Ok(g),
-				})
-				.map(|g| g.global_type().content_type().into()),
-			ItemIndex::External(external_idx) => self.module
-				.import_section().ok_or(Error::Validation(format!("Trying to access external global {} in module without import section", external_idx)))
-				.and_then(|s| s.entries().get(external_idx as usize).ok_or(Error::Validation(format!("Trying to access external global with index {} in module with {}-entries import section", external_idx, s.entries().len()))))
-				.and_then(|e| match e.external() {
-					&External::Global(ref g) => {
-						match mutability {
-							Some(true) if !g.is_mutable() => Err(Error::Validation(format!("Expected external global {} to be mutable", external_idx))),
-							Some(false) if g.is_mutable() => Err(Error::Validation(format!("Expected external global {} to be immutable", external_idx))),
-							_ => Ok(g.content_type().into()),
-						}
-					},
-					_ => Err(Error::Validation(format!("Import entry {} expected to import global", external_idx)))
-				}),
-		}
+		self.module_instance
+			.global(ItemIndex::IndexSpace(idx), None)
+			.and_then(|g| match mutability {
+				Some(true) if !g.is_mutable() => Err(Error::Validation(format!("Expected global {} to be mutable", idx))),
+				Some(false) if g.is_mutable() => Err(Error::Validation(format!("Expected global {} to be immutable", idx))),
+				_ => match g.variable_type() {
+					VariableType::AnyFunc => Err(Error::Validation(format!("Expected global {} to have non-AnyFunc type", idx))),
+					VariableType::I32 => Ok(StackValueType::Specific(ValueType::I32)),
+					VariableType::I64 => Ok(StackValueType::Specific(ValueType::I64)),
+					VariableType::F32 => Ok(StackValueType::Specific(ValueType::F32)),
+					VariableType::F64 => Ok(StackValueType::Specific(ValueType::F64)),
+				}
+			})
 	}
 
 	pub fn require_memory(&self, idx: u32) -> Result<(), Error> {
-		match self.imports.parse_memory_index(ItemIndex::IndexSpace(idx)) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_memory_index is intended to resolve this"),
-			ItemIndex::Internal(internal_idx) => self.module
-				.memory_section().ok_or(Error::Validation(format!("Trying to access internal memory {} in module without memory section", internal_idx)))
-				.and_then(|s| s.entries().get(internal_idx as usize).ok_or(Error::Validation(format!("Trying to access internal memory {} in module with {} memory regions", internal_idx, s.entries().len()))))
-				.map(|_| ()),
-			ItemIndex::External(external_idx) => self.module
-				.import_section().ok_or(Error::Validation(format!("Trying to access external memory {} in module without import section", external_idx)))
-				.and_then(|s| s.entries().get(external_idx as usize).ok_or(Error::Validation(format!("Trying to access external memory with index {} in module with {}-entries import section", external_idx, s.entries().len()))))
-				.and_then(|e| match e.external() {
-					&External::Memory(_) => Ok(()),
-					_ => Err(Error::Validation(format!("Import entry {} expected to import memory", external_idx)))
-				}),
-		}
+		self.module_instance
+			.memory(ItemIndex::IndexSpace(idx))
+			.map(|_| ())
 	}
 
 	pub fn require_table(&self, idx: u32, variable_type: VariableType) -> Result<(), Error> {
-		match self.imports.parse_table_index(ItemIndex::IndexSpace(idx)) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_table_index is intended to resolve this"),
-			ItemIndex::Internal(internal_idx) => self.module
-				.table_section().ok_or(Error::Validation(format!("Trying to access internal table {} in module without table section", internal_idx)))
-				.and_then(|s| s.entries().get(internal_idx as usize).ok_or(Error::Validation(format!("Trying to access internal table {} in module with {} tables", internal_idx, s.entries().len()))))
-				.and_then(|t| if variable_type == t.elem_type().into() {
-					Ok(())
-				} else {
-					Err(Error::Validation(format!("Internal table {} has element type {:?} while {:?} expected", internal_idx, t.elem_type(), variable_type)))
-				}),
-			ItemIndex::External(external_idx) => self.module
-				.import_section().ok_or(Error::Validation(format!("Trying to access external table {} in module without import section", external_idx)))
-				.and_then(|s| s.entries().get(external_idx as usize).ok_or(Error::Validation(format!("Trying to access external table with index {} in module with {}-entries import section", external_idx, s.entries().len()))))
-				.and_then(|e| match e.external() {
-					&External::Table(ref t) => if variable_type == t.elem_type().into() {
-						Ok(())
-					} else {
-						Err(Error::Validation(format!("External table {} has element type {:?} while {:?} expected", external_idx, t.elem_type(), variable_type)))
-					},
-					_ => Err(Error::Validation(format!("Import entry {} expected to import table", external_idx)))
-				}),
-		}
+		self.module_instance
+			.table(ItemIndex::IndexSpace(idx))
+			.and_then(|t| if t.variable_type() == variable_type {
+				Ok(())
+			} else {
+				Err(Error::Validation(format!("Table {} has element type {:?} while {:?} expected", idx, t.variable_type(), variable_type)))
+			})
 	}
 
 	pub fn require_function(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
-		match self.imports.parse_function_index(ItemIndex::IndexSpace(idx)) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index is intended to resolve this"),
-			ItemIndex::Internal(internal_idx) => self.module
-				.function_section().ok_or(Error::Validation(format!("Trying to access internal function {} in module without function section", internal_idx)))
-				.and_then(|s| s.entries().get(internal_idx as usize).map(|f| f.type_ref()).ok_or(Error::Validation(format!("Trying to access internal function {} in module with {} functions", internal_idx, s.entries().len()))))
-				.and_then(|tidx| self.require_function_type(tidx)),
-			ItemIndex::External(external_idx) => self.module
-				.import_section().ok_or(Error::Validation(format!("Trying to access external function {} in module without import section", external_idx)))
-				.and_then(|s| s.entries().get(external_idx as usize).ok_or(Error::Validation(format!("Trying to access external function with index {} in module with {}-entries import section", external_idx, s.entries().len()))))
-				.and_then(|e| match e.external() {
-					&External::Function(tidx) => Ok(tidx),
-					_ => Err(Error::Validation(format!("Import entry {} expected to import function", external_idx)))
-				})
-				.and_then(|tidx| self.require_function_type(tidx)),
-		}
+		self.module_instance.function_type(ItemIndex::IndexSpace(idx))
+			.map(|ft| (ft.params().to_vec(), ft.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult)))
 	}
 
 	pub fn require_function_type(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
-		self.module
-			.type_section().ok_or(Error::Validation(format!("Trying to access internal function {} in module without type section", idx)))
-			.and_then(|ts| match ts.types().get(idx as usize) {
-				Some(&Type::Function(ref function_type)) => Ok((function_type.params().to_vec(), function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult))),
-				_ => Err(Error::Validation(format!("Trying to access internal function {} with wrong type", idx))),
-			})
+		self.module_instance.function_type_by_index(idx)
+			.map(|ft| (ft.params().to_vec(), ft.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult)))
 	}
 
 	pub fn function_labels(self) -> HashMap<usize, usize> {

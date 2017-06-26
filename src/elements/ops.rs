@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, fmt};
 use super::{
     Serialize, Deserialize, Error, VarUint7, 
     VarUint1, VarUint32, CountedList, BlockType,
@@ -907,7 +907,265 @@ impl Serialize for Opcode {
 
         Ok(())
     }
-    
+}
+
+macro_rules! fmt_op {
+    ($f: expr, $mnemonic: expr) => ({
+        write!($f, "{}", $mnemonic)
+    });
+    ($f: expr, $mnemonic: expr, $immediate: expr) => ({
+        write!($f, "{} {}", $mnemonic, $immediate)
+    });
+    ($f: expr, $mnemonic: expr, $immediate1: expr, $immediate2: expr) => ({
+        write!($f, "{} {} {}", $mnemonic, $immediate1, $immediate2)
+    });
+}
+
+impl fmt::Display for Opcode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Opcode::*;
+        use super::BlockType;
+
+        match *self {
+            Unreachable => fmt_op!(f, "unreachable"),
+            Nop => fmt_op!(f, "nop"),
+            Block(BlockType::NoResult) => fmt_op!(f, "block"),
+            Block(BlockType::Value(value_type)) => fmt_op!(f, "block", value_type),
+            Loop(BlockType::NoResult) => fmt_op!(f, "loop"),
+            Loop(BlockType::Value(value_type)) => fmt_op!(f, "loop", value_type),
+            If(BlockType::NoResult) => fmt_op!(f, "if"),
+            If(BlockType::Value(value_type)) => fmt_op!(f, "if", value_type),
+            Else => fmt_op!(f, "else"),
+            End => fmt_op!(f, "end"),
+            Br(idx) => fmt_op!(f, "br",  idx),
+            BrIf(idx) => fmt_op!(f, "br_if",  idx),
+            BrTable(_, default) => fmt_op!(f, "br_table", default),
+            Return => fmt_op!(f, "return"),
+            Call(index) => fmt_op!(f, "call", index),
+            CallIndirect(index, _) =>  fmt_op!(f, "call_indirect", index),
+            Drop => fmt_op!(f, "drop"),
+            Select => fmt_op!(f, "select"),
+            GetLocal(index) => fmt_op!(f, "get_local", index),
+            SetLocal(index) => fmt_op!(f, "set_local", index),
+            TeeLocal(index) => fmt_op!(f, "tee_local", index),
+            GetGlobal(index) => fmt_op!(f, "get_global", index),
+            SetGlobal(index) => fmt_op!(f, "set_global", index),
+
+            I32Load(_, 0) => write!(f, "i32.load"),
+            I32Load(_, offset) => write!(f, "i32.load offset={}", offset),
+
+            I64Load(_, 0) => write!(f, "i64.load"),
+            I64Load(_, offset) => write!(f, "i64.load offset={}", offset),
+
+            F32Load(_, 0) => write!(f, "f32.load"),
+            F32Load(_, offset) => write!(f, "f32.load offset={}", offset),
+
+            F64Load(_, 0) => write!(f, "f64.load"),
+            F64Load(_, offset) => write!(f, "f64.load offset={}", offset),
+
+            I32Load8S(_, 0) => write!(f, "i32.load8_s"),
+            I32Load8S(_, offset) => write!(f, "i32.load8_s offset={}", offset),
+
+            I32Load8U(_, 0) => write!(f, "i32.load8_u"),
+            I32Load8U(_, offset) => write!(f, "i32.load8_u offset={}", offset),
+
+            I32Load16S(_, 0) => write!(f, "i32.load16_s"),
+            I32Load16S(_, offset) => write!(f, "i32.load16_s offset={}", offset),
+
+            I32Load16U(_, 0) => write!(f, "i32.load16_u"),
+            I32Load16U(_, offset) => write!(f, "i32.load16_u offset={}", offset),
+
+            I64Load8S(_, 0) => write!(f, "i64.load8_s"),
+            I64Load8S(_, offset) => write!(f, "i64.load8_s offset={}", offset),
+
+            I64Load8U(_, 0) => write!(f, "i64.load8_u"),
+            I64Load8U(_, offset) => write!(f, "i64.load8_u offset={}", offset),
+
+            I64Load16S(_, 0) => write!(f, "i64.load16_s"),
+            I64Load16S(_, offset) => write!(f, "i64.load16_s offset={}", offset),
+
+            I64Load16U(_, 0) => write!(f, "i64.load16_u"),
+            I64Load16U(_, offset) => write!(f, "i64.load16_u offset={}", offset),
+
+            I64Load32S(_, 0) => write!(f, "i64.load32_s"),
+            I64Load32S(_, offset) => write!(f, "i64.load32_s offset={}", offset),
+
+            I64Load32U(_, 0) => write!(f, "i64.load32_u"),
+            I64Load32U(_, offset) => write!(f, "i64.load32_u offset={}", offset),
+
+            I32Store(_, 0) => write!(f, "i32.store"),
+            I32Store(_, offset) => write!(f, "i32.store offset={}", offset),
+
+            I64Store(_, 0) => write!(f, "i64.store"),
+            I64Store(_, offset) => write!(f, "i64.store offset={}", offset),
+
+            F32Store(_, 0) => write!(f, "f32.store"),
+            F32Store(_, offset) => write!(f, "f32.store offset={}", offset),
+
+            F64Store(_, 0) => write!(f, "f64.store"),
+            F64Store(_, offset) => write!(f, "f64.store offset={}", offset),
+
+            I32Store8(_, 0) => write!(f, "i32.store8"),
+            I32Store8(_, offset) => write!(f, "i32.store8 offset={}", offset),
+
+            I32Store16(_, 0) => write!(f, "i32.store16"),
+            I32Store16(_, offset) => write!(f, "i32.store16 offset={}", offset),
+
+            I64Store8(_, 0) => write!(f, "i64.store8"),
+            I64Store8(_, offset) => write!(f, "i64.store8 offset={}", offset),
+
+            I64Store16(_, 0) => write!(f, "i64.store16"),
+            I64Store16(_, offset) => write!(f, "i64.store16 offset={}", offset),
+
+            I64Store32(_, 0) => write!(f, "i64.store32"),
+            I64Store32(_, offset) => write!(f, "i64.store32 offset={}", offset),
+
+            CurrentMemory(_) => fmt_op!(f, "current_memory"),
+            GrowMemory(_) => fmt_op!(f, "grow_memory"),
+            
+            I32Const(def) => fmt_op!(f, "i32.const", def),
+            I64Const(def) => fmt_op!(f, "i64.const", def),
+            F32Const(def) => fmt_op!(f, "f32.const", def),
+            F64Const(def) => fmt_op!(f, "f64.const", def),
+
+            I32Eq => write!(f, "i32.eq"),
+            I32Eqz => write!(f, "i32.eqz"),
+            I32Ne => write!(f, "i32.ne"),
+            I32LtS => write!(f, "i32.lt_s"),
+            I32LtU => write!(f, "i32.lt_u"),
+            I32GtS => write!(f, "i32.gt_s"),
+            I32GtU => write!(f, "i32.gt_u"),
+            I32LeS => write!(f, "i32.le_s"),
+            I32LeU => write!(f, "i32.le_u"),
+            I32GeS => write!(f, "i32.ge_s"),
+            I32GeU => write!(f, "i32.ge_u"),
+
+            I64Eq => write!(f, "i64.eq"),
+            I64Eqz => write!(f, "i64.eqz"),
+            I64Ne => write!(f, "i64.ne"),
+            I64LtS => write!(f, "i64.lt_s"),
+            I64LtU => write!(f, "i64.lt_u"),
+            I64GtS => write!(f, "i64.gt_s"),
+            I64GtU => write!(f, "i64.gt_u"),
+            I64LeS => write!(f, "i64.le_s"),
+            I64LeU => write!(f, "i64.le_u"),
+            I64GeS => write!(f, "i64.ge_s"),
+            I64GeU => write!(f, "i64.ge_u"),
+
+            F32Eq => write!(f, "f32.eq"),
+            F32Ne => write!(f, "f32.ne"),
+            F32Lt => write!(f, "f32.lt"),
+            F32Gt => write!(f, "f32.gt"),
+            F32Le => write!(f, "f32.le"),
+            F32Ge => write!(f, "f32.ge"),
+
+            F64Eq => write!(f, "f64.eq"),
+            F64Ne => write!(f, "f64.ne"),
+            F64Lt => write!(f, "f64.lt"),
+            F64Gt => write!(f, "f64.gt"),
+            F64Le => write!(f, "f64.le"),
+            F64Ge => write!(f, "f64.ge"),
+
+            I32Clz => write!(f, "i32.clz"),
+            I32Ctz => write!(f, "i32.ctz"),
+            I32Popcnt => write!(f, "i32.popcnt"),
+            I32Add => write!(f, "i32.add"),
+            I32Sub => write!(f, "i32.sub"),
+            I32Mul => write!(f, "i32.mul"),
+            I32DivS => write!(f, "i32.div_s"),
+            I32DivU => write!(f, "i32.div_u"),
+            I32RemS => write!(f, "i32.rem_s"),
+            I32RemU => write!(f, "i32.rem_u"),
+            I32And => write!(f, "i32.and"),
+            I32Or => write!(f, "i32.or"),
+            I32Xor => write!(f, "i32.xor"),
+            I32Shl => write!(f, "i32.shl"),
+            I32ShrS => write!(f, "i32.shr_s"),
+            I32ShrU => write!(f, "i32.shr_u"),
+            I32Rotl => write!(f, "i32.rotl"),
+            I32Rotr => write!(f, "i32.rotr"),
+            
+            I64Clz => write!(f, "i64.clz"),
+            I64Ctz => write!(f, "i64.ctz"),
+            I64Popcnt => write!(f, "i64.popcnt"),
+            I64Add => write!(f, "i64.add"),
+            I64Sub => write!(f, "i64.sub"),
+            I64Mul => write!(f, "i64.mul"),
+            I64DivS => write!(f, "i64.div_s"),
+            I64DivU => write!(f, "i64.div_u"),
+            I64RemS => write!(f, "i64.rem_s"),
+            I64RemU => write!(f, "i64.rem_u"),
+            I64And => write!(f, "i64.and"),
+            I64Or => write!(f, "i64.or"),
+            I64Xor => write!(f, "i64.xor"),
+            I64Shl => write!(f, "i64.shl"),
+            I64ShrS => write!(f, "i64.shr_s"),
+            I64ShrU => write!(f, "i64.shr_u"),
+            I64Rotl => write!(f, "i64.rotl"),
+            I64Rotr => write!(f, "i64.rotr"),
+            
+            F32Abs => write!(f, "f32.abs"),
+            F32Neg => write!(f, "f32.neg"),
+            F32Ceil => write!(f, "f32.ceil"),
+            F32Floor => write!(f, "f32.floor"),
+            F32Trunc => write!(f, "f32.trunc"),
+            F32Nearest => write!(f, "f32.nearest"),
+            F32Sqrt => write!(f, "f32.sqrt"),
+            F32Add => write!(f, "f32.add"),
+            F32Sub => write!(f, "f32.sub"),
+            F32Mul => write!(f, "f32.mul"),
+            F32Div => write!(f, "f32.div"),
+            F32Min => write!(f, "f32.min"),
+            F32Max => write!(f, "f32.max"),
+            F32Copysign => write!(f, "f32.copysign"),
+
+            F64Abs => write!(f, "f64.abs"),
+            F64Neg => write!(f, "f64.neg"),
+            F64Ceil => write!(f, "f64.ceil"),
+            F64Floor => write!(f, "f64.floor"),
+            F64Trunc => write!(f, "f64.trunc"),
+            F64Nearest => write!(f, "f64.nearest"),
+            F64Sqrt => write!(f, "f64.sqrt"),
+            F64Add => write!(f, "f64.add"),
+            F64Sub => write!(f, "f64.sub"),
+            F64Mul => write!(f, "f64.mul"),
+            F64Div => write!(f, "f64.div"),
+            F64Min => write!(f, "f64.min"),
+            F64Max => write!(f, "f64.max"),
+            F64Copysign => write!(f, "f64.copysign"),
+
+            I32WarpI64 => write!(f, "i32.wrap/i64"),
+            I32TruncSF32 => write!(f, "i32.trunc_s/f32"),
+            I32TruncUF32 => write!(f, "i32.trunc_u/f32"),
+            I32TruncSF64 => write!(f, "i32.trunc_s/f64"),
+            I32TruncUF64 => write!(f, "i32.trunc_u/f64"),
+
+            I64ExtendSI32 => write!(f, "i64.extend_s/i32"),
+            I64ExtendUI32 => write!(f, "i64.extend_u/i32"),
+
+            I64TruncSF32 => write!(f, "i64.trunc_s/f32"),
+            I64TruncUF32 => write!(f, "i64.trunc_u/f32"),
+            I64TruncSF64 => write!(f, "i64.trunc_s/f64"),
+            I64TruncUF64 => write!(f, "i64.trunc_u/f64"),
+
+            F32ConvertSI32 => write!(f, "f32.convert_s/i32"),
+            F32ConvertUI32 => write!(f, "f32.convert_u/i32"),
+            F32ConvertSI64 => write!(f, "f32.convert_s/i64"),
+            F32ConvertUI64 => write!(f, "f32.convert_u/i64"),
+            F32DemoteF64 => write!(f, "f32.demote/f64"),
+
+            F64ConvertSI32 => write!(f, "f64.convert_s/i32"),
+            F64ConvertUI32 => write!(f, "f64.convert_u/i32"),
+            F64ConvertSI64 => write!(f, "f64.convert_s/i64"),
+            F64ConvertUI64 => write!(f, "f64.convert_u/i64"),
+            F64PromoteF32 => write!(f, "f64.promote/f32"),
+
+            I32ReinterpretF32 => write!(f, "i32.reinterpret/f32"),
+            I64ReinterpretF64 => write!(f, "i64.reinterpret/f64"),
+            F32ReinterpretI32 => write!(f, "f32.reinterpret/i32"),
+            F64ReinterpretI64 => write!(f, "f64.reinterpret/i64"),
+        }
+    }
 }
 
 impl Serialize for Opcodes {
@@ -952,4 +1210,16 @@ fn ifelse() {
         .count() 
         - 1; // minus Opcode::Else itself
     assert_eq!(before_else, after_else);
+}
+
+#[test]
+fn display() {
+    let opcode = Opcode::GetLocal(0);
+    assert_eq!("get_local 0", format!("{}", opcode));
+
+    let opcode = Opcode::F64Store(0, 24);
+    assert_eq!("f64.store offset=24", format!("{}", opcode));
+
+    let opcode = Opcode::I64Store(0, 0);
+    assert_eq!("i64.store", format!("{}", opcode));
 }

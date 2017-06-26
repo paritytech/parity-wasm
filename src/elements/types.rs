@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, fmt};
 use super::{
     Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList, 
     CountedListWriter
@@ -70,6 +70,17 @@ impl Serialize for ValueType {
         }.into();
         val.serialize(writer)?;
         Ok(())
+    }
+}
+
+impl fmt::Display for ValueType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ValueType::I32 => write!(f, "i32"),
+            ValueType::I64 => write!(f, "i64"),
+            ValueType::F32 => write!(f, "f32"),
+            ValueType::F64 => write!(f, "f64"),
+        }
     }
 }
 

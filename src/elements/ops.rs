@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, fmt};
 use super::{
     Serialize, Deserialize, Error, VarUint7, 
     VarUint1, VarUint32, CountedList, BlockType,
@@ -907,7 +907,317 @@ impl Serialize for Opcode {
 
         Ok(())
     }
-    
+}
+
+macro_rules! fmt_op {
+    ($f: expr, $mnemonic: expr) => ({
+        write!($f, "{}", $mnemonic)
+    });
+    ($f: expr, $mnemonic: expr, $immediate: expr) => ({
+        write!($f, "{} {}", $mnemonic, $immediate)
+    });
+    ($f: expr, $mnemonic: expr, $immediate1: expr, $immediate2: expr) => ({
+        write!($f, "{} {}", $mnemonic, $immediate1, $immediate2)
+    });
+}
+
+impl fmt::Display for Opcode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Opcode::*;
+        match *self {
+            Unreachable => fmt_op!(f, "unreachable"),
+            Nop => fmt_op!(f, "nop"),
+            Block(block_type) => fmt_op!(f, "block", block_type),
+            /*Loop(block_type) => op!(writer, 0x03, {
+               block_type.serialize(writer)?;
+            }),
+            If(block_type) => op!(writer, 0x04, {
+               block_type.serialize(writer)?;
+            }),
+            Else => op!(writer, 0x05),
+            End => op!(writer, 0x0b),
+            Br(idx) => op!(writer, 0x0c, {
+                VarUint32::from(idx).serialize(writer)?;
+            }),
+            BrIf(idx) => op!(writer, 0x0d, {
+                VarUint32::from(idx).serialize(writer)?;
+            }),
+            BrTable(table, default) => op!(writer, 0x0e, {
+                let list_writer = CountedListWriter::<VarUint32, _>(
+                    table.len(),
+                    table.into_iter().map(Into::into),
+                );
+                list_writer.serialize(writer)?;
+                VarUint32::from(default).serialize(writer)?;
+            }),
+            Return => op!(writer, 0x0f),
+            Call(index) => op!(writer, 0x10, {
+                VarUint32::from(index).serialize(writer)?;
+            }),
+            CallIndirect(index, reserved) => op!(writer, 0x11, {
+                VarUint32::from(index).serialize(writer)?;
+                VarUint1::from(reserved).serialize(writer)?;
+            }),
+            Drop => op!(writer, 0x1a),
+            Select => op!(writer, 0x1b),
+            GetLocal(index) => op!(writer, 0x20, {
+                VarUint32::from(index).serialize(writer)?;
+            }),
+            SetLocal(index) => op!(writer, 0x21, {
+                VarUint32::from(index).serialize(writer)?;
+            }),
+            TeeLocal(index) => op!(writer, 0x22, {
+                VarUint32::from(index).serialize(writer)?;
+            }),
+            GetGlobal(index) => op!(writer, 0x23, {
+                VarUint32::from(index).serialize(writer)?;
+            }),
+            SetGlobal(index) => op!(writer, 0x24, {
+                VarUint32::from(index).serialize(writer)?;
+            }),
+            I32Load(flags, offset) => op!(writer, 0x28, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            I64Load(flags, offset) => op!(writer, 0x29, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            F32Load(flags, offset) => op!(writer, 0x2a, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            F64Load(flags, offset) => op!(writer, 0x2b, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            I32Load8S(flags, offset) => op!(writer, 0x2c, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),       
+            I32Load8U(flags, offset) => op!(writer, 0x2d, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),       
+            I32Load16S(flags, offset) => op!(writer, 0x2e, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),      
+            I32Load16U(flags, offset) => op!(writer, 0x2f, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),                                    
+            I64Load8S(flags, offset) => op!(writer, 0x30, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            I64Load8U(flags, offset) => op!(writer, 0x31, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),      
+            I64Load16S(flags, offset) => op!(writer, 0x32, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),                         
+            I64Load16U(flags, offset) => op!(writer, 0x33, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),          
+            I64Load32S(flags, offset) => op!(writer, 0x34, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),         
+            I64Load32U(flags, offset) => op!(writer, 0x35, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),           
+            I32Store(flags, offset) => op!(writer, 0x36, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),                     
+            I64Store(flags, offset) => op!(writer, 0x37, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),       
+            F32Store(flags, offset) => op!(writer, 0x38, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),   
+            F64Store(flags, offset) => op!(writer, 0x39, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            I32Store8(flags, offset) => op!(writer, 0x3a, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            I32Store16(flags, offset) => op!(writer, 0x3b, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),        
+            I64Store8(flags, offset) => op!(writer, 0x3c, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            I64Store16(flags, offset) => op!(writer, 0x3d, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            I64Store32(flags, offset) => op!(writer, 0x3e, {
+                VarUint32::from(flags).serialize(writer)?;
+                VarUint32::from(offset).serialize(writer)?;
+            }),
+            CurrentMemory(flag) => op!(writer, 0x3f, {
+                VarUint1::from(flag).serialize(writer)?;
+            }),
+            GrowMemory(flag) => op!(writer, 0x40, {
+                VarUint1::from(flag).serialize(writer)?;
+            }),
+            I32Const(def) => op!(writer, 0x41, {
+                VarInt32::from(def).serialize(writer)?;
+            }),
+            I64Const(def) => op!(writer, 0x42, {
+                VarInt64::from(def).serialize(writer)?;
+            }),
+            F32Const(def) => op!(writer, 0x43, {
+                Uint32::from(def).serialize(writer)?;
+            }),
+            F64Const(def) => op!(writer, 0x44, {
+                Uint64::from(def).serialize(writer)?;
+            }),
+            I32Eqz => op!(writer, 0x45),
+            I32Eq => op!(writer, 0x46),
+            I32Ne => op!(writer, 0x47),
+            I32LtS => op!(writer, 0x48),
+            I32LtU => op!(writer, 0x49),
+            I32GtS => op!(writer, 0x4a),
+            I32GtU => op!(writer, 0x4b),
+            I32LeS => op!(writer, 0x4c),
+            I32LeU => op!(writer, 0x4d),
+            I32GeS => op!(writer, 0x4e),
+            I32GeU => op!(writer, 0x4f),
+                
+            I64Eqz => op!(writer, 0x50),
+            I64Eq => op!(writer, 0x51),
+            I64Ne => op!(writer, 0x52),
+            I64LtS => op!(writer, 0x53),
+            I64LtU => op!(writer, 0x54),
+            I64GtS => op!(writer, 0x55),
+            I64GtU => op!(writer, 0x56),
+            I64LeS => op!(writer, 0x57),
+            I64LeU => op!(writer, 0x58),
+            I64GeS => op!(writer, 0x59),
+            I64GeU => op!(writer, 0x5a),
+
+            F32Eq => op!(writer, 0x5b),
+            F32Ne => op!(writer, 0x5c),
+            F32Lt => op!(writer, 0x5d),
+            F32Gt => op!(writer, 0x5e),
+            F32Le => op!(writer, 0x5f),
+            F32Ge => op!(writer, 0x60),
+
+            F64Eq => op!(writer, 0x61),
+            F64Ne => op!(writer, 0x62),
+            F64Lt => op!(writer, 0x63),
+            F64Gt => op!(writer, 0x64),
+            F64Le => op!(writer, 0x65),
+            F64Ge => op!(writer, 0x66),
+
+            I32Clz => op!(writer, 0x67),
+            I32Ctz => op!(writer, 0x68),
+            I32Popcnt => op!(writer, 0x69),
+            I32Add => op!(writer, 0x6a),
+            I32Sub => op!(writer, 0x6b),
+            I32Mul => op!(writer, 0x6c),
+            I32DivS => op!(writer, 0x6d),
+            I32DivU => op!(writer, 0x6e),
+            I32RemS => op!(writer, 0x6f),
+            I32RemU => op!(writer, 0x70),
+            I32And => op!(writer, 0x71),
+            I32Or => op!(writer, 0x72),
+            I32Xor => op!(writer, 0x73),
+            I32Shl => op!(writer, 0x74),
+            I32ShrS => op!(writer, 0x75),
+            I32ShrU => op!(writer, 0x76),
+            I32Rotl => op!(writer, 0x77),
+            I32Rotr => op!(writer, 0x78),
+
+            I64Clz => op!(writer, 0x79),
+            I64Ctz => op!(writer, 0x7a),
+            I64Popcnt => op!(writer, 0x7b),
+            I64Add => op!(writer, 0x7c),
+            I64Sub => op!(writer, 0x7d),
+            I64Mul => op!(writer, 0x7e),
+            I64DivS => op!(writer, 0x7f),
+            I64DivU => op!(writer, 0x80),
+            I64RemS => op!(writer, 0x81),
+            I64RemU => op!(writer, 0x82),
+            I64And => op!(writer, 0x83),
+            I64Or => op!(writer, 0x84),
+            I64Xor => op!(writer, 0x85),
+            I64Shl => op!(writer, 0x86),
+            I64ShrS => op!(writer, 0x87),
+            I64ShrU => op!(writer, 0x88),
+            I64Rotl => op!(writer, 0x89),
+            I64Rotr => op!(writer, 0x8a),
+            F32Abs => op!(writer, 0x8b),
+            F32Neg => op!(writer, 0x8c),
+            F32Ceil => op!(writer, 0x8d),
+            F32Floor => op!(writer, 0x8e),
+            F32Trunc => op!(writer, 0x8f),
+            F32Nearest => op!(writer, 0x90),
+            F32Sqrt => op!(writer, 0x91),
+            F32Add => op!(writer, 0x92),
+            F32Sub => op!(writer, 0x93),
+            F32Mul => op!(writer, 0x94),
+            F32Div => op!(writer, 0x95),
+            F32Min => op!(writer, 0x96),
+            F32Max => op!(writer, 0x97),
+            F32Copysign => op!(writer, 0x98),
+            F64Abs => op!(writer, 0x99),
+            F64Neg => op!(writer, 0x9a),
+            F64Ceil => op!(writer, 0x9b),
+            F64Floor => op!(writer, 0x9c),
+            F64Trunc => op!(writer, 0x9d),
+            F64Nearest => op!(writer, 0x9e),
+            F64Sqrt => op!(writer, 0x9f),
+            F64Add => op!(writer, 0xa0),
+            F64Sub => op!(writer, 0xa1),
+            F64Mul => op!(writer, 0xa2),
+            F64Div => op!(writer, 0xa3),
+            F64Min => op!(writer, 0xa4),
+            F64Max => op!(writer, 0xa5),
+            F64Copysign => op!(writer, 0xa6),
+
+            I32WarpI64 => op!(writer, 0xa7),
+            I32TruncSF32 => op!(writer, 0xa8),
+            I32TruncUF32 => op!(writer, 0xa9),
+            I32TruncSF64 => op!(writer, 0xaa),
+            I32TruncUF64 => op!(writer, 0xab),
+            I64ExtendSI32 => op!(writer, 0xac),
+            I64ExtendUI32 => op!(writer, 0xad),
+            I64TruncSF32 => op!(writer, 0xae),
+            I64TruncUF32 => op!(writer, 0xaf),
+            I64TruncSF64 => op!(writer, 0xb0),
+            I64TruncUF64 => op!(writer, 0xb1),
+            F32ConvertSI32 => op!(writer, 0xb2),
+            F32ConvertUI32 => op!(writer, 0xb3),
+            F32ConvertSI64 => op!(writer, 0xb4),
+            F32ConvertUI64 => op!(writer, 0xb5),
+            F32DemoteF64 => op!(writer, 0xb6),
+            F64ConvertSI32 => op!(writer, 0xb7),
+            F64ConvertUI32 => op!(writer, 0xb8),
+            F64ConvertSI64 => op!(writer, 0xb9),
+            F64ConvertUI64 => op!(writer, 0xba),
+            F64PromoteF32 => op!(writer, 0xbb),
+
+            I32ReinterpretF32 => op!(writer, 0xbc),
+            I64ReinterpretF64 => op!(writer, 0xbd),
+            F32ReinterpretI32 => op!(writer, 0xbe),
+            F64ReinterpretI64 => op!(writer, 0xbf),*/  
+            _ => fmt_op!(f, "unknown"),
+        }
+    }
 }
 
 impl Serialize for Opcodes {

@@ -924,18 +924,19 @@ macro_rules! fmt_op {
 impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Opcode::*;
+        use super::BlockType;
+
         match *self {
             Unreachable => fmt_op!(f, "unreachable"),
             Nop => fmt_op!(f, "nop"),
-            Block(block_type) => fmt_op!(f, "block", block_type),
-            /*Loop(block_type) => op!(writer, 0x03, {
-               block_type.serialize(writer)?;
-            }),
-            If(block_type) => op!(writer, 0x04, {
-               block_type.serialize(writer)?;
-            }),
-            Else => op!(writer, 0x05),
-            End => op!(writer, 0x0b),
+            Block(BlockType::NoResult) => fmt_op!(f, "block"),
+            Block(BlockType::Value(value_type)) => fmt_op!(f, "block", value_type),
+            Loop(BlockType::NoResult) => fmt_op!(f, "loop"),
+            Loop(BlockType::Value(value_type)) => fmt_op!(f, "loop", value_type),
+            If(BlockType::NoResult) => fmt_op!(f, "if"),
+            If(BlockType::Value(value_type)) => fmt_op!(f, "if", value_type),
+            Else => fmt_op!(f, "else"),
+            /*End => op!(writer, 0x0b),
             Br(idx) => op!(writer, 0x0c, {
                 VarUint32::from(idx).serialize(writer)?;
             }),

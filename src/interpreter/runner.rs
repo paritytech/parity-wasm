@@ -90,7 +90,7 @@ impl Interpreter {
 					},
 					None => {
 						// move locals back to the stack
-						let locals_to_move: Vec<_> = function_context.locals.drain(..).rev().collect();
+						let locals_to_move: Vec<_> = function_context.locals.drain(..).collect();
 						for local in locals_to_move {
 							function_context.value_stack_mut().push(local.get())?;
 						}

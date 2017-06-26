@@ -584,11 +584,10 @@ impl ModuleInstanceInterface for ModuleInstance {
 	}
 
 	fn call_internal_function(&self, mut outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
-		let function_labels = self.functions_labels.get(&index).ok_or(Error::Function(format!("trying to call non-validated internal function {}", index)))?;
 		let function_type = self.function_type(ItemIndex::Internal(index))?;
 		let args = prepare_function_args(&function_type, outer.value_stack)?;
 		let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };
-		let inner = FunctionContext::new(function_ref, outer.externals, function_labels.clone(), outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
+		let inner = FunctionContext::new(function_ref, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
 		Interpreter::run_function(inner)
 	}
 }

@@ -5,9 +5,9 @@ use std::sync::Arc;
 use std::fmt::{self, Display};
 use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
-use elements::{Opcode, BlockType, FunctionType, Local};
+use elements::{Opcode, BlockType, Local};
 use interpreter::Error;
-use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, InternalFunctionReference};
+use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, InternalFunctionReference, FunctionSignature};
 use interpreter::stack::StackWithLimit;
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
@@ -423,12 +423,14 @@ impl Interpreter {
 	fn run_call_indirect<'a>(context: &mut FunctionContext<'a>, type_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
 		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
 		let function_reference = context.module().function_reference_indirect(DEFAULT_TABLE_INDEX, type_idx, table_func_idx, Some(context.externals))?;
-		let required_function_type = context.module().function_type_by_index(type_idx)?;
-		let actual_function_type = function_reference.module.function_type(ItemIndex::Internal(function_reference.internal_index))?;
-		if required_function_type != actual_function_type {
-			return Err(Error::Function(format!("expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-				required_function_type.params(), required_function_type.return_type(),
-				actual_function_type.params(), actual_function_type.return_type())));
+		{
+			let required_function_type = context.module().function_type_by_index(type_idx)?;
+			let actual_function_type = function_reference.module.function_type(ItemIndex::Internal(function_reference.internal_index))?;
+			if required_function_type != actual_function_type {
+				return Err(Error::Function(format!("expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
+					required_function_type.params(), required_function_type.return_type(),
+					actual_function_type.params(), actual_function_type.return_type())));
+			}
 		}
 		Ok(InstructionOutcome::ExecuteCall(function_reference))
 	}
@@ -931,7 +933,7 @@ impl Interpreter {
 }
 
 impl<'a> FunctionContext<'a> {
-	pub fn new(function: InternalFunctionReference<'a>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, function_labels: HashMap<usize, usize>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<VariableInstance>) -> Self {
+	pub fn new(function: InternalFunctionReference<'a>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, function_labels: HashMap<usize, usize>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
 		FunctionContext {
 			is_initialized: false,
 			function: function,
@@ -946,9 +948,12 @@ impl<'a> FunctionContext<'a> {
 	}
 
 	pub fn nested(&mut self, function: InternalFunctionReference<'a>) -> Result<Self, Error> {
-		let function_type = function.module.function_type(ItemIndex::Internal(function.internal_index))?;
-		let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
-		let function_locals = prepare_function_args(&function_type, &mut self.value_stack)?;
+		let (function_locals, function_return_type) = {
+			let function_type = function.module.function_type(ItemIndex::Internal(function.internal_index))?;
+			let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
+			let function_locals = prepare_function_args(&function_type, &mut self.value_stack)?;
+			(function_locals, function_return_type)
+		};
 
 		Ok(FunctionContext {
 			is_initialized: false,
@@ -1083,7 +1088,7 @@ fn effective_address(address: u32, offset: u32) -> Result<u32, Error> {
 	}
 }
 
-pub fn prepare_function_args(function_type: &FunctionType, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<VariableInstance>, Error> {
+pub fn prepare_function_args(function_type: &FunctionSignature, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<VariableInstance>, Error> {
 	let mut args = function_type.params().iter().rev().map(|param_type| {
 		let param_value = caller_stack.pop()?;
 		let actual_type = param_value.variable_type();

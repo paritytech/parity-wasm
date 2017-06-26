@@ -1,9 +1,9 @@
 use std::sync::{Arc, Weak};
 use std::collections::HashMap;
-use elements::{ImportSection, ImportEntry, External, Internal, FunctionType};
+use elements::{ImportSection, ImportEntry, External, Internal};
 use interpreter::Error;
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstanceInterface, ItemIndex, ExportEntryType};
+use interpreter::module::{ModuleInstanceInterface, ItemIndex, ExportEntryType, FunctionSignature};
 use interpreter::program::ProgramInstanceEssence;
 use interpreter::table::TableInstance;
 use interpreter::variable::{VariableInstance, VariableType};
@@ -119,8 +119,8 @@ impl ModuleImports {
 	}
 
 	/// Get function index.
-	pub fn function<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry, required_type: Option<&FunctionType>) -> Result<u32, Error> {
-		let (_, export) = self.external_export(externals, import, &required_type.map(|ft| ExportEntryType::Function(ft.clone())).unwrap_or(ExportEntryType::Any))?;
+	pub fn function<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry, required_type: Option<FunctionSignature>) -> Result<u32, Error> {
+		let (_, export) = self.external_export(externals, import, &required_type.map(|ft| ExportEntryType::Function(ft)).unwrap_or(ExportEntryType::Any))?;
 		if let Internal::Function(external_index) = export {
 			return Ok(external_index);
 		}

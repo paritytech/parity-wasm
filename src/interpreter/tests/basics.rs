@@ -5,9 +5,9 @@ use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
 use interpreter::Error;
-use interpreter::env_native::{env_native_module, UserFunction, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
+use interpreter::env_native::{env_native_module, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType};
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::program::ProgramInstance;
 use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::RuntimeValue;
@@ -101,21 +101,17 @@ fn global_get_set() {
 
 const SIGNATURE_I32: &'static [ValueType] = &[ValueType::I32];
 
-const SIGNATURES: &'static [UserFunction] = &[
-	UserFunction {
-		desc: UserFunctionDescriptor::Static(
-			"add",
-			SIGNATURE_I32,
-		),
-		result: Some(ValueType::I32),
-	},
-	UserFunction {
-		desc: UserFunctionDescriptor::Static(
-			"sub",
-			SIGNATURE_I32,
-		),
-		result: Some(ValueType::I32),
-	},
+const SIGNATURES: &'static [UserFunctionDescriptor] = &[
+	UserFunctionDescriptor::Static(
+		"add",
+		SIGNATURE_I32,
+		Some(ValueType::I32),
+	),
+	UserFunctionDescriptor::Static(
+		"sub",
+		SIGNATURE_I32,
+		Some(ValueType::I32),
+	),
 ];
 
 // user function executor
@@ -217,16 +213,16 @@ fn env_native_export_entry_type_check() {
 		functions: ::std::borrow::Cow::from(SIGNATURES),
 	}).unwrap());
 
-	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionType::new(vec![ValueType::I32], Some(ValueType::I32)))).is_ok());
-	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionType::new(vec![], Some(ValueType::I32)))).is_err());
-	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionType::new(vec![ValueType::I32], None))).is_err());
-	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionType::new(vec![ValueType::I32], Some(ValueType::I64)))).is_err());
+	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32], Some(ValueType::I32))))).is_ok());
+	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![], Some(ValueType::I32))))).is_err());
+	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32], None)))).is_err());
+	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32], Some(ValueType::I64))))).is_err());
 }
 
 #[test]
 fn if_else_with_return_type_validation() {
 	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
-	let mut context = FunctionValidationContext::new(&module_instance, &[], 1024, 1024, &FunctionType::default());
+	let mut context = FunctionValidationContext::new(&module_instance, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
 
 	Validator::validate_function(&mut context, BlockType::NoResult, &[
 		Opcode::I32Const(1),

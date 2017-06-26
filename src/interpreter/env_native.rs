@@ -2,10 +2,10 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::borrow::Cow;
 use parking_lot::RwLock;
-use elements::{FunctionType, Internal, ValueType};
+use elements::{Internal, ValueType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
-	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction};
+	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
@@ -21,66 +21,54 @@ pub trait UserFunctionExecutor {
 }
 
 /// User function descriptor
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum UserFunctionDescriptor {
 	/// Static function definition
-	Static(&'static str, &'static [ValueType]),
+	Static(&'static str, &'static [ValueType], Option<ValueType>),
 	/// Dynamic heap function definition
-	Heap(String, Vec<ValueType>),
+	Heap(String, Vec<ValueType>, Option<ValueType>),
 }
 
-/// User function type.
-#[derive(Clone)]
-pub struct UserFunction {
-	/// Descriptor with variable-length definitions
-	pub desc: UserFunctionDescriptor,
-	/// Return type of the signature
-	pub result: Option<ValueType>,
-}
-
-impl UserFunction {
+impl UserFunctionDescriptor {
 	/// New function with statically known params
 	pub fn statik(name: &'static str, params: &'static [ValueType], result: Option<ValueType>) -> Self {
-		UserFunction {
-			desc: UserFunctionDescriptor::Static(name, params),
-			result: result,
-		}
+		UserFunctionDescriptor::Static(name, params, result)
 	}
 
 	/// New function with statically unknown params
 	pub fn heap(name: String, params: Vec<ValueType>, result: Option<ValueType>) -> Self {
-		UserFunction {
-			desc: UserFunctionDescriptor::Heap(name, params),
-			result: result,
-		}	
+		UserFunctionDescriptor::Heap(name, params, result)
 	}
 
 	/// Name of the function
 	pub fn name(&self) -> &str {
-		match self.desc {
-			UserFunctionDescriptor::Static(name, _) => name,
-			UserFunctionDescriptor::Heap(ref name, _) => name,
+		match self {
+			&UserFunctionDescriptor::Static(name, _, _) => name,
+			&UserFunctionDescriptor::Heap(ref name, _, _) => name,
 		}
 	}
 
 	/// Arguments of the function
 	pub fn params(&self) -> &[ValueType] {
-		match self.desc {
-			UserFunctionDescriptor::Static(_, params) => params,
-			UserFunctionDescriptor::Heap(_, ref params) => params,
-		}		
+		match self {
+			&UserFunctionDescriptor::Static(_, params, _) => params,
+			&UserFunctionDescriptor::Heap(_, ref params, _) => params,
+		}
 	}
 
 	/// Return type of the function
-	pub fn result(&self) -> Option<ValueType> {
-		self.result
+	pub fn return_type(&self) -> Option<ValueType> {
+		match self {
+			&UserFunctionDescriptor::Static(_, _, result) => result,
+			&UserFunctionDescriptor::Heap(_, _, result) => result,
+		}
 	}
 }
 
 /// Set of user-defined functions
 pub struct UserFunctions<'a> {
 	/// Functions list.
-	pub functions: Cow<'static, [UserFunction]>,
+	pub functions: Cow<'static, [UserFunctionDescriptor]>,
 	/// Functions executor.
 	pub executor: &'a mut UserFunctionExecutor,
 }
@@ -94,7 +82,7 @@ pub struct NativeModuleInstance<'a> {
 	/// By-name functions index.
 	by_name: HashMap<String, u32>,
 	/// User functions list.
-	functions: Cow<'static, [UserFunction]>,
+	functions: Cow<'static, [UserFunctionDescriptor]>,
 }
 
 impl<'a> NativeModuleInstance<'a> {
@@ -123,8 +111,8 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 			let composite_index = NATIVE_INDEX_FUNC_MIN + *index;
 			match required_type {
 				&ExportEntryType::Function(ref required_type)
-					if required_type == &self.function_type(ItemIndex::Internal(composite_index))
-						.expect("by_name contains index; function_type succeeds for all functions from by_name; qed")
+					if self.function_type(ItemIndex::Internal(composite_index))
+						.expect("by_name contains index; function_type succeeds for all functions from by_name; qed") == *required_type
 					=> return Ok(Internal::Function(composite_index)),
 				_ => (),
 			}
@@ -145,7 +133,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		self.env.global(index, variable_type)
 	}
 
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionType, Error> {
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
 		let index = match function_index {
 			ItemIndex::IndexSpace(index) | ItemIndex::Internal(index) => index,
 			ItemIndex::External(_) => unreachable!("trying to call function, exported by native env module"),
@@ -155,13 +143,12 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 			return self.env.function_type(function_index);
 		}
 
-		self.functions
+		Ok(FunctionSignature::User(self.functions
 			.get((index - NATIVE_INDEX_FUNC_MIN) as usize)
-			.ok_or(Error::Native(format!("missing native env function with index {}", index)))
-			.map(|f| FunctionType::new(f.params().to_vec(), f.result().clone()))
+			.ok_or(Error::Native(format!("missing native env function with index {}", index)))?))
 	}
 
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error> {
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error> {
 		self.function_type(ItemIndex::Internal(type_index))
 	}
 
@@ -192,4 +179,11 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 /// Create wrapper for env module with given native user functions.
 pub fn env_native_module<'a>(env: Arc<ModuleInstanceInterface>, user_functions: UserFunctions<'a>) -> Result<NativeModuleInstance, Error> {
 	NativeModuleInstance::new(env, user_functions)
+}
+
+impl<'a> PartialEq for UserFunctionDescriptor {
+	fn eq(&self, other: &Self) -> bool {
+		self.params() == other.params()
+			&& self.return_type() == other.return_type()
+	}
 }

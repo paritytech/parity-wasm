@@ -1211,3 +1211,15 @@ fn ifelse() {
         - 1; // minus Opcode::Else itself
     assert_eq!(before_else, after_else);
 }
+
+#[test]
+fn display() {
+    let opcode = Opcode::GetLocal(0);
+    assert_eq!("get_local 0", format!("{}", opcode));
+
+    let opcode = Opcode::F64Store(0, 24);
+    assert_eq!("f64.store offset=24", format!("{}", opcode));
+
+    let opcode = Opcode::I64Store(0, 0);
+    assert_eq!("i64.store", format!("{}", opcode));
+}

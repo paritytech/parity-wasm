@@ -1050,7 +1050,7 @@ impl fmt::Display for Opcode {
             I64LeS => write!(f, "i64.le_s"),
             I64LeU => write!(f, "i64.le_u"),
             I64GeS => write!(f, "i64.ge_s"),
-            I64GeU => write!(f, "i64.ge_u"),            
+            I64GeU => write!(f, "i64.ge_u"),
 
             F32Eq => write!(f, "f32.eq"),
             F32Ne => write!(f, "f32.ne"),
@@ -1094,7 +1094,7 @@ impl fmt::Display for Opcode {
             I64DivS => write!(f, "i64.div_s"),
             I64DivU => write!(f, "i64.div_u"),
             I64RemS => write!(f, "i64.rem_s"),
-            I64RemU => write!(f, "i64.rem_u"),            
+            I64RemU => write!(f, "i64.rem_u"),
             I64And => write!(f, "i64.and"),
             I64Or => write!(f, "i64.or"),
             I64Xor => write!(f, "i64.xor"),

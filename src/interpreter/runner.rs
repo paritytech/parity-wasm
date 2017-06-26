@@ -5,9 +5,9 @@ use std::sync::Arc;
 use std::fmt::{self, Display};
 use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
-use elements::{Opcode, BlockType, FunctionType, Local};
+use elements::{Opcode, BlockType, Local};
 use interpreter::Error;
-use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, InternalFunctionReference};
+use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, InternalFunctionReference, FunctionSignature};
 use interpreter::stack::StackWithLimit;
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
@@ -32,8 +32,6 @@ pub struct FunctionContext<'a> {
 	pub function: InternalFunctionReference<'a>,
 	/// Execution-local external modules.
 	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
-	/// Function labels.
-	pub function_labels: HashMap<usize, usize>,
 	/// Function return type.
 	pub return_type: BlockType,
 	/// Local variables.
@@ -77,28 +75,30 @@ impl Interpreter {
 		loop {
 			let mut function_context = function_stack.pop_back().expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
 			let function_ref = function_context.function.clone();
-			let function_body = function_ref.module.function_body(function_ref.internal_index)?;
+			let function_return = {
+				let function_body = function_ref.module.function_body(function_ref.internal_index)?;
 
-			let function_return = match function_body {
-				Some(function_body) => {
-					if !function_context.is_initialized() {
-						let return_type = function_context.return_type;
-						function_context.initialize(function_body.locals, function_body.labels.clone())?;
-						function_context.push_frame(BlockFrameType::Function, return_type)?;
-					}
+				match function_body {
+					Some(function_body) => {
+						if !function_context.is_initialized() {
+							let return_type = function_context.return_type;
+							function_context.initialize(function_body.locals)?;
+							function_context.push_frame(function_body.labels, BlockFrameType::Function, return_type)?;
+						}
 
-					Interpreter::do_run_function(&mut function_context, function_body.body)?
-				},
-				None => {
-					// move locals back to the stack
-					let locals_to_move: Vec<_> = function_context.locals.drain(..).rev().collect();
-					for local in locals_to_move {
-						function_context.value_stack_mut().push(local.get())?;
-					}
+						Interpreter::do_run_function(&mut function_context, function_body.body, function_body.labels)?
+					},
+					None => {
+						// move locals back to the stack
+						let locals_to_move: Vec<_> = function_context.locals.drain(..).rev().collect();
+						for local in locals_to_move {
+							function_context.value_stack_mut().push(local.get())?;
+						}
 
-					let nested_context = CallerContext::nested(&mut function_context);
-					RunResult::Return(function_ref.module.call_internal_function(nested_context, function_ref.internal_index)?)
-				},
+						let nested_context = CallerContext::nested(&mut function_context);
+						RunResult::Return(function_ref.module.call_internal_function(nested_context, function_ref.internal_index)?)
+					},
+				}
 			};
 
 			match function_return {
@@ -118,12 +118,12 @@ impl Interpreter {
 		}
 	}
 
-	fn do_run_function<'a>(function_context: &mut FunctionContext<'a>, function_body: &[Opcode]) -> Result<RunResult<'a>, Error> {
+	fn do_run_function<'a>(function_context: &mut FunctionContext<'a>, function_body: &[Opcode], function_labels: &HashMap<usize, usize>) -> Result<RunResult<'a>, Error> {
 		loop {
 			let instruction = &function_body[function_context.position];
 
 			debug!(target: "interpreter", "running {:?}", instruction);
-			match Interpreter::run_instruction(function_context, instruction)? {
+			match Interpreter::run_instruction(function_context, function_labels, instruction)? {
 				InstructionOutcome::RunNextInstruction => function_context.position += 1,
 				InstructionOutcome::Branch(mut index) => {
 					// discard index - 1 blocks
@@ -156,14 +156,14 @@ impl Interpreter {
 		}))
 	}
 
-	fn run_instruction<'a>(context: &mut FunctionContext<'a>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_instruction<'a>(context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
 		match opcode {
 			&Opcode::Unreachable => Interpreter::run_unreachable(context),
 			&Opcode::Nop => Interpreter::run_nop(context),
-			&Opcode::Block(block_type) => Interpreter::run_block(context, block_type),
-			&Opcode::Loop(block_type) => Interpreter::run_loop(context, block_type),
-			&Opcode::If(block_type) => Interpreter::run_if(context, block_type),
-			&Opcode::Else => Interpreter::run_else(context),
+			&Opcode::Block(block_type) => Interpreter::run_block(context, labels, block_type),
+			&Opcode::Loop(block_type) => Interpreter::run_loop(context, labels, block_type),
+			&Opcode::If(block_type) => Interpreter::run_if(context, labels, block_type),
+			&Opcode::Else => Interpreter::run_else(context, labels),
 			&Opcode::End => Interpreter::run_end(context),
 			&Opcode::Br(idx) => Interpreter::run_br(context, idx),
 			&Opcode::BrIf(idx) => Interpreter::run_br_if(context, idx),
@@ -358,21 +358,21 @@ impl Interpreter {
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_block<'a>(context: &mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
-		context.push_frame(BlockFrameType::Block, block_type)?;
+	fn run_block<'a>(context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+		context.push_frame(labels, BlockFrameType::Block, block_type)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_loop<'a>(context: &mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
-		context.push_frame(BlockFrameType::Loop, block_type)?;
+	fn run_loop<'a>(context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+		context.push_frame(labels, BlockFrameType::Loop, block_type)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_if<'a>(context: &mut FunctionContext<'a>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_if<'a>(context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		let branch = context.value_stack_mut().pop_as()?;
 		let block_frame_type = if branch { BlockFrameType::IfTrue } else {
-			let else_pos = context.function_labels[&context.position];
-			if !context.function_labels.contains_key(&else_pos) {
+			let else_pos = labels[&context.position];
+			if !labels.contains_key(&else_pos) {
 				context.position = else_pos;
 				return Ok(InstructionOutcome::RunNextInstruction);
 			}
@@ -380,11 +380,11 @@ impl Interpreter {
 			context.position = else_pos;
 			BlockFrameType::IfFalse
 		};
-		context.push_frame(block_frame_type, block_type).map(|_| InstructionOutcome::RunNextInstruction)
+		context.push_frame(labels, block_frame_type, block_type).map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_else<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
-		let end_pos = context.function_labels[&context.position];
+	fn run_else<'a>(context: &mut FunctionContext, labels: &HashMap<usize, usize>) -> Result<InstructionOutcome<'a>, Error> {
+		let end_pos = labels[&context.position];
 		context.pop_frame(false)?;
 		context.position = end_pos;
 		Ok(InstructionOutcome::RunNextInstruction)
@@ -423,12 +423,14 @@ impl Interpreter {
 	fn run_call_indirect<'a>(context: &mut FunctionContext<'a>, type_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
 		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
 		let function_reference = context.module().function_reference_indirect(DEFAULT_TABLE_INDEX, type_idx, table_func_idx, Some(context.externals))?;
-		let required_function_type = context.module().function_type_by_index(type_idx)?;
-		let actual_function_type = function_reference.module.function_type(ItemIndex::Internal(function_reference.internal_index))?;
-		if required_function_type != actual_function_type {
-			return Err(Error::Function(format!("expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-				required_function_type.params(), required_function_type.return_type(),
-				actual_function_type.params(), actual_function_type.return_type())));
+		{
+			let required_function_type = context.module().function_type_by_index(type_idx)?;
+			let actual_function_type = function_reference.module.function_type(ItemIndex::Internal(function_reference.internal_index))?;
+			if required_function_type != actual_function_type {
+				return Err(Error::Function(format!("expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
+					required_function_type.params(), required_function_type.return_type(),
+					actual_function_type.params(), actual_function_type.return_type())));
+			}
 		}
 		Ok(InstructionOutcome::ExecuteCall(function_reference))
 	}
@@ -931,12 +933,11 @@ impl Interpreter {
 }
 
 impl<'a> FunctionContext<'a> {
-	pub fn new(function: InternalFunctionReference<'a>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, function_labels: HashMap<usize, usize>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<VariableInstance>) -> Self {
+	pub fn new(function: InternalFunctionReference<'a>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
 		FunctionContext {
 			is_initialized: false,
 			function: function,
 			externals: externals,
-			function_labels: function_labels,
 			return_type: function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult),
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
 			frame_stack: StackWithLimit::with_limit(frame_stack_limit),
@@ -946,15 +947,17 @@ impl<'a> FunctionContext<'a> {
 	}
 
 	pub fn nested(&mut self, function: InternalFunctionReference<'a>) -> Result<Self, Error> {
-		let function_type = function.module.function_type(ItemIndex::Internal(function.internal_index))?;
-		let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
-		let function_locals = prepare_function_args(&function_type, &mut self.value_stack)?;
+		let (function_locals, function_return_type) = {
+			let function_type = function.module.function_type(ItemIndex::Internal(function.internal_index))?;
+			let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
+			let function_locals = prepare_function_args(&function_type, &mut self.value_stack)?;
+			(function_locals, function_return_type)
+		};
 
 		Ok(FunctionContext {
 			is_initialized: false,
 			function: function,
 			externals: self.externals,
-			function_labels: HashMap::new(),
 			return_type: function_return_type,
 			value_stack: StackWithLimit::with_limit(self.value_stack.limit() - self.value_stack.len()),
 			frame_stack: StackWithLimit::with_limit(self.frame_stack.limit() - self.frame_stack.len()),
@@ -967,7 +970,7 @@ impl<'a> FunctionContext<'a> {
 		self.is_initialized
 	}
 
-	pub fn initialize(&mut self, locals: &[Local], labels: HashMap<usize, usize>) -> Result<(), Error> {
+	pub fn initialize(&mut self, locals: &[Local]) -> Result<(), Error> {
 		debug_assert!(!self.is_initialized);
 		self.is_initialized = true;
 
@@ -976,7 +979,6 @@ impl<'a> FunctionContext<'a> {
 			.map(|vt| VariableInstance::new(true, vt, RuntimeValue::default(vt)))
 			.collect::<Result<Vec<_>, _>>()?;
 		self.locals.extend(locals);
-		self.function_labels = labels;
 		Ok(())
 	}
 
@@ -1017,23 +1019,23 @@ impl<'a> FunctionContext<'a> {
 		&mut self.frame_stack
 	}
 
-	pub fn push_frame(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
+	pub fn push_frame(&mut self, labels: &HashMap<usize, usize>, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
 		let begin_position = self.position;
 		let branch_position = match frame_type {
 			BlockFrameType::Function => usize::MAX,
 			BlockFrameType::Loop => begin_position,
 			BlockFrameType::IfTrue => {
-				let else_pos = self.function_labels[&begin_position];
-				1usize + match self.function_labels.get(&else_pos) {
+				let else_pos = labels[&begin_position];
+				1usize + match labels.get(&else_pos) {
 					Some(end_pos) => *end_pos,
 					None => else_pos,
 				}
 			},
-			_ => self.function_labels[&begin_position] + 1,
+			_ => labels[&begin_position] + 1,
 		};
 		let end_position = match frame_type {
 			BlockFrameType::Function => usize::MAX,
-			_ => self.function_labels[&begin_position] + 1,
+			_ => labels[&begin_position] + 1,
 		};
 		self.frame_stack.push(BlockFrame {
 			frame_type: frame_type,
@@ -1083,7 +1085,7 @@ fn effective_address(address: u32, offset: u32) -> Result<u32, Error> {
 	}
 }
 
-pub fn prepare_function_args(function_type: &FunctionType, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<VariableInstance>, Error> {
+pub fn prepare_function_args(function_type: &FunctionSignature, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<VariableInstance>, Error> {
 	let mut args = function_type.params().iter().rev().map(|param_type| {
 		let param_value = caller_stack.pop()?;
 		let actual_type = param_value.variable_type();

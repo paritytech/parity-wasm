@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::iter::repeat;
 use std::sync::{Arc, Weak};
 use std::fmt;
-use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, BlockType, ResizableLimits, Local};
+use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, BlockType, ResizableLimits, Local, ValueType};
 use interpreter::Error;
+use interpreter::env_native::UserFunctionDescriptor;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::program::ProgramInstanceEssence;
@@ -30,13 +31,22 @@ pub struct ExecutionParams<'a> {
 
 /// Export type.
 #[derive(Debug, Clone)]
-pub enum ExportEntryType {
+pub enum ExportEntryType<'a> {
 	/// Any type.
 	Any,
 	/// Type of function.
-	Function(FunctionType),
+	Function(FunctionSignature<'a>),
 	/// Type of global.
 	Global(VariableType),
+}
+
+/// Function signature.
+#[derive(Debug, Clone)]
+pub enum FunctionSignature<'a> {
+	/// Module function reference.
+	Module(&'a FunctionType),
+	/// Native user function refrence.
+	User(&'a UserFunctionDescriptor),
 }
 
 /// Module instance API.
@@ -54,9 +64,9 @@ pub trait ModuleInstanceInterface {
 	/// Get global reference.
 	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error>;
 	/// Get function type for given function index.
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionType, Error>;
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error>;
 	/// Get function type for given function index.
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error>;
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error>;
 	/// Get function reference.
 	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error>;
 	/// Get function indirect reference.
@@ -259,15 +269,17 @@ impl ModuleInstance {
 
 						// export entry points to function in function index space
 						// and Internal::Function points to type in type section
-						let export_function_type = match export_entry {
-							Internal::Function(function_index) => external_module.function_type(ItemIndex::IndexSpace(function_index))?,
-							_ => return Err(Error::Validation(format!("Export with name {} from module {} is not a function", import.field(), import.module()))),
-						};
+						{
+							let export_function_type = match export_entry {
+								Internal::Function(function_index) => external_module.function_type(ItemIndex::IndexSpace(function_index))?,
+								_ => return Err(Error::Validation(format!("Export with name {} from module {} is not a function", import.field(), import.module()))),
+							};
 
-						if import_function_type != export_function_type {
-							return Err(Error::Validation(format!("Export function type {} mismatch. Expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-								function_type_index, import_function_type.params(), import_function_type.return_type(),
-								export_function_type.params(), export_function_type.return_type())));
+							if export_function_type != import_function_type {
+								return Err(Error::Validation(format!("Export function type {} mismatch. Expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
+									function_type_index, import_function_type.params(), import_function_type.return_type(),
+									export_function_type.params(), export_function_type.return_type())));
+							}
 						}
 					}, 
 					&External::Global(ref global_type) => if global_type.is_mutable() {
@@ -310,18 +322,18 @@ impl ModuleInstance {
 			let code_section = self.module.code_section().expect("function_section_len != 0; function_section_len == code_section_len; qed");
 			// check every function body
 			for (index, function) in function_section.entries().iter().enumerate() {
-				let function_type = self.function_type_by_index(function.type_ref())?;
-				let function_body = code_section.bodies().get(index as usize).ok_or(Error::Validation(format!("Missing body for function {}", index)))?;
-				let mut locals = function_type.params().to_vec();
-				locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
-
 				let function_labels = {
+					let function_type = self.function_type_by_index(function.type_ref())?;
+					let function_body = code_section.bodies().get(index as usize).ok_or(Error::Validation(format!("Missing body for function {}", index)))?;
+					let mut locals = function_type.params().to_vec();
+					locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
+
 					let mut context = FunctionValidationContext::new(
 						self,
 						&locals, 
 						DEFAULT_VALUE_STACK_LIMIT, 
 						DEFAULT_FRAME_STACK_LIMIT, 
-						&function_type);
+						function_type.clone());
 
 					let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
 					Validator::validate_function(&mut context, block_type, function_body.code().elements())
@@ -439,7 +451,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 					&ExportEntryType::Function(ref required_type) => match e.internal() {
 						&Internal::Function(function_index) =>
 							self.function_type(ItemIndex::IndexSpace(function_index))
-								.map(|ft| &ft == required_type)
+								.map(|ft| ft == *required_type)
 								.unwrap_or(false),
 						_ => false,
 					},
@@ -487,7 +499,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		}
 	}
 
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionType, Error> {
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
 		match self.imports.parse_function_index(function_index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.require_function(ItemIndex::Internal(index))
@@ -503,14 +515,14 @@ impl ModuleInstanceInterface for ModuleInstance {
 		}
 	}
 
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error> {
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error> {
 		self.module.type_section()
 			.ok_or(Error::Validation(format!("type reference {} exists in module without type section", type_index)))
 			.and_then(|s| match s.types().get(type_index as usize) {
 				Some(&Type::Function(ref function_type)) => Ok(function_type),
 				_ => Err(Error::Validation(format!("missing function type with index {}", type_index))),
 			})
-			.map(Clone::clone)
+			.map(FunctionSignature::Module)
 	}
 
 	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
@@ -526,7 +538,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 					.entries().get(index as usize)
 					.expect("parse_function_index has returned External(index); it is only returned when entry with index exists in import section exists; qed");
 				let required_function_type = self.function_type(ItemIndex::External(index))?;
-				let internal_function_index = self.imports.function(externals, import_entry, Some(&required_function_type))?;
+				let internal_function_index = self.imports.function(externals, import_entry, Some(required_function_type))?;
 				Ok(InternalFunctionReference {
 					module: self.imports.module(externals, import_entry.module())?,
 					internal_index: internal_function_index,
@@ -572,11 +584,10 @@ impl ModuleInstanceInterface for ModuleInstance {
 	}
 
 	fn call_internal_function(&self, mut outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
-		let function_labels = self.functions_labels.get(&index).ok_or(Error::Function(format!("trying to call non-validated internal function {}", index)))?;
 		let function_type = self.function_type(ItemIndex::Internal(index))?;
 		let args = prepare_function_args(&function_type, outer.value_stack)?;
 		let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };
-		let inner = FunctionContext::new(function_ref, outer.externals, function_labels.clone(), outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
+		let inner = FunctionContext::new(function_ref, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
 		Interpreter::run_function(inner)
 	}
 }
@@ -638,5 +649,41 @@ fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports, ex
 		&Opcode::F32Const(val) => Ok(RuntimeValue::decode_f32(val)),
 		&Opcode::F64Const(val) => Ok(RuntimeValue::decode_f64(val)),
 		_ => Err(Error::Initialization(format!("not-supported {:?} instruction in instantiation-time initializer", first_opcode))),
+	}
+}
+
+impl<'a> FunctionSignature<'a> {
+	pub fn return_type(&self) -> Option<ValueType> {
+		match self {
+			&FunctionSignature::Module(ft) => ft.return_type(),
+			&FunctionSignature::User(fd) => fd.return_type(),
+		}
+	}
+
+	pub fn params(&self) -> &[ValueType] {
+		match self {
+			&FunctionSignature::Module(ft) => ft.params(),
+			&FunctionSignature::User(fd) => fd.params(),
+		}
+	}
+}
+
+impl<'a> PartialEq for FunctionSignature<'a> {
+	fn eq<'b>(&self, other: &FunctionSignature<'b>) -> bool {
+		match self {
+			&FunctionSignature::Module(ft1) => match other {
+				&FunctionSignature::Module(ft2) => ft1 == ft2,
+				&FunctionSignature::User(ft2) => ft1.params() == ft2.params() && ft1.return_type() == ft2.return_type(),
+			},
+			&FunctionSignature::User(ft1) => match other {
+				&FunctionSignature::User(ft2) => ft1 == ft2,
+				&FunctionSignature::Module(ft2) => ft1.params() == ft2.params() && ft1.return_type() == ft2.return_type(),
+			},
+		}
+	}
+}
+impl<'a> From<&'a FunctionType> for FunctionSignature<'a> {
+	fn from(other: &'a FunctionType) -> Self {
+		FunctionSignature::Module(other)
 	}
 }

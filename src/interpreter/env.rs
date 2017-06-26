@@ -1,13 +1,12 @@
 use std::sync::{Arc, Weak};
 use std::collections::HashMap;
-
 use builder::module;
-use elements::{Module, FunctionType, ExportEntry, Internal, GlobalEntry, GlobalType,
+use elements::{Module, ExportEntry, Internal, GlobalEntry, GlobalType,
 	ValueType, InitExpr, Opcode, Opcodes};
 use interpreter::Error;
 use interpreter::env_native::NATIVE_INDEX_FUNC_MIN;
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
-	ItemIndex, CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction};
+	ItemIndex, CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::{MemoryInstance, LINEAR_MEMORY_PAGE_SIZE};
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
@@ -116,11 +115,11 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.global(index, variable_type)
 	}
 
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionType, Error> {
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
 		self.instance.function_type(function_index)
 	}
 
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionType, Error> {
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error> {
 		self.instance.function_type_by_index(type_index)
 	}
 

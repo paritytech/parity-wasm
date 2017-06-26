@@ -1,9 +1,9 @@
 use std::u32;
 use std::collections::HashMap;
-use elements::{Opcode, BlockType, FunctionType, ValueType};
+use elements::{Opcode, BlockType, ValueType};
 use interpreter::Error;
 use interpreter::runner::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex};
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, FunctionSignature};
 use interpreter::stack::StackWithLimit;
 use interpreter::variable::VariableType;
 
@@ -572,7 +572,7 @@ impl<'a> FunctionValidationContext<'a> {
 		locals: &'a [ValueType], 
 		value_stack_limit: usize, 
 		frame_stack_limit: usize, 
-		function: &FunctionType,
+		function: FunctionSignature,
 	) -> Self {
 		FunctionValidationContext {
 			module_instance: module_instance,

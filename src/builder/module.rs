@@ -301,6 +301,20 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     }
 
     /// Import entry builder
+    /// # Examples
+    /// ```
+    /// use parity_wasm::builder::module;
+    ///
+    /// let module = module()
+    ///    .import()
+    ///        .module("env")
+    ///        .field("memory")
+    ///        .external().memory(256, Some(256))
+    ///        .build()
+    ///    .build();
+    ///
+    /// assert_eq!(module.import_section().expect("import section to exist").entries().len(), 1);
+    /// ```
     pub fn import(self) -> import::ImportBuilder<Self> {
         import::ImportBuilder::with_callback(self)
     }

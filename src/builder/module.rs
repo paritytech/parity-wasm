@@ -348,13 +348,27 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     ///        .build()
     ///    .build();
     ///
-    /// assert_eq!(module.export_section().expect("import section to exist").entries().len(), 1);
+    /// assert_eq!(module.export_section().expect("export section to exist").entries().len(), 1);
     /// ```    
     pub fn export(self) -> export::ExportBuilder<Self> {
         export::ExportBuilder::with_callback(self)
     }
 
     /// Glboal entry builder
+    /// # Examples
+    /// ```
+    /// use parity_wasm::builder::module;
+    /// use parity_wasm::elements::Opcode::*;
+    ///
+    /// let module = module()
+    ///    .global()
+    ///         .value_type().i32()
+    ///         .init_expr(I32Const(0))
+    ///         .build()
+    ///    .build();
+    ///
+    /// assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);
+    /// ```        
     pub fn global(self) -> global::GlobalBuilder<Self> {
         global::GlobalBuilder::with_callback(self)
     }

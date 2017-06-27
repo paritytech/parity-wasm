@@ -49,7 +49,7 @@ impl MemoryInstance {
 			.ok_or(Error::Memory(format!("initial memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES)))?;
 
 		let memory = MemoryInstance {
-			buffer: RwLock::new(Vec::with_capacity(initial_size as usize)),
+			buffer: RwLock::new(vec![0; initial_size as usize]),
 			maximum_size: maximum_size,
 		};
 		if memory.grow(memory_type.limits().initial())? == u32::MAX {

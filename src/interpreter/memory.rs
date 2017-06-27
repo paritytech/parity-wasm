@@ -52,9 +52,6 @@ impl MemoryInstance {
 			buffer: RwLock::new(vec![0; initial_size as usize]),
 			maximum_size: maximum_size,
 		};
-		if memory.grow(memory_type.limits().initial())? == u32::MAX {
-			return Err(Error::Memory(format!("error initializing {}-bytes linear memory region", initial_size)));
-		}
 
 		Ok(Arc::new(memory))
 	}

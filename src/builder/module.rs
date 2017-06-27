@@ -442,6 +442,22 @@ impl<F> Invoke<elements::DataSegment> for ModuleBuilder<F>
 }
 
 /// Start new module builder
+/// # Examples
+///
+/// ```
+/// use parity_wasm::builder;
+/// 
+/// let module = builder::module()
+///     .function()
+///         .signature().param().i32().build()
+///         .body().build()
+///         .build()
+///     .build();
+///
+/// assert_eq!(module.type_section().expect("type section to exist").types().len(), 1);
+/// assert_eq!(module.function_section().expect("function section to exist").entries().len(), 1);
+/// assert_eq!(module.code_section().expect("code section to exist").bodies().len(), 1);
+/// ```
 pub fn module() -> ModuleBuilder {
     ModuleBuilder::new()
 }

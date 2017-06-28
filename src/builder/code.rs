@@ -346,7 +346,7 @@ mod tests {
                 .build()
             .bind();      
 
-        assert_eq!(result.len(), 1);              
+        assert_eq!(result.len(), 1);
     }
 
     #[test]

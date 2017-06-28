@@ -301,6 +301,20 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     }
 
     /// Import entry builder
+    /// # Examples
+    /// ```
+    /// use parity_wasm::builder::module;
+    ///
+    /// let module = module()
+    ///    .import()
+    ///        .module("env")
+    ///        .field("memory")
+    ///        .external().memory(256, Some(256))
+    ///        .build()
+    ///    .build();
+    ///
+    /// assert_eq!(module.import_section().expect("import section to exist").entries().len(), 1);
+    /// ```
     pub fn import(self) -> import::ImportBuilder<Self> {
         import::ImportBuilder::with_callback(self)
     }
@@ -318,11 +332,43 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     }
 
     /// Export entry builder
+    /// # Examples
+    /// ```
+    /// use parity_wasm::builder::module;
+    /// use parity_wasm::elements::Opcode::*;
+    ///
+    /// let module = module()
+    ///    .global()
+    ///         .value_type().i32()
+    ///         .init_expr(I32Const(0))
+    ///         .build()
+    ///    .export()
+    ///        .field("_zero")
+    ///        .internal().global(0)
+    ///        .build()
+    ///    .build();
+    ///
+    /// assert_eq!(module.export_section().expect("export section to exist").entries().len(), 1);
+    /// ```    
     pub fn export(self) -> export::ExportBuilder<Self> {
         export::ExportBuilder::with_callback(self)
     }
 
     /// Glboal entry builder
+    /// # Examples
+    /// ```
+    /// use parity_wasm::builder::module;
+    /// use parity_wasm::elements::Opcode::*;
+    ///
+    /// let module = module()
+    ///    .global()
+    ///         .value_type().i32()
+    ///         .init_expr(I32Const(0))
+    ///         .build()
+    ///    .build();
+    ///
+    /// assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);
+    /// ```        
     pub fn global(self) -> global::GlobalBuilder<Self> {
         global::GlobalBuilder::with_callback(self)
     }
@@ -442,6 +488,22 @@ impl<F> Invoke<elements::DataSegment> for ModuleBuilder<F>
 }
 
 /// Start new module builder
+/// # Examples
+///
+/// ```
+/// use parity_wasm::builder;
+/// 
+/// let module = builder::module()
+///     .function()
+///         .signature().param().i32().build()
+///         .body().build()
+///         .build()
+///     .build();
+///
+/// assert_eq!(module.type_section().expect("type section to exist").types().len(), 1);
+/// assert_eq!(module.function_section().expect("function section to exist").entries().len(), 1);
+/// assert_eq!(module.code_section().expect("code section to exist").bodies().len(), 1);
+/// ```
 pub fn module() -> ModuleBuilder {
     ModuleBuilder::new()
 }

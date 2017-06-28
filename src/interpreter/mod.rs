@@ -74,7 +74,7 @@ mod variable;
 mod tests;
 
 pub use self::memory::MemoryInstance;
-pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, ExportEntryType, CallerContext, ExecutionParams};
+pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, ExportEntryType, CallerContext, ExecutionParams, FunctionSignature};
 pub use self::table::TableInstance;
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;

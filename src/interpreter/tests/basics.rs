@@ -97,6 +97,7 @@ fn global_get_set() {
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
+	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(58));
 }
 
 const SIGNATURE_I32_I32: &'static [ValueType] = &[ValueType::I32, ValueType::I32];

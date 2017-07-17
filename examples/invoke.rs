@@ -3,7 +3,8 @@ extern crate parity_wasm;
 use std::env::args;
 
 use parity_wasm::{interpreter, ModuleInstanceInterface, RuntimeValue};
-use parity_wasm::elements::{Internal, Type, FunctionType, ValueType};
+use parity_wasm::elements::{Internal, External, Type, FunctionType, ValueType};
+
 
 fn main() {
     let args: Vec<_> = args().collect();
@@ -28,7 +29,7 @@ fn main() {
         let function_section = module.function_section().expect("No function section found");
         let type_section = module.type_section().expect("No type section found");
         
-        let found_entry= export_section.entries().iter()
+        let found_entry = export_section.entries().iter()
             .find(|entry| func_name == entry.field()).expect(&format!("No export with name {} found", func_name));
 
         // Function index with imported functions
@@ -37,9 +38,14 @@ fn main() {
             _ => panic!("Founded export is not a function"),
         };
         let import_section_len: usize = match module.import_section() {
-            Some(import) => import.entries().len(),
+            Some(import) => 
+                import.entries().iter().filter(|entry| match entry.external() {
+                    &External::Function(_) => true,
+                    _ => false,
+                    }).collect::<Vec<_>>().len(),
             None => 0,
         };
+        println!("{:?}", import_section_len);
 
         let function_index_in_section = function_index - import_section_len;
         let func_type_ref: usize = function_section.entries()[function_index_in_section].type_ref() as usize;

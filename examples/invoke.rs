@@ -45,7 +45,6 @@ fn main() {
                     }).collect::<Vec<_>>().len(),
             None => 0,
         };
-        println!("{:?}", import_section_len);
 
         let function_index_in_section = function_index - import_section_len;
         let func_type_ref: usize = function_section.entries()[function_index_in_section].type_ref() as usize;

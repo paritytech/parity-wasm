@@ -42,7 +42,7 @@ fn main() {
                 import.entries().iter().filter(|entry| match entry.external() {
                     &External::Function(_) => true,
                     _ => false,
-                    }).collect::<Vec<_>>().len(),
+                    }).count(),
             None => 0,
         };
 

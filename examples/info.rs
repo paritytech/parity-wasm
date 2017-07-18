@@ -25,6 +25,9 @@ fn main() {
             &Section::Function(ref function_section) => {
                 println!("  Functions: {}", function_section.entries().len());
             },
+            &Section::Type(ref type_section) => {
+                println!("  Types: {}", type_section.types().len());
+            },
             &Section::Global(ref globals_section) => {
                 println!("  Globals: {}", globals_section.entries().len());                
             },

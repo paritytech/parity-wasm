@@ -15,23 +15,25 @@ fn main() {
     println!("Module sections: {}", module.sections().len());
 
     for section in module.sections() {
-        match section {
-            &Section::Import(ref import_section) => {
+        match *section {
+            Section::Import(ref import_section) => {
                 println!("  Imports: {}", import_section.entries().len());
+                import_section.entries().iter().map(|e| println!("    {}.{}", e.module(), e.field())).count();
             },
-            &Section::Export(ref exports_section) => {
+            Section::Export(ref exports_section) => {
                 println!("  Exports: {}", exports_section.entries().len());
+                exports_section.entries().iter().map(|e| println!("    {}", e.field())).count();
             },            
-            &Section::Function(ref function_section) => {
+            Section::Function(ref function_section) => {
                 println!("  Functions: {}", function_section.entries().len());
             },
-            &Section::Type(ref type_section) => {
+            Section::Type(ref type_section) => {
                 println!("  Types: {}", type_section.types().len());
             },
-            &Section::Global(ref globals_section) => {
+            Section::Global(ref globals_section) => {
                 println!("  Globals: {}", globals_section.entries().len());                
             },
-            &Section::Data(ref data_section) if data_section.entries().len() > 0 => {
+            Section::Data(ref data_section) if data_section.entries().len() > 0 => {
                 let data = &data_section.entries()[0];
                 println!("  Data size: {}", data.value().len()); 
             },

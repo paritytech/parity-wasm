@@ -559,7 +559,7 @@ impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize f
 mod tests {
 
     use super::super::{deserialize_buffer, Serialize};
-    use super::{CountedList, VarInt7, VarUint32, VarInt32};
+    use super::{CountedList, VarInt7, VarUint32, VarInt32, VarInt64, VarUint64};
 
     fn varuint32_ser_test(val: u32, expected: Vec<u8>) {
         let mut buf = Vec::new();
@@ -594,6 +594,40 @@ mod tests {
         varint32_de_test(dt.clone(), val);
         varint32_ser_test(val, dt);
     }
+
+    fn varuint64_ser_test(val: u64, expected: Vec<u8>) {
+        let mut buf = Vec::new();
+        let v1: VarUint64 = val.into();
+        v1.serialize(&mut buf).expect("to be serialized ok");
+        assert_eq!(expected, buf);
+    }
+
+    fn varuint64_de_test(dt: Vec<u8>, expected: u64) {
+        let val: VarUint64 = super::super::deserialize_buffer(dt).expect("buf to be serialized");
+        assert_eq!(expected, val.into());
+    }
+
+    fn varuint64_serde_test(dt: Vec<u8>, val: u64) {
+        varuint64_de_test(dt.clone(), val);
+        varuint64_ser_test(val, dt);
+    }
+
+    fn varint64_ser_test(val: i64, expected: Vec<u8>) {
+        let mut buf = Vec::new();
+        let v1: VarInt64 = val.into();
+        v1.serialize(&mut buf).expect("to be serialized ok");
+        assert_eq!(expected, buf);
+    }
+
+    fn varint64_de_test(dt: Vec<u8>, expected: i64) {
+        let val: VarInt64 = super::super::deserialize_buffer(dt).expect("buf to be serialized");
+        assert_eq!(expected, val.into());
+    }
+
+    fn varint64_serde_test(dt: Vec<u8>, val: i64) {
+        varint64_de_test(dt.clone(), val);
+        varint64_ser_test(val, dt);
+    }
     
     #[test]
     fn varuint32_0() {
@@ -623,6 +657,36 @@ mod tests {
     #[test]
     fn varint32_neg_8192() {        
         varint32_serde_test(vec![0x80, 0x40], -8192);
+    }    
+
+       #[test]
+    fn varuint64_0() {
+        varuint64_serde_test(vec![0u8; 1], 0);
+    }
+
+    #[test]
+    fn varuint64_1() {
+        varuint64_serde_test(vec![1u8; 1], 1);
+    }
+
+    #[test]
+    fn varuint64_135() {        
+        varuint64_serde_test(vec![135u8, 0x01], 135);
+    }
+
+    #[test]
+    fn varuint64_8192() {        
+        varuint64_serde_test(vec![0x80, 0x40], 8192);
+    }    
+
+    #[test]
+    fn varint64_8192() {        
+        varint64_serde_test(vec![0x80, 0xc0, 0x00], 8192);
+    }    
+
+    #[test]
+    fn varint64_neg_8192() {        
+        varint64_serde_test(vec![0x80, 0x40], -8192);
     }    
 
     #[test]

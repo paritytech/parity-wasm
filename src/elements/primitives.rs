@@ -659,7 +659,7 @@ mod tests {
         varint32_serde_test(vec![0x80, 0x40], -8192);
     }    
 
-       #[test]
+    #[test]
     fn varuint64_0() {
         varuint64_serde_test(vec![0u8; 1], 0);
     }

@@ -211,6 +211,39 @@ fn single_program_different_modules() {
 }
 
 #[test]
+fn import_global() {
+	// create new program
+	let program = ProgramInstance::new().unwrap();
+	// => env module is created
+	let env_instance = program.module("env").unwrap();
+	// => linear memory is created
+	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
+
+	// create native env module executor
+	let mut executor = FunctionExecutor {
+		memory: env_memory.clone(),
+		values: Vec::new(),
+	};
+	{
+		let functions: UserFunctions = UserFunctions {
+			executor: &mut executor,
+			functions: ::std::borrow::Cow::from(SIGNATURES),
+		};
+		let native_env_instance = Arc::new(env_native_module(env_instance, functions).unwrap());
+		let params = ExecutionParams::with_external("env".into(), native_env_instance);
+
+		let module = module()
+			.with_import(ImportEntry::new("env".into(), "STACKTOP".into(), External::Global(GlobalType::new(ValueType::I32, false))))
+			.build();
+
+		// load module
+		program.add_module("main", module, Some(&params.externals)).unwrap();
+	}
+
+}
+
+
+#[test]
 fn env_native_export_entry_type_check() {
 	let program = ProgramInstance::new().unwrap();
 	let mut function_executor = FunctionExecutor {

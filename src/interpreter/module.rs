@@ -235,32 +235,30 @@ impl ModuleInstance {
 		}
 
 		// validate export section
-		if is_user_module { // TODO: env module exports STACKTOP global, which is mutable => check is failed
-			if let Some(export_section) = self.module.export_section() {
-				for export in export_section.entries() {
-					match export.internal() {
-						&Internal::Function(function_index) => {
-							self.require_function(ItemIndex::IndexSpace(function_index)).map(|_| ())?;
-							self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Function(function_index));
-						},
-						&Internal::Global(global_index) => {
-							self.global(ItemIndex::IndexSpace(global_index), None)
-								.and_then(|g| if g.is_mutable() {
-									Err(Error::Validation(format!("trying to export mutable global {}", export.field())))
-								} else {
-									Ok(())
-								})?;
-							self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Global(global_index));
-						},
-						&Internal::Memory(memory_index) => {
-							self.memory(ItemIndex::IndexSpace(memory_index)).map(|_| ())?;
-							self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Memory(memory_index));
-						},
-						&Internal::Table(table_index) => {
-							self.table(ItemIndex::IndexSpace(table_index)).map(|_| ())?;
-							self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Table(table_index));
-						},
-					}
+		if let Some(export_section) = self.module.export_section() {
+			for export in export_section.entries() {
+				match export.internal() {
+					&Internal::Function(function_index) => {
+						self.require_function(ItemIndex::IndexSpace(function_index)).map(|_| ())?;
+						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Function(function_index));
+					},
+					&Internal::Global(global_index) => {
+						self.global(ItemIndex::IndexSpace(global_index), None)
+							.and_then(|g| if g.is_mutable() && is_user_module {
+								Err(Error::Validation(format!("trying to export mutable global {}", export.field())))
+							} else {
+								Ok(())
+							})?;
+						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Global(global_index));
+					},
+					&Internal::Memory(memory_index) => {
+						self.memory(ItemIndex::IndexSpace(memory_index)).map(|_| ())?;
+						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Memory(memory_index));
+					},
+					&Internal::Table(table_index) => {
+						self.table(ItemIndex::IndexSpace(table_index)).map(|_| ())?;
+						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Table(table_index));
+					},
 				}
 			}
 		}

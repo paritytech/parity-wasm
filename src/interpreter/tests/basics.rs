@@ -211,6 +211,17 @@ fn single_program_different_modules() {
 }
 
 #[test]
+fn import_env_mutable_global() {
+	let program = ProgramInstance::new().unwrap();
+
+	let module = module()
+		.with_import(ImportEntry::new("env".into(), "STACKTOP".into(), External::Global(GlobalType::new(ValueType::I32, false))))
+		.build();
+
+	program.add_module("main", module, None).unwrap();
+}
+
+#[test]
 fn env_native_export_entry_type_check() {
 	let program = ProgramInstance::new().unwrap();
 	let mut function_executor = FunctionExecutor {

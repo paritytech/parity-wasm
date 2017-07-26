@@ -22,6 +22,8 @@ const DEFAULT_TOTAL_MEMORY: u32 = 16 * 1024 * 1024;
 const DEFAULT_ALLOW_MEMORY_GROWTH: bool = false;
 /// Default tableBase variable value.
 const DEFAULT_TABLE_BASE: u32 = 0;
+/// Default tableBase variable value.
+const DEFAULT_MEMORY_BASE: u32 = 0;
 
 /// Defaul table size.
 const DEFAULT_TABLE_SIZE: u32 = 16;
@@ -50,6 +52,8 @@ const INDEX_GLOBAL_ABORT: u32 = 6;
 const INDEX_GLOBAL_EXIT_STATUS: u32 = 7;
 /// Index of tableBase global variable.
 const INDEX_GLOBAL_TABLE_BASE: u32 = 8;
+/// Index of memoryBase global.
+const INDEX_GLOBAL_MEMORY_BASE: u32 = 9;
 
 /// Index of abort function.
 const INDEX_FUNC_ABORT: u32 = 0;
@@ -194,6 +198,8 @@ pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
 			.with_export(ExportEntry::new("EXITSTATUS".into(), Internal::Global(INDEX_GLOBAL_EXIT_STATUS)))
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_TABLE_BASE as i32)]))) // TODO: what is this?
 			.with_export(ExportEntry::new("tableBase".into(), Internal::Global(INDEX_GLOBAL_TABLE_BASE)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_MEMORY_BASE as i32)]))) // TODO: what is this?
+			.with_export(ExportEntry::new("memoryBaseBase".into(), Internal::Global(INDEX_GLOBAL_MEMORY_BASE)))
 		// functions
 		.function()
 			.signature().build()

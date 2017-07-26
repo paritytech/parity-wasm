@@ -8,7 +8,6 @@ use interpreter::program::ProgramInstanceEssence;
 use interpreter::table::TableInstance;
 use interpreter::variable::{VariableInstance, VariableType};
 
-// TODO: cache Internal-s to fasten access
 /// Module imports.
 pub struct ModuleImports {
 	/// Program instance.

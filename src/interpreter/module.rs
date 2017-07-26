@@ -98,6 +98,8 @@ pub struct ModuleInstance {
 	functions_labels: HashMap<u32, HashMap<usize, usize>>,
 	/// Module imports.
 	imports: ModuleImports,
+	/// Module exports.
+	exports: HashMap<String, Vec<Internal>>,
 	/// Tables.
 	tables: Vec<Arc<TableInstance>>,
 	/// Linear memory regions.
@@ -211,6 +213,7 @@ impl ModuleInstance {
 			name: name,
 			module: module,
 			imports: imports,
+			exports: HashMap::new(),
 			functions_labels: HashMap::new(),
 			memory: memory,
 			tables: tables,
@@ -232,24 +235,30 @@ impl ModuleInstance {
 		}
 
 		// validate export section
-		if is_user_module { // TODO: env module exports STACKTOP global, which is mutable => check is failed
-			if let Some(export_section) = self.module.export_section() {
-				for export in export_section.entries() {
-					match export.internal() {
-						&Internal::Function(function_index) =>
-							self.require_function(ItemIndex::IndexSpace(function_index)).map(|_| ())?,
-						&Internal::Global(global_index) =>
-							self.global(ItemIndex::IndexSpace(global_index), None)
-								.and_then(|g| if g.is_mutable() {
-									Err(Error::Validation(format!("trying to export mutable global {}", export.field())))
-								} else {
-									Ok(())
-								})?,
-						&Internal::Memory(memory_index) =>
-							self.memory(ItemIndex::IndexSpace(memory_index)).map(|_| ())?,
-						&Internal::Table(table_index) =>
-							self.table(ItemIndex::IndexSpace(table_index)).map(|_| ())?,
-					}
+		if let Some(export_section) = self.module.export_section() {
+			for export in export_section.entries() {
+				match export.internal() {
+					&Internal::Function(function_index) => {
+						self.require_function(ItemIndex::IndexSpace(function_index)).map(|_| ())?;
+						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Function(function_index));
+					},
+					&Internal::Global(global_index) => {
+						self.global(ItemIndex::IndexSpace(global_index), None)
+							.and_then(|g| if g.is_mutable() && is_user_module {
+								Err(Error::Validation(format!("trying to export mutable global {}", export.field())))
+							} else {
+								Ok(())
+							})?;
+						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Global(global_index));
+					},
+					&Internal::Memory(memory_index) => {
+						self.memory(ItemIndex::IndexSpace(memory_index)).map(|_| ())?;
+						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Memory(memory_index));
+					},
+					&Internal::Table(table_index) => {
+						self.table(ItemIndex::IndexSpace(table_index)).map(|_| ())?;
+						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Table(table_index));
+					},
 				}
 			}
 		}
@@ -422,15 +431,15 @@ impl ModuleInstanceInterface for ModuleInstance {
 	}
 
 	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		let index = self.module.export_section()
-			.ok_or(Error::Function("missing export section".into()))
-			.and_then(|s| s.entries().iter()
-				.find(|e| e.field() == name && match e.internal() {
-					&Internal::Function(_) => true,
+		let index = self.exports.get(name)
+			.ok_or(Error::Function(format!("missing exports with name {}", name)))
+			.and_then(|l| l.iter()
+				.find(|i| match i {
+					&&Internal::Function(_) => true,
 					_ => false,
 				})
-				.ok_or(Error::Function(format!("missing export section exported function with name {}", name)))
-				.map(|e| match e.internal() {
+				.ok_or(Error::Function(format!("missing exported function with name {}", name)))
+				.map(|i| match i {
 					&Internal::Function(index) => index,
 					_ => unreachable!(), // checked couple of lines above
 				})
@@ -439,24 +448,24 @@ impl ModuleInstanceInterface for ModuleInstance {
 	}
 
 	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
-		self.module.export_section()
-			.ok_or(Error::Program(format!("trying to import {} from module without export section", name)))
-			.and_then(|s| s.entries().iter()
-				.find(|e| e.field() == name && match required_type {
+		self.exports.get(name)
+			.ok_or(Error::Function(format!("missing exports with name {}", name)))
+			.and_then(|l| l.iter()
+				.find(|i| match required_type {
 					&ExportEntryType::Any => true,
-					&ExportEntryType::Global(global_type) => match e.internal() {
-						&Internal::Global(global_index) => self.global(ItemIndex::IndexSpace(global_index), Some(global_type)).map(|_| true).unwrap_or(false),
+					&ExportEntryType::Global(global_type) => match i {
+						&&Internal::Global(global_index) => self.global(ItemIndex::IndexSpace(global_index), Some(global_type)).map(|_| true).unwrap_or(false),
 						_ => false,
 					},
-					&ExportEntryType::Function(ref required_type) => match e.internal() {
-						&Internal::Function(function_index) =>
+					&ExportEntryType::Function(ref required_type) => match i {
+						&&Internal::Function(function_index) =>
 							self.function_type(ItemIndex::IndexSpace(function_index))
 								.map(|ft| ft == *required_type)
 								.unwrap_or(false),
 						_ => false,
 					},
 				})
-				.map(|e| *e.internal())
+				.map(|i| *i)
 				.ok_or(Error::Program(format!("unresolved import {}", name))))
 	}
 
@@ -653,6 +662,7 @@ fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports, ex
 }
 
 impl<'a> FunctionSignature<'a> {
+	/// Get return type of this function.
 	pub fn return_type(&self) -> Option<ValueType> {
 		match self {
 			&FunctionSignature::Module(ft) => ft.return_type(),
@@ -660,6 +670,7 @@ impl<'a> FunctionSignature<'a> {
 		}
 	}
 
+	/// Get parameters of this function.
 	pub fn params(&self) -> &[ValueType] {
 		match self {
 			&FunctionSignature::Module(ft) => ft.params(),

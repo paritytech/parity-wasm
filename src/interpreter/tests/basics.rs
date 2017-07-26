@@ -97,6 +97,7 @@ fn global_get_set() {
 	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
+	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(58));
 }
 
 const SIGNATURE_I32_I32: &'static [ValueType] = &[ValueType::I32, ValueType::I32];
@@ -207,6 +208,17 @@ fn single_program_different_modules() {
 
 	assert_eq!(executor.memory.get(0, 1).unwrap()[0], 42);
 	assert_eq!(executor.values, vec![7, 57, 42]);
+}
+
+#[test]
+fn import_env_mutable_global() {
+	let program = ProgramInstance::new().unwrap();
+
+	let module = module()
+		.with_import(ImportEntry::new("env".into(), "STACKTOP".into(), External::Global(GlobalType::new(ValueType::I32, false))))
+		.build();
+
+	program.add_module("main", module, None).unwrap();
 }
 
 #[test]

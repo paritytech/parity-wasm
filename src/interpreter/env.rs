@@ -85,7 +85,8 @@ pub struct EnvModuleInstance {
 
 impl EnvModuleInstance {
 	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
-		let instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
+		let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
+		instance.instantiate(false, None)?;
 
 		Ok(EnvModuleInstance {
 			_params: params,
@@ -190,7 +191,7 @@ pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
 			.with_export(ExportEntry::new("DYNAMIC_BASE".into(), Internal::Global(INDEX_GLOBAL_DYNAMIC_BASE)))
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack) as i32)])))
 			.with_export(ExportEntry::new("DYNAMICTOP_PTR".into(), Internal::Global(INDEX_GLOBAL_DYNAMICTOP_PTR)))
-			.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, params.allow_memory_growth), InitExpr::new(vec![Opcode::I32Const(params.total_memory as i32)])))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, params.allow_memory_growth), InitExpr::new(vec![Opcode::I32Const(params.total_memory as i32)])))
 			.with_export(ExportEntry::new("TOTAL_MEMORY".into(), Internal::Global(INDEX_GLOBAL_TOTAL_MEMORY)))
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(0)])))
 			.with_export(ExportEntry::new("ABORT".into(), Internal::Global(INDEX_GLOBAL_ABORT)))

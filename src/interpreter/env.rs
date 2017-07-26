@@ -200,7 +200,7 @@ pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_TABLE_BASE as i32)]))) // TODO: what is this?
 			.with_export(ExportEntry::new("tableBase".into(), Internal::Global(INDEX_GLOBAL_TABLE_BASE)))
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_MEMORY_BASE as i32)]))) // TODO: what is this?
-			.with_export(ExportEntry::new("memoryBaseBase".into(), Internal::Global(INDEX_GLOBAL_MEMORY_BASE)))
+			.with_export(ExportEntry::new("memoryBase".into(), Internal::Global(INDEX_GLOBAL_MEMORY_BASE)))
 		// functions
 		.function()
 			.signature().build()

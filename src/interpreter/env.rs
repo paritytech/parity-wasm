@@ -13,7 +13,7 @@ use interpreter::value::RuntimeValue;
 use interpreter::variable::{VariableInstance, VariableType};
 
 /// Memory address, at which stack begins.
-const DEFAULT_STACK_BASE: u32 = 0;
+const DEFAULT_STACK_BASE: u32 = 64 * 1024;
 /// Memory, allocated for stack.
 const DEFAULT_TOTAL_STACK: u32 = 5 * 1024 * 1024;
 /// Total memory, allocated by default.

@@ -222,15 +222,13 @@ impl ModuleInstance {
 	}
 
 	/// Run instantiation-time procedures (validation). Module is not completely validated until this call.
-	pub fn instantiate<'a>(&mut self, is_user_module: bool, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
+	pub fn instantiate<'a>(&mut self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
 		// validate start section
 		if let Some(start_function) = self.module.start_section() {
 			let func_type_index = self.require_function(ItemIndex::IndexSpace(start_function))?;
-			if is_user_module { // tests use non-empty main functions
-				let func_type = self.function_type_by_index(func_type_index)?;
-				if func_type.return_type() != None || func_type.params().len() != 0 {
-					return Err(Error::Validation("start function expected to have type [] -> []".into()));
-				}
+			let func_type = self.function_type_by_index(func_type_index)?;
+			if func_type.return_type() != None || func_type.params().len() != 0 {
+				return Err(Error::Validation("start function expected to have type [] -> []".into()));
 			}
 		}
 
@@ -244,7 +242,7 @@ impl ModuleInstance {
 					},
 					&Internal::Global(global_index) => {
 						self.global(ItemIndex::IndexSpace(global_index), None)
-							.and_then(|g| if g.is_mutable() && is_user_module {
+							.and_then(|g| if g.is_mutable() {
 								Err(Error::Validation(format!("trying to export mutable global {}", export.field())))
 							} else {
 								Ok(())
@@ -326,7 +324,7 @@ impl ModuleInstance {
 		}
 
 		// validate every function body in user modules
-		if is_user_module && function_section_len != 0 { // tests use invalid code
+		if function_section_len != 0 { // tests use invalid code
 			let function_section = self.module.function_section().expect("function_section_len != 0; qed");
 			let code_section = self.module.code_section().expect("function_section_len != 0; function_section_len == code_section_len; qed");
 			// check every function body

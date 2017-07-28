@@ -34,7 +34,7 @@ impl ProgramInstance {
 	/// Instantiate module with validation.
 	pub fn add_module<'a>(&self, name: &str, module: Module, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstance>, Error> {
 		let mut module_instance = ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?;
-		module_instance.instantiate(true, externals)?;
+		module_instance.instantiate(externals)?;
 
 		let module_instance = Arc::new(module_instance);
 		self.essence.modules.write().insert(name.into(), module_instance.clone());

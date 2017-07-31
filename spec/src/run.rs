@@ -110,7 +110,7 @@ fn run_action(program: &ProgramInstance, action: &test::Action)
                     elements::Internal::Global(global_index) => Ok(ItemIndex::IndexSpace(global_index)),
                     _ => Err(InterpreterError::Global(format!("Expected to have exported global with name {}", field))),
                 })
-                .and_then(|g| module.global(g, None).map(|g| Some(g.get())))
+                .and_then(|g| module.global(g, None, None).map(|g| Some(g.get())))
         }
     }
 }

@@ -1,4 +1,5 @@
 use std::u32;
+use std::sync::Arc;
 use std::collections::HashMap;
 use elements::{Opcode, BlockType, ValueType};
 use interpreter::Error;
@@ -14,6 +15,8 @@ const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
 pub struct FunctionValidationContext<'a> {
 	/// Wasm module instance (in process of instantiation).
 	module_instance: &'a ModuleInstance,
+	/// Native externals.
+	externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>,
 	/// Current instruction position.
 	position: usize,
 	/// Local variables.
@@ -569,6 +572,7 @@ impl Validator {
 impl<'a> FunctionValidationContext<'a> {
 	pub fn new(
 		module_instance: &'a ModuleInstance, 
+		externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>,
 		locals: &'a [ValueType], 
 		value_stack_limit: usize, 
 		frame_stack_limit: usize, 
@@ -576,6 +580,7 @@ impl<'a> FunctionValidationContext<'a> {
 	) -> Self {
 		FunctionValidationContext {
 			module_instance: module_instance,
+			externals: externals,
 			position: 0,
 			locals: locals,
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
@@ -688,7 +693,7 @@ impl<'a> FunctionValidationContext<'a> {
 
 	pub fn require_global(&self, idx: u32, mutability: Option<bool>) -> Result<StackValueType, Error> {
 		self.module_instance
-			.global(ItemIndex::IndexSpace(idx), None)
+			.global(ItemIndex::IndexSpace(idx), None, self.externals.clone())
 			.and_then(|g| match mutability {
 				Some(true) if !g.is_mutable() => Err(Error::Validation(format!("Expected global {} to be mutable", idx))),
 				Some(false) if g.is_mutable() => Err(Error::Validation(format!("Expected global {} to be immutable", idx))),

@@ -151,7 +151,7 @@ impl ModuleImports {
 	pub fn global<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>, import: &ImportEntry, required_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
 		let (module, export) = self.external_export(externals, import, &required_type.clone().map(|rt| ExportEntryType::Global(rt)).unwrap_or(ExportEntryType::Any))?;
 		if let Internal::Global(external_index) = export {
-			return module.global(ItemIndex::Internal(external_index), required_type);
+			return module.global(ItemIndex::Internal(external_index), required_type, externals);
 		}
 
 		Err(Error::Program(format!("wrong import {} from module {} (expecting global)", import.field(), import.module())))

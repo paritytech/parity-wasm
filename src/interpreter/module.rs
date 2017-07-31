@@ -62,7 +62,7 @@ pub trait ModuleInstanceInterface {
 	/// Get memory reference.
 	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error>;
 	/// Get global reference.
-	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error>;
+	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error>;
 	/// Get function type for given function index.
 	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error>;
 	/// Get function type for given function index.
@@ -241,7 +241,7 @@ impl ModuleInstance {
 						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Function(function_index));
 					},
 					&Internal::Global(global_index) => {
-						self.global(ItemIndex::IndexSpace(global_index), None)
+						self.global(ItemIndex::IndexSpace(global_index), None, externals)
 							.and_then(|g| if g.is_mutable() {
 								Err(Error::Validation(format!("trying to export mutable global {}", export.field())))
 							} else {
@@ -337,6 +337,7 @@ impl ModuleInstance {
 
 					let mut context = FunctionValidationContext::new(
 						self,
+						externals,
 						&locals, 
 						DEFAULT_VALUE_STACK_LIMIT, 
 						DEFAULT_FRAME_STACK_LIMIT, 
@@ -430,7 +431,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 
 	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		let index = self.exports.get(name)
-			.ok_or(Error::Function(format!("missing exports with name {}", name)))
+			.ok_or(Error::Function(format!("missing executable export with name {}", name)))
 			.and_then(|l| l.iter()
 				.find(|i| match i {
 					&&Internal::Function(_) => true,
@@ -447,12 +448,12 @@ impl ModuleInstanceInterface for ModuleInstance {
 
 	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
 		self.exports.get(name)
-			.ok_or(Error::Function(format!("missing exports with name {}", name)))
+			.ok_or(Error::Function(format!("missing export entry with name {}", name)))
 			.and_then(|l| l.iter()
 				.find(|i| match required_type {
 					&ExportEntryType::Any => true,
 					&ExportEntryType::Global(global_type) => match i {
-						&&Internal::Global(global_index) => self.global(ItemIndex::IndexSpace(global_index), Some(global_type)).map(|_| true).unwrap_or(false),
+						&&Internal::Global(global_index) => self.global(ItemIndex::IndexSpace(global_index), Some(global_type), None).map(|_| true).unwrap_or(false),
 						_ => false,
 					},
 					&ExportEntryType::Function(ref required_type) => match i {
@@ -493,7 +494,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		}
 	}
 
-	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
+	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error> {
 		match self.imports.parse_global_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_global_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.globals.get(index as usize).cloned()
@@ -502,7 +503,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 				.ok_or(Error::Global(format!("trying to access external global with index {} in module without import section", index)))
 				.and_then(|s| s.entries().get(index as usize)
 					.ok_or(Error::Global(format!("trying to access external global with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| self.imports.global(None, e, variable_type)),
+				.and_then(|e| self.imports.global(externals, e, variable_type)),
 		}
 	}
 

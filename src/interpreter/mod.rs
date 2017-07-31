@@ -78,6 +78,6 @@ pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, Expor
 pub use self::table::TableInstance;
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
-pub use self::variable::VariableInstance;
-pub use self::env_native::{env_native_module, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
+pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
+pub use self::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 pub use self::env::EnvParams;

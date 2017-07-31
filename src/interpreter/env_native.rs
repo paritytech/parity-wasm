@@ -13,6 +13,8 @@ use interpreter::variable::{VariableInstance, VariableType};
 
 /// Min index of native function.
 pub const NATIVE_INDEX_FUNC_MIN: u32 = 10001;
+/// Min index of native global.
+pub const NATIVE_INDEX_GLOBAL_MIN: u32 = 20001;
 
 /// User functions executor.
 pub trait UserFunctionExecutor {
@@ -65,12 +67,14 @@ impl UserFunctionDescriptor {
 	}
 }
 
-/// Set of user-defined functions
-pub struct UserFunctions<'a> {
-	/// Functions list.
+/// Set of user-defined module elements.
+pub struct UserDefinedElements<'a> {
+	/// User globals list.
+	pub globals: HashMap<String, Arc<VariableInstance>>,
+	/// User functions list.
 	pub functions: Cow<'static, [UserFunctionDescriptor]>,
 	/// Functions executor.
-	pub executor: &'a mut UserFunctionExecutor,
+	pub executor: Option<&'a mut UserFunctionExecutor>,
 }
 
 /// Native module instance.
@@ -78,21 +82,31 @@ pub struct NativeModuleInstance<'a> {
 	/// Underllying module reference.
 	env: Arc<ModuleInstanceInterface>,
 	/// User function executor.
-	executor: RwLock<&'a mut UserFunctionExecutor>,
+	executor: RwLock<Option<&'a mut UserFunctionExecutor>>,
 	/// By-name functions index.
-	by_name: HashMap<String, u32>,
+	functions_by_name: HashMap<String, u32>,
 	/// User functions list.
 	functions: Cow<'static, [UserFunctionDescriptor]>,
+	/// By-name functions index.
+	globals_by_name: HashMap<String, u32>,
+	/// User globals list.
+	globals: Vec<Arc<VariableInstance>>,
 }
 
 impl<'a> NativeModuleInstance<'a> {
 	/// Create new native module
-	pub fn new(env: Arc<ModuleInstanceInterface>, functions: UserFunctions<'a>) -> Result<Self, Error> {
+	pub fn new(env: Arc<ModuleInstanceInterface>, elements: UserDefinedElements<'a>) -> Result<Self, Error> {
+		if !elements.functions.is_empty() && elements.executor.is_none() {
+			return Err(Error::Function("trying to construct native env module with functions, but without executor".into()));
+		}
+
 		Ok(NativeModuleInstance {
 			env: env,
-			executor: RwLock::new(functions.executor),
-			by_name: functions.functions.iter().enumerate().map(|(i, f)| (f.name().to_owned(), i as u32)).collect(),
-			functions: functions.functions,
+			executor: RwLock::new(elements.executor),
+			functions_by_name: elements.functions.iter().enumerate().map(|(i, f)| (f.name().to_owned(), i as u32)).collect(),
+			functions: elements.functions,
+			globals_by_name: elements.globals.iter().enumerate().map(|(i, (g_name, _))| (g_name.to_owned(), i as u32)).collect(),
+			globals: elements.globals.into_iter().map(|(_, g)| g).collect(),
 		})
 	}
 }
@@ -107,13 +121,25 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	}
 
 	fn export_entry<'b>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
-		if let Some(index) = self.by_name.get(name) {
+		if let Some(index) = self.functions_by_name.get(name) {
 			let composite_index = NATIVE_INDEX_FUNC_MIN + *index;
 			match required_type {
+				&ExportEntryType::Any => return Ok(Internal::Function(composite_index)),
 				&ExportEntryType::Function(ref required_type)
 					if self.function_type(ItemIndex::Internal(composite_index))
 						.expect("by_name contains index; function_type succeeds for all functions from by_name; qed") == *required_type
 					=> return Ok(Internal::Function(composite_index)),
+				_ => (),
+			}
+		}
+		if let Some(index) = self.globals_by_name.get(name) {
+			match required_type {
+				&ExportEntryType::Any => return Ok(Internal::Global(NATIVE_INDEX_GLOBAL_MIN + *index)),
+				&ExportEntryType::Global(ref required_type)
+					if self.globals.get(*index as usize)
+						.expect("globals_by_name maps to indexes of globals; index read from globals_by_name; qed")
+						.variable_type() == *required_type
+					=> return Ok(Internal::Global(NATIVE_INDEX_GLOBAL_MIN + *index)),
 				_ => (),
 			}
 		}
@@ -129,8 +155,20 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		self.env.memory(index)
 	}
 
-	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
-		self.env.global(index, variable_type)
+	fn global<'b>(&self, global_index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<Arc<VariableInstance>, Error> {
+		let index = match global_index {
+			ItemIndex::IndexSpace(index) | ItemIndex::Internal(index) => index,
+			ItemIndex::External(_) => unreachable!("trying to get global, exported by native env module"),
+		};
+
+		if index < NATIVE_INDEX_GLOBAL_MIN {
+			return self.env.global(global_index, variable_type, externals);
+		}
+
+		self.globals
+			.get((index - NATIVE_INDEX_GLOBAL_MIN) as usize)
+			.cloned()
+			.ok_or(Error::Native(format!("trying to get native global with index {}", index)))
 	}
 
 	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
@@ -139,7 +177,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 			ItemIndex::External(_) => unreachable!("trying to call function, exported by native env module"),
 		};
 
-		if index < NATIVE_INDEX_FUNC_MIN {
+		if index < NATIVE_INDEX_FUNC_MIN || index >= NATIVE_INDEX_GLOBAL_MIN {
 			return self.env.function_type(function_index);
 		}
 
@@ -165,20 +203,23 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	}
 
 	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
-		if index < NATIVE_INDEX_FUNC_MIN {
+		if index < NATIVE_INDEX_FUNC_MIN || index >= NATIVE_INDEX_GLOBAL_MIN {
 			return self.env.call_internal_function(outer, index);
 		}
 
 		self.functions
 			.get((index - NATIVE_INDEX_FUNC_MIN) as usize)
 			.ok_or(Error::Native(format!("trying to call native function with index {}", index)))
-			.and_then(|f| self.executor.write().execute(&f.name(), outer))
+			.and_then(|f| self.executor.write()
+				.as_mut()
+				.expect("function existss; if function exists, executor must also exists [checked in constructor]; qed")
+				.execute(&f.name(), outer))
 	}
 }
 
 /// Create wrapper for env module with given native user functions.
-pub fn env_native_module<'a>(env: Arc<ModuleInstanceInterface>, user_functions: UserFunctions<'a>) -> Result<NativeModuleInstance, Error> {
-	NativeModuleInstance::new(env, user_functions)
+pub fn env_native_module<'a>(env: Arc<ModuleInstanceInterface>, user_elements: UserDefinedElements<'a>) -> Result<NativeModuleInstance, Error> {
+	NativeModuleInstance::new(env, user_elements)
 }
 
 impl<'a> PartialEq for UserFunctionDescriptor {

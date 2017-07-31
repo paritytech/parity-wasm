@@ -116,8 +116,8 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.memory(index)
 	}
 
-	fn global(&self, index: ItemIndex, variable_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
-		self.instance.global(index, variable_type)
+	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error> {
+		self.instance.global(index, variable_type, externals)
 	}
 
 	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
@@ -143,19 +143,19 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
 		// to make interpreter independent of *SCRIPTEN runtime, just make abort/assert = interpreter Error
 		match index {
-			INDEX_FUNC_ABORT => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32))
+			INDEX_FUNC_ABORT => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32), None)
 				.and_then(|g| g.set(RuntimeValue::I32(1)))
 				.and_then(|_| Err(Error::Trap("abort".into()))),
 			INDEX_FUNC_ASSERT => outer.value_stack.pop_as::<i32>()
 				.and_then(|condition| if condition == 0 {
-					self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32))
+					self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32), None)
 						.and_then(|g| g.set(RuntimeValue::I32(1)))
 						.and_then(|_| Err(Error::Trap("assertion failed".into())))
 				} else {
 					Ok(None)
 				}),
 			INDEX_FUNC_ENLARGE_MEMORY => Ok(Some(RuntimeValue::I32(0))), // TODO: support memory enlarge
-			INDEX_FUNC_GET_TOTAL_MEMORY => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_TOTAL_MEMORY), Some(VariableType::I32))
+			INDEX_FUNC_GET_TOTAL_MEMORY => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_TOTAL_MEMORY), Some(VariableType::I32), None)
 				.map(|g| g.get())
 				.map(Some),
 			INDEX_FUNC_MIN_NONUSED ... INDEX_FUNC_MAX => Err(Error::Trap("unimplemented".into())),

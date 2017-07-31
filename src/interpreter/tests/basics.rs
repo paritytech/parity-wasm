@@ -1,16 +1,18 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
 use std::sync::{Arc, Weak};
+use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
 use interpreter::Error;
-use interpreter::env_native::{env_native_module, UserFunctions, UserFunctionExecutor, UserFunctionDescriptor};
+use interpreter::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::program::ProgramInstance;
 use interpreter::validator::{FunctionValidationContext, Validator};
-use interpreter::value::RuntimeValue;
+use interpreter::value::{RuntimeValue, TryInto};
+use interpreter::variable::{VariableInstance, ExternalVariableValue, VariableType};
 
 #[test]
 fn import_function() {
@@ -115,6 +117,24 @@ const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	),
 ];
 
+const NO_SIGNATURES: &'static [UserFunctionDescriptor] = &[];
+
+// 'external' variable
+struct MeasuredVariable {
+	pub val: i32,
+}
+
+impl ExternalVariableValue for MeasuredVariable {
+	fn get(&self) -> RuntimeValue {
+		RuntimeValue::I32(self.val)
+	}
+
+	fn set(&mut self, val: RuntimeValue) -> Result<(), Error> {
+		self.val = val.try_into()?;
+		Ok(())
+	}
+}
+
 // user function executor
 struct FunctionExecutor {
 	pub memory: Arc<MemoryInstance>,
@@ -152,7 +172,7 @@ impl UserFunctionExecutor for FunctionExecutor {
 }
 
 #[test]
-fn single_program_different_modules() {
+fn native_env_function() {
 	// create new program
 	let program = ProgramInstance::new().unwrap();
 	// => env module is created
@@ -166,8 +186,9 @@ fn single_program_different_modules() {
 		values: Vec::new(),
 	};
 	{
-		let functions: UserFunctions = UserFunctions {
-			executor: &mut executor,
+		let functions: UserDefinedElements = UserDefinedElements {
+			executor: Some(&mut executor),
+			globals: HashMap::new(),
 			functions: ::std::borrow::Cow::from(SIGNATURES),
 		};
 		let native_env_instance = Arc::new(env_native_module(env_instance, functions).unwrap());
@@ -211,6 +232,57 @@ fn single_program_different_modules() {
 }
 
 #[test]
+fn native_env_global() {
+	// module constructor
+	let module_constructor = |elements| {
+		let program = ProgramInstance::new().unwrap();
+		let env_instance = program.module("env").unwrap();
+		let native_env_instance = Arc::new(env_native_module(env_instance.clone(), elements).unwrap());
+		let params = ExecutionParams::with_external("env".into(), native_env_instance);
+
+		let module = module()
+			.with_import(ImportEntry::new("env".into(), "ext_global".into(), External::Global(GlobalType::new(ValueType::I32, false))))
+			.function()
+				.signature().return_type().i32().build()
+				.body().with_opcodes(Opcodes::new(vec![
+					Opcode::GetGlobal(0),
+					Opcode::End,
+				])).build()
+				.build()
+			.build();
+		program.add_module("main", module, Some(&params.externals))?
+			.execute_index(0, params.clone())
+	};
+
+	// try to add module, exporting non-existant env' variable => error
+	{
+		assert!(module_constructor(UserDefinedElements {
+			executor: None,
+			globals: HashMap::new(),
+			functions: ::std::borrow::Cow::from(NO_SIGNATURES),
+		}).is_err());
+	}
+
+	// now add simple variable natively => ok
+	{
+		assert_eq!(module_constructor(UserDefinedElements {
+			executor: None,
+			globals: vec![("ext_global".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(777)).unwrap()))].into_iter().collect(),
+			functions: ::std::borrow::Cow::from(NO_SIGNATURES),
+		}).unwrap().unwrap(), RuntimeValue::I32(777));
+	}
+
+	// now add 'getter+setter' variable natively => ok
+	{
+		assert_eq!(module_constructor(UserDefinedElements {
+			executor: None,
+			globals: vec![("ext_global".into(), Arc::new(VariableInstance::new_external_global(false, VariableType::I32, Box::new(MeasuredVariable { val: 345 })).unwrap()))].into_iter().collect(),
+			functions: ::std::borrow::Cow::from(NO_SIGNATURES),
+		}).unwrap().unwrap(), RuntimeValue::I32(345));
+	}
+}
+
+#[test]
 fn import_env_mutable_global() {
 	let program = ProgramInstance::new().unwrap();
 
@@ -228,8 +300,9 @@ fn env_native_export_entry_type_check() {
 		memory: program.module("env").unwrap().memory(ItemIndex::Internal(0)).unwrap(),
 		values: Vec::new(),
 	};
-	let native_env_instance = Arc::new(env_native_module(program.module("env").unwrap(), UserFunctions {
-		executor: &mut function_executor,
+	let native_env_instance = Arc::new(env_native_module(program.module("env").unwrap(), UserDefinedElements {
+		executor: Some(&mut function_executor),
+		globals: HashMap::new(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
 	}).unwrap());
 
@@ -242,7 +315,7 @@ fn env_native_export_entry_type_check() {
 #[test]
 fn if_else_with_return_type_validation() {
 	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
-	let mut context = FunctionValidationContext::new(&module_instance, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
+	let mut context = FunctionValidationContext::new(&module_instance, None, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
 
 	Validator::validate_function(&mut context, BlockType::NoResult, &[
 		Opcode::I32Const(1),

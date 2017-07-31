@@ -1,3 +1,4 @@
+use std::fmt;
 use parking_lot::RwLock;
 use elements::{GlobalType, ValueType, TableElementType};
 use interpreter::Error;
@@ -18,6 +19,14 @@ pub enum VariableType {
 	F64,
 }
 
+/// Externally stored variable value.
+pub trait ExternalVariableValue {
+	/// Get variable value.
+	fn get(&self) -> RuntimeValue;
+	/// Set variable value.
+	fn set(&mut self, value: RuntimeValue) -> Result<(), Error>;
+}
+
 /// Variable instance.
 #[derive(Debug)]
 pub struct VariableInstance {
@@ -26,7 +35,15 @@ pub struct VariableInstance {
 	/// Variable type.
 	variable_type: VariableType,
 	/// Global value.
-	value: RwLock<RuntimeValue>,
+	value: RwLock<VariableValue>,
+}
+
+/// Enum variable value.
+enum VariableValue {
+	/// Internal value.
+	Internal(RuntimeValue),
+	/// External value.
+	External(Box<ExternalVariableValue>),
 }
 
 impl VariableInstance {
@@ -40,13 +57,28 @@ impl VariableInstance {
 		Ok(VariableInstance {
 			is_mutable: is_mutable,
 			variable_type: variable_type,
-			value: RwLock::new(value),
+			value: RwLock::new(VariableValue::Internal(value)),
 		})
 	}
 
 	/// New global variable
 	pub fn new_global(global_type: &GlobalType, value: RuntimeValue) -> Result<Self, Error> {
 		Self::new(global_type.is_mutable(), global_type.content_type().into(), value)
+	}
+
+	/// New global with externally stored value.
+	pub fn new_external_global(is_mutable: bool, variable_type: VariableType, value: Box<ExternalVariableValue>) -> Result<Self, Error> {
+		// TODO: there is nothing about null value in specification + there is nothing about initializing missing table elements? => runtime check for nulls
+		let current_value = value.get();
+		if !current_value.is_null() && current_value.variable_type() != Some(variable_type) {
+			return Err(Error::Variable(format!("trying to initialize variable of type {:?} with value of type {:?}", variable_type, current_value.variable_type())));
+		}
+
+		Ok(VariableInstance {
+			is_mutable: is_mutable,
+			variable_type: variable_type,
+			value: RwLock::new(VariableValue::External(value)),
+		})
 	}
 
 	/// Is mutable
@@ -61,7 +93,7 @@ impl VariableInstance {
 
 	/// Get the value of the variable instance
 	pub fn get(&self) -> RuntimeValue {
-		self.value.read().clone()
+		self.value.read().get()
 	}
 
 	/// Set the value of the variable instance
@@ -73,17 +105,25 @@ impl VariableInstance {
 			return Err(Error::Variable(format!("trying to update variable of type {:?} with value of type {:?}", self.variable_type, value.variable_type())));
 		}
 
-		*self.value.write() = value;
-		Ok(())
+		self.value.write().set(value)
 	}
 }
 
-impl Clone for VariableInstance {
-	fn clone(&self) -> Self {
-		VariableInstance {
-			is_mutable: self.is_mutable,
-			variable_type: self.variable_type,
-			value: RwLock::new(self.value.read().clone()),
+impl VariableValue {
+	fn get(&self) -> RuntimeValue {
+		match *self {
+			VariableValue::Internal(ref value) => value.clone(),
+			VariableValue::External(ref value) => value.get(),
+		}
+	}
+
+	fn set(&mut self, new_value: RuntimeValue) -> Result<(), Error> {
+		match *self {
+			VariableValue::Internal(ref mut value) => {
+				*value = new_value;
+				Ok(())
+			},
+			VariableValue::External(ref mut value) => value.set(new_value),
 		}
 	}
 }
@@ -103,6 +143,15 @@ impl From<TableElementType> for VariableType {
 	fn from(tt: TableElementType) -> VariableType {
 		match tt {
 			TableElementType::AnyFunc => VariableType::AnyFunc,
+		}
+	}
+}
+
+impl fmt::Debug for VariableValue {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			VariableValue::Internal(ref value) => write!(f, "Variable.Internal({:?})", value),
+			VariableValue::External(ref value) => write!(f, "Variable.External({:?})", value.get()),
 		}
 	}
 }

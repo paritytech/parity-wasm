@@ -12,7 +12,12 @@ pub struct TableInstance {
 	/// Table variables type.
 	variable_type: VariableType,
 	/// Table memory buffer.
-	buffer: RwLock<Vec<VariableInstance>>,
+	buffer: RwLock<Vec<TableElement>>,
+}
+
+/// Table element. Cloneable wrapper around VariableInstance.
+struct TableElement {
+	pub var: VariableInstance,
 }
 
 impl TableInstance {
@@ -24,7 +29,7 @@ impl TableInstance {
 		Ok(Arc::new(TableInstance {
 			variable_type: variable_type,
 			buffer: RwLock::new(
-				vec![VariableInstance::new(true, variable_type, RuntimeValue::Null)?; table_type.limits().initial() as usize]
+				vec![TableElement::new(VariableInstance::new(true, variable_type, RuntimeValue::Null)?); table_type.limits().initial() as usize]
 			),
 		}))
 	}
@@ -39,7 +44,7 @@ impl TableInstance {
 		let buffer = self.buffer.read();
 		let buffer_len = buffer.len();
 		buffer.get(offset as usize)
-			.map(|v| v.get())
+			.map(|v| v.var.get())
 			.ok_or(Error::Table(format!("trying to read table item with index {} when there are only {} items", offset, buffer_len)))
 	}
 
@@ -61,6 +66,21 @@ impl TableInstance {
 		let buffer_len = buffer.len();
 		buffer.get_mut(offset as usize)
 			.ok_or(Error::Table(format!("trying to update table item with index {} when there are only {} items", offset, buffer_len)))
-			.and_then(|v| v.set(value))
+			.and_then(|v| v.var.set(value))
+	}
+}
+
+impl TableElement {
+	pub fn new(var: VariableInstance) -> Self {
+		TableElement {
+			var: var,
+		}
+	}
+}
+
+impl Clone for TableElement {
+	fn clone(&self) -> Self {
+		TableElement::new(VariableInstance::new(self.var.is_mutable(), self.var.variable_type(), self.var.get())
+			.expect("it only fails when variable_type() != passed variable value; both are read from already constructed var; qed"))
 	}
 }

@@ -477,7 +477,7 @@ impl Interpreter {
 
 	fn run_get_global<'a>(context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
 		context.module()
-			.global(ItemIndex::IndexSpace(index), None)
+			.global(ItemIndex::IndexSpace(index), None, Some(context.externals))
 			.and_then(|g| context.value_stack_mut().push(g.get()))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
@@ -486,7 +486,7 @@ impl Interpreter {
 		context
 			.value_stack_mut()
 			.pop()
-			.and_then(|v| context.module().global(ItemIndex::IndexSpace(index), None).and_then(|g| g.set(v)))
+			.and_then(|v| context.module().global(ItemIndex::IndexSpace(index), None, Some(context.externals)).and_then(|g| g.set(v)))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 

@@ -100,6 +100,9 @@ pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
 pub use self::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 pub use self::env::EnvParams;
 
+/// Default type of Error if you do not need any custom user errors.
+pub type DummyError = Error<DummyUserError>;
+
 /// Default type of ProgramInstance if you do not need any custom user errors.
 /// To work with custom user errors or interpreter internals, use CustomProgramInstance.
 pub type DefaultProgramInstance = self::program::ProgramInstance<DummyUserError>;

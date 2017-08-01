@@ -14,7 +14,7 @@ use parity_wasm::interpreter::{
     DefaultProgramInstance, DefaultModuleInstance, 
     ItemIndex, ExportEntryType,
     Error as InterpreterError,
-    DummyUserError,
+    DummyError as DummyInterpreterError,
 };
 
 fn spec_test_module() -> elements::Module {
@@ -58,7 +58,7 @@ fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module
     parity_wasm::deserialize_file(&wasm_path)
 }
 
-fn try_load(base_dir: &str, module_path: &str) -> Result<(), parity_wasm::interpreter::Error<DummyUserError>> {
+fn try_load(base_dir: &str, module_path: &str) -> Result<(), DummyInterpreterError> {
     let module = try_deserialize(base_dir, module_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
     let program = DefaultProgramInstance::new().expect("Failed creating program");
     program.add_module("try_load", module, None).map(|_| ())
@@ -91,7 +91,7 @@ fn runtime_values(test_vals: &[test::RuntimeValue]) -> Vec<parity_wasm::RuntimeV
 }
 
 fn run_action(program: &DefaultProgramInstance, action: &test::Action) 
-    -> Result<Option<parity_wasm::RuntimeValue>, InterpreterError<DummyUserError>> 
+    -> Result<Option<parity_wasm::RuntimeValue>, DummyInterpreterError> 
 {
     match *action {
         test::Action::Invoke { ref module, ref field, ref args } => {

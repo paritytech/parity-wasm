@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use builder::module;
 use elements::{ValueType, Opcodes, Opcode, BlockType, Local};
-use interpreter::{Error, DummyUserError, DefaultProgramInstance, DefaultModuleInstanceInterface, ModuleInstanceInterface, ItemIndex};
+use interpreter::{Error, DummyError, DefaultProgramInstance, DefaultModuleInstanceInterface, ModuleInstanceInterface, ItemIndex};
 use interpreter::value::{RuntimeValue, TryInto};
 
 fn make_function_i32(body: Opcodes) -> (DefaultProgramInstance, Arc<DefaultModuleInstanceInterface>) {
@@ -22,7 +22,7 @@ fn make_function_i32(body: Opcodes) -> (DefaultProgramInstance, Arc<DefaultModul
 	(program, module)
 }
 
-fn run_function_i32(module: &Arc<DefaultModuleInstanceInterface>, arg: i32) -> Result<i32, Error<DummyUserError>> {
+fn run_function_i32(module: &Arc<DefaultModuleInstanceInterface>, arg: i32) -> Result<i32, DummyError> {
 	module
 		.execute_index(0, vec![RuntimeValue::I32(arg)].into())
 		.and_then(|r| r.unwrap().try_into())

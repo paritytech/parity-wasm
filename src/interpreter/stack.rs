@@ -1,10 +1,10 @@
 use std::collections::VecDeque;
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::value::{RuntimeValue, TryInto};
 
 /// Stack with limit.
 #[derive(Debug)]
-pub struct StackWithLimit<T, E> where T: Clone, E: CustomUserError {
+pub struct StackWithLimit<T, E> where T: Clone, E: UserError {
 	/// Stack values.
 	values: VecDeque<T>,
 	/// Stack limit (maximal stack len).
@@ -13,7 +13,7 @@ pub struct StackWithLimit<T, E> where T: Clone, E: CustomUserError {
 	_dummy: ::std::marker::PhantomData<E>,
 }
 
-impl<T, E> StackWithLimit<T, E> where T: Clone, E: CustomUserError {
+impl<T, E> StackWithLimit<T, E> where T: Clone, E: UserError {
 	pub fn with_data(data: Vec<T>, limit: usize) -> Self {
 		StackWithLimit {
 			values: data.into_iter().collect(),
@@ -100,7 +100,7 @@ impl<T, E> StackWithLimit<T, E> where T: Clone, E: CustomUserError {
 	}
 }
 
-impl<E> StackWithLimit<RuntimeValue, E> where E: CustomUserError {
+impl<E> StackWithLimit<RuntimeValue, E> where E: UserError {
 	pub fn pop_as<T>(&mut self) -> Result<T, Error<E>>
 		where RuntimeValue: TryInto<T, Error<E>> {
 		self.pop().and_then(TryInto::try_into)

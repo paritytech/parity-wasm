@@ -2,23 +2,23 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use parking_lot::RwLock;
 use elements::Module;
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::env::{self, env_module};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface};
 
 /// Program instance. Program is a set of instantiated modules.
-pub struct ProgramInstance<E: CustomUserError> {
+pub struct ProgramInstance<E: UserError> {
 	/// Shared data reference.
 	essence: Arc<ProgramInstanceEssence<E>>,
 }
 
 /// Program instance essence.
-pub struct ProgramInstanceEssence<E: CustomUserError> {
+pub struct ProgramInstanceEssence<E: UserError> {
 	/// Loaded modules.
 	modules: RwLock<HashMap<String, Arc<ModuleInstanceInterface<E>>>>,
 }
 
-impl<E> ProgramInstance<E> where E: CustomUserError {
+impl<E> ProgramInstance<E> where E: UserError {
 	/// Create new program instance.
 	pub fn new() -> Result<Self, Error<E>> {
 		ProgramInstance::with_env_params(env::EnvParams::default())
@@ -55,7 +55,7 @@ impl<E> ProgramInstance<E> where E: CustomUserError {
 	}
 }
 
-impl<E> ProgramInstanceEssence<E> where E: CustomUserError {
+impl<E> ProgramInstanceEssence<E> where E: UserError {
 	/// Create new program essence.
 	pub fn new() -> Result<Self, Error<E>> {
 		ProgramInstanceEssence::with_env_params(env::EnvParams::default())

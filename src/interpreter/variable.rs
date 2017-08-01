@@ -1,7 +1,7 @@
 use std::fmt;
 use parking_lot::RwLock;
 use elements::{GlobalType, ValueType, TableElementType};
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::value::RuntimeValue;
 
 /// Variable type.
@@ -20,7 +20,7 @@ pub enum VariableType {
 }
 
 /// Externally stored variable value.
-pub trait ExternalVariableValue<E: CustomUserError> {
+pub trait ExternalVariableValue<E: UserError> {
 	/// Get variable value.
 	fn get(&self) -> RuntimeValue;
 	/// Set variable value.
@@ -29,7 +29,7 @@ pub trait ExternalVariableValue<E: CustomUserError> {
 
 /// Variable instance.
 #[derive(Debug)]
-pub struct VariableInstance<E: CustomUserError> {
+pub struct VariableInstance<E: UserError> {
 	/// Is mutable?
 	is_mutable: bool,
 	/// Variable type.
@@ -39,14 +39,14 @@ pub struct VariableInstance<E: CustomUserError> {
 }
 
 /// Enum variable value.
-enum VariableValue<E: CustomUserError> {
+enum VariableValue<E: UserError> {
 	/// Internal value.
 	Internal(RuntimeValue),
 	/// External value.
 	External(Box<ExternalVariableValue<E>>),
 }
 
-impl<E> VariableInstance<E> where E: CustomUserError {
+impl<E> VariableInstance<E> where E: UserError {
 	/// New variable instance
 	pub fn new(is_mutable: bool, variable_type: VariableType, value: RuntimeValue) -> Result<Self, Error<E>> {
 		// TODO: there is nothing about null value in specification + there is nothing about initializing missing table elements? => runtime check for nulls
@@ -109,7 +109,7 @@ impl<E> VariableInstance<E> where E: CustomUserError {
 	}
 }
 
-impl<E> VariableValue<E> where E: CustomUserError {
+impl<E> VariableValue<E> where E: UserError {
 	fn get(&self) -> RuntimeValue {
 		match *self {
 			VariableValue::Internal(ref value) => value.clone(),
@@ -147,7 +147,7 @@ impl From<TableElementType> for VariableType {
 	}
 }
 
-impl<E> fmt::Debug for VariableValue<E> where E: CustomUserError {
+impl<E> fmt::Debug for VariableValue<E> where E: UserError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			VariableValue::Internal(ref value) => write!(f, "Variable.Internal({:?})", value),

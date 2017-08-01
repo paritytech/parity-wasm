@@ -1,7 +1,7 @@
 use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use elements::{ImportSection, ImportEntry, External, Internal};
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstanceInterface, ItemIndex, ExportEntryType, FunctionSignature};
 use interpreter::program::ProgramInstanceEssence;
@@ -9,7 +9,7 @@ use interpreter::table::TableInstance;
 use interpreter::variable::{VariableInstance, VariableType};
 
 /// Module imports.
-pub struct ModuleImports<E: CustomUserError> {
+pub struct ModuleImports<E: UserError> {
 	/// Program instance.
 	program: Weak<ProgramInstanceEssence<E>>,
 	/// External functions.
@@ -22,7 +22,7 @@ pub struct ModuleImports<E: CustomUserError> {
 	globals: Vec<usize>,
 }
 
-impl<E> ModuleImports<E> where E: CustomUserError {
+impl<E> ModuleImports<E> where E: UserError {
 	/// Create new imports for given import section.
 	pub fn new(program: Weak<ProgramInstanceEssence<E>>, import_section: Option<&ImportSection>) -> Self {
 		let mut functions = Vec::new();

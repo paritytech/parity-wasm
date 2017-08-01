@@ -2,7 +2,7 @@ use std::u32;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use elements::MemoryType;
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::module::check_limits;
 
 /// Linear memory page size.
@@ -11,7 +11,7 @@ pub const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
 const LINEAR_MEMORY_MAX_PAGES: u32 = 65536;
 
 /// Linear memory instance.
-pub struct MemoryInstance<E: CustomUserError> {
+pub struct MemoryInstance<E: UserError> {
 	/// Linear memory buffer.
 	buffer: RwLock<Vec<u8>>,
 	/// Maximum buffer size.
@@ -36,7 +36,7 @@ impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> 
 	}
 }
 
-impl<E> MemoryInstance<E> where E: CustomUserError {
+impl<E> MemoryInstance<E> where E: UserError {
 	/// Create new linear memory instance.
 	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error<E>> {
 		check_limits(memory_type.limits())?;

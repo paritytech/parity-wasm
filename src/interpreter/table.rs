@@ -2,13 +2,13 @@ use std::u32;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use elements::TableType;
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::module::check_limits;
 use interpreter::variable::{VariableInstance, VariableType};
 use interpreter::value::RuntimeValue;
 
 /// Table instance.
-pub struct TableInstance<E: CustomUserError> {
+pub struct TableInstance<E: UserError> {
 	/// Table variables type.
 	variable_type: VariableType,
 	/// Table memory buffer.
@@ -16,11 +16,11 @@ pub struct TableInstance<E: CustomUserError> {
 }
 
 /// Table element. Cloneable wrapper around VariableInstance.
-struct TableElement<E: CustomUserError> {
+struct TableElement<E: UserError> {
 	pub var: VariableInstance<E>,
 }
 
-impl<E> TableInstance<E> where E: CustomUserError {
+impl<E> TableInstance<E> where E: UserError {
 	/// New instance of the table
 	pub fn new(table_type: &TableType) -> Result<Arc<Self>, Error<E>> {
 		check_limits(table_type.limits())?;
@@ -70,7 +70,7 @@ impl<E> TableInstance<E> where E: CustomUserError {
 	}
 }
 
-impl<E> TableElement<E> where E: CustomUserError {
+impl<E> TableElement<E> where E: UserError {
 	pub fn new(var: VariableInstance<E>) -> Self {
 		TableElement {
 			var: var,
@@ -78,7 +78,7 @@ impl<E> TableElement<E> where E: CustomUserError {
 	}
 }
 
-impl<E> Clone for TableElement<E> where E: CustomUserError {
+impl<E> Clone for TableElement<E> where E: UserError {
 	fn clone(&self) -> Self {
 		TableElement::new(VariableInstance::new(self.var.is_mutable(), self.var.variable_type(), self.var.get())
 			.expect("it only fails when variable_type() != passed variable value; both are read from already constructed var; qed"))

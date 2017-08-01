@@ -3,7 +3,7 @@ use std::iter::repeat;
 use std::sync::{Arc, Weak};
 use std::fmt;
 use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, BlockType, ResizableLimits, Local, ValueType};
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::env_native::UserFunctionDescriptor;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
@@ -22,7 +22,7 @@ const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
 
 /// Execution context.
 #[derive(Clone)]
-pub struct ExecutionParams<'a, E: CustomUserError> {
+pub struct ExecutionParams<'a, E: UserError> {
 	/// Arguments.
 	pub args: Vec<RuntimeValue>,
 	/// Execution-local external modules.
@@ -50,7 +50,7 @@ pub enum FunctionSignature<'a> {
 }
 
 /// Module instance API.
-pub trait ModuleInstanceInterface<E: CustomUserError> {
+pub trait ModuleInstanceInterface<E: UserError> {
 	/// Execute function with the given index.
 	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>>;
 	/// Execute function with the given export name.
@@ -89,7 +89,7 @@ pub enum ItemIndex {
 }
 
 /// Module instance.
-pub struct ModuleInstance<E: CustomUserError> {
+pub struct ModuleInstance<E: UserError> {
 	/// Module name.
 	name: String,
 	/// Module.
@@ -109,7 +109,7 @@ pub struct ModuleInstance<E: CustomUserError> {
 }
 
 /// Caller context.
-pub struct CallerContext<'a, E: 'a + CustomUserError> {
+pub struct CallerContext<'a, E: 'a + UserError> {
 	/// Value stack limit
 	pub value_stack_limit: usize,
 	/// Frame stack limit
@@ -122,14 +122,14 @@ pub struct CallerContext<'a, E: 'a + CustomUserError> {
 
 /// Internal function reference.
 #[derive(Clone)]
-pub struct InternalFunctionReference<'a, E: CustomUserError> {
+pub struct InternalFunctionReference<'a, E: UserError> {
 	/// Module reference.
 	pub module: Arc<ModuleInstanceInterface<E> + 'a>,
 	/// Internal function index.
 	pub internal_index: u32,
 }
 
-impl<'a, E> fmt::Debug for InternalFunctionReference<'a, E> where E: CustomUserError {
+impl<'a, E> fmt::Debug for InternalFunctionReference<'a, E> where E: UserError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "InternalFunctionReference")
 	}
@@ -145,7 +145,7 @@ pub struct InternalFunction<'a> {
 	pub labels: &'a HashMap<usize, usize>,
 }
 
-impl<'a, E> ExecutionParams<'a, E> where E: CustomUserError {
+impl<'a, E> ExecutionParams<'a, E> where E: UserError {
 	/// Create new execution params with given externa; module override.
 	pub fn with_external(name: String, module: Arc<ModuleInstanceInterface<E> + 'a>) -> Self {
 		let mut externals = HashMap::new();
@@ -163,7 +163,7 @@ impl<'a, E> ExecutionParams<'a, E> where E: CustomUserError {
 	}
 }
 
-impl<'a, E> Default for ExecutionParams<'a, E> where E: CustomUserError {
+impl<'a, E> Default for ExecutionParams<'a, E> where E: UserError {
 	fn default() -> Self {
 		ExecutionParams {
 			args: Vec::default(),
@@ -172,7 +172,7 @@ impl<'a, E> Default for ExecutionParams<'a, E> where E: CustomUserError {
 	}
 }
 
-impl<'a, E> From<Vec<RuntimeValue>> for ExecutionParams<'a, E> where E: CustomUserError {
+impl<'a, E> From<Vec<RuntimeValue>> for ExecutionParams<'a, E> where E: UserError {
 	fn from(args: Vec<RuntimeValue>) -> ExecutionParams<'a, E> {
 		ExecutionParams {
 			args: args,
@@ -181,7 +181,7 @@ impl<'a, E> From<Vec<RuntimeValue>> for ExecutionParams<'a, E> where E: CustomUs
 	}
 }
 
-impl<E> ModuleInstance<E> where E: CustomUserError {
+impl<E> ModuleInstance<E> where E: UserError {
 	/// Instantiate given module within program context.
 	pub fn new<'a>(program: Weak<ProgramInstanceEssence<E>>, name: String, module: Module) -> Result<Self, Error<E>> {
 		// load entries from import section
@@ -429,7 +429,7 @@ impl<E> ModuleInstance<E> where E: CustomUserError {
 	}
 }
 
-impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: CustomUserError {
+impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
 		let ExecutionParams { args, externals } = params;
 		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
@@ -609,7 +609,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: CustomUserErro
 	}
 }
 
-impl<'a, E> CallerContext<'a, E> where E: CustomUserError {
+impl<'a, E> CallerContext<'a, E> where E: UserError {
 	/// Top most args
 	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue, E>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>) -> Self {
 		CallerContext {
@@ -631,7 +631,7 @@ impl<'a, E> CallerContext<'a, E> where E: CustomUserError {
 	}
 }
 
-pub fn check_limits<E: CustomUserError>(limits: &ResizableLimits) -> Result<(), Error<E>> {
+pub fn check_limits<E: UserError>(limits: &ResizableLimits) -> Result<(), Error<E>> {
 	if let Some(maximum) = limits.maximum() {
 		if maximum < limits.initial() {
 			return Err(Error::Validation(format!("maximum limit {} is lesser than minimum {}", maximum, limits.initial())));
@@ -641,7 +641,7 @@ pub fn check_limits<E: CustomUserError>(limits: &ResizableLimits) -> Result<(), 
 	Ok(())
 }
 
-fn get_initializer<E: CustomUserError>(expr: &InitExpr, module: &Module, imports: &ModuleImports<E>, expected_type: VariableType) -> Result<RuntimeValue, Error<E>> {
+fn get_initializer<E: UserError>(expr: &InitExpr, module: &Module, imports: &ModuleImports<E>, expected_type: VariableType) -> Result<RuntimeValue, Error<E>> {
 	let first_opcode = match expr.code().len() {
 		1 => &expr.code()[0],
 		2 if expr.code().len() == 2 && expr.code()[1] == Opcode::End => &expr.code()[0],

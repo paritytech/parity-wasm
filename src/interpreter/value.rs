@@ -1,7 +1,7 @@
 use std::{i32, i64, u32, u64, f32};
 use std::io;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::variable::VariableType;
 
 /// Runtime value.
@@ -52,7 +52,7 @@ pub trait TransmuteInto<T> {
 }
 
 /// Convert from and to little endian.
-pub trait LittleEndianConvert<E: CustomUserError> where Self: Sized {
+pub trait LittleEndianConvert<E: UserError> where Self: Sized {
 	/// Convert to little endian buffer.
 	fn into_little_endian(self) -> Vec<u8>;
 	/// Convert from little endian buffer.
@@ -60,7 +60,7 @@ pub trait LittleEndianConvert<E: CustomUserError> where Self: Sized {
 }
 
 /// Arithmetic operations.
-pub trait ArithmeticOps<T, E: CustomUserError> {
+pub trait ArithmeticOps<T, E: UserError> {
 	/// Add two values.
 	fn add(self, other: T) -> T;
 	/// Subtract two values.
@@ -72,7 +72,7 @@ pub trait ArithmeticOps<T, E: CustomUserError> {
 }
 
 /// Integer value.
-pub trait Integer<T, E: CustomUserError>: ArithmeticOps<T, E> {
+pub trait Integer<T, E: UserError>: ArithmeticOps<T, E> {
 	/// Counts leading zeros in the bitwise representation of the value.
 	fn leading_zeros(self) -> T;
 	/// Counts trailing zeros in the bitwise representation of the value.
@@ -88,7 +88,7 @@ pub trait Integer<T, E: CustomUserError>: ArithmeticOps<T, E> {
 }
 
 /// Float-point value.
-pub trait Float<T, E: CustomUserError>: ArithmeticOps<T, E> {
+pub trait Float<T, E: UserError>: ArithmeticOps<T, E> {
 	/// Get absolute value.
 	fn abs(self) -> T;
 	/// Returns the largest integer less than or equal to a number.
@@ -178,7 +178,7 @@ impl From<f64> for RuntimeValue {
 	}
 }
 
-impl<E> TryInto<bool, Error<E>> for RuntimeValue where E: CustomUserError {
+impl<E> TryInto<bool, Error<E>> for RuntimeValue where E: UserError {
 	fn try_into(self) -> Result<bool, Error<E>> {
 		match self {
 			RuntimeValue::I32(val) => Ok(val != 0),
@@ -187,7 +187,7 @@ impl<E> TryInto<bool, Error<E>> for RuntimeValue where E: CustomUserError {
 	}
 }
 
-impl<E> TryInto<i32, Error<E>> for RuntimeValue where E: CustomUserError {
+impl<E> TryInto<i32, Error<E>> for RuntimeValue where E: UserError {
 	fn try_into(self) -> Result<i32, Error<E>> {
 		match self {
 			RuntimeValue::I32(val) => Ok(val),
@@ -196,7 +196,7 @@ impl<E> TryInto<i32, Error<E>> for RuntimeValue where E: CustomUserError {
 	}
 }
 
-impl<E> TryInto<i64, Error<E>> for RuntimeValue where E: CustomUserError {
+impl<E> TryInto<i64, Error<E>> for RuntimeValue where E: UserError {
 	fn try_into(self) -> Result<i64, Error<E>> {
 		match self {
 			RuntimeValue::I64(val) => Ok(val),
@@ -205,7 +205,7 @@ impl<E> TryInto<i64, Error<E>> for RuntimeValue where E: CustomUserError {
 	}
 }
 
-impl<E> TryInto<f32, Error<E>> for RuntimeValue where E: CustomUserError {
+impl<E> TryInto<f32, Error<E>> for RuntimeValue where E: UserError {
 	fn try_into(self) -> Result<f32, Error<E>> {
 		match self {
 			RuntimeValue::F32(val) => Ok(val),
@@ -214,7 +214,7 @@ impl<E> TryInto<f32, Error<E>> for RuntimeValue where E: CustomUserError {
 	}
 }
 
-impl<E> TryInto<f64, Error<E>> for RuntimeValue where E: CustomUserError {
+impl<E> TryInto<f64, Error<E>> for RuntimeValue where E: UserError {
 	fn try_into(self) -> Result<f64, Error<E>> {
 		match self {
 			RuntimeValue::F64(val) => Ok(val),
@@ -223,7 +223,7 @@ impl<E> TryInto<f64, Error<E>> for RuntimeValue where E: CustomUserError {
 	}
 }
 
-impl<E> TryInto<u32, Error<E>> for RuntimeValue where E: CustomUserError {
+impl<E> TryInto<u32, Error<E>> for RuntimeValue where E: UserError {
 	fn try_into(self) -> Result<u32, Error<E>> {
 		match self {
 			RuntimeValue::I32(val) => Ok(val as u32),
@@ -232,7 +232,7 @@ impl<E> TryInto<u32, Error<E>> for RuntimeValue where E: CustomUserError {
 	}
 }
 
-impl<E> TryInto<u64, Error<E>> for RuntimeValue where E: CustomUserError {
+impl<E> TryInto<u64, Error<E>> for RuntimeValue where E: UserError {
 	fn try_into(self) -> Result<u64, Error<E>> {
 		match self {
 			RuntimeValue::I64(val) => Ok(val as u64),
@@ -265,7 +265,7 @@ impl_wrap_into!(f64, f32);
 
 macro_rules! impl_try_truncate_into {
 	($from: ident, $into: ident) => {
-		impl<E> TryTruncateInto<$into, Error<E>> for $from where E: CustomUserError {
+		impl<E> TryTruncateInto<$into, Error<E>> for $from where E: UserError {
 			fn try_truncate_into(self) -> Result<$into, Error<E>> {
 				// Casting from a float to an integer will round the float towards zero
 				// NOTE: currently this will cause Undefined Behavior if the rounded value cannot be represented by the
@@ -373,7 +373,7 @@ impl TransmuteInto<f64> for i64 {
 	fn transmute_into(self) -> f64 { f64_from_bits(self as _) }
 }
 
-impl<E> LittleEndianConvert<E> for i8 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for i8 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		vec![self as u8]
 	}
@@ -385,7 +385,7 @@ impl<E> LittleEndianConvert<E> for i8 where E: CustomUserError {
 	}
 }
 
-impl<E> LittleEndianConvert<E> for u8 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for u8 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		vec![self]
 	}
@@ -397,7 +397,7 @@ impl<E> LittleEndianConvert<E> for u8 where E: CustomUserError {
 	}
 }
 
-impl<E> LittleEndianConvert<E> for i16 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for i16 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		let mut vec = Vec::with_capacity(2);
 		vec.write_i16::<LittleEndian>(self)
@@ -411,7 +411,7 @@ impl<E> LittleEndianConvert<E> for i16 where E: CustomUserError {
 	}
 }
 
-impl<E> LittleEndianConvert<E> for u16 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for u16 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		let mut vec = Vec::with_capacity(2);
 		vec.write_u16::<LittleEndian>(self)
@@ -425,7 +425,7 @@ impl<E> LittleEndianConvert<E> for u16 where E: CustomUserError {
 	}
 }
 
-impl<E> LittleEndianConvert<E> for i32 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for i32 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		let mut vec = Vec::with_capacity(4);
 		vec.write_i32::<LittleEndian>(self)
@@ -439,7 +439,7 @@ impl<E> LittleEndianConvert<E> for i32 where E: CustomUserError {
 	}
 }
 
-impl<E> LittleEndianConvert<E> for u32 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for u32 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		let mut vec = Vec::with_capacity(4);
 		vec.write_u32::<LittleEndian>(self)
@@ -453,7 +453,7 @@ impl<E> LittleEndianConvert<E> for u32 where E: CustomUserError {
 	}
 }
 
-impl<E> LittleEndianConvert<E> for i64 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for i64 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		let mut vec = Vec::with_capacity(8);
 		vec.write_i64::<LittleEndian>(self)
@@ -467,7 +467,7 @@ impl<E> LittleEndianConvert<E> for i64 where E: CustomUserError {
 	}
 }
 
-impl<E> LittleEndianConvert<E> for f32 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for f32 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		let mut vec = Vec::with_capacity(4);
 		vec.write_f32::<LittleEndian>(self)
@@ -482,7 +482,7 @@ impl<E> LittleEndianConvert<E> for f32 where E: CustomUserError {
 	}
 }
 
-impl<E> LittleEndianConvert<E> for f64 where E: CustomUserError {
+impl<E> LittleEndianConvert<E> for f64 where E: UserError {
 	fn into_little_endian(self) -> Vec<u8> {
 		let mut vec = Vec::with_capacity(8);
 		vec.write_f64::<LittleEndian>(self)
@@ -535,7 +535,7 @@ fn f64_from_bits(mut v: u64) -> f64 {
 
 macro_rules! impl_integer_arithmetic_ops {
 	($type: ident) => {
-		impl<E> ArithmeticOps<$type, E> for $type where E: CustomUserError {
+		impl<E> ArithmeticOps<$type, E> for $type where E: UserError {
 			fn add(self, other: $type) -> $type { self.wrapping_add(other) }
 			fn sub(self, other: $type) -> $type { self.wrapping_sub(other) }
 			fn mul(self, other: $type) -> $type { self.wrapping_mul(other) }
@@ -561,7 +561,7 @@ impl_integer_arithmetic_ops!(u64);
 
 macro_rules! impl_float_arithmetic_ops {
 	($type: ident) => {
-		impl<E> ArithmeticOps<$type, E> for $type where E: CustomUserError {
+		impl<E> ArithmeticOps<$type, E> for $type where E: UserError {
 			fn add(self, other: $type) -> $type { self + other }
 			fn sub(self, other: $type) -> $type { self - other }
 			fn mul(self, other: $type) -> $type { self * other }
@@ -575,7 +575,7 @@ impl_float_arithmetic_ops!(f64);
 
 macro_rules! impl_integer {
 	($type: ident) => {
-		impl<E> Integer<$type, E> for $type where E: CustomUserError {
+		impl<E> Integer<$type, E> for $type where E: UserError {
 			fn leading_zeros(self) -> $type { self.leading_zeros() as $type }
 			fn trailing_zeros(self) -> $type { self.trailing_zeros() as $type }
 			fn count_ones(self) -> $type { self.count_ones() as $type }
@@ -596,7 +596,7 @@ impl_integer!(u64);
 
 macro_rules! impl_float {
 	($type: ident, $int_type: ident) => {
-		impl<E> Float<$type, E> for $type where E: CustomUserError {
+		impl<E> Float<$type, E> for $type where E: UserError {
 			fn abs(self) -> $type { self.abs() }
 			fn floor(self) -> $type { self.floor() }
 			fn ceil(self) -> $type { self.ceil() }

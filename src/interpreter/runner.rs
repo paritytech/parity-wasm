@@ -6,7 +6,7 @@ use std::fmt::{self, Display};
 use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local};
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, InternalFunctionReference, FunctionSignature};
 use interpreter::stack::StackWithLimit;
 use interpreter::value::{
@@ -22,12 +22,12 @@ pub const DEFAULT_MEMORY_INDEX: u32 = 0;
 pub const DEFAULT_TABLE_INDEX: u32 = 0;
 
 /// Function interpreter.
-pub struct Interpreter<E: CustomUserError> {
+pub struct Interpreter<E: UserError> {
 	_dummy: ::std::marker::PhantomData<E>,
 }
 
 /// Function execution context.
-pub struct FunctionContext<'a, E: 'a + CustomUserError> {
+pub struct FunctionContext<'a, E: 'a + UserError> {
 	/// Is context initialized.
 	pub is_initialized: bool,
 	/// Internal function reference.
@@ -48,7 +48,7 @@ pub struct FunctionContext<'a, E: 'a + CustomUserError> {
 
 /// Interpreter action to execute after executing instruction.
 #[derive(Debug)]
-pub enum InstructionOutcome<'a, E: CustomUserError> {
+pub enum InstructionOutcome<'a, E: UserError> {
 	/// Continue with next instruction.
 	RunNextInstruction,
 	/// Branch to given frame.
@@ -62,14 +62,14 @@ pub enum InstructionOutcome<'a, E: CustomUserError> {
 }
 
 /// Function run result.
-enum RunResult<'a, E: 'a + CustomUserError> {
+enum RunResult<'a, E: 'a + UserError> {
 	/// Function has returned (optional) value.
 	Return(Option<RuntimeValue>),
 	/// Function is calling other function.
 	NestedCall(FunctionContext<'a, E>),
 }
 
-impl<E> Interpreter<E> where E: CustomUserError {
+impl<E> Interpreter<E> where E: UserError {
 	pub fn run_function(function_context: FunctionContext<E>) -> Result<Option<RuntimeValue>, Error<E>> {
 		let mut function_stack = VecDeque::new();
 		function_stack.push_back(function_context);
@@ -935,7 +935,7 @@ impl<E> Interpreter<E> where E: CustomUserError {
 	}
 }
 
-impl<'a, E> FunctionContext<'a, E> where E: CustomUserError {
+impl<'a, E> FunctionContext<'a, E> where E: UserError {
 	pub fn new(function: InternalFunctionReference<'a, E>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance<E>>) -> Self {
 		FunctionContext {
 			is_initialized: false,
@@ -1075,20 +1075,20 @@ impl<'a, E> FunctionContext<'a, E> where E: CustomUserError {
 	}
 }
 
-impl<'a, E> fmt::Debug for FunctionContext<'a, E> where E: CustomUserError {
+impl<'a, E> fmt::Debug for FunctionContext<'a, E> where E: UserError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "FunctionContext")
 	}
 }
 
-fn effective_address<E: CustomUserError>(address: u32, offset: u32) -> Result<u32, Error<E>> {
+fn effective_address<E: UserError>(address: u32, offset: u32) -> Result<u32, Error<E>> {
 	match offset.checked_add(address) {
 		None => Err(Error::Memory(format!("invalid memory access: {} + {}", offset, address))),
 		Some(address) => Ok(address),
 	}
 }
 
-pub fn prepare_function_args<E: CustomUserError>(function_type: &FunctionSignature, caller_stack: &mut StackWithLimit<RuntimeValue, E>) -> Result<Vec<VariableInstance<E>>, Error<E>> {
+pub fn prepare_function_args<E: UserError>(function_type: &FunctionSignature, caller_stack: &mut StackWithLimit<RuntimeValue, E>) -> Result<Vec<VariableInstance<E>>, Error<E>> {
 	let mut args = function_type.params().iter().rev().map(|param_type| {
 		let param_value = caller_stack.pop()?;
 		let actual_type = param_value.variable_type();

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use parking_lot::RwLock;
 use elements::{Internal, ValueType};
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
 	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::MemoryInstance;
@@ -17,7 +17,7 @@ pub const NATIVE_INDEX_FUNC_MIN: u32 = 10001;
 pub const NATIVE_INDEX_GLOBAL_MIN: u32 = 20001;
 
 /// User functions executor.
-pub trait UserFunctionExecutor<E: CustomUserError> {
+pub trait UserFunctionExecutor<E: UserError> {
 	/// Execute function with given name.
 	fn execute(&mut self, name: &str, context: CallerContext<E>) -> Result<Option<RuntimeValue>, Error<E>>;
 }
@@ -68,7 +68,7 @@ impl UserFunctionDescriptor {
 }
 
 /// Set of user-defined module elements.
-pub struct UserDefinedElements<'a, E: 'a + CustomUserError> {
+pub struct UserDefinedElements<'a, E: 'a + UserError> {
 	/// User globals list.
 	pub globals: HashMap<String, Arc<VariableInstance<E>>>,
 	/// User functions list.
@@ -78,7 +78,7 @@ pub struct UserDefinedElements<'a, E: 'a + CustomUserError> {
 }
 
 /// Native module instance.
-pub struct NativeModuleInstance<'a, E: 'a + CustomUserError> {
+pub struct NativeModuleInstance<'a, E: 'a + UserError> {
 	/// Underllying module reference.
 	env: Arc<ModuleInstanceInterface<E>>,
 	/// User function executor.
@@ -93,7 +93,7 @@ pub struct NativeModuleInstance<'a, E: 'a + CustomUserError> {
 	globals: Vec<Arc<VariableInstance<E>>>,
 }
 
-impl<'a, E> NativeModuleInstance<'a, E> where E: CustomUserError {
+impl<'a, E> NativeModuleInstance<'a, E> where E: UserError {
 	/// Create new native module
 	pub fn new(env: Arc<ModuleInstanceInterface<E>>, elements: UserDefinedElements<'a, E>) -> Result<Self, Error<E>> {
 		if !elements.functions.is_empty() && elements.executor.is_none() {
@@ -111,7 +111,7 @@ impl<'a, E> NativeModuleInstance<'a, E> where E: CustomUserError {
 	}
 }
 
-impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: CustomUserError {
+impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: UserError {
 	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
 		self.env.execute_index(index, params)
 	}
@@ -218,7 +218,7 @@ impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: 
 }
 
 /// Create wrapper for env module with given native user functions.
-pub fn env_native_module<'a, E: CustomUserError>(env: Arc<ModuleInstanceInterface<E>>, user_elements: UserDefinedElements<'a, E>) -> Result<NativeModuleInstance<E>, Error<E>> {
+pub fn env_native_module<'a, E: UserError>(env: Arc<ModuleInstanceInterface<E>>, user_elements: UserDefinedElements<'a, E>) -> Result<NativeModuleInstance<E>, Error<E>> {
 	NativeModuleInstance::new(env, user_elements)
 }
 

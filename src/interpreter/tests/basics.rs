@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
-use interpreter::{Error, CustomUserError, ProgramInstance, DefaultProgramInstance, DefaultModuleInstance};
+use interpreter::{Error, UserError, ProgramInstance, DefaultProgramInstance, DefaultModuleInstance};
 use interpreter::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
@@ -128,12 +128,12 @@ struct MeasuredVariable {
 	pub val: i32,
 }
 
-impl ExternalVariableValue<UserError> for MeasuredVariable {
+impl ExternalVariableValue<UserErrorWithCode> for MeasuredVariable {
 	fn get(&self) -> RuntimeValue {
 		RuntimeValue::I32(self.val)
 	}
 
-	fn set(&mut self, val: RuntimeValue) -> Result<(), Error<UserError>> {
+	fn set(&mut self, val: RuntimeValue) -> Result<(), Error<UserErrorWithCode>> {
 		self.val = val.try_into()?;
 		Ok(())
 	}
@@ -141,26 +141,26 @@ impl ExternalVariableValue<UserError> for MeasuredVariable {
 
 // custom user error
 #[derive(Debug, Clone, PartialEq)]
-struct UserError {
+struct UserErrorWithCode {
 	error_code: i32,
 }
 
-impl ::std::fmt::Display for UserError {
+impl ::std::fmt::Display for UserErrorWithCode {
 	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
 		write!(f, "{}", self.error_code)
 	}
 }
 
-impl CustomUserError for UserError {}
+impl UserError for UserErrorWithCode {}
 
 // user function executor
 struct FunctionExecutor {
-	pub memory: Arc<MemoryInstance<UserError>>,
+	pub memory: Arc<MemoryInstance<UserErrorWithCode>>,
 	pub values: Vec<i32>,
 }
 
-impl UserFunctionExecutor<UserError> for FunctionExecutor {
-	fn execute(&mut self, name: &str, context: CallerContext<UserError>) -> Result<Option<RuntimeValue>, Error<UserError>> {
+impl UserFunctionExecutor<UserErrorWithCode> for FunctionExecutor {
+	fn execute(&mut self, name: &str, context: CallerContext<UserErrorWithCode>) -> Result<Option<RuntimeValue>, Error<UserErrorWithCode>> {
 		match name {
 			"add" => {
 				let memory_value = self.memory.get(0, 1).unwrap()[0];
@@ -185,7 +185,7 @@ impl UserFunctionExecutor<UserError> for FunctionExecutor {
 				Ok(Some(RuntimeValue::I32(diff as i32)))
 			},
 			"err" => {
-				Err(Error::User(UserError { error_code: 777 }))
+				Err(Error::User(UserErrorWithCode { error_code: 777 }))
 			},
 			_ => Err(Error::Trap("not implemented".into()).into()),
 		}
@@ -332,9 +332,9 @@ fn native_custom_error() {
 
 	let module_instance = program.add_module("main", module, Some(&params.externals)).unwrap();
 	assert_eq!(module_instance.execute_index(0, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))),
-		Err(Error::User(UserError { error_code: 777 })));
+		Err(Error::User(UserErrorWithCode { error_code: 777 })));
 	assert_eq!(module_instance.execute_index(1, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))),
-		Err(Error::User(UserError { error_code: 777 })));
+		Err(Error::User(UserErrorWithCode { error_code: 777 })));
 }
 
 #[test]

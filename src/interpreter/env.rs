@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use builder::module;
 use elements::{Module, ExportEntry, Internal, GlobalEntry, GlobalType,
 	ValueType, InitExpr, Opcode, Opcodes};
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::env_native::NATIVE_INDEX_FUNC_MIN;
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
 	ItemIndex, CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
@@ -78,12 +78,12 @@ pub struct EnvParams {
 	pub allow_memory_growth: bool,
 }
 
-pub struct EnvModuleInstance<E: CustomUserError> {
+pub struct EnvModuleInstance<E: UserError> {
 	_params: EnvParams,
 	instance: ModuleInstance<E>,
 }
 
-impl<E> EnvModuleInstance<E> where E: CustomUserError {
+impl<E> EnvModuleInstance<E> where E: UserError {
 	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error<E>> {
 		let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 		instance.instantiate(None)?;
@@ -95,7 +95,7 @@ impl<E> EnvModuleInstance<E> where E: CustomUserError {
 	}
 }
 
-impl<E> ModuleInstanceInterface<E> for EnvModuleInstance<E> where E: CustomUserError {
+impl<E> ModuleInstanceInterface<E> for EnvModuleInstance<E> where E: UserError {
 	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
 		self.instance.execute_index(index, params)
 	}
@@ -167,7 +167,7 @@ impl<E> ModuleInstanceInterface<E> for EnvModuleInstance<E> where E: CustomUserE
 	}
 }
 
-pub fn env_module<E: CustomUserError>(params: EnvParams) -> Result<EnvModuleInstance<E>, Error<E>> {
+pub fn env_module<E: UserError>(params: EnvParams) -> Result<EnvModuleInstance<E>, Error<E>> {
 	debug_assert!(params.total_stack < params.total_memory);
 	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);

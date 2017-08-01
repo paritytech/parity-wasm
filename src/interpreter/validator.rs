@@ -2,7 +2,7 @@ use std::u32;
 use std::sync::Arc;
 use std::collections::HashMap;
 use elements::{Opcode, BlockType, ValueType};
-use interpreter::{Error, CustomUserError};
+use interpreter::{Error, UserError};
 use interpreter::runner::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, FunctionSignature};
 use interpreter::stack::StackWithLimit;
@@ -12,7 +12,7 @@ use interpreter::variable::VariableType;
 const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
 
 /// Function validation context.
-pub struct FunctionValidationContext<'a, E: 'a + CustomUserError> {
+pub struct FunctionValidationContext<'a, E: 'a + UserError> {
 	/// Wasm module instance (in process of instantiation).
 	module_instance: &'a ModuleInstance<E>,
 	/// Native externals.
@@ -75,7 +75,7 @@ pub enum BlockFrameType {
 }
 
 /// Function validator.
-pub struct Validator<E: CustomUserError> {
+pub struct Validator<E: UserError> {
 	_dummy: ::std::marker::PhantomData<E>,
 }
 
@@ -88,7 +88,7 @@ pub enum InstructionOutcome {
 	Unreachable,
 }
 
-impl<E> Validator<E> where E: CustomUserError {
+impl<E> Validator<E> where E: UserError {
 	pub fn validate_function(context: &mut FunctionValidationContext<E>, block_type: BlockType, body: &[Opcode]) -> Result<(), Error<E>> {
 		context.push_label(BlockFrameType::Function, block_type)?;
 		Validator::validate_function_block(context, body)?;
@@ -571,7 +571,7 @@ impl<E> Validator<E> where E: CustomUserError {
 	}
 }
 
-impl<'a, E> FunctionValidationContext<'a, E> where E: CustomUserError {
+impl<'a, E> FunctionValidationContext<'a, E> where E: UserError {
 	pub fn new(
 		module_instance: &'a ModuleInstance<E>, 
 		externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>,

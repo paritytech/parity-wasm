@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use parking_lot::RwLock;
 use elements::{Internal, ValueType};
-use interpreter::{Error, CustomUserError, InterpreterError};
+use interpreter::{Error, CustomUserError};
 use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
 	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::MemoryInstance;
@@ -19,7 +19,7 @@ pub const NATIVE_INDEX_GLOBAL_MIN: u32 = 20001;
 /// User functions executor.
 pub trait UserFunctionExecutor<E: CustomUserError> {
 	/// Execute function with given name.
-	fn execute(&mut self, name: &str, context: CallerContext<E>) -> Result<Option<RuntimeValue>, InterpreterError<E>>;
+	fn execute(&mut self, name: &str, context: CallerContext<E>) -> Result<Option<RuntimeValue>, Error<E>>;
 }
 
 /// User function descriptor
@@ -70,7 +70,7 @@ impl UserFunctionDescriptor {
 /// Set of user-defined module elements.
 pub struct UserDefinedElements<'a, E: 'a + CustomUserError> {
 	/// User globals list.
-	pub globals: HashMap<String, Arc<VariableInstance>>,
+	pub globals: HashMap<String, Arc<VariableInstance<E>>>,
 	/// User functions list.
 	pub functions: Cow<'static, [UserFunctionDescriptor]>,
 	/// Functions executor.
@@ -90,12 +90,12 @@ pub struct NativeModuleInstance<'a, E: 'a + CustomUserError> {
 	/// By-name functions index.
 	globals_by_name: HashMap<String, u32>,
 	/// User globals list.
-	globals: Vec<Arc<VariableInstance>>,
+	globals: Vec<Arc<VariableInstance<E>>>,
 }
 
 impl<'a, E> NativeModuleInstance<'a, E> where E: CustomUserError {
 	/// Create new native module
-	pub fn new(env: Arc<ModuleInstanceInterface<E>>, elements: UserDefinedElements<'a, E>) -> Result<Self, Error> {
+	pub fn new(env: Arc<ModuleInstanceInterface<E>>, elements: UserDefinedElements<'a, E>) -> Result<Self, Error<E>> {
 		if !elements.functions.is_empty() && elements.executor.is_none() {
 			return Err(Error::Function("trying to construct native env module with functions, but without executor".into()));
 		}
@@ -112,15 +112,15 @@ impl<'a, E> NativeModuleInstance<'a, E> where E: CustomUserError {
 }
 
 impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: CustomUserError {
-	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, InterpreterError<E>> {
+	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
 		self.env.execute_index(index, params)
 	}
 
-	fn execute_export(&self, name: &str, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, InterpreterError<E>> {
+	fn execute_export(&self, name: &str, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
 		self.env.execute_export(name, params)
 	}
 
-	fn export_entry<'b>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
+	fn export_entry<'b>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error<E>> {
 		if let Some(index) = self.functions_by_name.get(name) {
 			let composite_index = NATIVE_INDEX_FUNC_MIN + *index;
 			match required_type {
@@ -147,15 +147,15 @@ impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: 
 		self.env.export_entry(name, required_type)
 	}
 
-	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
+	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance<E>>, Error<E>> {
 		self.env.table(index)
 	}
 
-	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
+	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance<E>>, Error<E>> {
 		self.env.memory(index)
 	}
 
-	fn global<'b>(&self, global_index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface<E> + 'b>>>) -> Result<Arc<VariableInstance>, Error> {
+	fn global<'b>(&self, global_index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface<E> + 'b>>>) -> Result<Arc<VariableInstance<E>>, Error<E>> {
 		let index = match global_index {
 			ItemIndex::IndexSpace(index) | ItemIndex::Internal(index) => index,
 			ItemIndex::External(_) => unreachable!("trying to get global, exported by native env module"),
@@ -171,7 +171,7 @@ impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: 
 			.ok_or(Error::Native(format!("trying to get native global with index {}", index)))
 	}
 
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error<E>> {
 		let index = match function_index {
 			ItemIndex::IndexSpace(index) | ItemIndex::Internal(index) => index,
 			ItemIndex::External(_) => unreachable!("trying to call function, exported by native env module"),
@@ -186,23 +186,23 @@ impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: 
 			.ok_or(Error::Native(format!("missing native env function with index {}", index)))?))
 	}
 
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error> {
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error<E>> {
 		self.function_type(ItemIndex::Internal(type_index))
 	}
 
-	fn function_reference<'b>(&self, index: ItemIndex, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface<E> + 'b>>>) -> Result<InternalFunctionReference<'b, E>, Error> {
+	fn function_reference<'b>(&self, index: ItemIndex, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface<E> + 'b>>>) -> Result<InternalFunctionReference<'b, E>, Error<E>> {
 		self.env.function_reference(index, externals)
 	}
 
-	fn function_reference_indirect<'b>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface<E> + 'b>>>) -> Result<InternalFunctionReference<'b, E>, Error> {
+	fn function_reference_indirect<'b>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface<E> + 'b>>>) -> Result<InternalFunctionReference<'b, E>, Error<E>> {
 		self.env.function_reference_indirect(table_idx, type_idx, func_idx, externals)
 	}
 
-	fn function_body<'b>(&'b self, _internal_index: u32) -> Result<Option<InternalFunction<'b>>, Error> {
+	fn function_body<'b>(&'b self, _internal_index: u32) -> Result<Option<InternalFunction<'b>>, Error<E>> {
 		Ok(None)
 	}
 
-	fn call_internal_function(&self, outer: CallerContext<E>, index: u32) -> Result<Option<RuntimeValue>, InterpreterError<E>> {
+	fn call_internal_function(&self, outer: CallerContext<E>, index: u32) -> Result<Option<RuntimeValue>, Error<E>> {
 		if index < NATIVE_INDEX_FUNC_MIN || index >= NATIVE_INDEX_GLOBAL_MIN {
 			return self.env.call_internal_function(outer, index);
 		}
@@ -218,7 +218,7 @@ impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: 
 }
 
 /// Create wrapper for env module with given native user functions.
-pub fn env_native_module<'a, E: CustomUserError>(env: Arc<ModuleInstanceInterface<E>>, user_elements: UserDefinedElements<'a, E>) -> Result<NativeModuleInstance<E>, Error> {
+pub fn env_native_module<'a, E: CustomUserError>(env: Arc<ModuleInstanceInterface<E>>, user_elements: UserDefinedElements<'a, E>) -> Result<NativeModuleInstance<E>, Error<E>> {
 	NativeModuleInstance::new(env, user_elements)
 }
 

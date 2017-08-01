@@ -2,7 +2,7 @@ extern crate parity_wasm;
 
 use std::env::args;
 
-use parity_wasm::{interpreter, CustomModuleInstanceInterface, RuntimeValue};
+use parity_wasm::{interpreter, ModuleInstanceInterface, RuntimeValue};
 use parity_wasm::elements::{Internal, External, Type, FunctionType, ValueType};
 
 
@@ -15,7 +15,7 @@ fn main() {
     let func_name = &args[2];
     let (_, program_args) = args.split_at(3);
 
-    let program = parity_wasm::ProgramInstance::with_env_params(
+    let program = parity_wasm::DefaultProgramInstance::with_env_params(
         interpreter::EnvParams {
             total_stack: 128*1024,
             total_memory: 2*1024*1024,

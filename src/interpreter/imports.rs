@@ -104,7 +104,7 @@ impl<E> ModuleImports<E> where E: CustomUserError {
 	}
 
 	/// Get module reference.
-	pub fn module<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, name: &str) -> Result<Arc<ModuleInstanceInterface<E> + 'a>, Error> {
+	pub fn module<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, name: &str) -> Result<Arc<ModuleInstanceInterface<E> + 'a>, Error<E>> {
 		if let Some(externals) = externals {
 			if let Some(module) = externals.get(name).cloned() {
 				return Ok(module);
@@ -118,7 +118,7 @@ impl<E> ModuleImports<E> where E: CustomUserError {
 	}
 
 	/// Get function index.
-	pub fn function<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry, required_type: Option<FunctionSignature>) -> Result<u32, Error> {
+	pub fn function<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry, required_type: Option<FunctionSignature>) -> Result<u32, Error<E>> {
 		let (_, export) = self.external_export(externals, import, &required_type.map(|ft| ExportEntryType::Function(ft)).unwrap_or(ExportEntryType::Any))?;
 		if let Internal::Function(external_index) = export {
 			return Ok(external_index);
@@ -128,7 +128,7 @@ impl<E> ModuleImports<E> where E: CustomUserError {
 	}
 
 	/// Get table reference.
-	pub fn table<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry) -> Result<Arc<TableInstance>, Error> {
+	pub fn table<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry) -> Result<Arc<TableInstance<E>>, Error<E>> {
 		let (module, export) = self.external_export(externals, import, &ExportEntryType::Any)?;
 		if let Internal::Table(external_index) = export {
 			return module.table(ItemIndex::Internal(external_index));
@@ -138,7 +138,7 @@ impl<E> ModuleImports<E> where E: CustomUserError {
 	}
 
 	/// Get memory reference.
-	pub fn memory<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry) -> Result<Arc<MemoryInstance>, Error> {
+	pub fn memory<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry) -> Result<Arc<MemoryInstance<E>>, Error<E>> {
 		let (module, export) = self.external_export(externals, import, &ExportEntryType::Any)?;
 		if let Internal::Memory(external_index) = export {
 			return module.memory(ItemIndex::Internal(external_index));
@@ -148,7 +148,7 @@ impl<E> ModuleImports<E> where E: CustomUserError {
 	}
 
 	/// Get global reference.
-	pub fn global<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry, required_type: Option<VariableType>) -> Result<Arc<VariableInstance>, Error> {
+	pub fn global<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry, required_type: Option<VariableType>) -> Result<Arc<VariableInstance<E>>, Error<E>> {
 		let (module, export) = self.external_export(externals, import, &required_type.clone().map(|rt| ExportEntryType::Global(rt)).unwrap_or(ExportEntryType::Any))?;
 		if let Internal::Global(external_index) = export {
 			return module.global(ItemIndex::Internal(external_index), required_type, externals);
@@ -157,7 +157,7 @@ impl<E> ModuleImports<E> where E: CustomUserError {
 		Err(Error::Program(format!("wrong import {} from module {} (expecting global)", import.field(), import.module())))
 	}
 
-	fn external_export<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry, required_type: &ExportEntryType) -> Result<(Arc<ModuleInstanceInterface<E> + 'a>, Internal), Error> {
+	fn external_export<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>, import: &ImportEntry, required_type: &ExportEntryType) -> Result<(Arc<ModuleInstanceInterface<E> + 'a>, Internal), Error<E>> {
 		self.module(externals, import.module())
 			.and_then(|m|
 				m.export_entry(import.field(), required_type)

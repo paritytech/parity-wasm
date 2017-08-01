@@ -1,7 +1,7 @@
 use std::fmt;
 use parking_lot::RwLock;
 use elements::{GlobalType, ValueType, TableElementType};
-use interpreter::Error;
+use interpreter::{Error, CustomUserError};
 use interpreter::value::RuntimeValue;
 
 /// Variable type.
@@ -20,35 +20,35 @@ pub enum VariableType {
 }
 
 /// Externally stored variable value.
-pub trait ExternalVariableValue {
+pub trait ExternalVariableValue<E: CustomUserError> {
 	/// Get variable value.
 	fn get(&self) -> RuntimeValue;
 	/// Set variable value.
-	fn set(&mut self, value: RuntimeValue) -> Result<(), Error>;
+	fn set(&mut self, value: RuntimeValue) -> Result<(), Error<E>>;
 }
 
 /// Variable instance.
 #[derive(Debug)]
-pub struct VariableInstance {
+pub struct VariableInstance<E: CustomUserError> {
 	/// Is mutable?
 	is_mutable: bool,
 	/// Variable type.
 	variable_type: VariableType,
 	/// Global value.
-	value: RwLock<VariableValue>,
+	value: RwLock<VariableValue<E>>,
 }
 
 /// Enum variable value.
-enum VariableValue {
+enum VariableValue<E: CustomUserError> {
 	/// Internal value.
 	Internal(RuntimeValue),
 	/// External value.
-	External(Box<ExternalVariableValue>),
+	External(Box<ExternalVariableValue<E>>),
 }
 
-impl VariableInstance {
+impl<E> VariableInstance<E> where E: CustomUserError {
 	/// New variable instance
-	pub fn new(is_mutable: bool, variable_type: VariableType, value: RuntimeValue) -> Result<Self, Error> {
+	pub fn new(is_mutable: bool, variable_type: VariableType, value: RuntimeValue) -> Result<Self, Error<E>> {
 		// TODO: there is nothing about null value in specification + there is nothing about initializing missing table elements? => runtime check for nulls
 		if !value.is_null() && value.variable_type() != Some(variable_type) {
 			return Err(Error::Variable(format!("trying to initialize variable of type {:?} with value of type {:?}", variable_type, value.variable_type())));
@@ -62,12 +62,12 @@ impl VariableInstance {
 	}
 
 	/// New global variable
-	pub fn new_global(global_type: &GlobalType, value: RuntimeValue) -> Result<Self, Error> {
+	pub fn new_global(global_type: &GlobalType, value: RuntimeValue) -> Result<Self, Error<E>> {
 		Self::new(global_type.is_mutable(), global_type.content_type().into(), value)
 	}
 
 	/// New global with externally stored value.
-	pub fn new_external_global(is_mutable: bool, variable_type: VariableType, value: Box<ExternalVariableValue>) -> Result<Self, Error> {
+	pub fn new_external_global(is_mutable: bool, variable_type: VariableType, value: Box<ExternalVariableValue<E>>) -> Result<Self, Error<E>> {
 		// TODO: there is nothing about null value in specification + there is nothing about initializing missing table elements? => runtime check for nulls
 		let current_value = value.get();
 		if !current_value.is_null() && current_value.variable_type() != Some(variable_type) {
@@ -97,7 +97,7 @@ impl VariableInstance {
 	}
 
 	/// Set the value of the variable instance
-	pub fn set(&self, value: RuntimeValue) -> Result<(), Error> {
+	pub fn set(&self, value: RuntimeValue) -> Result<(), Error<E>> {
 		if !self.is_mutable {
 			return Err(Error::Variable("trying to update immutable variable".into()));
 		}
@@ -109,7 +109,7 @@ impl VariableInstance {
 	}
 }
 
-impl VariableValue {
+impl<E> VariableValue<E> where E: CustomUserError {
 	fn get(&self) -> RuntimeValue {
 		match *self {
 			VariableValue::Internal(ref value) => value.clone(),
@@ -117,7 +117,7 @@ impl VariableValue {
 		}
 	}
 
-	fn set(&mut self, new_value: RuntimeValue) -> Result<(), Error> {
+	fn set(&mut self, new_value: RuntimeValue) -> Result<(), Error<E>> {
 		match *self {
 			VariableValue::Internal(ref mut value) => {
 				*value = new_value;
@@ -147,7 +147,7 @@ impl From<TableElementType> for VariableType {
 	}
 }
 
-impl fmt::Debug for VariableValue {
+impl<E> fmt::Debug for VariableValue<E> where E: CustomUserError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			VariableValue::Internal(ref value) => write!(f, "Variable.Internal({:?})", value),

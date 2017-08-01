@@ -1,6 +1,6 @@
 use elements::deserialize_file;
 use elements::Module;
-use interpreter::{EnvParams, ExecutionParams, ProgramInstance};
+use interpreter::{EnvParams, ExecutionParams, DefaultProgramInstance};
 use interpreter::module::ModuleInstanceInterface;
 use interpreter::value::RuntimeValue;
 
@@ -12,7 +12,7 @@ const WASM_FILE: &str = &"res/cases/v1/inc_i32.wasm";
 
 #[test]
 fn interpreter_inc_i32() {
-    let program = ProgramInstance::with_env_params(EnvParams {
+    let program = DefaultProgramInstance::with_env_params(EnvParams {
         total_stack: 128 * 1024,
         total_memory: 2 * 1024 * 1024,
         allow_memory_growth: false,

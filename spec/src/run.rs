@@ -11,10 +11,10 @@ use test;
 use parity_wasm::{self, elements, builder};
 use parity_wasm::interpreter::{
     RuntimeValue,
-    ProgramInstance, ModuleInstance, 
+    DefaultProgramInstance, DefaultModuleInstance, 
     ItemIndex, ExportEntryType,
-    Error as InternalInterpreterError,
-    InterpreterError
+    Error as InterpreterError,
+    DummyCustomUserError,
 };
 
 fn spec_test_module() -> elements::Module {
@@ -42,7 +42,7 @@ fn spec_test_module() -> elements::Module {
         .build()
 }
 
-fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &ProgramInstance) -> Arc<ModuleInstance> {
+fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &DefaultProgramInstance) -> Arc<DefaultModuleInstance> {
     let module = try_deserialize(base_dir, path).expect(&format!("Wasm file {} failed to load", path));
 
     program.add_module("spectest", spec_test_module(), None).expect("Failed adding 'spectest' module");
@@ -58,15 +58,10 @@ fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module
     parity_wasm::deserialize_file(&wasm_path)
 }
 
-fn try_load(base_dir: &str, module_path: &str) -> Result<(), parity_wasm::interpreter::Error> {
+fn try_load(base_dir: &str, module_path: &str) -> Result<(), parity_wasm::interpreter::Error<DummyCustomUserError>> {
     let module = try_deserialize(base_dir, module_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
-    let program = ProgramInstance::new().expect("Failed creating program");
-    program.add_module("try_load", module, None)
-        .map(|_| ())
-        .map_err(|e| match e {
-            InterpreterError::Internal(e) => e,
-            _ => unreachable!(),
-        })
+    let program = DefaultProgramInstance::new().expect("Failed creating program");
+    program.add_module("try_load", module, None).map(|_| ())
 }
 
 fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {
@@ -95,8 +90,8 @@ fn runtime_values(test_vals: &[test::RuntimeValue]) -> Vec<parity_wasm::RuntimeV
     test_vals.iter().map(runtime_value).collect::<Vec<parity_wasm::RuntimeValue>>()
 }
 
-fn run_action(program: &ProgramInstance, action: &test::Action) 
-    -> Result<Option<parity_wasm::RuntimeValue>, InternalInterpreterError> 
+fn run_action(program: &DefaultProgramInstance, action: &test::Action) 
+    -> Result<Option<parity_wasm::RuntimeValue>, InterpreterError<DummyCustomUserError>> 
 {
     match *action {
         test::Action::Invoke { ref module, ref field, ref args } => {
@@ -104,10 +99,6 @@ fn run_action(program: &ProgramInstance, action: &test::Action)
             let module = module.trim_left_matches('$');
             let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
             module.execute_export(&jstring_to_rstring(field), runtime_values(args).into())
-                .map_err(|e| match e {
-                    InterpreterError::Internal(e) => e,
-                    _ => unreachable!(),
-                })
         },
         test::Action::Get { ref module, ref field, .. } => {
             let module = module.clone().unwrap_or("wasm_test".into());
@@ -118,7 +109,7 @@ fn run_action(program: &ProgramInstance, action: &test::Action)
             module.export_entry(field.as_ref(), &ExportEntryType::Any)
                 .and_then(|i| match i {
                     elements::Internal::Global(global_index) => Ok(ItemIndex::IndexSpace(global_index)),
-                    _ => Err(InternalInterpreterError::Global(format!("Expected to have exported global with name {}", field))),
+                    _ => Err(InterpreterError::Global(format!("Expected to have exported global with name {}", field))),
                 })
                 .and_then(|g| module.global(g, None, None).map(|g| Some(g.get())))
         }
@@ -182,7 +173,7 @@ pub fn spec(name: &str) {
         .expect(&format!("Failed to load json file {}", &fixture.json));
     let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
-    let program = ProgramInstance::new().expect("Failed creating program");
+    let program = DefaultProgramInstance::new().expect("Failed creating program");
     let mut last_module = None;
     for command in &spec.commands {
         println!("command {:?}", command);

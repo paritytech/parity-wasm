@@ -2,7 +2,7 @@ use std::u32;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use elements::MemoryType;
-use interpreter::Error;
+use interpreter::{Error, CustomUserError};
 use interpreter::module::check_limits;
 
 /// Linear memory page size.
@@ -11,11 +11,13 @@ pub const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
 const LINEAR_MEMORY_MAX_PAGES: u32 = 65536;
 
 /// Linear memory instance.
-pub struct MemoryInstance {
+pub struct MemoryInstance<E: CustomUserError> {
 	/// Linear memory buffer.
 	buffer: RwLock<Vec<u8>>,
 	/// Maximum buffer size.
 	maximum_size: u32,
+	/// Dummy to avoid compilation error.
+	_dummy: ::std::marker::PhantomData<E>,
 }
 
 struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {
@@ -34,9 +36,9 @@ impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> 
 	}
 }
 
-impl MemoryInstance {
+impl<E> MemoryInstance<E> where E: CustomUserError {
 	/// Create new linear memory instance.
-	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error> {
+	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error<E>> {
 		check_limits(memory_type.limits())?;
 
 		let maximum_size = match memory_type.limits().maximum() {
@@ -51,6 +53,7 @@ impl MemoryInstance {
 		let memory = MemoryInstance {
 			buffer: RwLock::new(vec![0; initial_size as usize]),
 			maximum_size: maximum_size,
+			_dummy: Default::default(),
 		};
 
 		Ok(Arc::new(memory))
@@ -62,7 +65,7 @@ impl MemoryInstance {
 	}
 
 	/// Get data at given offset.
-	pub fn get(&self, offset: u32, size: usize) -> Result<Vec<u8>, Error> {
+	pub fn get(&self, offset: u32, size: usize) -> Result<Vec<u8>, Error<E>> {
 		let buffer = self.buffer.read();
 		let region = self.checked_region(&buffer, offset as usize, size)?;
 
@@ -70,7 +73,7 @@ impl MemoryInstance {
 	}
 
 	/// Set data at given offset.
-	pub fn set(&self, offset: u32, value: &[u8]) -> Result<(), Error> {
+	pub fn set(&self, offset: u32, value: &[u8]) -> Result<(), Error<E>> {
 		let mut buffer = self.buffer.write();
 		let range = self.checked_region(&buffer, offset as usize, value.len())?.range();
 
@@ -81,7 +84,7 @@ impl MemoryInstance {
 
 	/// Increases the size of the linear memory by given number of pages.
 	/// Returns -1 if allocation fails or previous memory size, if succeeds.
-	pub fn grow(&self, pages: u32) -> Result<u32, Error> {
+	pub fn grow(&self, pages: u32) -> Result<u32, Error<E>> {
 		let mut buffer = self.buffer.write();
 		let old_size = buffer.len() as u32;
 		match calculate_memory_size(old_size, pages, self.maximum_size) {
@@ -93,7 +96,7 @@ impl MemoryInstance {
 		}
 	}
 
-	fn checked_region<'a, B>(&self, buffer: &'a B, offset: usize, size: usize) -> Result<CheckedRegion<'a, B>, Error> 
+	fn checked_region<'a, B>(&self, buffer: &'a B, offset: usize, size: usize) -> Result<CheckedRegion<'a, B>, Error<E>> 
 		where B: ::std::ops::Deref<Target=Vec<u8>>
 	{
 		let end = offset.checked_add(size)
@@ -111,7 +114,7 @@ impl MemoryInstance {
 	}
 
 	/// Copy memory region
-	pub fn copy(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error> {
+	pub fn copy(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error<E>> {
 		let buffer = self.buffer.write();
 
 		let read_region = self.checked_region(&buffer, src_offset, len)?;
@@ -127,7 +130,7 @@ impl MemoryInstance {
 	}
 
 	/// Zero memory region
-	pub fn zero(&self, offset: usize, len: usize) -> Result<(), Error> {
+	pub fn zero(&self, offset: usize, len: usize) -> Result<(), Error<E>> {
 		let mut buffer = self.buffer.write();
 
 		let range = self.checked_region(&buffer, offset, len)?.range();

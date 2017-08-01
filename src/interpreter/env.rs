@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use builder::module;
 use elements::{Module, ExportEntry, Internal, GlobalEntry, GlobalType,
 	ValueType, InitExpr, Opcode, Opcodes};
-use interpreter::Error;
+use interpreter::{Error, CustomUserError, InterpreterError};
 use interpreter::env_native::NATIVE_INDEX_FUNC_MIN;
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
 	ItemIndex, CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
@@ -78,12 +78,12 @@ pub struct EnvParams {
 	pub allow_memory_growth: bool,
 }
 
-pub struct EnvModuleInstance {
+pub struct EnvModuleInstance<E: CustomUserError> {
 	_params: EnvParams,
-	instance: ModuleInstance,
+	instance: ModuleInstance<E>,
 }
 
-impl EnvModuleInstance {
+impl<E> EnvModuleInstance<E> where E: CustomUserError {
 	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
 		let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 		instance.instantiate(None)?;
@@ -95,12 +95,12 @@ impl EnvModuleInstance {
 	}
 }
 
-impl ModuleInstanceInterface for EnvModuleInstance {
-	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
+impl<E> ModuleInstanceInterface<E> for EnvModuleInstance<E> where E: CustomUserError {
+	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, InterpreterError<E>> {
 		self.instance.execute_index(index, params)
 	}
 
-	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
+	fn execute_export(&self, name: &str, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, InterpreterError<E>> {
 		self.instance.execute_export(name, params)
 	}
 
@@ -116,7 +116,7 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.memory(index)
 	}
 
-	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error> {
+	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<Arc<VariableInstance>, Error> {
 		self.instance.global(index, variable_type, externals)
 	}
 
@@ -128,11 +128,11 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		self.instance.function_type_by_index(type_index)
 	}
 
-	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
+	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<InternalFunctionReference<'a, E>, Error> {
 		self.instance.function_reference(index, externals)
 	}
 
-	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
+	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<InternalFunctionReference<'a, E>, Error> {
 		self.instance.function_reference_indirect(table_idx, type_idx, func_idx, externals)
 	}
 
@@ -140,12 +140,13 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 		Ok(None)
 	}
 
-	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
+	fn call_internal_function(&self, outer: CallerContext<E>, index: u32) -> Result<Option<RuntimeValue>, InterpreterError<E>> {
 		// to make interpreter independent of *SCRIPTEN runtime, just make abort/assert = interpreter Error
 		match index {
 			INDEX_FUNC_ABORT => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32), None)
 				.and_then(|g| g.set(RuntimeValue::I32(1)))
-				.and_then(|_| Err(Error::Trap("abort".into()))),
+				.and_then(|_| Err(Error::Trap("abort".into())))
+				.map_err(Into::into),
 			INDEX_FUNC_ASSERT => outer.value_stack.pop_as::<i32>()
 				.and_then(|condition| if condition == 0 {
 					self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32), None)
@@ -153,18 +154,20 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 						.and_then(|_| Err(Error::Trap("assertion failed".into())))
 				} else {
 					Ok(None)
-				}),
+				})
+				.map_err(Into::into),
 			INDEX_FUNC_ENLARGE_MEMORY => Ok(Some(RuntimeValue::I32(0))), // TODO: support memory enlarge
 			INDEX_FUNC_GET_TOTAL_MEMORY => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_TOTAL_MEMORY), Some(VariableType::I32), None)
 				.map(|g| g.get())
-				.map(Some),
-			INDEX_FUNC_MIN_NONUSED ... INDEX_FUNC_MAX => Err(Error::Trap("unimplemented".into())),
-			_ => Err(Error::Trap(format!("trying to call function with index {} in env module", index))),
+				.map(Some)
+				.map_err(Into::into),
+			INDEX_FUNC_MIN_NONUSED ... INDEX_FUNC_MAX => Err(Error::Trap("unimplemented".into()).into()),
+			_ => Err(Error::Trap(format!("trying to call function with index {} in env module", index)).into()),
 		}
 	}
 }
 
-pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
+pub fn env_module<E: CustomUserError>(params: EnvParams) -> Result<EnvModuleInstance<E>, Error> {
 	debug_assert!(params.total_stack < params.total_memory);
 	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);

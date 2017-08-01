@@ -1,9 +1,7 @@
 use elements::deserialize_file;
 use elements::Module;
-use interpreter::EnvParams;
-use interpreter::ExecutionParams;
+use interpreter::{EnvParams, ExecutionParams, ProgramInstance};
 use interpreter::module::ModuleInstanceInterface;
-use interpreter::program::ProgramInstance;
 use interpreter::value::RuntimeValue;
 
 // Name of function contained in WASM file (note the leading underline)

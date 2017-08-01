@@ -3,9 +3,7 @@
 use std::sync::Arc;
 use builder::module;
 use elements::{ValueType, Opcodes, Opcode, BlockType, Local};
-use interpreter::Error;
-use interpreter::module::{ModuleInstanceInterface, ItemIndex};
-use interpreter::program::ProgramInstance;
+use interpreter::{Error, InterpreterError, ProgramInstance, ModuleInstanceInterface, CustomModuleInstanceInterface, ItemIndex};
 use interpreter::value::{RuntimeValue, TryInto};
 
 fn make_function_i32(body: Opcodes) -> (ProgramInstance, Arc<ModuleInstanceInterface>) {
@@ -28,6 +26,10 @@ fn run_function_i32(module: &Arc<ModuleInstanceInterface>, arg: i32) -> Result<i
 	module
 		.execute_index(0, vec![RuntimeValue::I32(arg)].into())
 		.map(|r| r.unwrap().try_into().unwrap())
+		.map_err(|e| match e {
+			InterpreterError::Internal(e) => e,
+			_ => unreachable!(),
+		})
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unreachable.txt
@@ -733,9 +735,9 @@ fn callindirect_2() {
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(14));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(6));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)].into()).unwrap_err(),
-		Error::Function("expected indirect function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
+		InterpreterError::Internal(Error::Function("expected indirect function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into())));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)].into()).unwrap_err(),
-		Error::Table("trying to read table item with index 3 when there are only 3 items".into()));
+		InterpreterError::Internal(Error::Table("trying to read table item with index 3 when there are only 3 items".into())));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/select.txt

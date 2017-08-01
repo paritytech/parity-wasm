@@ -21,7 +21,10 @@ pub use elements::{
 
 pub use interpreter::{
     ProgramInstance,
+    CustomProgramInstance,
     ModuleInstance,
+    CustomModuleInstance,
     ModuleInstanceInterface,
+    CustomModuleInstanceInterface,
     RuntimeValue,
 };

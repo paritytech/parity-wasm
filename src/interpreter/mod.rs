@@ -2,6 +2,19 @@
 
 /// Interpreter error.
 #[derive(Debug, Clone, PartialEq)]
+pub enum InterpreterError<E: CustomUserError> {
+	/// Internal error.
+	Internal(Error),
+	/// Custom user error.
+	User(E),
+}
+
+/// Custom user error.
+pub trait CustomUserError: 'static + ::std::fmt::Display + ::std::fmt::Debug + Clone + PartialEq {
+}
+
+/// Internal interpreter error.
+#[derive(Debug, Clone, PartialEq)]
 pub enum Error {
 	/// Program-level error.
 	Program(String),
@@ -35,6 +48,12 @@ pub enum Error {
 	Trap(String),
 }
 
+impl<E> From<Error> for InterpreterError<E> where E: CustomUserError {
+	fn from(other: Error) -> Self {
+		InterpreterError::Internal(other)
+	}
+}
+
 impl Into<String> for Error {
 	fn into(self) -> String {
 		match self {
@@ -57,6 +76,16 @@ impl Into<String> for Error {
 	}
 }
 
+/// Dummy user error.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DummyCustomUserError;
+
+impl CustomUserError for DummyCustomUserError {}
+
+impl ::std::fmt::Display for DummyCustomUserError {
+	fn fmt(&self, _f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> { Ok(()) }
+}
+
 mod env;
 mod env_native;
 mod imports;
@@ -74,10 +103,24 @@ mod variable;
 mod tests;
 
 pub use self::memory::MemoryInstance;
-pub use self::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, ExportEntryType, CallerContext, ExecutionParams, FunctionSignature};
+pub use self::module::{ModuleInstance as CustomModuleInstance,
+	ModuleInstanceInterface as CustomModuleInstanceInterface,
+	ItemIndex, ExportEntryType, CallerContext, ExecutionParams, FunctionSignature};
 pub use self::table::TableInstance;
-pub use self::program::ProgramInstance;
+pub use self::program::ProgramInstance as CustomProgramInstance;
 pub use self::value::RuntimeValue;
 pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
 pub use self::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 pub use self::env::EnvParams;
+
+/// Default type of ProgramInstance if you do not need any custom user errors.
+/// To work with custom user errors or interpreter internals, use CustomProgramInstance.
+pub type ProgramInstance = self::program::ProgramInstance<DummyCustomUserError>;
+
+/// Default type of ModuleInstance if you do not need any custom user errors.
+/// To work with custom user errors or interpreter internals, use CustomModuleInstance.
+pub type ModuleInstance = self::module::ModuleInstance<DummyCustomUserError>;
+
+/// Default type of ModuleInstanceInterface if you do not need any custom user errors.
+/// To work with custom user errors or interpreter internals, use CustomModuleInstanceInterface.
+pub type ModuleInstanceInterface = self::module::ModuleInstanceInterface<DummyCustomUserError>;

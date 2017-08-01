@@ -2,7 +2,7 @@ extern crate parity_wasm;
 
 use std::env::args;
 
-use parity_wasm::{interpreter, ModuleInstanceInterface, RuntimeValue};
+use parity_wasm::{interpreter, CustomModuleInstanceInterface, RuntimeValue};
 use parity_wasm::elements::{Internal, External, Type, FunctionType, ValueType};
 
 

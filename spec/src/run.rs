@@ -13,7 +13,8 @@ use parity_wasm::interpreter::{
     RuntimeValue,
     ProgramInstance, ModuleInstance, 
     ItemIndex, ExportEntryType,
-    Error as InterpreterError,
+    Error as InternalInterpreterError,
+    InterpreterError
 };
 
 fn spec_test_module() -> elements::Module {
@@ -60,7 +61,12 @@ fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module
 fn try_load(base_dir: &str, module_path: &str) -> Result<(), parity_wasm::interpreter::Error> {
     let module = try_deserialize(base_dir, module_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
     let program = ProgramInstance::new().expect("Failed creating program");
-    program.add_module("try_load", module, None).map(|_| ())
+    program.add_module("try_load", module, None)
+        .map(|_| ())
+        .map_err(|e| match e {
+            InterpreterError::Internal(e) => e,
+            _ => unreachable!(),
+        })
 }
 
 fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {
@@ -90,7 +96,7 @@ fn runtime_values(test_vals: &[test::RuntimeValue]) -> Vec<parity_wasm::RuntimeV
 }
 
 fn run_action(program: &ProgramInstance, action: &test::Action) 
-    -> Result<Option<parity_wasm::RuntimeValue>, InterpreterError> 
+    -> Result<Option<parity_wasm::RuntimeValue>, InternalInterpreterError> 
 {
     match *action {
         test::Action::Invoke { ref module, ref field, ref args } => {
@@ -98,6 +104,10 @@ fn run_action(program: &ProgramInstance, action: &test::Action)
             let module = module.trim_left_matches('$');
             let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
             module.execute_export(&jstring_to_rstring(field), runtime_values(args).into())
+                .map_err(|e| match e {
+                    InterpreterError::Internal(e) => e,
+                    _ => unreachable!(),
+                })
         },
         test::Action::Get { ref module, ref field, .. } => {
             let module = module.clone().unwrap_or("wasm_test".into());
@@ -108,7 +118,7 @@ fn run_action(program: &ProgramInstance, action: &test::Action)
             module.export_entry(field.as_ref(), &ExportEntryType::Any)
                 .and_then(|i| match i {
                     elements::Internal::Global(global_index) => Ok(ItemIndex::IndexSpace(global_index)),
-                    _ => Err(InterpreterError::Global(format!("Expected to have exported global with name {}", field))),
+                    _ => Err(InternalInterpreterError::Global(format!("Expected to have exported global with name {}", field))),
                 })
                 .and_then(|g| module.global(g, None, None).map(|g| Some(g.get())))
         }

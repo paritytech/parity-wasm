@@ -2,27 +2,27 @@ use std::u32;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use elements::TableType;
-use interpreter::Error;
+use interpreter::{Error, UserError};
 use interpreter::module::check_limits;
 use interpreter::variable::{VariableInstance, VariableType};
 use interpreter::value::RuntimeValue;
 
 /// Table instance.
-pub struct TableInstance {
+pub struct TableInstance<E: UserError> {
 	/// Table variables type.
 	variable_type: VariableType,
 	/// Table memory buffer.
-	buffer: RwLock<Vec<TableElement>>,
+	buffer: RwLock<Vec<TableElement<E>>>,
 }
 
 /// Table element. Cloneable wrapper around VariableInstance.
-struct TableElement {
-	pub var: VariableInstance,
+struct TableElement<E: UserError> {
+	pub var: VariableInstance<E>,
 }
 
-impl TableInstance {
+impl<E> TableInstance<E> where E: UserError {
 	/// New instance of the table
-	pub fn new(table_type: &TableType) -> Result<Arc<Self>, Error> {
+	pub fn new(table_type: &TableType) -> Result<Arc<Self>, Error<E>> {
 		check_limits(table_type.limits())?;
 
 		let variable_type = table_type.elem_type().into();
@@ -40,7 +40,7 @@ impl TableInstance {
 	}
 
 	/// Get the specific value in the table
-	pub fn get(&self, offset: u32) -> Result<RuntimeValue, Error> {
+	pub fn get(&self, offset: u32) -> Result<RuntimeValue, Error<E>> {
 		let buffer = self.buffer.read();
 		let buffer_len = buffer.len();
 		buffer.get(offset as usize)
@@ -49,7 +49,7 @@ impl TableInstance {
 	}
 
 	/// Set the table value from raw slice
-	pub fn set_raw(&self, mut offset: u32, module_name: String, value: &[u32]) -> Result<(), Error> {
+	pub fn set_raw(&self, mut offset: u32, module_name: String, value: &[u32]) -> Result<(), Error<E>> {
 		for val in value {
 			match self.variable_type {
 				VariableType::AnyFunc => self.set(offset, RuntimeValue::AnyFunc(module_name.clone(), *val))?,
@@ -61,7 +61,7 @@ impl TableInstance {
 	}
 
 	/// Set the table from runtime variable value
-	pub fn set(&self, offset: u32, value: RuntimeValue) -> Result<(), Error> {
+	pub fn set(&self, offset: u32, value: RuntimeValue) -> Result<(), Error<E>> {
 		let mut buffer = self.buffer.write();
 		let buffer_len = buffer.len();
 		buffer.get_mut(offset as usize)
@@ -70,15 +70,15 @@ impl TableInstance {
 	}
 }
 
-impl TableElement {
-	pub fn new(var: VariableInstance) -> Self {
+impl<E> TableElement<E> where E: UserError {
+	pub fn new(var: VariableInstance<E>) -> Self {
 		TableElement {
 			var: var,
 		}
 	}
 }
 
-impl Clone for TableElement {
+impl<E> Clone for TableElement<E> where E: UserError {
 	fn clone(&self) -> Self {
 		TableElement::new(VariableInstance::new(self.var.is_mutable(), self.var.variable_type(), self.var.get())
 			.expect("it only fails when variable_type() != passed variable value; both are read from already constructed var; qed"))

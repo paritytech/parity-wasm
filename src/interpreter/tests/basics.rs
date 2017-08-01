@@ -5,11 +5,10 @@ use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
-use interpreter::Error;
+use interpreter::{Error, UserError, ProgramInstance, DefaultProgramInstance, DefaultModuleInstance};
 use interpreter::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
-use interpreter::program::ProgramInstance;
+use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, ExternalVariableValue, VariableType};
@@ -40,7 +39,7 @@ fn import_function() {
 			.build()
 		.build();
 
-	let program = ProgramInstance::new().unwrap();
+	let program = DefaultProgramInstance::new().unwrap();
 	let external_module = program.add_module("external_module", module1, None).unwrap();
 	let main_module = program.add_module("main", module2, None).unwrap();
 
@@ -74,7 +73,7 @@ fn wrong_import() {
 			.build()
 		.build();
 
-	let program = ProgramInstance::new().unwrap();
+	let program = DefaultProgramInstance::new().unwrap();
 	let _side_module_instance = program.add_module("side_module", side_module, None).unwrap();
 	assert!(program.add_module("main", module, None).is_err());	
 }
@@ -96,7 +95,7 @@ fn global_get_set() {
 			.build()
 		.build();
 
-	let program = ProgramInstance::new().unwrap();
+	let program = DefaultProgramInstance::new().unwrap();
 	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(58));
@@ -115,6 +114,11 @@ const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		SIGNATURE_I32_I32,
 		Some(ValueType::I32),
 	),
+	UserFunctionDescriptor::Static(
+		"err",
+		SIGNATURE_I32_I32,
+		Some(ValueType::I32),
+	),
 ];
 
 const NO_SIGNATURES: &'static [UserFunctionDescriptor] = &[];
@@ -124,25 +128,39 @@ struct MeasuredVariable {
 	pub val: i32,
 }
 
-impl ExternalVariableValue for MeasuredVariable {
+impl ExternalVariableValue<UserErrorWithCode> for MeasuredVariable {
 	fn get(&self) -> RuntimeValue {
 		RuntimeValue::I32(self.val)
 	}
 
-	fn set(&mut self, val: RuntimeValue) -> Result<(), Error> {
+	fn set(&mut self, val: RuntimeValue) -> Result<(), Error<UserErrorWithCode>> {
 		self.val = val.try_into()?;
 		Ok(())
 	}
 }
 
+// custom user error
+#[derive(Debug, Clone, PartialEq)]
+struct UserErrorWithCode {
+	error_code: i32,
+}
+
+impl ::std::fmt::Display for UserErrorWithCode {
+	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+		write!(f, "{}", self.error_code)
+	}
+}
+
+impl UserError for UserErrorWithCode {}
+
 // user function executor
 struct FunctionExecutor {
-	pub memory: Arc<MemoryInstance>,
+	pub memory: Arc<MemoryInstance<UserErrorWithCode>>,
 	pub values: Vec<i32>,
 }
 
-impl UserFunctionExecutor for FunctionExecutor {
-	fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+impl UserFunctionExecutor<UserErrorWithCode> for FunctionExecutor {
+	fn execute(&mut self, name: &str, context: CallerContext<UserErrorWithCode>) -> Result<Option<RuntimeValue>, Error<UserErrorWithCode>> {
 		match name {
 			"add" => {
 				let memory_value = self.memory.get(0, 1).unwrap()[0];
@@ -166,7 +184,10 @@ impl UserFunctionExecutor for FunctionExecutor {
 				self.values.push(diff as i32);
 				Ok(Some(RuntimeValue::I32(diff as i32)))
 			},
-			_ => Err(Error::Trap("not implemented".into())),
+			"err" => {
+				Err(Error::User(UserErrorWithCode { error_code: 777 }))
+			},
+			_ => Err(Error::Trap("not implemented".into()).into()),
 		}
 	}
 }
@@ -186,7 +207,7 @@ fn native_env_function() {
 		values: Vec::new(),
 	};
 	{
-		let functions: UserDefinedElements = UserDefinedElements {
+		let functions = UserDefinedElements {
 			executor: Some(&mut executor),
 			globals: HashMap::new(),
 			functions: ::std::borrow::Cow::from(SIGNATURES),
@@ -283,8 +304,42 @@ fn native_env_global() {
 }
 
 #[test]
-fn import_env_mutable_global() {
+fn native_custom_error() {
 	let program = ProgramInstance::new().unwrap();
+	let env_instance = program.module("env").unwrap();
+	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
+	let mut executor = FunctionExecutor { memory: env_memory.clone(), values: Vec::new() };
+	let functions = UserDefinedElements {
+		executor: Some(&mut executor),
+		globals: HashMap::new(),
+		functions: ::std::borrow::Cow::from(SIGNATURES),
+	};
+	let native_env_instance = Arc::new(env_native_module(env_instance, functions).unwrap());
+	let params = ExecutionParams::with_external("env".into(), native_env_instance);
+
+	let module = module()
+		.with_import(ImportEntry::new("env".into(), "err".into(), External::Function(0)))
+		.function()
+			.signature().param().i32().param().i32().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::GetLocal(0),
+				Opcode::GetLocal(1),
+				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	let module_instance = program.add_module("main", module, Some(&params.externals)).unwrap();
+	assert_eq!(module_instance.execute_index(0, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))),
+		Err(Error::User(UserErrorWithCode { error_code: 777 })));
+	assert_eq!(module_instance.execute_index(1, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))),
+		Err(Error::User(UserErrorWithCode { error_code: 777 })));
+}
+
+#[test]
+fn import_env_mutable_global() {
+	let program = DefaultProgramInstance::new().unwrap();
 
 	let module = module()
 		.with_import(ImportEntry::new("env".into(), "STACKTOP".into(), External::Global(GlobalType::new(ValueType::I32, false))))
@@ -314,7 +369,7 @@ fn env_native_export_entry_type_check() {
 
 #[test]
 fn if_else_with_return_type_validation() {
-	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
+	let module_instance = DefaultModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
 	let mut context = FunctionValidationContext::new(&module_instance, None, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
 
 	Validator::validate_function(&mut context, BlockType::NoResult, &[

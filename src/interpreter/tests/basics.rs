@@ -1,6 +1,7 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
 use std::sync::{Arc, Weak};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
@@ -250,6 +251,75 @@ fn native_env_function() {
 
 	assert_eq!(executor.memory.get(0, 1).unwrap()[0], 42);
 	assert_eq!(executor.values, vec![7, 57, 42]);
+}
+
+#[test]
+fn native_env_function_own_memory() {
+	// create program + env module is auto instantiated + env module memory is instantiated (we do not need this)
+	let program = ProgramInstance::new().unwrap();
+
+	struct OwnMemoryReference {
+		pub memory: RefCell<Option<Arc<MemoryInstance<UserErrorWithCode>>>>,
+	}
+	struct OwnMemoryExecutor {
+		pub memory_ref: Arc<OwnMemoryReference>,
+	}
+
+	impl UserFunctionExecutor<UserErrorWithCode> for OwnMemoryExecutor {
+		fn execute(&mut self, name: &str, context: CallerContext<UserErrorWithCode>) -> Result<Option<RuntimeValue>, Error<UserErrorWithCode>> {
+			match name {
+				"add" => {
+					let memory = self.memory_ref.memory.borrow_mut().as_ref().expect("initialized before execution; qed").clone();
+					let memory_value = memory.get(0, 1).unwrap()[0];
+					let fn_argument_unused = context.value_stack.pop_as::<u32>().unwrap() as u8;
+					let fn_argument = context.value_stack.pop_as::<u32>().unwrap() as u8;
+					assert_eq!(fn_argument_unused, 0);
+
+					let sum = memory_value + fn_argument;
+					memory.set(0, &vec![sum]).unwrap();
+					Ok(Some(RuntimeValue::I32(sum as i32)))
+				},
+				_ => Err(Error::Trap("not implemented".into()).into()),
+			}
+		}
+	}
+
+	let env_instance = program.module("env").unwrap();
+	let memory_ref = Arc::new(OwnMemoryReference { memory: RefCell::new(None) });
+	let mut executor = OwnMemoryExecutor { memory_ref: memory_ref.clone() };
+	let native_env_instance = Arc::new(env_native_module(env_instance, UserDefinedElements {
+		executor: Some(&mut executor),
+		globals: HashMap::new(),
+		functions: ::std::borrow::Cow::from(SIGNATURES),
+	}).unwrap());
+	let params = ExecutionParams::with_external("env".into(), native_env_instance);
+
+	// create module definition with its own memory
+	// => since we do not import env' memory, all instructions from this module will access this memory
+	let module = module()
+		.memory().build() // new memory is created
+		.with_import(ImportEntry::new("env".into(), "add".into(), External::Function(0))) // import 'native' function
+		.function() // add simple wasm function
+			.signature().param().i32().param().i32().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::GetLocal(0),
+				Opcode::GetLocal(1),
+				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	// instantiate module
+	let module_instance = program.add_module("main", module, Some(&params.externals)).unwrap();
+	// now get memory reference
+	let module_memory = module_instance.memory(ItemIndex::Internal(0)).unwrap();
+	// post-initialize our executor with memory reference 
+	*memory_ref.memory.borrow_mut() = Some(module_memory);
+
+	// now execute function => executor updates memory
+	assert_eq!(module_instance.execute_index(1, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))).unwrap().unwrap(),
+		RuntimeValue::I32(7));
 }
 
 #[test]

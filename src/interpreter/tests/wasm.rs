@@ -45,7 +45,7 @@ fn interpreter_accumulate_u8() {
     // The WASM file containing the module and function
     const WASM_FILE: &str = &"res/cases/v1/accumulate_u8.wasm";
     // The octet sequence being accumulated
-    const BUF : &[u8] = & [9,8,7,6,5,4,3,2,1];
+    const BUF: &[u8] = &[9,8,7,6,5,4,3,2,1];
 
     // Declare the memory limits of the runtime-environment
     let program = DefaultProgramInstance::with_env_params(EnvParams {
@@ -67,7 +67,7 @@ fn interpreter_accumulate_u8() {
     let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
 
     // Place the octet-sequence at index 0 in linear memory
-    let offset : u32 = 0;
+    let offset: u32 = 0;
     let _ = env_memory.set(offset, BUF);
 
     // Set up the function argument list and invoke the function
@@ -75,10 +75,10 @@ fn interpreter_accumulate_u8() {
     let execution_params = ExecutionParams::from(args);
     let retval = module
         .execute_export(FUNCTION_NAME, execution_params)
-        .expect("");
+        .expect("Failed to execute function");
 
     // For verification, repeat accumulation using native code
-    let accu = BUF.into_iter().fold(0 as i32, |a, b| a as i32 + *b as i32);
+    let accu = BUF.into_iter().fold(0 as i32, |a, b| a + *b as i32);
     let exp_retval: Option<RuntimeValue> = Some(RuntimeValue::I32(accu));
 
     // Verify calculation from WebAssembly runtime is identical to expected result

@@ -15,7 +15,9 @@ fn main() {
     let func_name = &args[2];
     let (_, program_args) = args.split_at(3);
 
-    // Intrepreter initialization
+    // Intrepreter initialization.
+    // parity_wasm::ProgramInstance can be parameterized with a custom User error which could be returned from imported functions
+    // parity_wasm::DefaultProgramInstance parametrize ProgramInstance with a pre-defined "DummyUserError"
     let program = parity_wasm::DefaultProgramInstance::with_env_params(
         interpreter::EnvParams {
             total_stack: 128*1024,
@@ -30,21 +32,22 @@ fn main() {
     let execution_params = {
         // Export section has an entry with a func_name with an index inside a module
         let export_section = module.export_section().expect("No export section found");
-        // It's a section where function to be found in
+        // It's a section with function declarations (which are references to the type section entries)
         let function_section = module.function_section().expect("No function section found");
-        // Type section stores function types
+        // Type section stores function types which are referenced by function_section entries
         let type_section = module.type_section().expect("No type section found");
 
-        // A found export entry by the name
+        // A given function name used to find export section entry which contains
+        // an `internal` field which points to the index in the function index space
         let found_entry = export_section.entries().iter()
             .find(|entry| func_name == entry.field()).expect(&format!("No export with name {} found", func_name));
 
-        // Function index with imported functions
+        // Function index in the function index space (internally-defined + imported)
         let function_index: usize = match found_entry.internal() {
             &Internal::Function(index) => index as usize,
             _ => panic!("Founded export is not a function"),
         };
-        // Counts import section entries
+        // We need to count import section entries to substract it from
         let import_section_len: usize = match module.import_section() {
             Some(import) =>
                 import.entries().iter().filter(|entry| match entry.external() {
@@ -54,11 +57,13 @@ fn main() {
             None => 0,
         };
 
-        // Calculates a function index within function section
+        // Calculates a function index within module's function section
         let function_index_in_section = function_index - import_section_len;
 
-        // Type a type ref (an index inside of types section of module)
+        // Getting a type reference from a function section entry
         let func_type_ref: usize = function_section.entries()[function_index_in_section].type_ref() as usize;
+
+        // Use the reference to get an actual function type
         let function_type: &FunctionType = match &type_section.types()[func_type_ref] {
             &Type::Function(ref func_type) => func_type,
         };
@@ -74,7 +79,7 @@ fn main() {
         interpreter::ExecutionParams::from(args)
     };
 
-    // Intialize deserialized module
+    // Intialize deserialized module.
     let module = program.add_module("main", module, None).expect("Failed to initialize module");
 
     println!("Result: {:?}", module.execute_export(func_name, execution_params).expect(""));

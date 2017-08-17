@@ -28,7 +28,7 @@ fn type_by_index(module: &Module, index: usize) -> FunctionType {
             None => 0,
         };
 
-    // Substruct the value queried in the previous step from the provided index
+    // Substract the value queried in the previous step from the provided index
     // to get own function index from which we can query type next.
     let function_index_in_section = index - import_section_len;
 

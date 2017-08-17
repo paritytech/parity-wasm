@@ -47,7 +47,9 @@ fn main() {
             &Internal::Function(index) => index as usize,
             _ => panic!("Founded export is not a function"),
         };
-        // We need to count import section entries to substract it from
+
+        // We need to count import section entries (functions only!) to subtract it from function_index
+        // and obtain the index within the function section
         let import_section_len: usize = match module.import_section() {
             Some(import) =>
                 import.entries().iter().filter(|entry| match entry.external() {

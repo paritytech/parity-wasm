@@ -35,7 +35,7 @@ fn main() {
         // Type section stores function types
         let type_section = module.type_section().expect("No type section found");
 
-        //
+        // A found export entry by the name
         let found_entry = export_section.entries().iter()
             .find(|entry| func_name == entry.field()).expect(&format!("No export with name {} found", func_name));
 

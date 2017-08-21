@@ -297,7 +297,7 @@ impl<E> ModuleInstance<E> where E: UserError {
 									export_function_type.params(), export_function_type.return_type())));
 							}
 						}
-					}, 
+					},
 					&External::Global(ref global_type) => if global_type.is_mutable() {
 						return Err(Error::Validation(format!("trying to import mutable global {}", import.field())));
 					} else {
@@ -347,15 +347,15 @@ impl<E> ModuleInstance<E> where E: UserError {
 					let mut context = FunctionValidationContext::new(
 						self,
 						externals,
-						&locals, 
-						DEFAULT_VALUE_STACK_LIMIT, 
-						DEFAULT_FRAME_STACK_LIMIT, 
+						&locals,
+						DEFAULT_VALUE_STACK_LIMIT,
+						DEFAULT_FRAME_STACK_LIMIT,
 						function_type.clone());
 
 					let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
 					Validator::validate_function(&mut context, block_type, function_body.code().elements())
-						.map_err(|e| { 
-							if let Error::Validation(msg) = e { 
+						.map_err(|e| {
+							if let Error::Validation(msg) = e {
 								Error::Validation(format!("Function #{} validation error: {}", index, msg))
 							} else {
 								e
@@ -474,7 +474,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 					},
 				})
 				.map(|i| *i)
-				.ok_or(Error::Program(format!("unresolved import {}", name))))
+				.ok_or(Error::Program(format!("unresolved export {}", name))))
 	}
 
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance<E>>, Error<E>> {

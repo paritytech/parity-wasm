@@ -18,6 +18,7 @@ fn main() {
     // Intrepreter initialization.
     // parity_wasm::ProgramInstance can be parameterized with a custom User error which could be returned from imported functions
     // parity_wasm::DefaultProgramInstance parametrize ProgramInstance with a pre-defined "DummyUserError"
+    // Initializes a default "env" module also.
     let program = parity_wasm::DefaultProgramInstance::with_env_params(
         interpreter::EnvParams {
             total_stack: 128*1024,
@@ -37,7 +38,7 @@ fn main() {
         // Type section stores function types which are referenced by function_section entries
         let type_section = module.type_section().expect("No type section found");
 
-        // A given function name used to find export section entry which contains
+        // Given function name used to find export section entry which contains
         // an `internal` field which points to the index in the function index space
         let found_entry = export_section.entries().iter()
             .find(|entry| func_name == entry.field()).expect(&format!("No export with name {} found", func_name));
@@ -81,7 +82,13 @@ fn main() {
         interpreter::ExecutionParams::from(args)
     };
 
-    // Intialize deserialized module.
+    // Intialize deserialized module. It adds module into It expects 3 parameters:
+    // - a name for the module
+    // - a module declaration
+    // - an optional HashMap of additional external modules (which takes priority over already initialized modules)
+    //   to be:
+    //   - formally validated
+    //   - validated imports against these external modules
     let module = program.add_module("main", module, None).expect("Failed to initialize module");
 
     println!("Result: {:?}", module.execute_export(func_name, execution_params).expect(""));

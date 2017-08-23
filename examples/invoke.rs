@@ -16,7 +16,7 @@ fn main() {
     let (_, program_args) = args.split_at(3);
 
     // Intrepreter initialization.
-    // parity_wasm::ProgramInstance can be parameterized with a custom User error which could be returned from imported functions
+    // parity_wasm::ProgramInstance can be parameterized with a custom User error to be returned from native modules
     // parity_wasm::DefaultProgramInstance parametrize ProgramInstance with a pre-defined "DummyUserError"
     // Initializes a default "env" module also.
     let program = parity_wasm::DefaultProgramInstance::with_env_params(
@@ -85,10 +85,8 @@ fn main() {
     // Intialize deserialized module. It adds module into It expects 3 parameters:
     // - a name for the module
     // - a module declaration
-    // - an optional HashMap of additional external modules (which takes priority over already initialized modules)
-    //   to be:
-    //   - formally validated
-    //   - validated imports against these external modules
+    // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
+    // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
     let module = program.add_module("main", module, None).expect("Failed to initialize module");
 
     println!("Result: {:?}", module.execute_export(func_name, execution_params).expect(""));

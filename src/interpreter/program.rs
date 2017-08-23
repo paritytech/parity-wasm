@@ -67,7 +67,7 @@ impl<E> ProgramInstanceEssence<E> where E: UserError {
 		modules.insert("env".into(), env_module);
 		Ok(ProgramInstanceEssence {
 			modules: RwLock::new(modules),
-		})		
+		})
 	}
 
 	/// Get module reference.

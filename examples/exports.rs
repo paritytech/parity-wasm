@@ -65,7 +65,7 @@ fn main() {
     // of the wasm module
     let exports: Vec<String> = export_section.entries().iter()
         .filter_map(|entry|
-            // This is match on export variant, which can either be function, global
+            // This is match on export variant, which can be function, global,table or memory
             // We are interested only in functions for an example
             match *entry.internal() {
                 // Return function export name (return by field() function and it's index)

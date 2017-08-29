@@ -38,6 +38,6 @@ fn main() {
     // The argument should be parsable as a valid integer
     let argument: i32 = args[2].parse().expect("Integer argument required");
 
-    // "_call" export of function to be executed with an i32 argument. It prints a
+    // "_call" export of function to be executed with an i32 argument and prints the result of execution
     println!("Result: {:?}", module.execute_export("_call", vec![parity_wasm::RuntimeValue::I32(argument)].into()));
 }

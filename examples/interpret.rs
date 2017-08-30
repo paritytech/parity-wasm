@@ -13,6 +13,7 @@ fn main() {
         println!("    wasm file should contain exported `_call` function with single I32 argument");
         return;
     }
+
     // Intrepreter initialization.
     // parity_wasm::ProgramInstance can be parameterized with a custom User error to be returned from native modules
     // parity_wasm::DefaultProgramInstance parametrize ProgramInstance with a pre-defined "DummyUserError"
@@ -28,6 +29,7 @@ fn main() {
     // Here we load module using dedicated for this purpose
     // `deserialize_file` function (which works only with modules)
     let module = parity_wasm::deserialize_file(&args[1]).expect("Failed to load module");
+
     // Intialize deserialized module. It adds module into It expects 3 parameters:
     // - a name for the module
     // - a module declaration

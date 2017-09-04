@@ -1,12 +1,14 @@
 use elements;
 use super::invoke::{Invoke, Identity};
 
+#[derive(Debug)]
 pub struct MemoryDefinition {
     pub min: u32,
     pub max: Option<u32>,
     pub data: Vec<MemoryDataDefinition>,
 }
 
+#[derive(Debug)]
 pub struct MemoryDataDefinition {
     pub offset: elements::InitExpr,
     pub values: Vec<u8>,

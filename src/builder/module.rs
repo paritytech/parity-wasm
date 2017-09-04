@@ -217,7 +217,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     /// Push table
     pub fn push_table(&mut self, mut table: table::TableDefinition) -> u32 {
         let entries = self.module.table.entries_mut();
-        entries.push(elements::TableType::new(table.min, Some(table.min)));
+        entries.push(elements::TableType::new(table.min, table.max));
         let table_index = (entries.len() - 1) as u32;
         for entry in table.elements.drain(..) {
             self.module.element.entries_mut()

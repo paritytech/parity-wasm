@@ -96,7 +96,7 @@ impl Serialize for TableType {
 }
 
 /// Memory limits
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResizableLimits {
     initial: u32,
     maximum: Option<u32>,

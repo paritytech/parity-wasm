@@ -1,6 +1,6 @@
 use elements::deserialize_file;
 use elements::Module;
-use interpreter::{EnvParams, ExecutionParams, DefaultProgramInstance};
+use interpreter::{ExecutionParams, DefaultProgramInstance};
 use interpreter::value::RuntimeValue;
 use interpreter::module::{ModuleInstanceInterface, ItemIndex};
 
@@ -11,12 +11,7 @@ fn interpreter_inc_i32() {
     // The WASM file containing the module and function
     const WASM_FILE: &str = &"res/cases/v1/inc_i32.wasm";
 
-    let program = DefaultProgramInstance::with_env_params(
-        EnvParams {
-        total_stack: 128 * 1024,
-        total_memory: 2 * 1024 * 1024,
-        allow_memory_growth: false,
-    }).expect("Failed to instanciate program");
+    let program = DefaultProgramInstance::new().expect("Failed to instanciate program");
 
     let module: Module =
         deserialize_file(WASM_FILE).expect("Failed to deserialize module from buffer");
@@ -48,11 +43,7 @@ fn interpreter_accumulate_u8() {
     const BUF: &[u8] = &[9,8,7,6,5,4,3,2,1];
 
     // Declare the memory limits of the runtime-environment
-    let program = DefaultProgramInstance::with_env_params(EnvParams {
-        total_stack: 128 * 1024,
-        total_memory: 2 * 1024 * 1024,
-        allow_memory_growth: false,
-    }).expect("Failed to instanciate program");
+    let program = DefaultProgramInstance::new().expect("Failed to instanciate program");
 
     // Load the module-structure from wasm-file and add to program
     let module: Module =

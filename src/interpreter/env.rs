@@ -19,14 +19,14 @@ const DEFAULT_TOTAL_STACK: u32 = 5 * 1024 * 1024;
 /// Total memory, allocated by default.
 const DEFAULT_TOTAL_MEMORY: u32 = 16 * 1024 * 1024;
 /// Whether memory can be enlarged, or not.
-const DEFAULT_ALLOW_MEMORY_GROWTH: bool = false;
+const DEFAULT_ALLOW_MEMORY_GROWTH: bool = true;
 /// Default tableBase variable value.
 const DEFAULT_TABLE_BASE: u32 = 0;
 /// Default tableBase variable value.
 const DEFAULT_MEMORY_BASE: u32 = 0;
 
 /// Defaul table size.
-const DEFAULT_TABLE_SIZE: u32 = 16;
+const DEFAULT_TABLE_SIZE: u32 = 64;
 
 /// Index of default memory.
 const INDEX_MEMORY: u32 = 0;
@@ -76,6 +76,8 @@ pub struct EnvParams {
 	pub total_memory: u32,
 	/// Allow memory growth.
 	pub allow_memory_growth: bool,
+	/// Table size.
+	pub table_size: u32,
 }
 
 pub struct EnvModuleInstance<E: UserError> {
@@ -180,7 +182,7 @@ pub fn env_module<E: UserError>(params: EnvParams) -> Result<EnvModuleInstance<E
 			.with_export(ExportEntry::new("memory".into(), Internal::Memory(INDEX_MEMORY)))
 		// tables
 		.table()
-			.with_min(DEFAULT_TABLE_SIZE)
+			.with_min(params.table_size)
 			.build()
 			.with_export(ExportEntry::new("table".into(), Internal::Table(INDEX_TABLE)))
 		// globals
@@ -194,7 +196,7 @@ pub fn env_module<E: UserError>(params: EnvParams) -> Result<EnvModuleInstance<E
 			.with_export(ExportEntry::new("DYNAMIC_BASE".into(), Internal::Global(INDEX_GLOBAL_DYNAMIC_BASE)))
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack) as i32)])))
 			.with_export(ExportEntry::new("DYNAMICTOP_PTR".into(), Internal::Global(INDEX_GLOBAL_DYNAMICTOP_PTR)))
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, params.allow_memory_growth), InitExpr::new(vec![Opcode::I32Const(params.total_memory as i32)])))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(params.total_memory as i32)])))
 			.with_export(ExportEntry::new("TOTAL_MEMORY".into(), Internal::Global(INDEX_GLOBAL_TOTAL_MEMORY)))
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
 			.with_export(ExportEntry::new("ABORT".into(), Internal::Global(INDEX_GLOBAL_ABORT)))
@@ -235,6 +237,7 @@ impl Default for EnvParams {
 			total_stack: DEFAULT_TOTAL_STACK,
 			total_memory: DEFAULT_TOTAL_MEMORY,
 			allow_memory_growth: DEFAULT_ALLOW_MEMORY_GROWTH,
+			table_size: DEFAULT_TABLE_SIZE,
 		}
 	}
 }

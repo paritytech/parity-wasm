@@ -1,7 +1,7 @@
 use std::u32;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use elements::TableType;
+use elements::{TableType, ResizableLimits};
 use interpreter::{Error, UserError};
 use interpreter::module::check_limits;
 use interpreter::variable::{VariableInstance, VariableType};
@@ -9,6 +9,8 @@ use interpreter::value::RuntimeValue;
 
 /// Table instance.
 pub struct TableInstance<E: UserError> {
+	/// Table limits.
+	limits: ResizableLimits,
 	/// Table variables type.
 	variable_type: VariableType,
 	/// Table memory buffer.
@@ -27,11 +29,17 @@ impl<E> TableInstance<E> where E: UserError {
 
 		let variable_type = table_type.elem_type().into();
 		Ok(Arc::new(TableInstance {
+			limits: table_type.limits().clone(),
 			variable_type: variable_type,
 			buffer: RwLock::new(
 				vec![TableElement::new(VariableInstance::new(true, variable_type, RuntimeValue::Null)?); table_type.limits().initial() as usize]
 			),
 		}))
+	}
+
+	/// Return table limits.
+	pub fn limits(&self) -> &ResizableLimits {
+		&self.limits
 	}
 
 	/// Get variable type for this table.

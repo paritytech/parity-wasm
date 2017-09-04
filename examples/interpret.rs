@@ -20,8 +20,7 @@ fn main() {
     let program = parity_wasm::DefaultProgramInstance::with_env_params(
         interpreter::EnvParams {
             total_stack: 128*1024,
-            total_memory: 2*1024*1024,
-            allow_memory_growth: false,
+            ..Default::default()
         }
     ).expect("Failed to load program");
 

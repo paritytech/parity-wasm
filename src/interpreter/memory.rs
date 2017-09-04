@@ -1,7 +1,7 @@
 use std::u32;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use elements::MemoryType;
+use elements::{MemoryType, ResizableLimits};
 use interpreter::{Error, UserError};
 use interpreter::module::check_limits;
 
@@ -12,6 +12,8 @@ const LINEAR_MEMORY_MAX_PAGES: u32 = 65536;
 
 /// Linear memory instance.
 pub struct MemoryInstance<E: UserError> {
+	/// Memofy limits.
+	limits: ResizableLimits,
 	/// Linear memory buffer.
 	buffer: RwLock<Vec<u8>>,
 	/// Maximum buffer size.
@@ -51,12 +53,18 @@ impl<E> MemoryInstance<E> where E: UserError {
 			.ok_or(Error::Memory(format!("initial memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES)))?;
 
 		let memory = MemoryInstance {
+			limits: memory_type.limits().clone(),
 			buffer: RwLock::new(vec![0; initial_size as usize]),
 			maximum_size: maximum_size,
 			_dummy: Default::default(),
 		};
 
 		Ok(Arc::new(memory))
+	}
+
+	/// Return linear memory limits.
+	pub fn limits(&self) -> &ResizableLimits {
+		&self.limits
 	}
 
 	/// Return linear memory size (in pages).

@@ -304,12 +304,48 @@ impl<E> ModuleInstance<E> where E: UserError {
 						self.imports.global(externals, import, Some(global_type.content_type().into()))?;
 					},
 					&External::Memory(ref memory_type) => {
-						check_limits(memory_type.limits())?;
-						self.imports.memory(externals, import)?;
+						let import_limits = memory_type.limits();
+						check_limits(import_limits)?;
+
+						let memory = self.imports.memory(externals, import)?;
+						let memory_limits = memory.limits();
+
+						// a linear-memory import's minimum length is required to be at most the imported linear memory's minimum length.
+						if import_limits.initial() > memory_limits.initial() {
+							return Err(Error::Validation(format!("trying to import memory with initial={} and import.initial={}", memory_limits.initial(), import_limits.initial())));
+						}
+
+						// a linear-memory import is required to have a maximum length if the imported linear memory has a maximum length.
+						// if present, a linear-memory import's maximum length is required to be at least the imported linear memory's maximum length.
+						match (memory_limits.maximum(), import_limits.maximum()) {
+							(Some(_), None) | (None, Some(_)) =>
+								return Err(Error::Validation("trying to import memory with maximum absence mismatch".into())),
+							(Some(ml), Some(il)) if il < ml =>
+								return Err(Error::Validation(format!("trying to import memory with maximum={} and import.maximum={}", ml, il))),
+							_ => (),
+						}
 					},
 					&External::Table(ref table_type) => {
-						check_limits(table_type.limits())?;
-						self.imports.table(externals, import)?;
+						let import_limits = table_type.limits();
+						check_limits(import_limits)?;
+
+						let table = self.imports.table(externals, import)?;
+						let table_limits = table.limits();
+
+						// a table import's minimum length is required to be at most the imported table's minimum length.
+						if import_limits.initial() > table_limits.initial() {
+							return Err(Error::Validation(format!("trying to import table with initial={} and import.initial={}", table_limits.initial(), import_limits.initial())));
+						}
+
+						// a table import is required to have a maximum length if the imported table has a maximum length.
+						// if present, a table import's maximum length is required to be at least the imported table's maximum length.
+						match (table_limits.maximum(), import_limits.maximum()) {
+							(Some(_), None) | (None, Some(_)) =>
+								return Err(Error::Validation("trying to import table with maximum absence mismatch".into())),
+							(Some(ml), Some(il)) if il < ml =>
+								return Err(Error::Validation(format!("trying to import table with maximum={} and import.maximum={}", ml, il))),
+							_ => (),
+						}
 					},
 				}
 			}
@@ -600,7 +636,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		}))
 	}
 
-	fn call_internal_function(&self, mut outer: CallerContext<E>, index: u32) -> Result<Option<RuntimeValue>, Error<E>> {
+	fn call_internal_function(&self, outer: CallerContext<E>, index: u32) -> Result<Option<RuntimeValue>, Error<E>> {
 		let function_type = self.function_type(ItemIndex::Internal(index))?;
 		let args = prepare_function_args(&function_type, outer.value_stack)?;
 		let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };

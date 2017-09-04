@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
-	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType};
+	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance, DefaultProgramInstance, DefaultModuleInstance};
 use interpreter::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
@@ -455,4 +455,144 @@ fn if_else_with_return_type_validation() {
 		Opcode::End,
 		Opcode::End,
 	]).unwrap();
+}
+
+#[test]
+fn memory_import_limits_initial() {
+	let core_module = module()
+		.memory().with_min(10).build()
+		.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
+		.build();
+
+	let program = DefaultProgramInstance::new().unwrap();
+	program.add_module("core", core_module, None).unwrap();
+
+	let test_cases = vec![
+		(9, false),
+		(10, false),
+		(11, true),
+	];
+
+	for test_case in test_cases {
+		let (import_initial, is_error) = test_case;
+		let client_module = module()
+			.with_import(ImportEntry::new("core".into(), "memory".into(), External::Memory(MemoryType::new(import_initial, None))))
+			.build();
+		match program.add_module("client", client_module, None).map(|_| ()) {
+			Ok(_) if !is_error => (),
+			Err(Error::Validation(ref actual_error))
+				if is_error && actual_error == &format!("trying to import memory with initial=10 and import.initial={}", import_initial) => (),
+			x @ _ => panic!("unexpected result for test_case {:?}: {:?}", test_case, x),
+		}
+	}
+}
+
+#[test]
+fn memory_import_limits_maximum() {
+	#[derive(Debug, Clone, Copy, PartialEq)]
+	enum MaximumError { AbsenceMismatch, ValueMismatch, Ok };
+
+	let test_cases = vec![
+		(None, Some(100), MaximumError::AbsenceMismatch),
+		(Some(100), None, MaximumError::AbsenceMismatch),
+		(Some(100), Some(98), MaximumError::ValueMismatch),
+		(Some(100), Some(100), MaximumError::Ok),
+		(Some(100), Some(101), MaximumError::Ok),
+		(None, None, MaximumError::Ok),
+	];
+
+	let program = DefaultProgramInstance::new().unwrap();
+	for test_case in test_cases {
+		let (core_maximum, client_maximum, expected_err) = test_case;
+		let core_module = module()
+			.memory().with_min(10).with_max(core_maximum).build()
+			.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
+			.build();
+		let client_module = module()
+			.with_import(ImportEntry::new("core".into(), "memory".into(), External::Memory(MemoryType::new(10, client_maximum))))
+			.build();
+
+		program.add_module("core", core_module, None).unwrap();
+		match program.add_module("client", client_module, None).map(|_| ()) {
+			Err(Error::Validation(actual_err)) => match expected_err {
+				MaximumError::AbsenceMismatch
+					if actual_err == "trying to import memory with maximum absence mismatch".to_owned() => (),
+				MaximumError::ValueMismatch
+					if actual_err == format!("trying to import memory with maximum={} and import.maximum={}", core_maximum.unwrap_or_default(), client_maximum.unwrap_or_default()) => (),
+				_ => panic!("unexpected validation error for test_case {:?}: {}", test_case, actual_err),
+			},
+			Ok(_) if expected_err == MaximumError::Ok => (),
+			x @ _ => panic!("unexpected result for test_case {:?}: {:?}", test_case, x),
+		}
+	}
+}
+
+#[test]
+fn table_import_limits_initial() {
+	let core_module = module()
+		.table().with_min(10).build()
+		.with_export(ExportEntry::new("table".into(), Internal::Table(0)))
+		.build();
+
+	let program = DefaultProgramInstance::new().unwrap();
+	program.add_module("core", core_module, None).unwrap();
+
+	let test_cases = vec![
+		(9, false),
+		(10, false),
+		(11, true),
+	];
+
+	for test_case in test_cases {
+		let (import_initial, is_error) = test_case;
+		let client_module = module()
+			.with_import(ImportEntry::new("core".into(), "table".into(), External::Table(TableType::new(import_initial, None))))
+			.build();
+		match program.add_module("client", client_module, None).map(|_| ()) {
+			Ok(_) if !is_error => (),
+			Err(Error::Validation(ref actual_error))
+				if is_error && actual_error == &format!("trying to import table with initial=10 and import.initial={}", import_initial) => (),
+			x @ _ => panic!("unexpected result for test_case {:?}: {:?}", test_case, x),
+		}
+	}
+}
+
+#[test]
+fn table_import_limits_maximum() {
+	#[derive(Debug, Clone, Copy, PartialEq)]
+	enum MaximumError { AbsenceMismatch, ValueMismatch, Ok };
+
+	let test_cases = vec![
+		(None, Some(100), MaximumError::AbsenceMismatch),
+		(Some(100), None, MaximumError::AbsenceMismatch),
+		(Some(100), Some(98), MaximumError::ValueMismatch),
+		(Some(100), Some(100), MaximumError::Ok),
+		(Some(100), Some(101), MaximumError::Ok),
+		(None, None, MaximumError::Ok),
+	];
+
+	let program = DefaultProgramInstance::new().unwrap();
+	for test_case in test_cases {
+		let (core_maximum, client_maximum, expected_err) = test_case;
+		let core_module = module()
+			.table().with_min(10).with_max(core_maximum).build()
+			.with_export(ExportEntry::new("table".into(), Internal::Table(0)))
+			.build();
+		let client_module = module()
+			.with_import(ImportEntry::new("core".into(), "table".into(), External::Table(TableType::new(10, client_maximum))))
+			.build();
+
+		program.add_module("core", core_module, None).unwrap();
+		match program.add_module("client", client_module, None).map(|_| ()) {
+			Err(Error::Validation(actual_err)) => match expected_err {
+				MaximumError::AbsenceMismatch
+					if actual_err == "trying to import table with maximum absence mismatch".to_owned() => (),
+				MaximumError::ValueMismatch
+					if actual_err == format!("trying to import table with maximum={} and import.maximum={}", core_maximum.unwrap_or_default(), client_maximum.unwrap_or_default()) => (),
+				_ => panic!("unexpected validation error for test_case {:?}: {}", test_case, actual_err),
+			},
+			Ok(_) if expected_err == MaximumError::Ok => (),
+			x @ _ => panic!("unexpected result for test_case {:?}: {:?}", test_case, x),
+		}
+	}
 }

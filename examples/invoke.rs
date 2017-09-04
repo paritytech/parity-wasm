@@ -16,7 +16,6 @@ fn main() {
     let (_, program_args) = args.split_at(3);
 
     // Intrepreter initialization.
-    // parity_wasm::ProgramInstance can be parameterized with a custom User error to be returned from native modules
     // parity_wasm::DefaultProgramInstance parametrize ProgramInstance with a pre-defined "DummyUserError"
     // Initializes a default "env" module also.
     let program = parity_wasm::DefaultProgramInstance::with_env_params(

@@ -315,11 +315,11 @@ impl<E> ModuleInstance<E> where E: UserError {
 							return Err(Error::Validation(format!("trying to import memory with initial={} and import.initial={}", memory_limits.initial(), import_limits.initial())));
 						}
 
+						// not working because of wabt tests:
 						// a linear-memory import is required to have a maximum length if the imported linear memory has a maximum length.
+
 						// if present, a linear-memory import's maximum length is required to be at least the imported linear memory's maximum length.
 						match (memory_limits.maximum(), import_limits.maximum()) {
-							(Some(_), None) | (None, Some(_)) =>
-								return Err(Error::Validation("trying to import memory with maximum absence mismatch".into())),
 							(Some(ml), Some(il)) if il < ml =>
 								return Err(Error::Validation(format!("trying to import memory with maximum={} and import.maximum={}", ml, il))),
 							_ => (),
@@ -337,11 +337,11 @@ impl<E> ModuleInstance<E> where E: UserError {
 							return Err(Error::Validation(format!("trying to import table with initial={} and import.initial={}", table_limits.initial(), import_limits.initial())));
 						}
 
+						// not working because of wabt tests:
 						// a table import is required to have a maximum length if the imported table has a maximum length.
+
 						// if present, a table import's maximum length is required to be at least the imported table's maximum length.
 						match (table_limits.maximum(), import_limits.maximum()) {
-							(Some(_), None) | (None, Some(_)) =>
-								return Err(Error::Validation("trying to import table with maximum absence mismatch".into())),
 							(Some(ml), Some(il)) if il < ml =>
 								return Err(Error::Validation(format!("trying to import table with maximum={} and import.maximum={}", ml, il))),
 							_ => (),

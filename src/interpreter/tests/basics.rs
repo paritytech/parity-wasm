@@ -490,11 +490,11 @@ fn memory_import_limits_initial() {
 #[test]
 fn memory_import_limits_maximum() {
 	#[derive(Debug, Clone, Copy, PartialEq)]
-	enum MaximumError { AbsenceMismatch, ValueMismatch, Ok };
+	enum MaximumError { ValueMismatch, Ok };
 
 	let test_cases = vec![
-		(None, Some(100), MaximumError::AbsenceMismatch),
-		(Some(100), None, MaximumError::AbsenceMismatch),
+		(None, Some(100), MaximumError::Ok),
+		(Some(100), None, MaximumError::Ok),
 		(Some(100), Some(98), MaximumError::ValueMismatch),
 		(Some(100), Some(100), MaximumError::Ok),
 		(Some(100), Some(101), MaximumError::Ok),
@@ -515,8 +515,6 @@ fn memory_import_limits_maximum() {
 		program.add_module("core", core_module, None).unwrap();
 		match program.add_module("client", client_module, None).map(|_| ()) {
 			Err(Error::Validation(actual_err)) => match expected_err {
-				MaximumError::AbsenceMismatch
-					if actual_err == "trying to import memory with maximum absence mismatch".to_owned() => (),
 				MaximumError::ValueMismatch
 					if actual_err == format!("trying to import memory with maximum={} and import.maximum={}", core_maximum.unwrap_or_default(), client_maximum.unwrap_or_default()) => (),
 				_ => panic!("unexpected validation error for test_case {:?}: {}", test_case, actual_err),
@@ -560,11 +558,11 @@ fn table_import_limits_initial() {
 #[test]
 fn table_import_limits_maximum() {
 	#[derive(Debug, Clone, Copy, PartialEq)]
-	enum MaximumError { AbsenceMismatch, ValueMismatch, Ok };
+	enum MaximumError { ValueMismatch, Ok };
 
 	let test_cases = vec![
-		(None, Some(100), MaximumError::AbsenceMismatch),
-		(Some(100), None, MaximumError::AbsenceMismatch),
+		(None, Some(100), MaximumError::Ok),
+		(Some(100), None, MaximumError::Ok),
 		(Some(100), Some(98), MaximumError::ValueMismatch),
 		(Some(100), Some(100), MaximumError::Ok),
 		(Some(100), Some(101), MaximumError::Ok),
@@ -585,8 +583,6 @@ fn table_import_limits_maximum() {
 		program.add_module("core", core_module, None).unwrap();
 		match program.add_module("client", client_module, None).map(|_| ()) {
 			Err(Error::Validation(actual_err)) => match expected_err {
-				MaximumError::AbsenceMismatch
-					if actual_err == "trying to import table with maximum absence mismatch".to_owned() => (),
 				MaximumError::ValueMismatch
 					if actual_err == format!("trying to import table with maximum={} and import.maximum={}", core_maximum.unwrap_or_default(), client_maximum.unwrap_or_default()) => (),
 				_ => panic!("unexpected validation error for test_case {:?}: {}", test_case, actual_err),

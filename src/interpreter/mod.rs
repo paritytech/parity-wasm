@@ -64,6 +64,29 @@ impl<E> Into<String> for Error<E> where E: UserError {
 	}
 }
 
+impl<E> ::std::fmt::Display for Error<E> where E: UserError {
+	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+		match *self {
+			Error::Program(ref s) => write!(f, "Program: {}", s),
+			Error::Validation(ref s) => write!(f, "Validation: {}", s),
+			Error::Initialization(ref s) => write!(f, "Initialization: {}", s),
+			Error::Function(ref s) => write!(f, "Function: {}", s),
+			Error::Table(ref s) => write!(f, "Table: {}", s),
+			Error::Memory(ref s) => write!(f, "Memory: {}", s),
+			Error::Variable(ref s) => write!(f, "Variable: {}", s),
+			Error::Global(ref s) => write!(f, "Global: {}", s),
+			Error::Local(ref s) => write!(f, "Local: {}", s),
+			Error::Stack(ref s) => write!(f, "Stack: {}", s),
+			Error::Interpreter(ref s) => write!(f, "Interpreter: {}", s),
+			Error::Value(ref s) => write!(f, "Value: {}", s),
+			Error::Env(ref s) => write!(f, "Env: {}", s),
+			Error::Native(ref s) => write!(f, "Native: {}", s),
+			Error::Trap(ref s) => write!(f, "Trap: {}", s),
+			Error::User(ref e) => write!(f, "User: {}", e),
+		}
+	}
+}
+
 /// Dummy user error.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DummyUserError;

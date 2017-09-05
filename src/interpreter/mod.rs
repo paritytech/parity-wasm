@@ -74,6 +74,12 @@ impl ::std::fmt::Display for DummyUserError {
 	fn fmt(&self, _f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> { Ok(()) }
 }
 
+impl<U> From<U> for Error<U> where U: UserError + Sized {
+	fn from(e: U) -> Self {
+		Error::User(e)
+	}
+}
+
 mod env;
 mod env_native;
 mod imports;

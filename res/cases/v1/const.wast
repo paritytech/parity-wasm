@@ -1,6 +1,8 @@
 (module
   (type (;0;) (func (result i32)))
   (func (;0;) (type 0) (result i32)
+    i64.const 9223372036854775807
+    i64.const -9223372036854775808
     i32.const 1024
     i32.const 2048
     i32.const 4096

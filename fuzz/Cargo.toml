@@ -2,8 +2,12 @@
 [package]
 name = "parity-wasm-fuzz"
 version = "0.0.1"
-authors = ["Automatically generated"]
+authors = ["Pat Hickey phickey@fastly.com"]
 publish = false
+build = "build.rs"
+
+[build-dependencies]
+cmake = "0.1"
 
 [package.metadata]
 cargo-fuzz = true
@@ -21,5 +25,5 @@ version = "0.3.1"
 members = ["."]
 
 [[bin]]
-name = "fuzz_decode"
-path = "fuzz_targets/fuzz_decode.rs"
+name = "deserialize"
+path = "fuzz_targets/deserialize.rs"

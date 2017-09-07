@@ -6,8 +6,17 @@ extern crate mktemp;
 
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::Command;
 
+fn wasm_opt() -> PathBuf {
+    let bin = PathBuf::from(env!("OUT_DIR")).join("bin").join("wasm-opt");
+    assert!(
+        bin.exists(),
+        format!("could not find wasm-opt at: {:?}", wasm_opt())
+    );
+    bin
+}
 
 fuzz_target!(|data: &[u8]| {
     let seed = mktemp::Temp::new_file().unwrap();
@@ -16,7 +25,7 @@ fuzz_target!(|data: &[u8]| {
     seedfile.flush().unwrap();
 
     let wasm = mktemp::Temp::new_file().unwrap();
-    let opt_fuzz = Command::new("wasm-opt")
+    let opt_fuzz = Command::new(wasm_opt())
         .arg("--translate-to-fuzz")
         .arg(seed.as_ref())
         .arg("-o")

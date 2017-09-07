@@ -279,18 +279,19 @@ mod integration_tests {
 
         assert_eq!(I64Const(9223372036854775807), func.code().elements()[0]);
         assert_eq!(I64Const(-9223372036854775808), func.code().elements()[1]);
-        assert_eq!(I32Const(1024), func.code().elements()[2]);
-        assert_eq!(I32Const(2048), func.code().elements()[3]);
-        assert_eq!(I32Const(4096), func.code().elements()[4]);
-        assert_eq!(I32Const(8192), func.code().elements()[5]);
-        assert_eq!(I32Const(16384), func.code().elements()[6]);
-        assert_eq!(I32Const(32767), func.code().elements()[7]);
-        assert_eq!(I32Const(-1024), func.code().elements()[8]);
-        assert_eq!(I32Const(-2048), func.code().elements()[9]);
-        assert_eq!(I32Const(-4096), func.code().elements()[10]);
-        assert_eq!(I32Const(-8192), func.code().elements()[11]);
-        assert_eq!(I32Const(-16384), func.code().elements()[12]);
-        assert_eq!(I32Const(-32768), func.code().elements()[13]);
+        assert_eq!(I64Const(-1152894205662152753), func.code().elements()[2]);
+        assert_eq!(I32Const(1024), func.code().elements()[3]);
+        assert_eq!(I32Const(2048), func.code().elements()[4]);
+        assert_eq!(I32Const(4096), func.code().elements()[5]);
+        assert_eq!(I32Const(8192), func.code().elements()[6]);
+        assert_eq!(I32Const(16384), func.code().elements()[7]);
+        assert_eq!(I32Const(32767), func.code().elements()[8]);
+        assert_eq!(I32Const(-1024), func.code().elements()[9]);
+        assert_eq!(I32Const(-2048), func.code().elements()[10]);
+        assert_eq!(I32Const(-4096), func.code().elements()[11]);
+        assert_eq!(I32Const(-8192), func.code().elements()[12]);
+        assert_eq!(I32Const(-16384), func.code().elements()[13]);
+        assert_eq!(I32Const(-32768), func.code().elements()[14]);
     }
 
     #[test]

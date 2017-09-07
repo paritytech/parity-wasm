@@ -17,6 +17,8 @@
     i32.const -8192
     i32.const -16384
     i32.const -32768
+    i32.const -2147483648
+    i32.const 2147483647
     return
   )
 )

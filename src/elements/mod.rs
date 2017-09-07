@@ -57,11 +57,11 @@ pub enum Error {
     /// Unsupported version
     UnsupportedVersion(u32),
     /// Inconsistence between declared and actual length
-    InconsistentLength { 
+    InconsistentLength {
         /// Expected length of the definition
-        expected: usize, 
+        expected: usize,
         /// Actual length of the definition
-        actual: usize 
+        actual: usize
     },
     /// Other static error
     Other(&'static str),
@@ -81,6 +81,10 @@ pub enum Error {
     UnknownOpcode(u8),
     /// Invalid VarUint1 value
     InvalidVarUint1(u8),
+    /// Invalid VarInt32 value
+    InvalidVarInt32,
+    /// Invalid VarInt64 value
+    InvalidVarInt64,
 }
 
 impl From<io::Error> for Error {
@@ -133,8 +137,8 @@ pub fn serialize<T: Serialize>(val: T) -> Result<Vec<u8>, T::Error> {
 }
 
 /// Serialize module to the file
-pub fn serialize_to_file<P: AsRef<::std::path::Path>>(p: P, module: Module) -> Result<(), Error> 
-{ 
+pub fn serialize_to_file<P: AsRef<::std::path::Path>>(p: P, module: Module) -> Result<(), Error>
+{
     let mut io = ::std::fs::File::create(p)?;
     module.serialize(&mut io)
 }

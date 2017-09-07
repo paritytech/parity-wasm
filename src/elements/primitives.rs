@@ -230,6 +230,7 @@ impl Deserialize for VarInt32 {
         let mut shift = 0;
         let mut u8buf = [0u8; 1];
         loop {
+            if shift > 31 { return Err(Error::InvalidVarInt32); }
             reader.read_exact(&mut u8buf)?;
             let b = u8buf[0];
 
@@ -293,13 +294,13 @@ impl Deserialize for VarInt64 {
         let mut shift = 0;
         let mut u8buf = [0u8; 1];
         loop {
+            if shift > 63 { return Err(Error::InvalidVarInt64); }
             reader.read_exact(&mut u8buf)?;
             let b = u8buf[0];
 
             res |= ((b & 0x7f) as i64) << shift;
             shift += 7;
             if (b >> 7) == 0 {
-                println!("shifting {}, b = {:b}, res = {:b}", shift, b, res);
                 if shift < 64 && b & 0b0100_0000 == 0b0100_0000 {
                     res |= (1i64 << shift).wrapping_neg();
                 }
@@ -689,6 +690,39 @@ mod tests {
     fn varint64_neg_8192() {
         varint64_serde_test(vec![0x80, 0x40], -8192);
     }
+
+    #[test]
+    fn varint64_min() {
+        varint64_serde_test(
+            vec![0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f],
+            -9223372036854775808,
+        );
+    }
+
+    #[test]
+    fn varint64_max() {
+        varint64_serde_test(
+            vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00],
+            9223372036854775807,
+        );
+    }
+
+    #[test]
+    fn varint32_min() {
+        varint32_serde_test(
+            vec![0x80, 0x80, 0x80, 0x80, 0x78],
+            -2147483648,
+        );
+    }
+
+    #[test]
+    fn varint32_max() {
+        varint32_serde_test(
+            vec![0xff, 0xff, 0xff, 0xff, 0x07],
+            2147483647,
+        );
+    }
+
 
     #[test]
     fn counted_list() {

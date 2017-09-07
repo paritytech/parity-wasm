@@ -2,7 +2,7 @@ use std::io;
 use byteorder::{LittleEndian, ByteOrder};
 use super::{Error, Deserialize, Serialize};
 
-/// Unsigned variable-length integer, limited to 32 bits, 
+/// Unsigned variable-length integer, limited to 32 bits,
 /// represented by at most 5 bytes that may contain padding 0x80 bytes.
 #[derive(Copy, Clone)]
 pub struct VarUint32(u32);
@@ -54,7 +54,7 @@ impl Deserialize for VarUint32 {
 
 impl Serialize for VarUint32 {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut buf = [0u8; 1];
         let mut v = self.0;
@@ -72,7 +72,7 @@ impl Serialize for VarUint32 {
     }
 }
 
-/// Unsigned variable-length integer, limited to 64 bits, 
+/// Unsigned variable-length integer, limited to 64 bits,
 /// represented by at most 9 bytes that may contain padding 0x80 bytes.
 #[derive(Copy, Clone)]
 pub struct VarUint64(u64);
@@ -105,7 +105,7 @@ impl Deserialize for VarUint64 {
 
 impl Serialize for VarUint64 {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut buf = [0u8; 1];
         let mut v = self.0;
@@ -230,14 +230,15 @@ impl Deserialize for VarInt32 {
         let mut shift = 0;
         let mut u8buf = [0u8; 1];
         loop {
+            if shift > 31 { return Err(Error::InvalidVarInt32); }
             reader.read_exact(&mut u8buf)?;
             let b = u8buf[0];
 
             res |= ((b & 0x7f) as i32) << shift;
             shift += 7;
             if (b >> 7) == 0 {
-                if shift < 32 && b & 0b0100_0000 == 0b0100_0000 { 
-                    res |= - (1 << shift);
+                if shift < 32 && b & 0b0100_0000 == 0b0100_0000 {
+                    res |= (1i32 << shift).wrapping_neg();
                 }
                 break;
             }
@@ -259,9 +260,9 @@ impl Serialize for VarInt32 {
             if (v == 0 && buf[0] & 0b0100_0000 == 0) || (v == -1 && buf[0] & 0b0100_0000 == 0b0100_0000)  {
                 more = false
             } else {
-                buf[0] |= 0b1000_0000 
+                buf[0] |= 0b1000_0000
             }
-            
+
             writer.write_all(&buf[..])?;
         }
 
@@ -293,14 +294,15 @@ impl Deserialize for VarInt64 {
         let mut shift = 0;
         let mut u8buf = [0u8; 1];
         loop {
+            if shift > 63 { return Err(Error::InvalidVarInt64); }
             reader.read_exact(&mut u8buf)?;
             let b = u8buf[0];
 
             res |= ((b & 0x7f) as i64) << shift;
             shift += 7;
             if (b >> 7) == 0 {
-                if shift < 64 && b & 0b0100_0000 == 0b0100_0000 { 
-                    res |= - (1 << shift);
+                if shift < 64 && b & 0b0100_0000 == 0b0100_0000 {
+                    res |= (1i64 << shift).wrapping_neg();
                 }
                 break;
             }
@@ -322,9 +324,9 @@ impl Serialize for VarInt64 {
             if (v == 0 && buf[0] & 0b0100_0000 == 0) || (v == -1 && buf[0] & 0b0100_0000 == 0b0100_0000)  {
                 more = false
             } else {
-                buf[0] |= 0b1000_0000 
+                buf[0] |= 0b1000_0000
             }
-            
+
             writer.write_all(&buf[..])?;
         }
 
@@ -492,7 +494,7 @@ impl<T: Deserialize> Deserialize for CountedList<T> where T::Error: From<Error> 
     }
 }
 
-/// Helper struct to write payload which is preceded by 
+/// Helper struct to write payload which is preceded by
 /// it's own length in bytes.
 pub struct CountedWriter<'a, W: 'a + io::Write> {
     writer: &'a mut W,
@@ -517,7 +519,7 @@ impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
             .serialize(writer)
             .map_err(
                 |_| io::Error::new(
-                    io::ErrorKind::Other, 
+                    io::ErrorKind::Other,
                     "Length serialization error",
                 )
             )?;
@@ -534,16 +536,16 @@ impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
 
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
-    }    
+    }
 }
 
-/// Helper struct to write series of `T` preceded by the length of the sequence 
+/// Helper struct to write series of `T` preceded by the length of the sequence
 /// serialized as VarUint32
 pub struct CountedListWriter<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>>(pub usize, pub T);
 
 impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize for CountedListWriter<I, T> {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let len_us = self.0;
         let data = self.1;
@@ -628,7 +630,7 @@ mod tests {
         varint64_de_test(dt.clone(), val);
         varint64_ser_test(val, dt);
     }
-    
+
     #[test]
     fn varuint32_0() {
         varuint32_serde_test(vec![0u8; 1], 0);
@@ -640,24 +642,24 @@ mod tests {
     }
 
     #[test]
-    fn varuint32_135() {        
+    fn varuint32_135() {
         varuint32_serde_test(vec![135u8, 0x01], 135);
     }
 
     #[test]
-    fn varuint32_8192() {        
+    fn varuint32_8192() {
         varuint32_serde_test(vec![0x80, 0x40], 8192);
-    }    
+    }
 
     #[test]
-    fn varint32_8192() {        
+    fn varint32_8192() {
         varint32_serde_test(vec![0x80, 0xc0, 0x00], 8192);
-    }    
+    }
 
     #[test]
-    fn varint32_neg_8192() {        
+    fn varint32_neg_8192() {
         varint32_serde_test(vec![0x80, 0x40], -8192);
-    }    
+    }
 
     #[test]
     fn varuint64_0() {
@@ -670,38 +672,71 @@ mod tests {
     }
 
     #[test]
-    fn varuint64_135() {        
+    fn varuint64_135() {
         varuint64_serde_test(vec![135u8, 0x01], 135);
     }
 
     #[test]
-    fn varuint64_8192() {        
+    fn varuint64_8192() {
         varuint64_serde_test(vec![0x80, 0x40], 8192);
-    }    
+    }
 
     #[test]
-    fn varint64_8192() {        
+    fn varint64_8192() {
         varint64_serde_test(vec![0x80, 0xc0, 0x00], 8192);
-    }    
+    }
 
     #[test]
-    fn varint64_neg_8192() {        
+    fn varint64_neg_8192() {
         varint64_serde_test(vec![0x80, 0x40], -8192);
-    }    
+    }
+
+    #[test]
+    fn varint64_min() {
+        varint64_serde_test(
+            vec![0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f],
+            -9223372036854775808,
+        );
+    }
+
+    #[test]
+    fn varint64_max() {
+        varint64_serde_test(
+            vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00],
+            9223372036854775807,
+        );
+    }
+
+    #[test]
+    fn varint32_min() {
+        varint32_serde_test(
+            vec![0x80, 0x80, 0x80, 0x80, 0x78],
+            -2147483648,
+        );
+    }
+
+    #[test]
+    fn varint32_max() {
+        varint32_serde_test(
+            vec![0xff, 0xff, 0xff, 0xff, 0x07],
+            2147483647,
+        );
+    }
+
 
     #[test]
     fn counted_list() {
         let payload = vec![
             133u8, //(128+5), length is 5
                 0x80, 0x80, 0x80, 0x0, // padding
-            0x01, 
+            0x01,
             0x7d,
             0x05,
             0x07,
             0x09,
         ];
 
-        let list: CountedList<VarInt7> = 
+        let list: CountedList<VarInt7> =
             deserialize_buffer(payload).expect("type_section be deserialized");
 
         let vars = list.into_inner();

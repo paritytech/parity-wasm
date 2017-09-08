@@ -13,25 +13,33 @@ fn wasm_opt() -> PathBuf {
     let bin = PathBuf::from(env!("OUT_DIR")).join("bin").join("wasm-opt");
     assert!(
         bin.exists(),
-        format!("could not find wasm-opt at: {:?}", wasm_opt())
+        format!(
+            "could not find wasm-opt at location installed by build.rs: {:?}",
+            wasm_opt()
+        )
     );
     bin
 }
 
 fuzz_target!(|data: &[u8]| {
-    let seed = mktemp::Temp::new_file().unwrap();
-    let mut seedfile = File::create(seed.as_ref()).unwrap();
-    seedfile.write_all(data).unwrap();
-    seedfile.flush().unwrap();
+    let seed = mktemp::Temp::new_file().expect("mktemp file to store fuzzer input");
+    let mut seedfile =
+        File::create(seed.as_ref()).expect("open temporary file for writing to store fuzzer input");
+    seedfile.write_all(data).expect(
+        "write fuzzer input to temporary file",
+    );
+    seedfile.flush().expect(
+        "flush fuzzer input to temporary file before starting wasm-opt",
+    );
 
-    let wasm = mktemp::Temp::new_file().unwrap();
+    let wasm = mktemp::Temp::new_file().expect("mktemp file to store wasm-opt output");
     let opt_fuzz = Command::new(wasm_opt())
         .arg("--translate-to-fuzz")
         .arg(seed.as_ref())
         .arg("-o")
         .arg(wasm.as_ref())
         .output()
-        .unwrap();
+        .expect("execute wasm-opt installed by build.rs");
 
     assert!(
         opt_fuzz.status.success(),
@@ -42,5 +50,7 @@ fuzz_target!(|data: &[u8]| {
     );
 
     let _module: parity_wasm::elements::Module = parity_wasm::deserialize_file(wasm.as_ref())
-        .unwrap();
+        .expect(
+            "deserialize output of wasm-opt, indicating possible bug in deserializer",
+        );
 });

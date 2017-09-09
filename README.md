@@ -29,7 +29,7 @@ Interpreter and decoder supports full wabt testsuite (https://github.com/WebAsse
 - checkout with submodules (`git submodule update --init --recurive`)
 - run `cargo test --release --manifest-path=spec/Cargo.toml`
 
-Decoder can be fuzzed with `cargo-fuzz` using `wasm-opt` (https://githib.com/WebAssembly/binaryen):
+Decoder can be fuzzed with `cargo-fuzz` using `wasm-opt` (https://github.com/WebAssembly/binaryen):
 
 - make sure you have all prerequisites to build `binaryen` and `cargo-fuzz` (`cmake` and a C++11 toolchain)
 - checkout with submodules (`git submodule update --init --recursive`)

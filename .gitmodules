@@ -1,3 +1,6 @@
 [submodule "spec/wabt"]
 	path = spec/wabt
 	url = https://github.com/WebAssembly/wabt
+[submodule "fuzz/binaryen"]
+	path = fuzz/binaryen
+	url = https://github.com/WebAssembly/binaryen

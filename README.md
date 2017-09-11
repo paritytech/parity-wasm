@@ -26,7 +26,7 @@ println!("Function count in wasm file: {}", code_section.bodies().len());
 Interpreter and decoder supports full wabt testsuite (https://github.com/WebAssembly/testsuite), To run testsuite:
 
 - make sure you have all prerequisites to build `wabt` (since parity-wasm builds it internally using `cmake`, see https://github.com/WebAssembly/wabt)
-- checkout with submodules (`git submodule update --init --recurive`)
+- checkout with submodules (`git submodule update --init --recursive`)
 - run `cargo test --release --manifest-path=spec/Cargo.toml`
 
 Decoder can be fuzzed with `cargo-fuzz` using `wasm-opt` (https://github.com/WebAssembly/binaryen):

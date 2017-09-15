@@ -31,6 +31,13 @@ impl<E> ProgramInstance<E> where E: UserError {
 		})
 	}
 
+	/// Create a new program instance with a custom env module
+	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface<E>>) -> Self {
+		ProgramInstance {
+			essence: Arc::new(ProgramInstanceEssence::with_env_module(env_module)),
+		}
+	}
+
 	/// Instantiate module with validation.
 	pub fn add_module<'a>(&self, name: &str, module: Module, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<Arc<ModuleInstance<E>>, Error<E>> {
 		let mut module_instance = ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?;
@@ -62,13 +69,18 @@ impl<E> ProgramInstanceEssence<E> where E: UserError {
 	}
 
 	pub fn with_env_params(env_params: env::EnvParams) -> Result<Self, Error<E>> {
-		let mut modules = HashMap::new();
-		let env_module: Arc<ModuleInstanceInterface<E>> = Arc::new(env_module(env_params)?);
-		modules.insert("env".into(), env_module);
-		Ok(ProgramInstanceEssence {
-			modules: RwLock::new(modules),
-		})
+		let env_mod = env_module(env_params)?;
+		Ok(ProgramInstanceEssence::with_env_module(Arc::new(env_mod)))
 	}
+
+	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface<E>>) -> Self {
+		let mut modules = HashMap::new();
+		modules.insert("env".into(), env_module);
+		ProgramInstanceEssence {
+			modules: RwLock::new(modules),
+		}
+	}
+
 
 	/// Get module reference.
 	pub fn module(&self, name: &str) -> Option<Arc<ModuleInstanceInterface<E>>> {

@@ -10,7 +10,7 @@ use interpreter::{Error, UserError, ProgramInstance, DefaultProgramInstance, Def
 use interpreter::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
-use interpreter::validator::{FunctionValidationContext, Validator};
+use interpreter::validator::{FunctionValidationContext, Validator, DefaultValidator};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, ExternalVariableValue, VariableType};
 
@@ -76,7 +76,7 @@ fn wrong_import() {
 
 	let program = DefaultProgramInstance::new().unwrap();
 	let _side_module_instance = program.add_module("side_module", side_module, None).unwrap();
-	assert!(program.add_module("main", module, None).is_err());	
+	assert!(program.add_module("main", module, None).is_err());
 }
 
 #[test]
@@ -314,7 +314,7 @@ fn native_env_function_own_memory() {
 	let module_instance = program.add_module("main", module, Some(&params.externals)).unwrap();
 	// now get memory reference
 	let module_memory = module_instance.memory(ItemIndex::Internal(0)).unwrap();
-	// post-initialize our executor with memory reference 
+	// post-initialize our executor with memory reference
 	*memory_ref.memory.borrow_mut() = Some(module_memory);
 
 	// now execute function => executor updates memory
@@ -442,7 +442,7 @@ fn if_else_with_return_type_validation() {
 	let module_instance = DefaultModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
 	let mut context = FunctionValidationContext::new(&module_instance, None, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
 
-	Validator::validate_function(&mut context, BlockType::NoResult, &[
+	DefaultValidator::validate_function(&mut context, BlockType::NoResult, &[
 		Opcode::I32Const(1),
 		Opcode::If(BlockType::NoResult),
 			Opcode::I32Const(1),

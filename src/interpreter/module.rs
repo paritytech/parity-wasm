@@ -11,7 +11,7 @@ use interpreter::program::ProgramInstanceEssence;
 use interpreter::runner::{Interpreter, FunctionContext, prepare_function_args};
 use interpreter::stack::StackWithLimit;
 use interpreter::table::TableInstance;
-use interpreter::validator::{Validator, FunctionValidationContext};
+use interpreter::validator::{DefaultValidator, Validator, FunctionValidationContext};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, VariableType};
 
@@ -389,7 +389,7 @@ impl<E> ModuleInstance<E> where E: UserError {
 						function_type.clone());
 
 					let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
-					Validator::validate_function(&mut context, block_type, function_body.code().elements())
+					DefaultValidator::validate_function(&mut context, block_type, function_body.code().elements())
 						.map_err(|e| {
 							if let Error::Validation(msg) = e {
 								Error::Validation(format!("Function #{} validation error: {}", index, msg))

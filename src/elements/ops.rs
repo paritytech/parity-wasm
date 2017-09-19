@@ -101,7 +101,7 @@ impl Deserialize for InitExpr {
 }
 
 /// Opcode
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[allow(missing_docs)]
 pub enum Opcode {
     Unreachable,

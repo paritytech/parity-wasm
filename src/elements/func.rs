@@ -1,10 +1,11 @@
 use std::io;
 use super::{
-    Deserialize, Error, ValueType, VarUint32, CountedList, Opcodes, 
-    Serialize, CountedWriter, CountedListWriter, 
+    Deserialize, Error, ValueType, VarUint32, CountedList, Opcodes,
+    Serialize, CountedWriter, CountedListWriter,
 };
 
 /// Function signature (type reference)
+#[derive(Clone)]
 pub struct Func(u32);
 
 impl Func {
@@ -23,7 +24,7 @@ impl Func {
 }
 
 /// Local definition inside the function body.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Local {
     count: u32,
     value_type: ValueType,
@@ -49,7 +50,7 @@ impl Deserialize for Local {
         let count = VarUint32::deserialize(reader)?;
         let value_type = ValueType::deserialize(reader)?;
         Ok(Local { count: count.into(), value_type: value_type })
-    }   
+    }
 }
 
 impl Serialize for Local {
@@ -63,7 +64,7 @@ impl Serialize for Local {
 }
 
 /// Function body definition.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FuncBody {
     locals: Vec<Local>,
     opcodes: Opcodes,
@@ -77,7 +78,7 @@ impl FuncBody {
 
     /// List of individual opcodes
     pub fn empty() -> Self {
-        FuncBody { locals: Vec::new(), opcodes: Opcodes::empty() }        
+        FuncBody { locals: Vec::new(), opcodes: Opcodes::empty() }
     }
 
     /// Locals declared in function body.
@@ -103,12 +104,12 @@ impl Deserialize for FuncBody {
         let locals: Vec<Local> = CountedList::deserialize(reader)?.into_inner();
         let opcodes = Opcodes::deserialize(reader)?;
         Ok(FuncBody { locals: locals, opcodes: opcodes })
-    }   
+    }
 }
 
 impl Serialize for FuncBody {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
 
@@ -118,7 +119,7 @@ impl Serialize for FuncBody {
             data.into_iter().map(Into::into),
         );
         counted_list.serialize(&mut counted_writer)?;
-      
+
         let code = self.opcodes;
         code.serialize(&mut counted_writer)?;
 

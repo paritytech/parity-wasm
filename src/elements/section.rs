@@ -23,6 +23,7 @@ use super::{
 use super::types::Type;
 
 /// Section in the WebAssembly module.
+#[derive(Clone)]
 pub enum Section {
     /// Section is unparsed.
     Unparsed {
@@ -111,7 +112,7 @@ impl Deserialize for Section {
                 }
             }
         )
-    }    
+    }
 }
 
 impl Serialize for Section {
@@ -179,6 +180,7 @@ impl Serialize for Section {
 }
 
 /// Custom section
+#[derive(Clone)]
 pub struct CustomSection {
     name: String,
     payload: Vec<u8>,
@@ -218,14 +220,14 @@ impl Deserialize for CustomSection {
         let payload_left = section_length - (name.len() as u32 + name.len() as u32 / 128 + 1);
         let mut payload = vec![0u8; payload_left as usize];
         reader.read_exact(&mut payload[..])?;
-                
+
         Ok(CustomSection { name: name, payload: payload })
-    }   
+    }
 }
 
 impl Serialize for CustomSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         use std::io::Write;
 
@@ -234,11 +236,11 @@ impl Serialize for CustomSection {
         counted_writer.write_all(&self.payload[..])?;
         counted_writer.done()?;
         Ok(())
-    }    
+    }
 }
 
 /// Section with type declarations
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct TypeSection(Vec<Type>);
 
 impl TypeSection {
@@ -253,7 +255,7 @@ impl TypeSection {
     }
 
     /// List of type declarations (mutable)
-    pub fn types_mut(&mut self) -> &mut Vec<Type> { 
+    pub fn types_mut(&mut self) -> &mut Vec<Type> {
         &mut self.0
     }
 }
@@ -266,12 +268,12 @@ impl Deserialize for TypeSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let types: Vec<Type> = CountedList::deserialize(reader)?.into_inner();
         Ok(TypeSection(types))
-    }   
+    }
 }
 
 impl Serialize for TypeSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -282,11 +284,11 @@ impl Serialize for TypeSection {
         counted_list.serialize(&mut counted_writer)?;
         counted_writer.done()?;
         Ok(())
-    }    
+    }
 }
 
 /// Section of the imports definition.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {
@@ -303,7 +305,7 @@ impl ImportSection {
     /// List of import entries (mutable).
     pub fn entries_mut(&mut self) -> &mut Vec<ImportEntry> {
         &mut self.0
-    }    
+    }
 }
 
 impl Deserialize for ImportSection {
@@ -314,12 +316,12 @@ impl Deserialize for ImportSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<ImportEntry> = CountedList::deserialize(reader)?.into_inner();
         Ok(ImportSection(entries))
-    }   
+    }
 }
 
 impl Serialize for ImportSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -330,11 +332,11 @@ impl Serialize for ImportSection {
         counted_list.serialize(&mut counted_writer)?;
         counted_writer.done()?;
         Ok(())
-    }    
+    }
 }
 
 /// Section with function signatures definition.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FunctionSection(Vec<Func>);
 
 impl FunctionSection {
@@ -344,7 +346,7 @@ impl FunctionSection {
     }
 
     /// List of all functions in the section, mutable
-    pub fn entries_mut(&mut self) -> &mut Vec<Func> { 
+    pub fn entries_mut(&mut self) -> &mut Vec<Func> {
         &mut self.0
     }
 
@@ -371,7 +373,7 @@ impl Deserialize for FunctionSection {
 
 impl Serialize for FunctionSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -382,11 +384,11 @@ impl Serialize for FunctionSection {
         counted_list.serialize(&mut counted_writer)?;
         counted_writer.done()?;
         Ok(())
-    }    
+    }
 }
 
 /// Section with table definition (currently only one is allowed).
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct TableSection(Vec<TableType>);
 
 impl TableSection {
@@ -398,7 +400,7 @@ impl TableSection {
     ///  New table section with provided table entries
     pub fn with_entries(entries: Vec<TableType>) -> Self {
         TableSection(entries)
-    }    
+    }
 
     /// Mutable table entries.
     pub fn entries_mut(&mut self) -> &mut Vec<TableType> {
@@ -414,12 +416,12 @@ impl Deserialize for TableSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<TableType> = CountedList::deserialize(reader)?.into_inner();
         Ok(TableSection(entries))
-    }   
+    }
 }
 
 impl Serialize for TableSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -430,11 +432,11 @@ impl Serialize for TableSection {
         counted_list.serialize(&mut counted_writer)?;
         counted_writer.done()?;
         Ok(())
-    }    
+    }
 }
 
 /// Section with table definition (currently only one entry is allowed).
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MemorySection(Vec<MemoryType>);
 
 impl MemorySection {
@@ -446,7 +448,7 @@ impl MemorySection {
     ///  New memory section with memory types
     pub fn with_entries(entries: Vec<MemoryType>) -> Self {
         MemorySection(entries)
-    }    
+    }
 
     /// Mutable list of all memory entries in the section
     pub fn entries_mut(&mut self) -> &mut Vec<MemoryType> {
@@ -462,12 +464,12 @@ impl Deserialize for MemorySection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<MemoryType> = CountedList::deserialize(reader)?.into_inner();
         Ok(MemorySection(entries))
-    }   
+    }
 }
 
 impl Serialize for MemorySection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -478,11 +480,11 @@ impl Serialize for MemorySection {
         counted_list.serialize(&mut counted_writer)?;
         counted_writer.done()?;
         Ok(())
-    }    
+    }
 }
 
 /// Globals definition section.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GlobalSection(Vec<GlobalEntry>);
 
 impl GlobalSection {
@@ -510,12 +512,12 @@ impl Deserialize for GlobalSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<GlobalEntry> = CountedList::deserialize(reader)?.into_inner();
         Ok(GlobalSection(entries))
-    }   
+    }
 }
 
 impl Serialize for GlobalSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -526,11 +528,11 @@ impl Serialize for GlobalSection {
         counted_list.serialize(&mut counted_writer)?;
         counted_writer.done()?;
         Ok(())
-    }    
+    }
 }
 
 /// List of exports definition.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ExportSection(Vec<ExportEntry>);
 
 impl ExportSection {
@@ -547,7 +549,7 @@ impl ExportSection {
     /// List of all export entries in the section (mutable)
     pub fn entries_mut(&mut self) -> &mut Vec<ExportEntry> {
         &mut self.0
-    }    
+    }
 }
 
 impl Deserialize for ExportSection {
@@ -558,12 +560,12 @@ impl Deserialize for ExportSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<ExportEntry> = CountedList::deserialize(reader)?.into_inner();
         Ok(ExportSection(entries))
-    }   
+    }
 }
 
 impl Serialize for ExportSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -574,11 +576,11 @@ impl Serialize for ExportSection {
         counted_list.serialize(&mut counted_writer)?;
         counted_writer.done()?;
         Ok(())
-    }    
+    }
 }
 
 /// Section with function bodies of the module.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CodeSection(Vec<FuncBody>);
 
 impl CodeSection {
@@ -606,12 +608,12 @@ impl Deserialize for CodeSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<FuncBody> = CountedList::deserialize(reader)?.into_inner();
         Ok(CodeSection(entries))
-    }   
+    }
 }
 
 impl Serialize for CodeSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -626,7 +628,7 @@ impl Serialize for CodeSection {
 }
 
 /// Element entries section.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {
@@ -643,7 +645,7 @@ impl ElementSection {
     /// List of all data entries in the section (mutable)
     pub fn entries_mut(&mut self) -> &mut Vec<ElementSegment> {
         &mut self.0
-    }    
+    }
 }
 
 impl Deserialize for ElementSection {
@@ -654,12 +656,12 @@ impl Deserialize for ElementSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<ElementSegment> = CountedList::deserialize(reader)?.into_inner();
         Ok(ElementSection(entries))
-    }   
+    }
 }
 
 impl Serialize for ElementSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -674,7 +676,7 @@ impl Serialize for ElementSection {
 }
 
 /// Data entries definitions.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DataSection(Vec<DataSegment>);
 
 impl DataSection {
@@ -702,12 +704,12 @@ impl Deserialize for DataSection {
         let _section_length = VarUint32::deserialize(reader)?;
         let entries: Vec<DataSegment> = CountedList::deserialize(reader)?.into_inner();
         Ok(DataSection(entries))
-    }   
+    }
 }
 
 impl Serialize for DataSection {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let mut counted_writer = CountedWriter::new(writer);
         let data = self.0;
@@ -736,7 +738,7 @@ mod tests {
         let mut found = false;
         for section in module.sections() {
             match section {
-                &Section::Import(ref import_section) => { 
+                &Section::Import(ref import_section) => {
                     assert_eq!(25, import_section.entries().len());
                     found = true
                 },
@@ -749,17 +751,17 @@ mod tests {
     fn functions_test_payload() -> Vec<u8> {
         vec![
             // functions section id
-            0x03u8, 
+            0x03u8,
             // functions section length
             0x87, 0x80, 0x80, 0x80, 0x0,
             // number of functions
-            0x04, 
+            0x04,
             // type reference 1
             0x01,
             // type reference 2
             0x86, 0x80, 0x00,
             // type reference 3
-            0x09,            
+            0x09,
             // type reference 4
             0x33
         ]
@@ -767,7 +769,7 @@ mod tests {
 
     #[test]
     fn fn_section_detect() {
-        let section: Section = 
+        let section: Section =
             deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
 
         match section {
@@ -780,7 +782,7 @@ mod tests {
 
     #[test]
     fn fn_section_number() {
-        let section: Section = 
+        let section: Section =
             deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
 
         match section {
@@ -790,12 +792,12 @@ mod tests {
             _ => {
                 // will be catched by dedicated test
             }
-        }        
+        }
     }
 
     #[test]
     fn fn_section_ref() {
-        let section: Section = 
+        let section: Section =
             deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
 
         match section {
@@ -805,18 +807,18 @@ mod tests {
             _ => {
                 // will be catched by dedicated test
             }
-        }        
+        }
     }
 
     fn types_test_payload() -> Vec<u8> {
         vec![
             // section length
             148u8, 0x80, 0x80, 0x80, 0x0,
-            
+
             // 2 functions
             130u8, 0x80, 0x80, 0x80, 0x0,
             // func 1, form =1
-            0x01, 
+            0x01,
             // param_count=1
             129u8, 0x80, 0x80, 0x80, 0x0,
                 // first param
@@ -825,21 +827,21 @@ mod tests {
             0x00,
 
             // func 2, form=1
-            0x01, 
+            0x01,
             // param_count=1
             130u8, 0x80, 0x80, 0x80, 0x0,
                 // first param
-                0x7e, 
+                0x7e,
                 // second param
-                0x7d, 
+                0x7d,
             // return param (is_present, param_type)
             0x01, 0x7e
         ]
-    }    
+    }
 
     #[test]
     fn type_section_len() {
-        let type_section: TypeSection = 
+        let type_section: TypeSection =
             deserialize_buffer(types_test_payload()).expect("type_section be deserialized");
 
         assert_eq!(type_section.types().len(), 2);
@@ -847,7 +849,7 @@ mod tests {
 
     #[test]
     fn type_section_infer() {
-        let type_section: TypeSection = 
+        let type_section: TypeSection =
             deserialize_buffer(types_test_payload()).expect("type_section be deserialized");
 
         let t1 = match &type_section.types()[1] {
@@ -866,7 +868,7 @@ mod tests {
             148u8, 0x80, 0x80, 0x80, 0x0,
             // 6 entries
             134u8, 0x80, 0x80, 0x80, 0x0,
-            // func "A", index 6 
+            // func "A", index 6
             // [name_len(1-5 bytes), name_bytes(name_len, internal_kind(1byte), internal_index(1-5 bytes)])
             0x01, 0x41,  0x01, 0x86, 0x80, 0x00,
             // func "B", index 8
@@ -882,10 +884,10 @@ mod tests {
         ]
     }
 
- 
+
     #[test]
     fn export_detect() {
-        let section: Section = 
+        let section: Section =
             deserialize_buffer(export_payload()).expect("section to be deserialized");
 
         match section {
@@ -903,9 +905,9 @@ mod tests {
             // section length, 32
             0x20,
             // body count
-            0x01, 
+            0x01,
             // body 1, length 30
-            0x1E, 
+            0x1E,
             0x01, 0x01, 0x7F, // local i32 (one collection of length one of type i32)
             0x02, 0x7F, // block i32
                 0x23, 0x00, // get_global 0
@@ -929,7 +931,7 @@ mod tests {
     #[test]
     fn code_detect() {
 
-        let section: Section = 
+        let section: Section =
             deserialize_buffer(code_payload()).expect("section to be deserialized");
 
         match section {
@@ -942,13 +944,13 @@ mod tests {
 
     fn data_payload() -> Vec<u8> {
         vec![
-            0x0bu8,  // section id           
+            0x0bu8,  // section id
             19,      // 19 bytes overall
             0x01,    // number of segments
             0x00,    // index
             0x0b,    // just `end` op
             // 16x 0x00
-            0x00, 0x00, 0x00, 0x00, 
+            0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00
@@ -978,7 +980,7 @@ mod tests {
 
     #[test]
     fn data_section_detect() {
-        let section: Section = 
+        let section: Section =
             deserialize_buffer(data_payload()).expect("section to be deserialized");
 
         match section {
@@ -1005,7 +1007,7 @@ mod tests {
             0x04, // 4 elements
             0x00, 0x00, 0x00, 0x00 // 4x 0x00 as in initialization
         ]);
-    }    
+    }
 
     #[test]
     fn code_section_ser() {

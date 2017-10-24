@@ -2,6 +2,7 @@ use std::io;
 use super::{Deserialize, Serialize, Error, GlobalType, InitExpr};
 
 /// Global entry in the module.
+#[derive(Clone)]
 pub struct GlobalEntry {
     global_type: GlobalType,
     init_expr: InitExpr,
@@ -36,8 +37,8 @@ impl Deserialize for GlobalEntry {
             global_type: global_type,
             init_expr: init_expr,
         })
-    }    
-} 
+    }
+}
 
 impl Serialize for GlobalEntry {
     type Error = Error;

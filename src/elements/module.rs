@@ -10,6 +10,7 @@ use super::section::{
 const WASM_MAGIC_NUMBER: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
 
 /// WebAssembly module
+#[derive(Clone)]
 pub struct Module {
     magic: u32,
     version: u32,

@@ -1,11 +1,11 @@
 use std::{io, fmt};
 use super::{
-    Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList, 
+    Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList,
     CountedListWriter
 };
 
 /// Type definition in types section. Currently can be only of the function type.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Type {
     /// Function type.
     Function(FunctionType),
@@ -21,7 +21,7 @@ impl Deserialize for Type {
 
 impl Serialize for Type {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         match self {
             Type::Function(fn_type) => fn_type.serialize(writer)
@@ -55,12 +55,12 @@ impl Deserialize for ValueType {
             -0x04 => Ok(ValueType::F64),
             _ => Err(Error::UnknownValueType(val.into())),
         }
-    }    
+    }
 }
 
 impl Serialize for ValueType {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let val: VarInt7 = match self {
             ValueType::I32 => -0x01,
@@ -107,12 +107,12 @@ impl Deserialize for BlockType {
             -0x40 => Ok(BlockType::NoResult),
             _ => Err(Error::UnknownValueType(val.into())),
         }
-    }    
+    }
 }
 
 impl Serialize for BlockType {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let val: VarInt7 = match self {
             BlockType::NoResult => -0x40i8,
@@ -185,12 +185,12 @@ impl Deserialize for FunctionType {
             params: params,
             return_type: return_type,
         })
-    }    
+    }
 }
 
 impl Serialize for FunctionType {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         VarUint7::from(self.form).serialize(writer)?;
 
@@ -229,12 +229,12 @@ impl Deserialize for TableElementType {
             -0x10 => Ok(TableElementType::AnyFunc),
             _ => Err(Error::UnknownTableElementType(val.into())),
         }
-    }    
+    }
 }
 
 impl Serialize for TableElementType {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let val: VarInt7 = match self {
             TableElementType::AnyFunc => 0x70,

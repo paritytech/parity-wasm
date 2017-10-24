@@ -2,7 +2,7 @@ use std::io;
 use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr, CountedListWriter};
 
 /// Entry in the element section.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ElementSegment {
     index: u32,
     offset: InitExpr,
@@ -43,17 +43,17 @@ impl Deserialize for ElementSegment {
             .map(Into::into)
             .collect();
 
-        Ok(ElementSegment { 
-            index: index.into(), 
-            offset: offset,  
+        Ok(ElementSegment {
+            index: index.into(),
+            offset: offset,
             members: funcs,
         })
-    }   
+    }
 }
 
 impl Serialize for ElementSegment {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         VarUint32::from(self.index).serialize(writer)?;
         self.offset.serialize(writer)?;
@@ -61,13 +61,14 @@ impl Serialize for ElementSegment {
         let counted_list = CountedListWriter::<VarUint32, _>(
             data.len(),
             data.into_iter().map(Into::into),
-        );        
-        counted_list.serialize(writer)?;        
+        );
+        counted_list.serialize(writer)?;
         Ok(())
     }
 }
 
 /// Data segment definition.
+#[derive(Clone)]
 pub struct DataSegment {
     index: u32,
     offset: InitExpr,
@@ -88,10 +89,10 @@ impl DataSegment {
     pub fn index(&self) -> u32 { self.index }
 
     /// An i32 initializer expression that computes the offset at which to place the data.
-    pub fn offset(&self) -> &InitExpr { &self.offset }   
+    pub fn offset(&self) -> &InitExpr { &self.offset }
 
     /// An i32 initializer expression that computes the offset at which to place the data (mutable)
-    pub fn offset_mut(&mut self) -> &mut InitExpr { &mut self.offset }   
+    pub fn offset_mut(&mut self) -> &mut InitExpr { &mut self.offset }
 
     /// Initial value of the data segment.
     pub fn value(&self) -> &[u8] { &self.value }
@@ -111,17 +112,17 @@ impl Deserialize for DataSegment {
         let mut value_buf = vec![0u8; value_len.into()];
         reader.read_exact(&mut value_buf[..])?;
 
-        Ok(DataSegment { 
-            index: index.into(), 
-            offset: offset,  
+        Ok(DataSegment {
+            index: index.into(),
+            offset: offset,
             value: value_buf,
         })
-    }   
+    }
 }
 
 impl Serialize for DataSegment {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         VarUint32::from(self.index).serialize(writer)?;
         self.offset.serialize(writer)?;

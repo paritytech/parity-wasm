@@ -1,13 +1,13 @@
 use std::{io, fmt};
 use super::{
-    Serialize, Deserialize, Error, VarUint7, 
+    Serialize, Deserialize, Error, VarUint7,
     VarUint1, VarUint32, CountedList, BlockType,
     Uint32, Uint64, CountedListWriter,
     VarInt32, VarInt64,
 };
 
 /// Collection of opcodes (usually inside a block section).
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Opcodes(Vec<Opcode>);
 
 impl Opcodes {
@@ -19,7 +19,7 @@ impl Opcodes {
     /// Empty expression with only `Opcode::End` opcode.
     pub fn empty() -> Self {
         Opcodes(vec![Opcode::End])
-    }    
+    }
 
     /// List of individual opcodes.
     pub fn elements(&self) -> &[Opcode] { &self.0 }
@@ -54,7 +54,7 @@ impl Deserialize for Opcodes {
 }
 
 /// Initialization expression.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InitExpr(Vec<Opcode>);
 
 impl InitExpr {
@@ -77,7 +77,7 @@ impl InitExpr {
     /// List of opcodes used in the expression.
     pub fn code_mut(&mut self) -> &mut Vec<Opcode> {
         &mut self.0
-    }    
+    }
 }
 
 // todo: check if kind of opcode sequence is valid as an expression
@@ -173,7 +173,7 @@ pub enum Opcode {
     I32LeU,
     I32GeS,
     I32GeU,
-    
+
     I64Eqz,
     I64Eq,
     I64Ne,
@@ -305,7 +305,7 @@ impl Opcode {
 
     /// Is this opcode determines the termination of opcode sequence
     /// `true` for `Opcode::End`
-    pub fn is_terminal(&self) -> bool { 
+    pub fn is_terminal(&self) -> bool {
         match self {
             &Opcode::End => true,
             _ => false,
@@ -333,7 +333,7 @@ impl Deserialize for Opcode {
 
                 0x0c => Br(VarUint32::deserialize(reader)?.into()),
                 0x0d => BrIf(VarUint32::deserialize(reader)?.into()),
-                0x0e => { 
+                0x0e => {
                     let t1: Vec<u32> = CountedList::<VarUint32>::deserialize(reader)?
                         .into_inner()
                         .into_iter()
@@ -345,7 +345,7 @@ impl Deserialize for Opcode {
                 0x0f => Return,
                 0x10 => Call(VarUint32::deserialize(reader)?.into()),
                 0x11 => CallIndirect(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint1::deserialize(reader)?.into()),
                 0x1a => Drop,
                 0x1b => Select,
@@ -357,95 +357,95 @@ impl Deserialize for Opcode {
                 0x24 => SetGlobal(VarUint32::deserialize(reader)?.into()),
 
                 0x28 => I32Load(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x29 => I64Load(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x2a => F32Load(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x2b => F64Load(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x2c => I32Load8S(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x2d => I32Load8U(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x2e => I32Load16S(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x2f => I32Load16U(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x30 => I64Load8S(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x31 => I64Load8U(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x32 => I64Load16S(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x33 => I64Load16U(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x34 => I64Load32S(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x35 => I64Load32U(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x36 => I32Store(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x37 => I64Store(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x38 => F32Store(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x39 => F64Store(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x3a => I32Store8(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x3b => I32Store16(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x3c => I64Store8(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x3d => I64Store16(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
                 0x3e => I64Store32(
-                    VarUint32::deserialize(reader)?.into(), 
+                    VarUint32::deserialize(reader)?.into(),
                     VarUint32::deserialize(reader)?.into()),
 
 
@@ -467,7 +467,7 @@ impl Deserialize for Opcode {
                 0x4d => I32LeU,
                 0x4e => I32GeS,
                 0x4f => I32GeU,
-                
+
                 0x50 => I64Eqz,
                 0x51 => I64Eq,
                 0x52 => I64Ne,
@@ -606,7 +606,7 @@ macro_rules! op {
 
 impl Serialize for Opcode {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         use self::Opcode::*;
 
@@ -682,19 +682,19 @@ impl Serialize for Opcode {
             I32Load8S(flags, offset) => op!(writer, 0x2c, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),       
+            }),
             I32Load8U(flags, offset) => op!(writer, 0x2d, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),       
+            }),
             I32Load16S(flags, offset) => op!(writer, 0x2e, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),      
+            }),
             I32Load16U(flags, offset) => op!(writer, 0x2f, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),                                    
+            }),
             I64Load8S(flags, offset) => op!(writer, 0x30, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
@@ -702,35 +702,35 @@ impl Serialize for Opcode {
             I64Load8U(flags, offset) => op!(writer, 0x31, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),      
+            }),
             I64Load16S(flags, offset) => op!(writer, 0x32, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),                         
+            }),
             I64Load16U(flags, offset) => op!(writer, 0x33, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),          
+            }),
             I64Load32S(flags, offset) => op!(writer, 0x34, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),         
+            }),
             I64Load32U(flags, offset) => op!(writer, 0x35, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),           
+            }),
             I32Store(flags, offset) => op!(writer, 0x36, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),                     
+            }),
             I64Store(flags, offset) => op!(writer, 0x37, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),       
+            }),
             F32Store(flags, offset) => op!(writer, 0x38, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),   
+            }),
             F64Store(flags, offset) => op!(writer, 0x39, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
@@ -742,7 +742,7 @@ impl Serialize for Opcode {
             I32Store16(flags, offset) => op!(writer, 0x3b, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
-            }),        
+            }),
             I64Store8(flags, offset) => op!(writer, 0x3c, {
                 VarUint32::from(flags).serialize(writer)?;
                 VarUint32::from(offset).serialize(writer)?;
@@ -784,7 +784,7 @@ impl Serialize for Opcode {
             I32LeU => op!(writer, 0x4d),
             I32GeS => op!(writer, 0x4e),
             I32GeU => op!(writer, 0x4f),
-                
+
             I64Eqz => op!(writer, 0x50),
             I64Eq => op!(writer, 0x51),
             I64Ne => op!(writer, 0x52),
@@ -902,7 +902,7 @@ impl Serialize for Opcode {
             I32ReinterpretF32 => op!(writer, 0xbc),
             I64ReinterpretF64 => op!(writer, 0xbd),
             F32ReinterpretI32 => op!(writer, 0xbe),
-            F64ReinterpretI64 => op!(writer, 0xbf),            
+            F64ReinterpretI64 => op!(writer, 0xbf),
         }
 
         Ok(())
@@ -1022,7 +1022,7 @@ impl fmt::Display for Opcode {
 
             CurrentMemory(_) => fmt_op!(f, "current_memory"),
             GrowMemory(_) => fmt_op!(f, "grow_memory"),
-            
+
             I32Const(def) => fmt_op!(f, "i32.const", def),
             I64Const(def) => fmt_op!(f, "i64.const", def),
             F32Const(def) => fmt_op!(f, "f32.const", def),
@@ -1084,7 +1084,7 @@ impl fmt::Display for Opcode {
             I32ShrU => write!(f, "i32.shr_u"),
             I32Rotl => write!(f, "i32.rotl"),
             I32Rotr => write!(f, "i32.rotr"),
-            
+
             I64Clz => write!(f, "i64.clz"),
             I64Ctz => write!(f, "i64.ctz"),
             I64Popcnt => write!(f, "i64.popcnt"),
@@ -1103,7 +1103,7 @@ impl fmt::Display for Opcode {
             I64ShrU => write!(f, "i64.shr_u"),
             I64Rotl => write!(f, "i64.rotl"),
             I64Rotr => write!(f, "i64.rotr"),
-            
+
             F32Abs => write!(f, "f32.abs"),
             F32Neg => write!(f, "f32.neg"),
             F32Ceil => write!(f, "f32.ceil"),
@@ -1170,7 +1170,7 @@ impl fmt::Display for Opcode {
 
 impl Serialize for Opcodes {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         for op in self.0.into_iter() {
             op.serialize(writer)?;
@@ -1182,7 +1182,7 @@ impl Serialize for Opcodes {
 
 impl Serialize for InitExpr {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         for op in self.0.into_iter() {
             op.serialize(writer)?;
@@ -1207,7 +1207,7 @@ fn ifelse() {
     let after_else = opcodes.iter().skip(1)
         .skip_while(|op| match **op { Opcode::Else => false, _ => true })
         .take_while(|op| match **op { Opcode::End => false, _ => true })
-        .count() 
+        .count()
         - 1; // minus Opcode::Else itself
     assert_eq!(before_else, after_else);
 }

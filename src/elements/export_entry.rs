@@ -26,12 +26,12 @@ impl Deserialize for Internal {
             0x03 => Ok(Internal::Global(VarUint32::deserialize(reader)?.into())),
             _ => Err(Error::UnknownInternalKind(kind.into())),
         }
-    }    
-} 
+    }
+}
 
 impl Serialize for Internal {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         let (bt, arg) = match self {
             Internal::Function(arg) => (0x00, arg),
@@ -48,7 +48,7 @@ impl Serialize for Internal {
 }
 
 /// Export entry.
-#[derive(Debug)] 
+#[derive(Debug, Clone)]
 pub struct ExportEntry {
     field_str: String,
     internal: Internal,
@@ -72,7 +72,7 @@ impl ExportEntry {
     /// Internal reference of the export entry.
     pub fn internal(&self) -> &Internal { &self.internal }
 
-    /// Internal reference of the export entry (mutable).    
+    /// Internal reference of the export entry (mutable).
     pub fn internal_mut(&mut self) -> &mut Internal { &mut self.internal }
 }
 
@@ -87,12 +87,12 @@ impl Deserialize for ExportEntry {
             field_str: field_str,
             internal: internal,
         })
-    }    
+    }
 }
 
 impl Serialize for ExportEntry {
     type Error = Error;
-    
+
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
         self.field_str.serialize(writer)?;
         self.internal.serialize(writer)?;

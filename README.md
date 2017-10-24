@@ -1,6 +1,6 @@
 # parity-wasm
 
-[![Build Status](https://travis-ci.org/NikVolf/parity-wasm.svg?branch=master)](https://travis-ci.org/NikVolf/parity-wasm)
+[![Build Status](https://travis-ci.org/paritytech/parity-wasm.svg?branch=master)](https://travis-ci.org/paritytech/parity-wasm)
 [![crates.io link](https://img.shields.io/crates/v/parity-wasm.svg)](https://crates.io/crates/parity-wasm)
 
 [Documentation](https://nikvolf.github.io/parity-wasm/parity_wasm/)

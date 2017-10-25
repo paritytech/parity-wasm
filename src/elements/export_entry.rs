@@ -67,7 +67,7 @@ impl ExportEntry {
     pub fn field(&self) -> &str { &self.field_str }
 
     /// Public name (mutable)
-    pub fn field_mut(&mut self) -> &mut str { &mut self.field_str }
+    pub fn field_mut(&mut self) -> &mut String { &mut self.field_str }
 
     /// Internal reference of the export entry.
     pub fn internal(&self) -> &Internal { &self.internal }

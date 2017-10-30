@@ -13,7 +13,7 @@ mod ops;
 mod func;
 mod segment;
 
-pub use self::module::Module;
+pub use self::module::{Module, peek_size};
 pub use self::section::{
     Section, FunctionSection, CodeSection, MemorySection, DataSection,
     ImportSection, ExportSection, GlobalSection, TypeSection, ElementSection,

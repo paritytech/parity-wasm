@@ -191,6 +191,62 @@ impl Serialize for Module {
     }
 }
 
+struct PeekSection<'a> {
+    cursor: usize,
+    region: &'a [u8],
+}
+
+impl<'a> io::Read for PeekSection<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
+        let available = ::std::cmp::min(buf.len(), self.region.len() - self.cursor);
+        if available < buf.len() {
+            return Err(::std::io::Error::from(::std::io::ErrorKind::UnexpectedEof));
+        }
+
+        let range = self.cursor..self.cursor + buf.len();
+        buf.copy_from_slice(&self.region[range]);
+
+        self.cursor += available;
+        Ok(available)
+    }
+}
+
+/// Returns size of the module in the provided stream
+pub fn peek_size(source: &[u8]) -> usize {
+    if source.len() < 9 {
+        return 0;
+    }
+
+    let mut cursor = 8;
+    loop {
+        let (new_cursor, section_id, section_len) = {
+            let mut peek_section = PeekSection { cursor: 0, region: &source[cursor..] };
+            let section_id: u8 = match super::VarUint7::deserialize(&mut peek_section) {
+                Ok(res) => res.into(),
+                Err(_) => { break; },
+            };
+            let section_len: u32 = match super::VarUint32::deserialize(&mut peek_section) {
+                Ok(res) => res.into(),
+                Err(_) => { break; },
+            };
+
+            (peek_section.cursor, section_id, section_len)
+        };
+
+        if section_id <= 11 && section_len > 0 {
+            let next_cursor = cursor + new_cursor + section_len as usize;
+            if next_cursor >= source.len() {
+                break;
+            }
+            cursor = next_cursor;
+        } else {
+            break;
+        }
+    }
+
+    cursor
+}
+
 #[cfg(test)]
 mod integration_tests {
 
@@ -307,5 +363,30 @@ mod integration_tests {
 
         assert_eq!(func.code().elements().len(), 5);
         assert_eq!(I64Store(0, 32), func.code().elements()[2]);
+    }
+
+    #[test]
+    fn peek() {
+        use super::peek_size;
+
+        let module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+        let mut buf = serialize(module).expect("serialization to succeed");
+
+        buf.extend_from_slice(&[1, 5, 12, 17]);
+
+        assert_eq!(peek_size(&buf), buf.len() - 4);
+    }
+
+
+    #[test]
+    fn peek_2() {
+        use super::peek_size;
+
+        let module = deserialize_file("./res/cases/v1/offset.wasm").expect("Should be deserialized");
+        let mut buf = serialize(module).expect("serialization to succeed");
+
+        buf.extend_from_slice(&[0, 0, 0, 0, 0, 1, 5, 12, 17]);
+
+        assert_eq!(peek_size(&buf), buf.len() - 9);
     }
 }

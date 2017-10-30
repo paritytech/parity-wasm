@@ -13,10 +13,11 @@ pub mod interpreter;
 
 pub use elements::{
     Error as SerializationError,
-    deserialize_buffer, 
+    deserialize_buffer,
     deserialize_file,
     serialize,
     serialize_to_file,
+    peek_size,
 };
 
 pub use interpreter::{

@@ -80,6 +80,16 @@ impl<E> MemoryInstance<E> where E: UserError {
 		Ok(region.slice().to_vec())
 	}
 
+	/// Write memory slice into another slice
+	pub fn get_into(&self, offset: u32, target: &mut [u8]) -> Result<(), Error<E>> {
+		let buffer = self.buffer.read();
+		let region = self.checked_region(&buffer, offset as usize, target.len())?;
+
+		target.copy_from_slice(region.slice());
+
+		Ok(())
+	}
+
 	/// Set data at given offset.
 	pub fn set(&self, offset: u32, value: &[u8]) -> Result<(), Error<E>> {
 		let mut buffer = self.buffer.write();
@@ -104,7 +114,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 		}
 	}
 
-	fn checked_region<'a, B>(&self, buffer: &'a B, offset: usize, size: usize) -> Result<CheckedRegion<'a, B>, Error<E>> 
+	fn checked_region<'a, B>(&self, buffer: &'a B, offset: usize, size: usize) -> Result<CheckedRegion<'a, B>, Error<E>>
 		where B: ::std::ops::Deref<Target=Vec<u8>>
 	{
 		let end = offset.checked_add(size)
@@ -129,10 +139,10 @@ impl<E> MemoryInstance<E> where E: UserError {
 		let write_region = self.checked_region(&buffer, dst_offset, len)?;
 
 		unsafe { ::std::ptr::copy(
-			buffer[read_region.range()].as_ptr(), 
+			buffer[read_region.range()].as_ptr(),
 			buffer[write_region.range()].as_ptr() as *mut _,
 			len,
-		)} 
+		)}
 
 		Ok(())
 	}
@@ -156,4 +166,23 @@ fn calculate_memory_size(old_size: u32, additional_pages: u32, maximum_size: u32
 		} else {
 			Some(size)
 		})
+}
+
+#[cfg(test)]
+mod tests {
+
+	use super::MemoryInstance;
+	use elements::MemoryType;
+	use interpreter::DummyUserError;
+
+	#[test]
+	fn get_into() {
+		let mem = MemoryInstance::<DummyUserError>::new(&MemoryType::new(1, None)).expect("memory instance creation should not fail");
+		mem.set(6, &[13, 17, 129]).expect("memory set should not fail");
+
+		let mut data = [0u8; 2];
+		mem.get_into(7, &mut data[..]).expect("get_into should not fail");
+
+		assert_eq!(data, [17, 129]);
+	}
 }

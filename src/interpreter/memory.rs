@@ -185,5 +185,4 @@ mod tests {
 
 		assert_eq!(data, [17, 129]);
 	}
-
 }

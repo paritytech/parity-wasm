@@ -1,5 +1,7 @@
 use std::u32;
 use std::sync::Arc;
+use std::ops::Range;
+use std::cmp;
 use parking_lot::RwLock;
 use elements::{MemoryType, ResizableLimits};
 use interpreter::{Error, UserError};
@@ -29,12 +31,19 @@ struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {
 }
 
 impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> {
-	fn range(&self) -> ::std::ops::Range<usize> {
+	fn range(&self) -> Range<usize> {
 		self.offset..self.offset+self.size
 	}
 
 	fn slice(&self) -> &[u8] {
 		&self.buffer[self.range()]
+	}
+
+	fn intersects(&self, other: &Self) -> bool {
+		let low = cmp::max(self.offset, other.offset);
+		let high = cmp::min(self.offset + self.size, other.offset + other.size);
+
+		low < high
 	}
 }
 
@@ -131,7 +140,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 		})
 	}
 
-	/// Copy memory region
+	/// Copy memory region. Semantically equivalent to `memmove`.
 	pub fn copy(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error<E>> {
 		let buffer = self.buffer.write();
 
@@ -147,13 +156,39 @@ impl<E> MemoryInstance<E> where E: UserError {
 		Ok(())
 	}
 
-	/// Zero memory region
-	pub fn zero(&self, offset: usize, len: usize) -> Result<(), Error<E>> {
+	/// Copy memory region, non-overlapping version. Semantically equivalent to `memcpy`,
+	/// but returns Error if source overlaping with destination.
+	pub fn copy_nonoverlapping(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error<E>> {
+		let buffer = self.buffer.write();
+
+		let read_region = self.checked_region(&buffer, src_offset, len)?;
+		let write_region = self.checked_region(&buffer, dst_offset, len)?;
+
+		if read_region.intersects(&write_region) {
+			return Err(Error::Memory(format!("non-overlapping copy is used for overlapping regions")))
+		}
+
+		unsafe { ::std::ptr::copy_nonoverlapping(
+			buffer[read_region.range()].as_ptr(),
+			buffer[write_region.range()].as_ptr() as *mut _,
+			len,
+		)}
+
+		Ok(())
+	}
+
+	/// Clear memory region with a specified value. Semantically equivalent to `memset`.
+	pub fn clear(&self, offset: usize, new_val: u8, len: usize) -> Result<(), Error<E>> {
 		let mut buffer = self.buffer.write();
 
 		let range = self.checked_region(&buffer, offset, len)?.range();
-		for val in &mut buffer[range] { *val = 0 }
+		for val in &mut buffer[range] { *val = new_val }
 		Ok(())
+	}
+
+	/// Zero memory region
+	pub fn zero(&self, offset: usize, len: usize) -> Result<(), Error<E>> {
+		self.clear(offset, 0, len)
 	}
 }
 
@@ -172,8 +207,68 @@ fn calculate_memory_size(old_size: u32, additional_pages: u32, maximum_size: u32
 mod tests {
 
 	use super::MemoryInstance;
+	use interpreter::{Error, DummyUserError};
 	use elements::MemoryType;
-	use interpreter::DummyUserError;
+	use std::sync::Arc;
+
+	fn create_memory(initial_content: &[u8]) -> Arc<MemoryInstance<DummyUserError>> {
+		let mem = MemoryInstance::new(&MemoryType::new(1, Some(1)))
+			.expect("MemoryInstance created successfuly");
+		mem.set(0, initial_content).expect("Successful initialize the memory");
+		mem
+	}
+
+	#[test]
+	fn copy_overlaps_1() {
+		let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+		mem.copy(0, 4, 6).expect("Successfully copy the elements");
+		let result = mem.get(0, 10).expect("Successfully retrieve the result");
+		assert_eq!(result, &[0, 1, 2, 3, 0, 1, 2, 3, 4, 5]);
+	}
+
+	#[test]
+	fn copy_overlaps_2() {
+		let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+		mem.copy(4, 0, 6).expect("Successfully copy the elements");
+		let result = mem.get(0, 10).expect("Successfully retrieve the result");
+		assert_eq!(result, &[4, 5, 6, 7, 8, 9, 6, 7, 8, 9]);
+	}
+
+	#[test]
+	fn copy_nonoverlapping() {
+		let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+		mem.copy_nonoverlapping(0, 10, 10).expect("Successfully copy the elements");
+		let result = mem.get(10, 10).expect("Successfully retrieve the result");
+		assert_eq!(result, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+	}
+
+	#[test]
+	fn copy_nonoverlapping_overlaps_1() {
+		let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+		let result = mem.copy_nonoverlapping(0, 4, 6);
+		match result {
+			Err(Error::Memory(_)) => {},
+			_ => panic!("Expected Error::Memory(_) result, but got {:?}", result),
+		}
+	}
+
+	#[test]
+	fn copy_nonoverlapping_overlaps_2() {
+		let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+		let result = mem.copy_nonoverlapping(4, 0, 6);
+		match result {
+			Err(Error::Memory(_)) => {},
+			_ => panic!("Expected Error::Memory(_), but got {:?}", result),
+		}
+	}
+
+	#[test]
+	fn clear() {
+		let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+		mem.clear(0, 0x4A, 10).expect("To successfully clear the memory");
+		let result = mem.get(0, 10).expect("To successfully retrieve the result");
+		assert_eq!(result, &[0x4A; 10]);
+	}
 
 	#[test]
 	fn get_into() {

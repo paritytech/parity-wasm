@@ -12,8 +12,10 @@ use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
 use interpreter::variable::{VariableInstance, VariableType};
 
-/// Memory address, at which stack begins.
+/// Memory address, at which stack base begins.
 const DEFAULT_STACK_BASE: u32 = 0;
+/// Memory address, at which stack begins.
+const DEFAULT_STACK_TOP: u32 = 256 * 1024;
 /// Memory, allocated for stack.
 const DEFAULT_TOTAL_STACK: u32 = 5 * 1024 * 1024;
 /// Total memory, allocated by default.
@@ -78,6 +80,8 @@ pub struct EnvParams {
 	pub allow_memory_growth: bool,
 	/// Table size.
 	pub table_size: u32,
+	/// Static reserve, if any
+	pub static_size: Option<u32>,
 }
 
 pub struct EnvModuleInstance<E: UserError> {
@@ -188,22 +192,31 @@ pub fn env_module<E: UserError>(params: EnvParams) -> Result<EnvModuleInstance<E
 		// globals
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_STACK_BASE as i32)])))
 			.with_export(ExportEntry::new("STACK_BASE".into(), Internal::Global(INDEX_GLOBAL_STACK_BASE)))
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_STACK_BASE as i32)])))
+
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(params.static_size.unwrap_or(DEFAULT_STACK_TOP) as i32)])))
 			.with_export(ExportEntry::new("STACKTOP".into(), Internal::Global(INDEX_GLOBAL_STACK_TOP)))
+
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack) as i32)])))
 			.with_export(ExportEntry::new("STACK_MAX".into(), Internal::Global(INDEX_GLOBAL_STACK_MAX)))
+
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack) as i32)])))
 			.with_export(ExportEntry::new("DYNAMIC_BASE".into(), Internal::Global(INDEX_GLOBAL_DYNAMIC_BASE)))
+
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack) as i32)])))
 			.with_export(ExportEntry::new("DYNAMICTOP_PTR".into(), Internal::Global(INDEX_GLOBAL_DYNAMICTOP_PTR)))
+
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(params.total_memory as i32)])))
 			.with_export(ExportEntry::new("TOTAL_MEMORY".into(), Internal::Global(INDEX_GLOBAL_TOTAL_MEMORY)))
+
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
 			.with_export(ExportEntry::new("ABORT".into(), Internal::Global(INDEX_GLOBAL_ABORT)))
+
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
 			.with_export(ExportEntry::new("EXITSTATUS".into(), Internal::Global(INDEX_GLOBAL_EXIT_STATUS)))
+
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_TABLE_BASE as i32)]))) // TODO: what is this?
 			.with_export(ExportEntry::new("tableBase".into(), Internal::Global(INDEX_GLOBAL_TABLE_BASE)))
+			
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_MEMORY_BASE as i32)]))) // TODO: what is this?
 			.with_export(ExportEntry::new("memoryBase".into(), Internal::Global(INDEX_GLOBAL_MEMORY_BASE)))
 		// functions
@@ -238,6 +251,7 @@ impl Default for EnvParams {
 			total_memory: DEFAULT_TOTAL_MEMORY,
 			allow_memory_growth: DEFAULT_ALLOW_MEMORY_GROWTH,
 			table_size: DEFAULT_TABLE_SIZE,
+			static_size: None,
 		}
 	}
 }

@@ -18,6 +18,7 @@ use super::{
     DataSegment,
     CountedWriter,
     CountedListWriter,
+    External,
 };
 
 use super::types::Type;
@@ -305,6 +306,20 @@ impl ImportSection {
     /// List of import entries (mutable).
     pub fn entries_mut(&mut self) -> &mut Vec<ImportEntry> {
         &mut self.0
+    }
+
+    /// Returns number of functions
+    pub fn functions(&self) -> usize {
+        self.0.iter()
+            .filter(|entry| match entry.external() { &External::Function(_) => true, _ => false })
+            .count()
+    }
+
+    /// Returns number of globals
+    pub fn globals(&self) -> usize {
+        self.0.iter()
+            .filter(|entry| match entry.external() { &External::Global(_) => true, _ => false })
+            .count()
     }
 }
 

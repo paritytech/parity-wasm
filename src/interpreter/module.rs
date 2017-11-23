@@ -285,18 +285,18 @@ impl<E> ModuleInstance<E> where E: UserError {
 
 						// export entry points to function in function index space
 						// and Internal::Function points to type in type section
-						{
-							let export_function_type = match export_entry {
-								Internal::Function(function_index) => external_module.function_type(ItemIndex::IndexSpace(function_index))?,
-								_ => return Err(Error::Validation(format!("Export with name {} from module {} is not a function", import.field(), import.module()))),
-							};
-
-							if export_function_type != import_function_type {
-								return Err(Error::Validation(format!("Export function type {} mismatch. Expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-									function_type_index, import_function_type.params(), import_function_type.return_type(),
-									export_function_type.params(), export_function_type.return_type())));
+						match export_entry {
+							Internal::Function(function_index) => {
+								external_module.function_type(ItemIndex::IndexSpace(function_index))?
 							}
-						}
+							_ => {
+								return Err(Error::Validation(format!(
+									"Export with name {} from module {} is not a function",
+									import.field(),
+									import.module()
+								)))
+							}
+						};
 					},
 					&External::Global(ref global_type) => if global_type.is_mutable() {
 						return Err(Error::Validation(format!("trying to import mutable global {}", import.field())));

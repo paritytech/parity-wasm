@@ -125,21 +125,51 @@ impl<'a, E> ModuleInstanceInterface<E> for NativeModuleInstance<'a, E> where E: 
 			let composite_index = NATIVE_INDEX_FUNC_MIN + *index;
 			match required_type {
 				&ExportEntryType::Any => return Ok(Internal::Function(composite_index)),
-				&ExportEntryType::Function(ref required_type)
-					if self.function_type(ItemIndex::Internal(composite_index))
-						.expect("by_name contains index; function_type succeeds for all functions from by_name; qed") == *required_type
-					=> return Ok(Internal::Function(composite_index)),
+				&ExportEntryType::Function(ref required_type) => {
+					let actual_type = self.function_type(ItemIndex::Internal(composite_index))
+						.expect(
+							"by_name contains index; function_type succeeds for all functions from by_name; qed",
+						);
+					return if actual_type == *required_type {
+						Ok(Internal::Function(composite_index))
+					} else {
+						Err(Error::Validation(format!(
+							"Export function type {} mismatch. Expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
+							index,
+							required_type.params(),
+							required_type.return_type(),
+							actual_type.params(),
+							actual_type.return_type()
+						)))
+					};
+				}
 				_ => (),
 			}
 		}
 		if let Some(index) = self.globals_by_name.get(name) {
+			let composite_index = NATIVE_INDEX_GLOBAL_MIN + *index;
 			match required_type {
-				&ExportEntryType::Any => return Ok(Internal::Global(NATIVE_INDEX_GLOBAL_MIN + *index)),
-				&ExportEntryType::Global(ref required_type)
-					if self.globals.get(*index as usize)
-						.expect("globals_by_name maps to indexes of globals; index read from globals_by_name; qed")
-						.variable_type() == *required_type
-					=> return Ok(Internal::Global(NATIVE_INDEX_GLOBAL_MIN + *index)),
+				&ExportEntryType::Any => {
+					return Ok(Internal::Global(composite_index))
+				}
+				&ExportEntryType::Global(ref required_type) => {
+					let actual_type = self.globals
+						.get(*index as usize)
+						.expect(
+							"globals_by_name maps to indexes of globals; index read from globals_by_name; qed",
+						)
+						.variable_type();
+					return if actual_type == *required_type {
+						Ok(Internal::Global(composite_index))
+					} else {
+						Err(Error::Validation(format!(
+							"Export global type {} mismatch. Expected type {:?} when got {:?}",
+							index,
+							required_type,
+							actual_type
+						)))
+					};
+				}
 				_ => (),
 			}
 		}

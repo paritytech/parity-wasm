@@ -76,7 +76,7 @@ fn wrong_import() {
 
 	let program = DefaultProgramInstance::new().unwrap();
 	let _side_module_instance = program.add_module("side_module", side_module, None).unwrap();
-	assert!(program.add_module("main", module, None).is_err());	
+	assert!(program.add_module("main", module, None).is_err());
 }
 
 #[test]
@@ -314,7 +314,7 @@ fn native_env_function_own_memory() {
 	let module_instance = program.add_module("main", module, Some(&params.externals)).unwrap();
 	// now get memory reference
 	let module_memory = module_instance.memory(ItemIndex::Internal(0)).unwrap();
-	// post-initialize our executor with memory reference 
+	// post-initialize our executor with memory reference
 	*memory_ref.memory.borrow_mut() = Some(module_memory);
 
 	// now execute function => executor updates memory
@@ -427,14 +427,29 @@ fn env_native_export_entry_type_check() {
 	};
 	let native_env_instance = Arc::new(env_native_module(program.module("env").unwrap(), UserDefinedElements {
 		executor: Some(&mut function_executor),
-		globals: HashMap::new(),
+		globals: vec![("ext_global".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(1312)).unwrap()))].into_iter().collect(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
 	}).unwrap());
 
 	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], Some(ValueType::I32))))).is_ok());
-	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![], Some(ValueType::I32))))).is_err());
-	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], None)))).is_err());
-	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], Some(ValueType::I64))))).is_err());
+	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![], Some(ValueType::I32))))) {
+		Err(Error::Validation(_)) => { },
+		result => panic!("Unexpected result {:?}.", result),
+	}
+	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], None)))) {
+		Err(Error::Validation(_)) => { },
+		result => panic!("Unexpected result {:?}.", result),
+	}
+	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], Some(ValueType::I64))))) {
+		Err(Error::Validation(_)) => { },
+		result => panic!("Unexpected result {:?}.", result),
+	}
+
+	assert!(native_env_instance.export_entry("ext_global", &ExportEntryType::Global(VariableType::I32)).is_ok());
+	match native_env_instance.export_entry("ext_global", &ExportEntryType::Global(VariableType::F32)) {
+		Err(Error::Validation(_)) => { },
+		result => panic!("Unexpected result {:?}.", result),
+	}
 }
 
 #[test]

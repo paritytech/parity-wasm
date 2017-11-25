@@ -35,7 +35,12 @@ fn unreachable() {
 		Opcode::Unreachable,	// trap
 		Opcode::End]));
 
-	assert_eq!(run_function_i32(&module, 0).unwrap_err(), Error::Trap("programmatic".into()));
+	match run_function_i32(&module, 0) {
+		Err(Error::Trap(msg)) => {
+			assert_eq!(msg, "programmatic");
+		},
+		result => panic!("Unexpected result {:?}", result),
+	}
 }
 
 #[test]
@@ -730,10 +735,24 @@ fn callindirect_2() {
 	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)].into()).unwrap().unwrap(), RuntimeValue::I32(14));
 	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)].into()).unwrap().unwrap(), RuntimeValue::I32(6));
-	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)].into()).unwrap_err(),
-		Error::Function("expected indirect function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)".into()));
-	assert_eq!(module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)].into()).unwrap_err(),
-		Error::Table("trying to read table item with index 3 when there are only 3 items".into()));
+	match module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)].into()) {
+		Err(Error::Function(msg)) => {
+			assert_eq!(
+				&msg,
+				"expected indirect function with signature ([I32, I32]) -> Some(I32) when got with ([I32]) -> Some(I32)"
+			);
+		}
+		result => panic!("Unexpected result {:?}", result),
+	}
+	match module.execute_index(3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)].into()) {
+		Err(Error::Table(msg)) => {
+			assert_eq!(
+				&msg,
+				"trying to read table item with index 3 when there are only 3 items"
+			)
+		},
+		result => panic!("Unexpected result {:?}", result),
+	}
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/select.txt

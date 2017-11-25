@@ -186,7 +186,7 @@ impl UserFunctionExecutor<UserErrorWithCode> for FunctionExecutor {
 				Ok(Some(RuntimeValue::I32(diff as i32)))
 			},
 			"err" => {
-				Err(Error::User(UserErrorWithCode { error_code: 777 }))
+				Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
 			},
 			_ => Err(Error::Trap("not implemented".into()).into()),
 		}
@@ -401,10 +401,29 @@ fn native_custom_error() {
 		.build();
 
 	let module_instance = program.add_module("main", module, Some(&params.externals)).unwrap();
-	assert_eq!(module_instance.execute_index(0, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))),
-		Err(Error::User(UserErrorWithCode { error_code: 777 })));
-	assert_eq!(module_instance.execute_index(1, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))),
-		Err(Error::User(UserErrorWithCode { error_code: 777 })));
+	let user_error1 = match module_instance.execute_index(
+		0,
+		params
+			.clone()
+			.add_argument(RuntimeValue::I32(7))
+			.add_argument(RuntimeValue::I32(0)),
+	) {
+		Err(Error::User(user_error)) => user_error,
+		result => panic!("Unexpected result {:?}", result),
+	};
+	assert_eq!(user_error1.downcast_ref::<UserErrorWithCode>().unwrap(), &UserErrorWithCode { error_code: 777 });
+
+	let user_error2 = match module_instance.execute_index(
+		0,
+		params
+			.clone()
+			.add_argument(RuntimeValue::I32(7))
+			.add_argument(RuntimeValue::I32(0)),
+	) {
+		Err(Error::User(user_error)) => user_error,
+		result => panic!("Unexpected result {:?}", result),
+	};
+	assert_eq!(user_error2.downcast_ref::<UserErrorWithCode>().unwrap(), &UserErrorWithCode { error_code: 777 });
 }
 
 #[test]
@@ -434,21 +453,21 @@ fn env_native_export_entry_type_check() {
 	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], Some(ValueType::I32))))).is_ok());
 	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![], Some(ValueType::I32))))) {
 		Err(Error::Validation(_)) => { },
-		result => panic!("Unexpected result {:?}.", result),
+		result => panic!("Unexpected result {:?}", result),
 	}
 	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], None)))) {
 		Err(Error::Validation(_)) => { },
-		result => panic!("Unexpected result {:?}.", result),
+		result => panic!("Unexpected result {:?}", result),
 	}
 	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], Some(ValueType::I64))))) {
 		Err(Error::Validation(_)) => { },
-		result => panic!("Unexpected result {:?}.", result),
+		result => panic!("Unexpected result {:?}", result),
 	}
 
 	assert!(native_env_instance.export_entry("ext_global", &ExportEntryType::Global(VariableType::I32)).is_ok());
 	match native_env_instance.export_entry("ext_global", &ExportEntryType::Global(VariableType::F32)) {
 		Err(Error::Validation(_)) => { },
-		result => panic!("Unexpected result {:?}.", result),
+		result => panic!("Unexpected result {:?}", result),
 	}
 }
 

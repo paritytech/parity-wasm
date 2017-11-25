@@ -1,11 +1,35 @@
 //! WebAssembly interpreter module.
 
+use std::any::TypeId;
+
 /// Custom user error.
-pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug + Clone + PartialEq {
+pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug {
+	#[doc(hidden)]
+    fn __private_get_type_id__(&self) -> TypeId {
+        TypeId::of::<Self>()
+    }
+}
+
+impl UserError {
+	pub fn downcast_ref<T: UserError>(&self) -> Option<&T> {
+        if self.__private_get_type_id__() == TypeId::of::<T>() {
+            unsafe { Some(&*(self as *const UserError as *const T)) }
+        } else {
+            None
+        }
+    }
+
+	pub fn downcast_mut<T: UserError>(&mut self) -> Option<&mut T> {
+		if self.__private_get_type_id__() == TypeId::of::<T>() {
+            unsafe { Some(&mut *(self as *mut UserError as *mut T)) }
+        } else {
+            None
+        }
+    }
 }
 
 /// Internal interpreter error.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub enum Error<E> where E: UserError {
 	/// Program-level error.
 	Program(String),
@@ -38,7 +62,8 @@ pub enum Error<E> where E: UserError {
 	/// Trap.
 	Trap(String),
 	/// Custom user error.
-	User(E),
+	User(Box<UserError>),
+	Other(E),
 }
 
 impl<E> Into<String> for Error<E> where E: UserError {
@@ -60,6 +85,7 @@ impl<E> Into<String> for Error<E> where E: UserError {
 			Error::Native(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
 			Error::User(e) => format!("user: {}", e),
+			Error::Other(_) => panic!("TODO: Remove this arm "),
 		}
 	}
 }
@@ -83,6 +109,7 @@ impl<E> ::std::fmt::Display for Error<E> where E: UserError {
 			Error::Native(ref s) => write!(f, "Native: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {}", s),
 			Error::User(ref e) => write!(f, "User: {}", e),
+			Error::Other(_) => panic!("TODO: Remove this arm "),
 		}
 	}
 }
@@ -99,7 +126,7 @@ impl ::std::fmt::Display for DummyUserError {
 
 impl<U> From<U> for Error<U> where U: UserError + Sized {
 	fn from(e: U) -> Self {
-		Error::User(e)
+		Error::User(Box::new(e))
 	}
 }
 

@@ -121,12 +121,21 @@ pub struct CallerContext<'a, E: 'a + UserError> {
 }
 
 /// Internal function reference.
-#[derive(Clone)]
 pub struct InternalFunctionReference<'a, E: UserError> {
 	/// Module reference.
 	pub module: Arc<ModuleInstanceInterface<E> + 'a>,
 	/// Internal function index.
 	pub internal_index: u32,
+}
+
+// TODO: This impl should be removed once `E` not needed anymore.
+impl<'a, E> Clone for InternalFunctionReference<'a, E> where E: UserError {
+	fn clone(&self) -> InternalFunctionReference<'a, E> {
+		InternalFunctionReference {
+			module: Arc::clone(&self.module),
+			internal_index: self.internal_index,
+		}
+	}
 }
 
 impl<'a, E> fmt::Debug for InternalFunctionReference<'a, E> where E: UserError {

@@ -30,7 +30,7 @@ impl UserError {
 
 /// Internal interpreter error.
 #[derive(Debug)]
-pub enum Error<E> where E: UserError {
+pub enum Error {
 	/// Program-level error.
 	Program(String),
 	/// Validation error.
@@ -63,10 +63,9 @@ pub enum Error<E> where E: UserError {
 	Trap(String),
 	/// Custom user error.
 	User(Box<UserError>),
-	Other(E),
 }
 
-impl<E> Into<String> for Error<E> where E: UserError {
+impl Into<String> for Error {
 	fn into(self) -> String {
 		match self {
 			Error::Program(s) => s,
@@ -85,12 +84,11 @@ impl<E> Into<String> for Error<E> where E: UserError {
 			Error::Native(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
 			Error::User(e) => format!("user: {}", e),
-			Error::Other(_) => panic!("TODO: Remove this arm "),
 		}
 	}
 }
 
-impl<E> ::std::fmt::Display for Error<E> where E: UserError {
+impl ::std::fmt::Display for Error {
 	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
 		match *self {
 			Error::Program(ref s) => write!(f, "Program: {}", s),
@@ -109,7 +107,6 @@ impl<E> ::std::fmt::Display for Error<E> where E: UserError {
 			Error::Native(ref s) => write!(f, "Native: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {}", s),
 			Error::User(ref e) => write!(f, "User: {}", e),
-			Error::Other(_) => panic!("TODO: Remove this arm "),
 		}
 	}
 }
@@ -124,7 +121,7 @@ impl ::std::fmt::Display for DummyUserError {
 	fn fmt(&self, _f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> { Ok(()) }
 }
 
-impl<U> From<U> for Error<U> where U: UserError + Sized {
+impl<U> From<U> for Error where U: UserError + Sized {
 	fn from(e: U) -> Self {
 		Error::User(Box::new(e))
 	}
@@ -157,16 +154,20 @@ pub use self::env_native::{env_native_module, UserDefinedElements, UserFunctionE
 pub use self::env::EnvParams;
 
 /// Default type of Error if you do not need any custom user errors.
-pub type DummyError = Error<DummyUserError>;
+#[deprecated]
+pub type DummyError = Error;
 
 /// Default type of ProgramInstance if you do not need any custom user errors.
 /// To work with custom user errors or interpreter internals, use CustomProgramInstance.
-pub type DefaultProgramInstance = self::program::ProgramInstance<DummyUserError>;
+#[deprecated]
+pub type DefaultProgramInstance = self::program::ProgramInstance;
 
 /// Default type of ModuleInstance if you do not need any custom user errors.
 /// To work with custom user errors or interpreter internals, use CustomModuleInstance.
-pub type DefaultModuleInstance = self::module::ModuleInstance<DummyUserError>;
+#[deprecated]
+pub type DefaultModuleInstance = self::module::ModuleInstance;
 
 /// Default type of ModuleInstanceInterface if you do not need any custom user errors.
 /// To work with custom user errors or interpreter internals, use CustomModuleInstanceInterface.
-pub type DefaultModuleInstanceInterface = self::module::ModuleInstanceInterface<DummyUserError>;
+#[deprecated]
+pub type DefaultModuleInstanceInterface = self::module::ModuleInstanceInterface;

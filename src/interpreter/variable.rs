@@ -1,7 +1,7 @@
 use std::fmt;
 use parking_lot::RwLock;
 use elements::{GlobalType, ValueType, TableElementType};
-use interpreter::{Error, UserError};
+use interpreter::Error;
 use interpreter::value::RuntimeValue;
 
 /// Variable type.
@@ -20,35 +20,35 @@ pub enum VariableType {
 }
 
 /// Externally stored variable value.
-pub trait ExternalVariableValue<E: UserError> {
+pub trait ExternalVariableValue {
 	/// Get variable value.
 	fn get(&self) -> RuntimeValue;
 	/// Set variable value.
-	fn set(&mut self, value: RuntimeValue) -> Result<(), Error<E>>;
+	fn set(&mut self, value: RuntimeValue) -> Result<(), Error>;
 }
 
 /// Variable instance.
 #[derive(Debug)]
-pub struct VariableInstance<E: UserError> {
+pub struct VariableInstance {
 	/// Is mutable?
 	is_mutable: bool,
 	/// Variable type.
 	variable_type: VariableType,
 	/// Global value.
-	value: RwLock<VariableValue<E>>,
+	value: RwLock<VariableValue>,
 }
 
 /// Enum variable value.
-enum VariableValue<E: UserError> {
+enum VariableValue {
 	/// Internal value.
 	Internal(RuntimeValue),
 	/// External value.
-	External(Box<ExternalVariableValue<E>>),
+	External(Box<ExternalVariableValue>),
 }
 
-impl<E> VariableInstance<E> where E: UserError {
+impl VariableInstance {
 	/// New variable instance
-	pub fn new(is_mutable: bool, variable_type: VariableType, value: RuntimeValue) -> Result<Self, Error<E>> {
+	pub fn new(is_mutable: bool, variable_type: VariableType, value: RuntimeValue) -> Result<Self, Error> {
 		// TODO: there is nothing about null value in specification + there is nothing about initializing missing table elements? => runtime check for nulls
 		if !value.is_null() && value.variable_type() != Some(variable_type) {
 			return Err(Error::Variable(format!("trying to initialize variable of type {:?} with value of type {:?}", variable_type, value.variable_type())));
@@ -62,12 +62,12 @@ impl<E> VariableInstance<E> where E: UserError {
 	}
 
 	/// New global variable
-	pub fn new_global(global_type: &GlobalType, value: RuntimeValue) -> Result<Self, Error<E>> {
+	pub fn new_global(global_type: &GlobalType, value: RuntimeValue) -> Result<Self, Error> {
 		Self::new(global_type.is_mutable(), global_type.content_type().into(), value)
 	}
 
 	/// New global with externally stored value.
-	pub fn new_external_global(is_mutable: bool, variable_type: VariableType, value: Box<ExternalVariableValue<E>>) -> Result<Self, Error<E>> {
+	pub fn new_external_global(is_mutable: bool, variable_type: VariableType, value: Box<ExternalVariableValue>) -> Result<Self, Error> {
 		// TODO: there is nothing about null value in specification + there is nothing about initializing missing table elements? => runtime check for nulls
 		let current_value = value.get();
 		if !current_value.is_null() && current_value.variable_type() != Some(variable_type) {
@@ -97,7 +97,7 @@ impl<E> VariableInstance<E> where E: UserError {
 	}
 
 	/// Set the value of the variable instance
-	pub fn set(&self, value: RuntimeValue) -> Result<(), Error<E>> {
+	pub fn set(&self, value: RuntimeValue) -> Result<(), Error> {
 		if !self.is_mutable {
 			return Err(Error::Variable("trying to update immutable variable".into()));
 		}
@@ -109,7 +109,7 @@ impl<E> VariableInstance<E> where E: UserError {
 	}
 }
 
-impl<E> VariableValue<E> where E: UserError {
+impl VariableValue {
 	fn get(&self) -> RuntimeValue {
 		match *self {
 			VariableValue::Internal(ref value) => value.clone(),
@@ -117,7 +117,7 @@ impl<E> VariableValue<E> where E: UserError {
 		}
 	}
 
-	fn set(&mut self, new_value: RuntimeValue) -> Result<(), Error<E>> {
+	fn set(&mut self, new_value: RuntimeValue) -> Result<(), Error> {
 		match *self {
 			VariableValue::Internal(ref mut value) => {
 				*value = new_value;
@@ -147,7 +147,7 @@ impl From<TableElementType> for VariableType {
 	}
 }
 
-impl<E> fmt::Debug for VariableValue<E> where E: UserError {
+impl fmt::Debug for VariableValue {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			VariableValue::Internal(ref value) => write!(f, "Variable.Internal({:?})", value),

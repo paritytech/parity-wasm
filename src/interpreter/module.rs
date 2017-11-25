@@ -3,7 +3,7 @@ use std::iter::repeat;
 use std::sync::{Arc, Weak};
 use std::fmt;
 use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, BlockType, ResizableLimits, Local, ValueType};
-use interpreter::{Error, UserError};
+use interpreter::Error;
 use interpreter::env_native::UserFunctionDescriptor;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
@@ -22,11 +22,11 @@ const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
 
 /// Execution context.
 #[derive(Clone)]
-pub struct ExecutionParams<'a, E: UserError> {
+pub struct ExecutionParams<'a> {
 	/// Arguments.
 	pub args: Vec<RuntimeValue>,
 	/// Execution-local external modules.
-	pub externals: HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>,
+	pub externals: HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
 }
 
 /// Export type.
@@ -50,31 +50,31 @@ pub enum FunctionSignature<'a> {
 }
 
 /// Module instance API.
-pub trait ModuleInstanceInterface<E: UserError> {
+pub trait ModuleInstanceInterface {
 	/// Execute function with the given index.
-	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>>;
+	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
 	/// Execute function with the given export name.
-	fn execute_export(&self, name: &str, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>>;
+	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
 	/// Get export entry.
-	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error<E>>;
+	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error>;
 	/// Get table reference.
-	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance<E>>, Error<E>>;
+	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error>;
 	/// Get memory reference.
-	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance<E>>, Error<E>>;
+	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error>;
 	/// Get global reference.
-	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<Arc<VariableInstance<E>>, Error<E>>;
+	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error>;
 	/// Get function type for given function index.
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error<E>>;
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error>;
 	/// Get function type for given function index.
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error<E>>;
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error>;
 	/// Get function reference.
-	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<InternalFunctionReference<'a, E>, Error<E>>;
+	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error>;
 	/// Get function indirect reference.
-	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<InternalFunctionReference<'a, E>, Error<E>>;
+	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error>;
 	/// Get internal function for interpretation.
-	fn function_body<'a>(&'a self, internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error<E>>;
+	fn function_body<'a>(&'a self, internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error>;
 	/// Call function with given internal index.
-	fn call_internal_function(&self, outer: CallerContext<E>, index: u32) -> Result<Option<RuntimeValue>, Error<E>>;
+	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error>;
 }
 
 /// Item index in items index space.
@@ -89,7 +89,7 @@ pub enum ItemIndex {
 }
 
 /// Module instance.
-pub struct ModuleInstance<E: UserError> {
+pub struct ModuleInstance {
 	/// Module name.
 	name: String,
 	/// Module.
@@ -97,48 +97,39 @@ pub struct ModuleInstance<E: UserError> {
 	/// Function labels.
 	functions_labels: HashMap<u32, HashMap<usize, usize>>,
 	/// Module imports.
-	imports: ModuleImports<E>,
+	imports: ModuleImports,
 	/// Module exports.
 	exports: HashMap<String, Vec<Internal>>,
 	/// Tables.
-	tables: Vec<Arc<TableInstance<E>>>,
+	tables: Vec<Arc<TableInstance>>,
 	/// Linear memory regions.
-	memory: Vec<Arc<MemoryInstance<E>>>,
+	memory: Vec<Arc<MemoryInstance>>,
 	/// Globals.
-	globals: Vec<Arc<VariableInstance<E>>>,
+	globals: Vec<Arc<VariableInstance>>,
 }
 
 /// Caller context.
-pub struct CallerContext<'a, E: 'a + UserError> {
+pub struct CallerContext<'a> {
 	/// Value stack limit
 	pub value_stack_limit: usize,
 	/// Frame stack limit
 	pub frame_stack_limit: usize,
 	/// Stack of the input parameters
-	pub value_stack: &'a mut StackWithLimit<RuntimeValue, E>,
+	pub value_stack: &'a mut StackWithLimit<RuntimeValue>,
 	/// Execution-local external modules.
-	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>,
+	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
 }
 
 /// Internal function reference.
-pub struct InternalFunctionReference<'a, E: UserError> {
+#[derive(Clone)]
+pub struct InternalFunctionReference<'a> {
 	/// Module reference.
-	pub module: Arc<ModuleInstanceInterface<E> + 'a>,
+	pub module: Arc<ModuleInstanceInterface + 'a>,
 	/// Internal function index.
 	pub internal_index: u32,
 }
 
-// TODO: This impl should be removed once `E` not needed anymore.
-impl<'a, E> Clone for InternalFunctionReference<'a, E> where E: UserError {
-	fn clone(&self) -> InternalFunctionReference<'a, E> {
-		InternalFunctionReference {
-			module: Arc::clone(&self.module),
-			internal_index: self.internal_index,
-		}
-	}
-}
-
-impl<'a, E> fmt::Debug for InternalFunctionReference<'a, E> where E: UserError {
+impl<'a> fmt::Debug for InternalFunctionReference<'a> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "InternalFunctionReference")
 	}
@@ -154,9 +145,9 @@ pub struct InternalFunction<'a> {
 	pub labels: &'a HashMap<usize, usize>,
 }
 
-impl<'a, E> ExecutionParams<'a, E> where E: UserError {
+impl<'a> ExecutionParams<'a> {
 	/// Create new execution params with given externa; module override.
-	pub fn with_external(name: String, module: Arc<ModuleInstanceInterface<E> + 'a>) -> Self {
+	pub fn with_external(name: String, module: Arc<ModuleInstanceInterface + 'a>) -> Self {
 		let mut externals = HashMap::new();
 		externals.insert(name, module);
 		ExecutionParams {
@@ -172,7 +163,7 @@ impl<'a, E> ExecutionParams<'a, E> where E: UserError {
 	}
 }
 
-impl<'a, E> Default for ExecutionParams<'a, E> where E: UserError {
+impl<'a> Default for ExecutionParams<'a> {
 	fn default() -> Self {
 		ExecutionParams {
 			args: Vec::default(),
@@ -181,8 +172,8 @@ impl<'a, E> Default for ExecutionParams<'a, E> where E: UserError {
 	}
 }
 
-impl<'a, E> From<Vec<RuntimeValue>> for ExecutionParams<'a, E> where E: UserError {
-	fn from(args: Vec<RuntimeValue>) -> ExecutionParams<'a, E> {
+impl<'a> From<Vec<RuntimeValue>> for ExecutionParams<'a> {
+	fn from(args: Vec<RuntimeValue>) -> ExecutionParams<'a> {
 		ExecutionParams {
 			args: args,
 			externals: HashMap::new(),
@@ -190,9 +181,9 @@ impl<'a, E> From<Vec<RuntimeValue>> for ExecutionParams<'a, E> where E: UserErro
 	}
 }
 
-impl<E> ModuleInstance<E> where E: UserError {
+impl ModuleInstance {
 	/// Instantiate given module within program context.
-	pub fn new<'a>(program: Weak<ProgramInstanceEssence<E>>, name: String, module: Module) -> Result<Self, Error<E>> {
+	pub fn new<'a>(program: Weak<ProgramInstanceEssence>, name: String, module: Module) -> Result<Self, Error> {
 		// load entries from import section
 		let imports = ModuleImports::new(program, module.import_section());
 
@@ -240,7 +231,7 @@ impl<E> ModuleInstance<E> where E: UserError {
 	}
 
 	/// Run instantiation-time procedures (validation). Module is not completely validated until this call.
-	pub fn instantiate<'a>(&mut self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<(), Error<E>> {
+	pub fn instantiate<'a>(&mut self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
 		// validate start section
 		if let Some(start_function) = self.module.start_section() {
 			let func_type_index = self.require_function(ItemIndex::IndexSpace(start_function))?;
@@ -442,7 +433,7 @@ impl<E> ModuleInstance<E> where E: UserError {
 	}
 
 	/// Run start function [if any].
-	pub fn run_start_function(&self) -> Result<(), Error<E>> {
+	pub fn run_start_function(&self) -> Result<(), Error> {
 		// execute start function (if any)
 		if let Some(start_function) = self.module.start_section() {
 			self.execute_index(start_function, ExecutionParams::default())?;
@@ -450,11 +441,11 @@ impl<E> ModuleInstance<E> where E: UserError {
 		Ok(())
 	}
 
-	fn self_ref<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<Arc<ModuleInstanceInterface<E> + 'a>, Error<E>> {
+	fn self_ref<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
 		self.imports.module(externals, &self.name)
 	}
 
-	fn require_function(&self, index: ItemIndex) -> Result<u32, Error<E>> {
+	fn require_function(&self, index: ItemIndex) -> Result<u32, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.module.function_section()
@@ -474,8 +465,8 @@ impl<E> ModuleInstance<E> where E: UserError {
 	}
 }
 
-impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
-	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
+impl ModuleInstanceInterface for ModuleInstance {
+	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		let ExecutionParams { args, externals } = params;
 		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
 		let function_reference = self.function_reference(ItemIndex::IndexSpace(index), Some(&externals))?;
@@ -483,7 +474,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		function_reference.module.call_internal_function(function_context, function_reference.internal_index)
 	}
 
-	fn execute_export(&self, name: &str, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
+	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		let index = self.exports.get(name)
 			.ok_or(Error::Function(format!("missing executable export with name {}", name)))
 			.and_then(|l| l.iter()
@@ -500,7 +491,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		self.execute_index(index, params)
 	}
 
-	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error<E>> {
+	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
 		self.exports.get(name)
 			.ok_or(Error::Function(format!("missing export entry with name {}", name)))
 			.and_then(|l| l.iter()
@@ -522,7 +513,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 				.ok_or(Error::Program(format!("unresolved export {}", name))))
 	}
 
-	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance<E>>, Error<E>> {
+	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
 		match self.imports.parse_table_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_table_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.tables.get(index as usize).cloned()
@@ -535,7 +526,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		}
 	}
 
-	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance<E>>, Error<E>> {
+	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
 		match self.imports.parse_memory_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_memory_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.memory.get(index as usize).cloned()
@@ -548,7 +539,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		}
 	}
 
-	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<Arc<VariableInstance<E>>, Error<E>> {
+	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error> {
 		match self.imports.parse_global_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_global_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.globals.get(index as usize).cloned()
@@ -561,7 +552,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		}
 	}
 
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error<E>> {
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
 		match self.imports.parse_function_index(function_index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => self.require_function(ItemIndex::Internal(index))
@@ -577,7 +568,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		}
 	}
 
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error<E>> {
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error> {
 		self.module.type_section()
 			.ok_or(Error::Validation(format!("type reference {} exists in module without type section", type_index)))
 			.and_then(|s| match s.types().get(type_index as usize) {
@@ -587,7 +578,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 			.map(FunctionSignature::Module)
 	}
 
-	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<InternalFunctionReference<'a, E>, Error<E>> {
+	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
 		match self.imports.parse_function_index(index) {
 			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
 			ItemIndex::Internal(index) => Ok(InternalFunctionReference {
@@ -609,7 +600,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		}
 	}
 
-	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<InternalFunctionReference<'a, E>, Error<E>> {
+	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
 		let table = self.table(ItemIndex::IndexSpace(table_idx))?;
 		let (module, index) = match table.get(func_idx)? {
 			RuntimeValue::AnyFunc(module, index) => (module.clone(), index),
@@ -628,7 +619,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		module.function_reference(ItemIndex::IndexSpace(index), externals)
 	}
 
-	fn function_body<'a>(&'a self, internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error<E>> {
+	fn function_body<'a>(&'a self, internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error> {
 		let function_body = self.module
 			.code_section()
 			.ok_or(Error::Function(format!("trying to call function with index {} in module without code section", internal_index)))
@@ -645,7 +636,7 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 		}))
 	}
 
-	fn call_internal_function(&self, outer: CallerContext<E>, index: u32) -> Result<Option<RuntimeValue>, Error<E>> {
+	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
 		let function_type = self.function_type(ItemIndex::Internal(index))?;
 		let args = prepare_function_args(&function_type, outer.value_stack)?;
 		let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };
@@ -654,9 +645,9 @@ impl<E> ModuleInstanceInterface<E> for ModuleInstance<E> where E: UserError {
 	}
 }
 
-impl<'a, E> CallerContext<'a, E> where E: UserError {
+impl<'a> CallerContext<'a> {
 	/// Top most args
-	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue, E>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>) -> Self {
+	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>) -> Self {
 		CallerContext {
 			value_stack_limit: DEFAULT_VALUE_STACK_LIMIT,
 			frame_stack_limit: DEFAULT_FRAME_STACK_LIMIT,
@@ -666,7 +657,7 @@ impl<'a, E> CallerContext<'a, E> where E: UserError {
 	}
 
 	/// Nested context
-	pub fn nested(outer: &'a mut FunctionContext<E>) -> Self {
+	pub fn nested(outer: &'a mut FunctionContext) -> Self {
 		CallerContext {
 			value_stack_limit: outer.value_stack().limit() - outer.value_stack().len(),
 			frame_stack_limit: outer.frame_stack().limit() - outer.frame_stack().len(),
@@ -676,7 +667,7 @@ impl<'a, E> CallerContext<'a, E> where E: UserError {
 	}
 }
 
-pub fn check_limits<E: UserError>(limits: &ResizableLimits) -> Result<(), Error<E>> {
+pub fn check_limits(limits: &ResizableLimits) -> Result<(), Error> {
 	if let Some(maximum) = limits.maximum() {
 		if maximum < limits.initial() {
 			return Err(Error::Validation(format!("maximum limit {} is lesser than minimum {}", maximum, limits.initial())));
@@ -686,7 +677,7 @@ pub fn check_limits<E: UserError>(limits: &ResizableLimits) -> Result<(), Error<
 	Ok(())
 }
 
-fn get_initializer<E: UserError>(expr: &InitExpr, module: &Module, imports: &ModuleImports<E>, expected_type: VariableType) -> Result<RuntimeValue, Error<E>> {
+fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports, expected_type: VariableType) -> Result<RuntimeValue, Error> {
 	let first_opcode = match expr.code().len() {
 		1 => &expr.code()[0],
 		2 if expr.code().len() == 2 && expr.code()[1] == Opcode::End => &expr.code()[0],

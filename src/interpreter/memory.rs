@@ -4,7 +4,7 @@ use std::ops::Range;
 use std::cmp;
 use parking_lot::RwLock;
 use elements::{MemoryType, ResizableLimits};
-use interpreter::{Error, UserError};
+use interpreter::Error;
 use interpreter::module::check_limits;
 
 /// Linear memory page size.
@@ -13,15 +13,13 @@ pub const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
 const LINEAR_MEMORY_MAX_PAGES: u32 = 65536;
 
 /// Linear memory instance.
-pub struct MemoryInstance<E: UserError> {
+pub struct MemoryInstance {
 	/// Memofy limits.
 	limits: ResizableLimits,
 	/// Linear memory buffer.
 	buffer: RwLock<Vec<u8>>,
 	/// Maximum buffer size.
 	maximum_size: u32,
-	/// Dummy to avoid compilation error.
-	_dummy: ::std::marker::PhantomData<E>,
 }
 
 struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {
@@ -47,9 +45,9 @@ impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> 
 	}
 }
 
-impl<E> MemoryInstance<E> where E: UserError {
+impl MemoryInstance {
 	/// Create new linear memory instance.
-	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error<E>> {
+	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error> {
 		check_limits(memory_type.limits())?;
 
 		let maximum_size = match memory_type.limits().maximum() {
@@ -65,7 +63,6 @@ impl<E> MemoryInstance<E> where E: UserError {
 			limits: memory_type.limits().clone(),
 			buffer: RwLock::new(vec![0; initial_size as usize]),
 			maximum_size: maximum_size,
-			_dummy: Default::default(),
 		};
 
 		Ok(Arc::new(memory))
@@ -82,7 +79,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 	}
 
 	/// Get data at given offset.
-	pub fn get(&self, offset: u32, size: usize) -> Result<Vec<u8>, Error<E>> {
+	pub fn get(&self, offset: u32, size: usize) -> Result<Vec<u8>, Error> {
 		let buffer = self.buffer.read();
 		let region = self.checked_region(&buffer, offset as usize, size)?;
 
@@ -90,7 +87,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 	}
 
 	/// Write memory slice into another slice
-	pub fn get_into(&self, offset: u32, target: &mut [u8]) -> Result<(), Error<E>> {
+	pub fn get_into(&self, offset: u32, target: &mut [u8]) -> Result<(), Error> {
 		let buffer = self.buffer.read();
 		let region = self.checked_region(&buffer, offset as usize, target.len())?;
 
@@ -100,7 +97,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 	}
 
 	/// Set data at given offset.
-	pub fn set(&self, offset: u32, value: &[u8]) -> Result<(), Error<E>> {
+	pub fn set(&self, offset: u32, value: &[u8]) -> Result<(), Error> {
 		let mut buffer = self.buffer.write();
 		let range = self.checked_region(&buffer, offset as usize, value.len())?.range();
 
@@ -111,7 +108,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 
 	/// Increases the size of the linear memory by given number of pages.
 	/// Returns -1 if allocation fails or previous memory size, if succeeds.
-	pub fn grow(&self, pages: u32) -> Result<u32, Error<E>> {
+	pub fn grow(&self, pages: u32) -> Result<u32, Error> {
 		let mut buffer = self.buffer.write();
 		let old_size = buffer.len() as u32;
 		match calculate_memory_size(old_size, pages, self.maximum_size) {
@@ -123,7 +120,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 		}
 	}
 
-	fn checked_region<'a, B>(&self, buffer: &'a B, offset: usize, size: usize) -> Result<CheckedRegion<'a, B>, Error<E>>
+	fn checked_region<'a, B>(&self, buffer: &'a B, offset: usize, size: usize) -> Result<CheckedRegion<'a, B>, Error>
 		where B: ::std::ops::Deref<Target=Vec<u8>>
 	{
 		let end = offset.checked_add(size)
@@ -141,7 +138,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 	}
 
 	/// Copy memory region. Semantically equivalent to `memmove`.
-	pub fn copy(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error<E>> {
+	pub fn copy(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error> {
 		let buffer = self.buffer.write();
 
 		let read_region = self.checked_region(&buffer, src_offset, len)?;
@@ -158,7 +155,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 
 	/// Copy memory region, non-overlapping version. Semantically equivalent to `memcpy`,
 	/// but returns Error if source overlaping with destination.
-	pub fn copy_nonoverlapping(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error<E>> {
+	pub fn copy_nonoverlapping(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error> {
 		let buffer = self.buffer.write();
 
 		let read_region = self.checked_region(&buffer, src_offset, len)?;
@@ -178,7 +175,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 	}
 
 	/// Clear memory region with a specified value. Semantically equivalent to `memset`.
-	pub fn clear(&self, offset: usize, new_val: u8, len: usize) -> Result<(), Error<E>> {
+	pub fn clear(&self, offset: usize, new_val: u8, len: usize) -> Result<(), Error> {
 		let mut buffer = self.buffer.write();
 
 		let range = self.checked_region(&buffer, offset, len)?.range();
@@ -187,7 +184,7 @@ impl<E> MemoryInstance<E> where E: UserError {
 	}
 
 	/// Zero memory region
-	pub fn zero(&self, offset: usize, len: usize) -> Result<(), Error<E>> {
+	pub fn zero(&self, offset: usize, len: usize) -> Result<(), Error> {
 		self.clear(offset, 0, len)
 	}
 }

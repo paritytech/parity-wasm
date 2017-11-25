@@ -1,32 +1,28 @@
 use std::collections::VecDeque;
-use interpreter::{Error, UserError};
+use interpreter::Error;
 use interpreter::value::{RuntimeValue, TryInto};
 
 /// Stack with limit.
 #[derive(Debug)]
-pub struct StackWithLimit<T, E> where T: Clone, E: UserError {
+pub struct StackWithLimit<T> where T: Clone {
 	/// Stack values.
 	values: VecDeque<T>,
 	/// Stack limit (maximal stack len).
 	limit: usize,
-	/// Dummy to avoid compilation error.
-	_dummy: ::std::marker::PhantomData<E>,
 }
 
-impl<T, E> StackWithLimit<T, E> where T: Clone, E: UserError {
+impl<T> StackWithLimit<T> where T: Clone {
 	pub fn with_data(data: Vec<T>, limit: usize) -> Self {
 		StackWithLimit {
 			values: data.into_iter().collect(),
-			limit: limit,
-			_dummy: Default::default(),
+			limit: limit
 		}
 	}
-	
+
 	pub fn with_limit(limit: usize) -> Self {
 		StackWithLimit {
 			values: VecDeque::new(),
-			limit: limit,
-			_dummy: Default::default(),
+			limit: limit
 		}
 	}
 
@@ -46,19 +42,19 @@ impl<T, E> StackWithLimit<T, E> where T: Clone, E: UserError {
 		&self.values
 	}
 
-	pub fn top(&self) -> Result<&T, Error<E>> {
+	pub fn top(&self) -> Result<&T, Error> {
 		self.values
 			.back()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
 	}
 
-	pub fn top_mut(&mut self) -> Result<&mut T, Error<E>> {
+	pub fn top_mut(&mut self) -> Result<&mut T, Error> {
 		self.values
 			.back_mut()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
 	}
 
-	pub fn get(&self, index: usize) -> Result<&T, Error<E>> {
+	pub fn get(&self, index: usize) -> Result<&T, Error> {
 		if index >= self.values.len() {
 			return Err(Error::Stack(format!("trying to get value at position {} on stack of size {}", index, self.values.len())));
 		}
@@ -66,7 +62,7 @@ impl<T, E> StackWithLimit<T, E> where T: Clone, E: UserError {
 		Ok(self.values.get(self.values.len() - 1 - index).expect("checked couple of lines above"))
 	}
 
-	pub fn push(&mut self, value: T) -> Result<(), Error<E>> {
+	pub fn push(&mut self, value: T) -> Result<(), Error> {
 		if self.values.len() >= self.limit {
 			return Err(Error::Stack(format!("exceeded stack limit {}", self.limit)));
 		}
@@ -75,7 +71,7 @@ impl<T, E> StackWithLimit<T, E> where T: Clone, E: UserError {
 		Ok(())
 	}
 
-	pub fn push_penultimate(&mut self, value: T) -> Result<(), Error<E>> {
+	pub fn push_penultimate(&mut self, value: T) -> Result<(), Error> {
 		if self.values.is_empty() {
 			return Err(Error::Stack("trying to insert penultimate element into empty stack".into()));
 		}
@@ -88,7 +84,7 @@ impl<T, E> StackWithLimit<T, E> where T: Clone, E: UserError {
 		Ok(())
 	}
 
-	pub fn pop(&mut self) -> Result<T, Error<E>> {
+	pub fn pop(&mut self) -> Result<T, Error> {
 		self.values
 			.pop_back()
 			.ok_or(Error::Stack("non-empty stack expected".into()))
@@ -100,26 +96,26 @@ impl<T, E> StackWithLimit<T, E> where T: Clone, E: UserError {
 	}
 }
 
-impl<E> StackWithLimit<RuntimeValue, E> where E: UserError {
-	pub fn pop_as<T>(&mut self) -> Result<T, Error<E>>
-		where RuntimeValue: TryInto<T, Error<E>> {
+impl StackWithLimit<RuntimeValue> {
+	pub fn pop_as<T>(&mut self) -> Result<T, Error>
+		where RuntimeValue: TryInto<T, Error> {
 		self.pop().and_then(TryInto::try_into)
 	}
 
-	pub fn pop_pair(&mut self) -> Result<(RuntimeValue, RuntimeValue), Error<E>> {
+	pub fn pop_pair(&mut self) -> Result<(RuntimeValue, RuntimeValue), Error> {
 		let right = self.pop()?;
 		let left = self.pop()?;
 		Ok((left, right))
 	}
 
-	pub fn pop_pair_as<T>(&mut self) -> Result<(T, T), Error<E>>
-		where RuntimeValue: TryInto<T, Error<E>> {
+	pub fn pop_pair_as<T>(&mut self) -> Result<(T, T), Error>
+		where RuntimeValue: TryInto<T, Error> {
 		let right = self.pop_as()?;
 		let left = self.pop_as()?;
 		Ok((left, right))
 	}
 
-	pub fn pop_triple(&mut self) -> Result<(RuntimeValue, RuntimeValue, RuntimeValue), Error<E>> {
+	pub fn pop_triple(&mut self) -> Result<(RuntimeValue, RuntimeValue, RuntimeValue), Error> {
 		let right = self.pop()?;
 		let mid = self.pop()?;
 		let left = self.pop()?;

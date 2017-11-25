@@ -129,12 +129,12 @@ struct MeasuredVariable {
 	pub val: i32,
 }
 
-impl ExternalVariableValue<UserErrorWithCode> for MeasuredVariable {
+impl ExternalVariableValue for MeasuredVariable {
 	fn get(&self) -> RuntimeValue {
 		RuntimeValue::I32(self.val)
 	}
 
-	fn set(&mut self, val: RuntimeValue) -> Result<(), Error<UserErrorWithCode>> {
+	fn set(&mut self, val: RuntimeValue) -> Result<(), Error> {
 		self.val = val.try_into()?;
 		Ok(())
 	}
@@ -156,12 +156,12 @@ impl UserError for UserErrorWithCode {}
 
 // user function executor
 struct FunctionExecutor {
-	pub memory: Arc<MemoryInstance<UserErrorWithCode>>,
+	pub memory: Arc<MemoryInstance>,
 	pub values: Vec<i32>,
 }
 
-impl UserFunctionExecutor<UserErrorWithCode> for FunctionExecutor {
-	fn execute(&mut self, name: &str, context: CallerContext<UserErrorWithCode>) -> Result<Option<RuntimeValue>, Error<UserErrorWithCode>> {
+impl UserFunctionExecutor for FunctionExecutor {
+	fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 		match name {
 			"add" => {
 				let memory_value = self.memory.get(0, 1).unwrap()[0];
@@ -259,14 +259,14 @@ fn native_env_function_own_memory() {
 	let program = ProgramInstance::new().unwrap();
 
 	struct OwnMemoryReference {
-		pub memory: RefCell<Option<Arc<MemoryInstance<UserErrorWithCode>>>>,
+		pub memory: RefCell<Option<Arc<MemoryInstance>>>,
 	}
 	struct OwnMemoryExecutor {
 		pub memory_ref: Arc<OwnMemoryReference>,
 	}
 
-	impl UserFunctionExecutor<UserErrorWithCode> for OwnMemoryExecutor {
-		fn execute(&mut self, name: &str, context: CallerContext<UserErrorWithCode>) -> Result<Option<RuntimeValue>, Error<UserErrorWithCode>> {
+	impl UserFunctionExecutor for OwnMemoryExecutor {
+		fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 			match name {
 				"add" => {
 					let memory = self.memory_ref.memory.borrow_mut().as_ref().expect("initialized before execution; qed").clone();

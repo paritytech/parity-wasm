@@ -208,7 +208,7 @@ mod tests {
 	use elements::MemoryType;
 	use std::sync::Arc;
 
-	fn create_memory(initial_content: &[u8]) -> Arc<MemoryInstance<DummyUserError>> {
+	fn create_memory(initial_content: &[u8]) -> Arc<MemoryInstance> {
 		let mem = MemoryInstance::new(&MemoryType::new(1, Some(1)))
 			.expect("MemoryInstance created successfuly");
 		mem.set(0, initial_content).expect("Successful initialize the memory");
@@ -269,7 +269,7 @@ mod tests {
 
 	#[test]
 	fn get_into() {
-		let mem = MemoryInstance::<DummyUserError>::new(&MemoryType::new(1, None)).expect("memory instance creation should not fail");
+		let mem = MemoryInstance::new(&MemoryType::new(1, None)).expect("memory instance creation should not fail");
 		mem.set(6, &[13, 17, 129]).expect("memory set should not fail");
 
 		let mut data = [0u8; 2];

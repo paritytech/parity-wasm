@@ -11,10 +11,9 @@ use test;
 use parity_wasm::{self, elements, builder};
 use parity_wasm::interpreter::{
     RuntimeValue,
-    DefaultProgramInstance, DefaultModuleInstance, 
+    ProgramInstance, ModuleInstance,
     ItemIndex, ExportEntryType,
     Error as InterpreterError,
-    DummyError as DummyInterpreterError,
 };
 
 fn spec_test_module() -> elements::Module {
@@ -42,7 +41,7 @@ fn spec_test_module() -> elements::Module {
         .build()
 }
 
-fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &DefaultProgramInstance) -> Arc<DefaultModuleInstance> {
+fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &ProgramInstance) -> Arc<ModuleInstance> {
     let module = try_deserialize(base_dir, path).expect(&format!("Wasm file {} failed to load", path));
 
     program.add_module("spectest", spec_test_module(), None).expect("Failed adding 'spectest' module");
@@ -58,9 +57,9 @@ fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module
     parity_wasm::deserialize_file(&wasm_path)
 }
 
-fn try_load(base_dir: &str, module_path: &str) -> Result<(), DummyInterpreterError> {
+fn try_load(base_dir: &str, module_path: &str) -> Result<(), InterpreterError> {
     let module = try_deserialize(base_dir, module_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
-    let program = DefaultProgramInstance::new().expect("Failed creating program");
+    let program = ProgramInstance::new().expect("Failed creating program");
     program.add_module("try_load", module, None).map(|_| ())
 }
 
@@ -90,8 +89,8 @@ fn runtime_values(test_vals: &[test::RuntimeValue]) -> Vec<parity_wasm::RuntimeV
     test_vals.iter().map(runtime_value).collect::<Vec<parity_wasm::RuntimeValue>>()
 }
 
-fn run_action(program: &DefaultProgramInstance, action: &test::Action) 
-    -> Result<Option<parity_wasm::RuntimeValue>, DummyInterpreterError> 
+fn run_action(program: &ProgramInstance, action: &test::Action)
+    -> Result<Option<parity_wasm::RuntimeValue>, InterpreterError>
 {
     match *action {
         test::Action::Invoke { ref module, ref field, ref args } => {
@@ -149,7 +148,7 @@ pub fn run_wast2wasm(name: &str) -> FixtureParams {
                 true
             } else {
                 false
-            }     
+            }
         }
     }
 }
@@ -166,14 +165,14 @@ pub fn spec(name: &str) {
 
     let fixture = run_wast2wasm(name);
     if fixture.failing {
-         panic!("wasm2wast terminated abnormally, expected to success");        
+         panic!("wasm2wast terminated abnormally, expected to success");
     }
 
     let mut f = File::open(&fixture.json)
         .expect(&format!("Failed to load json file {}", &fixture.json));
     let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
-    let program = DefaultProgramInstance::new().expect("Failed creating program");
+    let program = ProgramInstance::new().expect("Failed creating program");
     let mut last_module = None;
     for command in &spec.commands {
         println!("command {:?}", command);
@@ -241,7 +240,7 @@ pub fn spec(name: &str) {
                         panic!("Expected action to result in a trap, got result: {:?}", result);
                     },
                     Err(e) => {
-                        println!("assert_trap at line {} - success ({:?})", line, e);                    
+                        println!("assert_trap at line {} - success ({:?})", line, e);
                     }
                 }
             },

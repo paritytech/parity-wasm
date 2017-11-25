@@ -5,27 +5,30 @@ use std::any::TypeId;
 /// Custom user error.
 pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug {
 	#[doc(hidden)]
-    fn __private_get_type_id__(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
+	fn __private_get_type_id__(&self) -> TypeId {
+		TypeId::of::<Self>()
+	}
 }
 
 impl UserError {
+	/// Attempt to downcast this `UserError` to a concrete type by reference.
 	pub fn downcast_ref<T: UserError>(&self) -> Option<&T> {
-        if self.__private_get_type_id__() == TypeId::of::<T>() {
-            unsafe { Some(&*(self as *const UserError as *const T)) }
-        } else {
-            None
-        }
-    }
+		if self.__private_get_type_id__() == TypeId::of::<T>() {
+			unsafe { Some(&*(self as *const UserError as *const T)) }
+		} else {
+			None
+		}
+	}
 
+	/// Attempt to downcast this `UserError` to a concrete type by mutable
+	/// reference.
 	pub fn downcast_mut<T: UserError>(&mut self) -> Option<&mut T> {
 		if self.__private_get_type_id__() == TypeId::of::<T>() {
-            unsafe { Some(&mut *(self as *mut UserError as *mut T)) }
-        } else {
-            None
-        }
-    }
+			unsafe { Some(&mut *(self as *mut UserError as *mut T)) }
+		} else {
+			None
+		}
+	}
 }
 
 /// Internal interpreter error.
@@ -111,16 +114,6 @@ impl ::std::fmt::Display for Error {
 	}
 }
 
-/// Dummy user error.
-#[derive(Debug, Clone, PartialEq)]
-pub struct DummyUserError;
-
-impl UserError for DummyUserError {}
-
-impl ::std::fmt::Display for DummyUserError {
-	fn fmt(&self, _f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> { Ok(()) }
-}
-
 impl<U> From<U> for Error where U: UserError + Sized {
 	fn from(e: U) -> Self {
 		Error::User(Box::new(e))
@@ -152,22 +145,3 @@ pub use self::value::RuntimeValue;
 pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
 pub use self::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 pub use self::env::EnvParams;
-
-/// Default type of Error if you do not need any custom user errors.
-#[deprecated]
-pub type DummyError = Error;
-
-/// Default type of ProgramInstance if you do not need any custom user errors.
-/// To work with custom user errors or interpreter internals, use CustomProgramInstance.
-#[deprecated]
-pub type DefaultProgramInstance = self::program::ProgramInstance;
-
-/// Default type of ModuleInstance if you do not need any custom user errors.
-/// To work with custom user errors or interpreter internals, use CustomModuleInstance.
-#[deprecated]
-pub type DefaultModuleInstance = self::module::ModuleInstance;
-
-/// Default type of ModuleInstanceInterface if you do not need any custom user errors.
-/// To work with custom user errors or interpreter internals, use CustomModuleInstanceInterface.
-#[deprecated]
-pub type DefaultModuleInstanceInterface = self::module::ModuleInstanceInterface;

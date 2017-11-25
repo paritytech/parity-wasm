@@ -204,7 +204,7 @@ fn calculate_memory_size(old_size: u32, additional_pages: u32, maximum_size: u32
 mod tests {
 
 	use super::MemoryInstance;
-	use interpreter::{Error, DummyUserError};
+	use interpreter::Error;
 	use elements::MemoryType;
 	use std::sync::Arc;
 

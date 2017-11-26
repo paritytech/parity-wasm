@@ -2,44 +2,44 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use parking_lot::RwLock;
 use elements::Module;
-use interpreter::{Error, UserError};
+use interpreter::Error;
 use interpreter::env::{self, env_module};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface};
 
 /// Program instance. Program is a set of instantiated modules.
-pub struct ProgramInstance<E: UserError> {
+pub struct ProgramInstance {
 	/// Shared data reference.
-	essence: Arc<ProgramInstanceEssence<E>>,
+	essence: Arc<ProgramInstanceEssence>,
 }
 
 /// Program instance essence.
-pub struct ProgramInstanceEssence<E: UserError> {
+pub struct ProgramInstanceEssence {
 	/// Loaded modules.
-	modules: RwLock<HashMap<String, Arc<ModuleInstanceInterface<E>>>>,
+	modules: RwLock<HashMap<String, Arc<ModuleInstanceInterface>>>,
 }
 
-impl<E> ProgramInstance<E> where E: UserError {
+impl ProgramInstance {
 	/// Create new program instance.
-	pub fn new() -> Result<Self, Error<E>> {
+	pub fn new() -> Result<Self, Error> {
 		ProgramInstance::with_env_params(env::EnvParams::default())
 	}
 
 	/// Create new program instance with custom env module params (mostly memory)
-	pub fn with_env_params(params: env::EnvParams) -> Result<Self, Error<E>> {
+	pub fn with_env_params(params: env::EnvParams) -> Result<Self, Error> {
 		Ok(ProgramInstance {
 			essence: Arc::new(ProgramInstanceEssence::with_env_params(params)?),
 		})
 	}
 
 	/// Create a new program instance with a custom env module
-	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface<E>>) -> Self {
+	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface>) -> Self {
 		ProgramInstance {
 			essence: Arc::new(ProgramInstanceEssence::with_env_module(env_module)),
 		}
 	}
 
 	/// Instantiate module with validation.
-	pub fn add_module<'a>(&self, name: &str, module: Module, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<Arc<ModuleInstance<E>>, Error<E>> {
+	pub fn add_module<'a>(&self, name: &str, module: Module, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstance>, Error> {
 		let mut module_instance = ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?;
 		module_instance.instantiate(externals)?;
 
@@ -50,30 +50,30 @@ impl<E> ProgramInstance<E> where E: UserError {
 	}
 
 	/// Insert instantiated module.
-	pub fn insert_loaded_module(&self, name: &str, module_instance: Arc<ModuleInstance<E>>) -> Result<Arc<ModuleInstance<E>>, Error<E>> {
+	pub fn insert_loaded_module(&self, name: &str, module_instance: Arc<ModuleInstance>) -> Result<Arc<ModuleInstance>, Error> {
 		// replace existing module with the same name with new one
 		self.essence.modules.write().insert(name.into(), module_instance.clone());
 		Ok(module_instance)
 	}
 
 	/// Get one of the modules by name
-	pub fn module(&self, name: &str) -> Option<Arc<ModuleInstanceInterface<E>>> {
+	pub fn module(&self, name: &str) -> Option<Arc<ModuleInstanceInterface>> {
 		self.essence.module(name)
 	}
 }
 
-impl<E> ProgramInstanceEssence<E> where E: UserError {
+impl ProgramInstanceEssence {
 	/// Create new program essence.
-	pub fn new() -> Result<Self, Error<E>> {
+	pub fn new() -> Result<Self, Error> {
 		ProgramInstanceEssence::with_env_params(env::EnvParams::default())
 	}
 
-	pub fn with_env_params(env_params: env::EnvParams) -> Result<Self, Error<E>> {
+	pub fn with_env_params(env_params: env::EnvParams) -> Result<Self, Error> {
 		let env_mod = env_module(env_params)?;
 		Ok(ProgramInstanceEssence::with_env_module(Arc::new(env_mod)))
 	}
 
-	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface<E>>) -> Self {
+	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface>) -> Self {
 		let mut modules = HashMap::new();
 		modules.insert("env".into(), env_module);
 		ProgramInstanceEssence {
@@ -83,7 +83,7 @@ impl<E> ProgramInstanceEssence<E> where E: UserError {
 
 
 	/// Get module reference.
-	pub fn module(&self, name: &str) -> Option<Arc<ModuleInstanceInterface<E>>> {
+	pub fn module(&self, name: &str) -> Option<Arc<ModuleInstanceInterface>> {
 		self.modules.read().get(name).cloned()
 	}
 }

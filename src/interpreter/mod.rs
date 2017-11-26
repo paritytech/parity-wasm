@@ -1,12 +1,39 @@
 //! WebAssembly interpreter module.
 
+use std::any::TypeId;
+
 /// Custom user error.
-pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug + Clone + PartialEq {
+pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug {
+	#[doc(hidden)]
+	fn __private_get_type_id__(&self) -> TypeId {
+		TypeId::of::<Self>()
+	}
+}
+
+impl UserError {
+	/// Attempt to downcast this `UserError` to a concrete type by reference.
+	pub fn downcast_ref<T: UserError>(&self) -> Option<&T> {
+		if self.__private_get_type_id__() == TypeId::of::<T>() {
+			unsafe { Some(&*(self as *const UserError as *const T)) }
+		} else {
+			None
+		}
+	}
+
+	/// Attempt to downcast this `UserError` to a concrete type by mutable
+	/// reference.
+	pub fn downcast_mut<T: UserError>(&mut self) -> Option<&mut T> {
+		if self.__private_get_type_id__() == TypeId::of::<T>() {
+			unsafe { Some(&mut *(self as *mut UserError as *mut T)) }
+		} else {
+			None
+		}
+	}
 }
 
 /// Internal interpreter error.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Error<E> where E: UserError {
+#[derive(Debug)]
+pub enum Error {
 	/// Program-level error.
 	Program(String),
 	/// Validation error.
@@ -38,10 +65,10 @@ pub enum Error<E> where E: UserError {
 	/// Trap.
 	Trap(String),
 	/// Custom user error.
-	User(E),
+	User(Box<UserError>),
 }
 
-impl<E> Into<String> for Error<E> where E: UserError {
+impl Into<String> for Error {
 	fn into(self) -> String {
 		match self {
 			Error::Program(s) => s,
@@ -64,7 +91,7 @@ impl<E> Into<String> for Error<E> where E: UserError {
 	}
 }
 
-impl<E> ::std::fmt::Display for Error<E> where E: UserError {
+impl ::std::fmt::Display for Error {
 	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
 		match *self {
 			Error::Program(ref s) => write!(f, "Program: {}", s),
@@ -87,19 +114,9 @@ impl<E> ::std::fmt::Display for Error<E> where E: UserError {
 	}
 }
 
-/// Dummy user error.
-#[derive(Debug, Clone, PartialEq)]
-pub struct DummyUserError;
-
-impl UserError for DummyUserError {}
-
-impl ::std::fmt::Display for DummyUserError {
-	fn fmt(&self, _f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> { Ok(()) }
-}
-
-impl<U> From<U> for Error<U> where U: UserError + Sized {
+impl<U> From<U> for Error where U: UserError + Sized {
 	fn from(e: U) -> Self {
-		Error::User(e)
+		Error::User(Box::new(e))
 	}
 }
 
@@ -128,18 +145,3 @@ pub use self::value::RuntimeValue;
 pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
 pub use self::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 pub use self::env::EnvParams;
-
-/// Default type of Error if you do not need any custom user errors.
-pub type DummyError = Error<DummyUserError>;
-
-/// Default type of ProgramInstance if you do not need any custom user errors.
-/// To work with custom user errors or interpreter internals, use CustomProgramInstance.
-pub type DefaultProgramInstance = self::program::ProgramInstance<DummyUserError>;
-
-/// Default type of ModuleInstance if you do not need any custom user errors.
-/// To work with custom user errors or interpreter internals, use CustomModuleInstance.
-pub type DefaultModuleInstance = self::module::ModuleInstance<DummyUserError>;
-
-/// Default type of ModuleInstanceInterface if you do not need any custom user errors.
-/// To work with custom user errors or interpreter internals, use CustomModuleInstanceInterface.
-pub type DefaultModuleInstanceInterface = self::module::ModuleInstanceInterface<DummyUserError>;

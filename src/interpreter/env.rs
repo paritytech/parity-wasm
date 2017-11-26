@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use builder::module;
 use elements::{Module, ExportEntry, Internal, GlobalEntry, GlobalType,
 	ValueType, InitExpr, Opcode, Opcodes};
-use interpreter::{Error, UserError};
+use interpreter::Error;
 use interpreter::env_native::NATIVE_INDEX_FUNC_MIN;
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
 	ItemIndex, CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
@@ -84,13 +84,13 @@ pub struct EnvParams {
 	pub static_size: Option<u32>,
 }
 
-pub struct EnvModuleInstance<E: UserError> {
+pub struct EnvModuleInstance {
 	_params: EnvParams,
-	instance: ModuleInstance<E>,
+	instance: ModuleInstance,
 }
 
-impl<E> EnvModuleInstance<E> where E: UserError {
-	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error<E>> {
+impl EnvModuleInstance {
+	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
 		let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 		instance.instantiate(None)?;
 
@@ -101,52 +101,52 @@ impl<E> EnvModuleInstance<E> where E: UserError {
 	}
 }
 
-impl<E> ModuleInstanceInterface<E> for EnvModuleInstance<E> where E: UserError {
-	fn execute_index(&self, index: u32, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
+impl ModuleInstanceInterface for EnvModuleInstance {
+	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.instance.execute_index(index, params)
 	}
 
-	fn execute_export(&self, name: &str, params: ExecutionParams<E>) -> Result<Option<RuntimeValue>, Error<E>> {
+	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.instance.execute_export(name, params)
 	}
 
-	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error<E>> {
+	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
 		self.instance.export_entry(name, required_type)
 	}
 
-	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance<E>>, Error<E>> {
+	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
 		self.instance.table(index)
 	}
 
-	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance<E>>, Error<E>> {
+	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
 		self.instance.memory(index)
 	}
 
-	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<Arc<VariableInstance<E>>, Error<E>> {
+	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error> {
 		self.instance.global(index, variable_type, externals)
 	}
 
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error<E>> {
+	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
 		self.instance.function_type(function_index)
 	}
 
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error<E>> {
+	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error> {
 		self.instance.function_type_by_index(type_index)
 	}
 
-	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<InternalFunctionReference<'a, E>, Error<E>> {
+	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
 		self.instance.function_reference(index, externals)
 	}
 
-	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface<E> + 'a>>>) -> Result<InternalFunctionReference<'a, E>, Error<E>> {
+	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
 		self.instance.function_reference_indirect(table_idx, type_idx, func_idx, externals)
 	}
 
-	fn function_body<'a>(&'a self, _internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error<E>> {
+	fn function_body<'a>(&'a self, _internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error> {
 		Ok(None)
 	}
 
-	fn call_internal_function(&self, outer: CallerContext<E>, index: u32) -> Result<Option<RuntimeValue>, Error<E>> {
+	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
 		// to make interpreter independent of *SCRIPTEN runtime, just make abort/assert = interpreter Error
 		match index {
 			INDEX_FUNC_ABORT => self.global(ItemIndex::IndexSpace(INDEX_GLOBAL_ABORT), Some(VariableType::I32), None)
@@ -173,7 +173,7 @@ impl<E> ModuleInstanceInterface<E> for EnvModuleInstance<E> where E: UserError {
 	}
 }
 
-pub fn env_module<E: UserError>(params: EnvParams) -> Result<EnvModuleInstance<E>, Error<E>> {
+pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
 	debug_assert!(params.total_stack < params.total_memory);
 	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
@@ -216,7 +216,7 @@ pub fn env_module<E: UserError>(params: EnvParams) -> Result<EnvModuleInstance<E
 
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_TABLE_BASE as i32)]))) // TODO: what is this?
 			.with_export(ExportEntry::new("tableBase".into(), Internal::Global(INDEX_GLOBAL_TABLE_BASE)))
-			
+
 		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_MEMORY_BASE as i32)]))) // TODO: what is this?
 			.with_export(ExportEntry::new("memoryBase".into(), Internal::Global(INDEX_GLOBAL_MEMORY_BASE)))
 		// functions

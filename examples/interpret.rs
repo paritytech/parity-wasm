@@ -15,9 +15,8 @@ fn main() {
     }
 
     // Intrepreter initialization.
-    // parity_wasm::DefaultProgramInstance parametrize ProgramInstance with a pre-defined "DummyUserError"
-    // Initializes a default "env" module also.
-    let program = parity_wasm::DefaultProgramInstance::with_env_params(
+	// It also initializes a default "env" module.
+    let program = parity_wasm::ProgramInstance::with_env_params(
         interpreter::EnvParams {
             total_stack: 128*1024,
             ..Default::default()

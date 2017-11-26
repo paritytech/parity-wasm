@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
-use interpreter::{Error, UserError, ProgramInstance, DefaultProgramInstance, DefaultModuleInstance};
+use interpreter::{Error, UserError, ProgramInstance};
 use interpreter::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, ExternalVariableValue, VariableType};
@@ -40,7 +40,7 @@ fn import_function() {
 			.build()
 		.build();
 
-	let program = DefaultProgramInstance::new().unwrap();
+	let program = ProgramInstance::new().unwrap();
 	let external_module = program.add_module("external_module", module1, None).unwrap();
 	let main_module = program.add_module("main", module2, None).unwrap();
 
@@ -74,7 +74,7 @@ fn wrong_import() {
 			.build()
 		.build();
 
-	let program = DefaultProgramInstance::new().unwrap();
+	let program = ProgramInstance::new().unwrap();
 	let _side_module_instance = program.add_module("side_module", side_module, None).unwrap();
 	assert!(program.add_module("main", module, None).is_err());
 }
@@ -96,7 +96,7 @@ fn global_get_set() {
 			.build()
 		.build();
 
-	let program = DefaultProgramInstance::new().unwrap();
+	let program = ProgramInstance::new().unwrap();
 	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(58));
@@ -129,12 +129,12 @@ struct MeasuredVariable {
 	pub val: i32,
 }
 
-impl ExternalVariableValue<UserErrorWithCode> for MeasuredVariable {
+impl ExternalVariableValue for MeasuredVariable {
 	fn get(&self) -> RuntimeValue {
 		RuntimeValue::I32(self.val)
 	}
 
-	fn set(&mut self, val: RuntimeValue) -> Result<(), Error<UserErrorWithCode>> {
+	fn set(&mut self, val: RuntimeValue) -> Result<(), Error> {
 		self.val = val.try_into()?;
 		Ok(())
 	}
@@ -156,12 +156,12 @@ impl UserError for UserErrorWithCode {}
 
 // user function executor
 struct FunctionExecutor {
-	pub memory: Arc<MemoryInstance<UserErrorWithCode>>,
+	pub memory: Arc<MemoryInstance>,
 	pub values: Vec<i32>,
 }
 
-impl UserFunctionExecutor<UserErrorWithCode> for FunctionExecutor {
-	fn execute(&mut self, name: &str, context: CallerContext<UserErrorWithCode>) -> Result<Option<RuntimeValue>, Error<UserErrorWithCode>> {
+impl UserFunctionExecutor for FunctionExecutor {
+	fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 		match name {
 			"add" => {
 				let memory_value = self.memory.get(0, 1).unwrap()[0];
@@ -186,7 +186,7 @@ impl UserFunctionExecutor<UserErrorWithCode> for FunctionExecutor {
 				Ok(Some(RuntimeValue::I32(diff as i32)))
 			},
 			"err" => {
-				Err(Error::User(UserErrorWithCode { error_code: 777 }))
+				Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
 			},
 			_ => Err(Error::Trap("not implemented".into()).into()),
 		}
@@ -259,14 +259,14 @@ fn native_env_function_own_memory() {
 	let program = ProgramInstance::new().unwrap();
 
 	struct OwnMemoryReference {
-		pub memory: RefCell<Option<Arc<MemoryInstance<UserErrorWithCode>>>>,
+		pub memory: RefCell<Option<Arc<MemoryInstance>>>,
 	}
 	struct OwnMemoryExecutor {
 		pub memory_ref: Arc<OwnMemoryReference>,
 	}
 
-	impl UserFunctionExecutor<UserErrorWithCode> for OwnMemoryExecutor {
-		fn execute(&mut self, name: &str, context: CallerContext<UserErrorWithCode>) -> Result<Option<RuntimeValue>, Error<UserErrorWithCode>> {
+	impl UserFunctionExecutor for OwnMemoryExecutor {
+		fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 			match name {
 				"add" => {
 					let memory = self.memory_ref.memory.borrow_mut().as_ref().expect("initialized before execution; qed").clone();
@@ -401,15 +401,34 @@ fn native_custom_error() {
 		.build();
 
 	let module_instance = program.add_module("main", module, Some(&params.externals)).unwrap();
-	assert_eq!(module_instance.execute_index(0, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))),
-		Err(Error::User(UserErrorWithCode { error_code: 777 })));
-	assert_eq!(module_instance.execute_index(1, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(0))),
-		Err(Error::User(UserErrorWithCode { error_code: 777 })));
+	let user_error1 = match module_instance.execute_index(
+		0,
+		params
+			.clone()
+			.add_argument(RuntimeValue::I32(7))
+			.add_argument(RuntimeValue::I32(0)),
+	) {
+		Err(Error::User(user_error)) => user_error,
+		result => panic!("Unexpected result {:?}", result),
+	};
+	assert_eq!(user_error1.downcast_ref::<UserErrorWithCode>().unwrap(), &UserErrorWithCode { error_code: 777 });
+
+	let user_error2 = match module_instance.execute_index(
+		0,
+		params
+			.clone()
+			.add_argument(RuntimeValue::I32(7))
+			.add_argument(RuntimeValue::I32(0)),
+	) {
+		Err(Error::User(user_error)) => user_error,
+		result => panic!("Unexpected result {:?}", result),
+	};
+	assert_eq!(user_error2.downcast_ref::<UserErrorWithCode>().unwrap(), &UserErrorWithCode { error_code: 777 });
 }
 
 #[test]
 fn import_env_mutable_global() {
-	let program = DefaultProgramInstance::new().unwrap();
+	let program = ProgramInstance::new().unwrap();
 
 	let module = module()
 		.with_import(ImportEntry::new("env".into(), "STACKTOP".into(), External::Global(GlobalType::new(ValueType::I32, false))))
@@ -434,27 +453,27 @@ fn env_native_export_entry_type_check() {
 	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], Some(ValueType::I32))))).is_ok());
 	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![], Some(ValueType::I32))))) {
 		Err(Error::Validation(_)) => { },
-		result => panic!("Unexpected result {:?}.", result),
+		result => panic!("Unexpected result {:?}", result),
 	}
 	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], None)))) {
 		Err(Error::Validation(_)) => { },
-		result => panic!("Unexpected result {:?}.", result),
+		result => panic!("Unexpected result {:?}", result),
 	}
 	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], Some(ValueType::I64))))) {
 		Err(Error::Validation(_)) => { },
-		result => panic!("Unexpected result {:?}.", result),
+		result => panic!("Unexpected result {:?}", result),
 	}
 
 	assert!(native_env_instance.export_entry("ext_global", &ExportEntryType::Global(VariableType::I32)).is_ok());
 	match native_env_instance.export_entry("ext_global", &ExportEntryType::Global(VariableType::F32)) {
 		Err(Error::Validation(_)) => { },
-		result => panic!("Unexpected result {:?}.", result),
+		result => panic!("Unexpected result {:?}", result),
 	}
 }
 
 #[test]
 fn if_else_with_return_type_validation() {
-	let module_instance = DefaultModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
+	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
 	let mut context = FunctionValidationContext::new(&module_instance, None, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
 
 	Validator::validate_function(&mut context, BlockType::NoResult, &[
@@ -479,7 +498,7 @@ fn memory_import_limits_initial() {
 		.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
 		.build();
 
-	let program = DefaultProgramInstance::new().unwrap();
+	let program = ProgramInstance::new().unwrap();
 	program.add_module("core", core_module, None).unwrap();
 
 	let test_cases = vec![
@@ -516,7 +535,7 @@ fn memory_import_limits_maximum() {
 		(None, None, MaximumError::Ok),
 	];
 
-	let program = DefaultProgramInstance::new().unwrap();
+	let program = ProgramInstance::new().unwrap();
 	for test_case in test_cases {
 		let (core_maximum, client_maximum, expected_err) = test_case;
 		let core_module = module()
@@ -547,7 +566,7 @@ fn table_import_limits_initial() {
 		.with_export(ExportEntry::new("table".into(), Internal::Table(0)))
 		.build();
 
-	let program = DefaultProgramInstance::new().unwrap();
+	let program = ProgramInstance::new().unwrap();
 	program.add_module("core", core_module, None).unwrap();
 
 	let test_cases = vec![
@@ -584,7 +603,7 @@ fn table_import_limits_maximum() {
 		(None, None, MaximumError::Ok),
 	];
 
-	let program = DefaultProgramInstance::new().unwrap();
+	let program = ProgramInstance::new().unwrap();
 	for test_case in test_cases {
 		let (core_maximum, client_maximum, expected_err) = test_case;
 		let core_module = module()

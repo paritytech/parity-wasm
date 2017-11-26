@@ -22,10 +22,7 @@ pub use elements::{
 
 pub use interpreter::{
     ProgramInstance,
-    DefaultProgramInstance,
     ModuleInstance,
-    DefaultModuleInstance,
     ModuleInstanceInterface,
-    DefaultModuleInstanceInterface,
     RuntimeValue,
 };

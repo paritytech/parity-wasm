@@ -59,7 +59,7 @@ impl<'a> UserFunctionExecutor for EmscriptenFunctionExecutor {
 		context: CallerContext,
 	) -> Result<Option<RuntimeValue>, Error> {
 		match name {
-			"_abort" => {
+			"_abort" | "abort" => {
 				self.abort_global.set(RuntimeValue::I32(1))?;
 				Err(Error::Trap("abort".into()).into())
 			}
@@ -134,6 +134,7 @@ pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Err
 
 	const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		UserFunctionDescriptor::Static("_abort", &[], None),
+		UserFunctionDescriptor::Static("abort", &[], None),
 		UserFunctionDescriptor::Static("assert", &[ValueType::I32], None),
 		UserFunctionDescriptor::Static("enlargeMemory", &[], Some(ValueType::I32)),
 		UserFunctionDescriptor::Static("getTotalMemory", &[], Some(ValueType::I32)),

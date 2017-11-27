@@ -41,7 +41,7 @@ fn export_entry_performance(b: &mut Bencher) {
 		.build();
 
 	// add both modules to program
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::new();
 	program.add_module("callee_module", callee_module, None).unwrap();
 	let caller_module = program.add_module("caller_module", caller_module, None).unwrap();
 

@@ -40,7 +40,7 @@ fn import_function() {
 			.build()
 		.build();
 
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::new();
 	let external_module = program.add_module("external_module", module1, None).unwrap();
 	let main_module = program.add_module("main", module2, None).unwrap();
 
@@ -74,7 +74,7 @@ fn wrong_import() {
 			.build()
 		.build();
 
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::new();
 	let _side_module_instance = program.add_module("side_module", side_module, None).unwrap();
 	assert!(program.add_module("main", module, None).is_err());
 }
@@ -96,7 +96,7 @@ fn global_get_set() {
 			.build()
 		.build();
 
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::new();
 	let module = program.add_module("main", module, None).unwrap();
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(50));
 	assert_eq!(module.execute_index(0, vec![].into()).unwrap().unwrap(), RuntimeValue::I32(58));
@@ -196,7 +196,7 @@ impl UserFunctionExecutor for FunctionExecutor {
 #[test]
 fn native_env_function() {
 	// create new program
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
 	// => env module is created
 	let env_instance = program.module("env").unwrap();
 	// => linear memory is created
@@ -256,7 +256,7 @@ fn native_env_function() {
 #[test]
 fn native_env_function_own_memory() {
 	// create program + env module is auto instantiated + env module memory is instantiated (we do not need this)
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
 
 	struct OwnMemoryReference {
 		pub memory: RefCell<Option<Arc<MemoryInstance>>>,
@@ -326,7 +326,7 @@ fn native_env_function_own_memory() {
 fn native_env_global() {
 	// module constructor
 	let module_constructor = |elements| {
-		let program = ProgramInstance::new().unwrap();
+		let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
 		let env_instance = program.module("env").unwrap();
 		let native_env_instance = Arc::new(env_native_module(env_instance.clone(), elements).unwrap());
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);
@@ -375,7 +375,7 @@ fn native_env_global() {
 
 #[test]
 fn native_custom_error() {
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
 	let env_instance = program.module("env").unwrap();
 	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
 	let mut executor = FunctionExecutor { memory: env_memory.clone(), values: Vec::new() };
@@ -428,7 +428,7 @@ fn native_custom_error() {
 
 #[test]
 fn import_env_mutable_global() {
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
 
 	let module = module()
 		.with_import(ImportEntry::new("env".into(), "STACKTOP".into(), External::Global(GlobalType::new(ValueType::I32, false))))
@@ -439,7 +439,7 @@ fn import_env_mutable_global() {
 
 #[test]
 fn env_native_export_entry_type_check() {
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
 	let mut function_executor = FunctionExecutor {
 		memory: program.module("env").unwrap().memory(ItemIndex::Internal(0)).unwrap(),
 		values: Vec::new(),
@@ -498,7 +498,7 @@ fn memory_import_limits_initial() {
 		.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
 		.build();
 
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::new();
 	program.add_module("core", core_module, None).unwrap();
 
 	let test_cases = vec![
@@ -535,7 +535,7 @@ fn memory_import_limits_maximum() {
 		(None, None, MaximumError::Ok),
 	];
 
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::new();
 	for test_case in test_cases {
 		let (core_maximum, client_maximum, expected_err) = test_case;
 		let core_module = module()
@@ -566,7 +566,7 @@ fn table_import_limits_initial() {
 		.with_export(ExportEntry::new("table".into(), Internal::Table(0)))
 		.build();
 
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::new();
 	program.add_module("core", core_module, None).unwrap();
 
 	let test_cases = vec![
@@ -603,7 +603,7 @@ fn table_import_limits_maximum() {
 		(None, None, MaximumError::Ok),
 	];
 
-	let program = ProgramInstance::new().unwrap();
+	let program = ProgramInstance::new();
 	for test_case in test_cases {
 		let (core_maximum, client_maximum, expected_err) = test_case;
 		let core_module = module()

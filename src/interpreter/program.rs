@@ -20,22 +20,19 @@ pub struct ProgramInstanceEssence {
 
 impl ProgramInstance {
 	/// Create new program instance.
-	pub fn new() -> Result<Self, Error> {
-		ProgramInstance::with_env_params(emscripten::EnvParams::default())
+	pub fn new() -> Self {
+		ProgramInstance {
+			essence: Arc::new(ProgramInstanceEssence::new()),
+		}
 	}
 
-	/// Create new program instance with custom env module params (mostly memory)
-	pub fn with_env_params(params: emscripten::EnvParams) -> Result<Self, Error> {
+	/// Create new program instance with added Emscripten's `env` module.
+	///
+	/// You can specify desired environment params. Or you can just pass `Default::default()`.
+	pub fn with_emscripten_env(params: emscripten::EnvParams) -> Result<Self, Error> {
 		Ok(ProgramInstance {
 			essence: Arc::new(ProgramInstanceEssence::with_env_params(params)?),
 		})
-	}
-
-	/// Create a new program instance with a custom env module
-	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface>) -> Self {
-		ProgramInstance {
-			essence: Arc::new(ProgramInstanceEssence::with_env_module(env_module)),
-		}
 	}
 
 	/// Instantiate module with validation.
@@ -64,8 +61,10 @@ impl ProgramInstance {
 
 impl ProgramInstanceEssence {
 	/// Create new program essence.
-	pub fn new() -> Result<Self, Error> {
-		ProgramInstanceEssence::with_env_params(emscripten::EnvParams::default())
+	pub fn new() -> Self {
+		ProgramInstanceEssence {
+			modules: RwLock::new(HashMap::new()),
+		}
 	}
 
 	pub fn with_env_params(env_params: emscripten::EnvParams) -> Result<Self, Error> {

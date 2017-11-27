@@ -7,7 +7,7 @@ use builder::module;
 use elements::{Module, ExportEntry, Internal, GlobalEntry, GlobalType,
 	ValueType, InitExpr, Opcode, Opcodes};
 use interpreter::Error;
-use interpreter::env_native::NATIVE_INDEX_FUNC_MIN;
+use interpreter::native::NATIVE_INDEX_FUNC_MIN;
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
 	ItemIndex, CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::{MemoryInstance, LINEAR_MEMORY_PAGE_SIZE};

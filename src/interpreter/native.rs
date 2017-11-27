@@ -1,3 +1,6 @@
+//! This module provides a way to create wasm modules that is backed in
+//! a native Rust code.
+
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::borrow::Cow;
@@ -79,8 +82,8 @@ pub struct UserDefinedElements<'a> {
 
 /// Native module instance.
 pub struct NativeModuleInstance<'a> {
-	/// Underllying module reference.
-	env: Arc<ModuleInstanceInterface>,
+	/// Underlying module reference.
+	base: Arc<ModuleInstanceInterface>,
 	/// User function executor.
 	executor: RwLock<Option<&'a mut UserFunctionExecutor>>,
 	/// By-name functions index.
@@ -95,13 +98,13 @@ pub struct NativeModuleInstance<'a> {
 
 impl<'a> NativeModuleInstance<'a> {
 	/// Create new native module
-	pub fn new(env: Arc<ModuleInstanceInterface>, elements: UserDefinedElements<'a>) -> Result<Self, Error> {
+	pub fn new(base: Arc<ModuleInstanceInterface>, elements: UserDefinedElements<'a>) -> Result<Self, Error> {
 		if !elements.functions.is_empty() && elements.executor.is_none() {
 			return Err(Error::Function("trying to construct native env module with functions, but without executor".into()));
 		}
 
 		Ok(NativeModuleInstance {
-			env: env,
+			base: base,
 			executor: RwLock::new(elements.executor),
 			functions_by_name: elements.functions.iter().enumerate().map(|(i, f)| (f.name().to_owned(), i as u32)).collect(),
 			functions: elements.functions,
@@ -113,11 +116,11 @@ impl<'a> NativeModuleInstance<'a> {
 
 impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		self.env.execute_index(index, params)
+		self.base.execute_index(index, params)
 	}
 
 	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		self.env.execute_export(name, params)
+		self.base.execute_export(name, params)
 	}
 
 	fn export_entry<'b>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
@@ -174,15 +177,15 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 			}
 		}
 
-		self.env.export_entry(name, required_type)
+		self.base.export_entry(name, required_type)
 	}
 
 	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
-		self.env.table(index)
+		self.base.table(index)
 	}
 
 	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
-		self.env.memory(index)
+		self.base.memory(index)
 	}
 
 	fn global<'b>(&self, global_index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<Arc<VariableInstance>, Error> {
@@ -192,7 +195,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		};
 
 		if index < NATIVE_INDEX_GLOBAL_MIN {
-			return self.env.global(global_index, variable_type, externals);
+			return self.base.global(global_index, variable_type, externals);
 		}
 
 		self.globals
@@ -208,7 +211,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 		};
 
 		if index < NATIVE_INDEX_FUNC_MIN || index >= NATIVE_INDEX_GLOBAL_MIN {
-			return self.env.function_type(function_index);
+			return self.base.function_type(function_index);
 		}
 
 		Ok(FunctionSignature::User(self.functions
@@ -221,11 +224,11 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	}
 
 	fn function_reference<'b>(&self, index: ItemIndex, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<InternalFunctionReference<'b>, Error> {
-		self.env.function_reference(index, externals)
+		self.base.function_reference(index, externals)
 	}
 
 	fn function_reference_indirect<'b>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<InternalFunctionReference<'b>, Error> {
-		self.env.function_reference_indirect(table_idx, type_idx, func_idx, externals)
+		self.base.function_reference_indirect(table_idx, type_idx, func_idx, externals)
 	}
 
 	fn function_body<'b>(&'b self, _internal_index: u32) -> Result<Option<InternalFunction<'b>>, Error> {
@@ -234,7 +237,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 
 	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
 		if index < NATIVE_INDEX_FUNC_MIN || index >= NATIVE_INDEX_GLOBAL_MIN {
-			return self.env.call_internal_function(outer, index);
+			return self.base.call_internal_function(outer, index);
 		}
 
 		self.functions
@@ -247,9 +250,9 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	}
 }
 
-/// Create wrapper for env module with given native user functions.
-pub fn env_native_module<'a>(env: Arc<ModuleInstanceInterface>, user_elements: UserDefinedElements<'a>) -> Result<NativeModuleInstance, Error> {
-	NativeModuleInstance::new(env, user_elements)
+/// Create wrapper for a module with given native user functions.
+pub fn native_module<'a>(base: Arc<ModuleInstanceInterface>, user_elements: UserDefinedElements<'a>) -> Result<NativeModuleInstance, Error> {
+	NativeModuleInstance::new(base, user_elements)
 }
 
 impl<'a> PartialEq for UserFunctionDescriptor {

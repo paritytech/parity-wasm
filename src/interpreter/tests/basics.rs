@@ -7,7 +7,7 @@ use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance};
-use interpreter::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
+use interpreter::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::validator::{FunctionValidationContext, Validator};
@@ -213,7 +213,7 @@ fn native_env_function() {
 			globals: HashMap::new(),
 			functions: ::std::borrow::Cow::from(SIGNATURES),
 		};
-		let native_env_instance = Arc::new(env_native_module(env_instance, functions).unwrap());
+		let native_env_instance = Arc::new(native_module(env_instance, functions).unwrap());
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 		let module = module()
@@ -287,7 +287,7 @@ fn native_env_function_own_memory() {
 	let env_instance = program.module("env").unwrap();
 	let memory_ref = Arc::new(OwnMemoryReference { memory: RefCell::new(None) });
 	let mut executor = OwnMemoryExecutor { memory_ref: memory_ref.clone() };
-	let native_env_instance = Arc::new(env_native_module(env_instance, UserDefinedElements {
+	let native_env_instance = Arc::new(native_module(env_instance, UserDefinedElements {
 		executor: Some(&mut executor),
 		globals: HashMap::new(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
@@ -328,7 +328,7 @@ fn native_env_global() {
 	let module_constructor = |elements| {
 		let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
 		let env_instance = program.module("env").unwrap();
-		let native_env_instance = Arc::new(env_native_module(env_instance.clone(), elements).unwrap());
+		let native_env_instance = Arc::new(native_module(env_instance.clone(), elements).unwrap());
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 		let module = module()
@@ -384,7 +384,7 @@ fn native_custom_error() {
 		globals: HashMap::new(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
 	};
-	let native_env_instance = Arc::new(env_native_module(env_instance, functions).unwrap());
+	let native_env_instance = Arc::new(native_module(env_instance, functions).unwrap());
 	let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 	let module = module()
@@ -444,7 +444,7 @@ fn env_native_export_entry_type_check() {
 		memory: program.module("env").unwrap().memory(ItemIndex::Internal(0)).unwrap(),
 		values: Vec::new(),
 	};
-	let native_env_instance = Arc::new(env_native_module(program.module("env").unwrap(), UserDefinedElements {
+	let native_env_instance = Arc::new(native_module(program.module("env").unwrap(), UserDefinedElements {
 		executor: Some(&mut function_executor),
 		globals: vec![("ext_global".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(1312)).unwrap()))].into_iter().collect(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),

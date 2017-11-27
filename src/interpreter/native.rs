@@ -1,5 +1,3 @@
-//! This module provides a way to create wasm modules that is backed in
-//! a native Rust code.
 
 use std::sync::Arc;
 use std::collections::HashMap;
@@ -250,7 +248,38 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	}
 }
 
-/// Create wrapper for a module with given native user functions.
+/// Create wrapper for a module with given native user functions .
+///
+/// # Examples
+///
+/// ```rust
+/// use parity_wasm::interpreter::{CallerContext, Error, ExecutionParams, ExportEntryType,
+///                                FunctionSignature, ItemIndex, ModuleInstance,
+///                                ModuleInstanceInterface, ProgramInstance, RuntimeValue,
+///                                UserDefinedElements, UserError, UserFunctionDescriptor,
+///                                UserFunctionExecutor};
+///
+/// struct MyExecutor;
+///
+/// impl UserFunctionExecutor for MyExecutor {
+///     fn execute(
+///         &mut self,
+///         name: &str,
+///         context: CallerContext,
+///     ) -> Result<Option<RuntimeValue>, Error> {
+///         match name {
+///             "add" => {
+///                 // fn add(a: u32, b: u32) -> u32
+///                 let b = context.value_stack.pop_as::<u32>()? as u32;
+///                 let a = context.value_stack.pop_as::<u32>()? as u32;
+///                 let sum = a + b;
+///                 Ok(Some(RuntimeValue::I32(sum as i32)))
+///             }
+///             _ => Err(Error::Trap("not implemented".into()).into()),
+///         }
+///     }
+/// }
+/// ```
 pub fn native_module<'a>(base: Arc<ModuleInstanceInterface>, user_elements: UserDefinedElements<'a>) -> Result<NativeModuleInstance, Error> {
 	NativeModuleInstance::new(base, user_elements)
 }

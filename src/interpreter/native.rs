@@ -98,7 +98,7 @@ impl<'a> NativeModuleInstance<'a> {
 	/// Create new native module
 	pub fn new(base: Arc<ModuleInstanceInterface>, elements: UserDefinedElements<'a>) -> Result<Self, Error> {
 		if !elements.functions.is_empty() && elements.executor.is_none() {
-			return Err(Error::Function("trying to construct native env module with functions, but without executor".into()));
+			return Err(Error::Function("trying to construct native module with functions, but without executor".into()));
 		}
 
 		Ok(NativeModuleInstance {
@@ -189,7 +189,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	fn global<'b>(&self, global_index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'b HashMap<String, Arc<ModuleInstanceInterface + 'b>>>) -> Result<Arc<VariableInstance>, Error> {
 		let index = match global_index {
 			ItemIndex::IndexSpace(index) | ItemIndex::Internal(index) => index,
-			ItemIndex::External(_) => unreachable!("trying to get global, exported by native env module"),
+			ItemIndex::External(_) => unreachable!("trying to get global, exported by native module"),
 		};
 
 		if index < NATIVE_INDEX_GLOBAL_MIN {
@@ -205,7 +205,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
 		let index = match function_index {
 			ItemIndex::IndexSpace(index) | ItemIndex::Internal(index) => index,
-			ItemIndex::External(_) => unreachable!("trying to call function, exported by native env module"),
+			ItemIndex::External(_) => unreachable!("trying to call function, exported by native module"),
 		};
 
 		if index < NATIVE_INDEX_FUNC_MIN || index >= NATIVE_INDEX_GLOBAL_MIN {
@@ -214,7 +214,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 
 		Ok(FunctionSignature::User(self.functions
 			.get((index - NATIVE_INDEX_FUNC_MIN) as usize)
-			.ok_or(Error::Native(format!("missing native env function with index {}", index)))?))
+			.ok_or(Error::Native(format!("missing native function with index {}", index)))?))
 	}
 
 	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error> {
@@ -243,7 +243,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 			.ok_or(Error::Native(format!("trying to call native function with index {}", index)).into())
 			.and_then(|f| self.executor.write()
 				.as_mut()
-				.expect("function existss; if function exists, executor must also exists [checked in constructor]; qed")
+				.expect("function exists; if function exists, executor must also exists [checked in constructor]; qed")
 				.execute(&f.name(), outer))
 	}
 }

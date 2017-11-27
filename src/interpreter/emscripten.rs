@@ -7,7 +7,7 @@ use builder::module;
 use elements::{Module, ExportEntry, Internal, GlobalEntry, GlobalType,
 	ValueType, InitExpr, Opcode, Opcodes};
 use interpreter::Error;
-use interpreter::native::NATIVE_INDEX_FUNC_MIN;
+use interpreter::native::{NATIVE_INDEX_FUNC_MIN, UserFunctionExecutor, UserDefinedElements, UserFunctionDescriptor, native_module};
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
 	ItemIndex, CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::{MemoryInstance, LINEAR_MEMORY_PAGE_SIZE};
@@ -74,7 +74,8 @@ const INDEX_FUNC_MIN_NONUSED: u32 = 4;
 const INDEX_FUNC_MAX: u32 = NATIVE_INDEX_FUNC_MIN - 1;
 
 /// Emscripten environment parameters.
-pub struct EmscriptenParams {
+#[derive(Clone)]
+pub struct EnvParams {
 	/// Stack size in bytes.
 	pub total_stack: u32,
 	/// Total memory size in bytes.
@@ -87,13 +88,29 @@ pub struct EmscriptenParams {
 	pub static_size: Option<u32>,
 }
 
-pub struct EmscriptenModuleInstance {
-	_params: EmscriptenParams,
+struct EmscriptenFunctionExecutor {
+	params: EnvParams,
+}
+
+impl UserFunctionExecutor for EmscriptenFunctionExecutor {
+	 fn execute(
+		 &mut self,
+		 name: &str,
+		 context: CallerContext,
+	 ) -> Result<Option<RuntimeValue>, Error> {
+		 match name {
+			 _ => Err(Error::Trap("not implemented".into()).into()),
+		 }
+	 }
+}
+
+struct EmscriptenModuleInstance {
+	_params: EnvParams,
 	instance: ModuleInstance,
 }
 
 impl EmscriptenModuleInstance {
-	pub fn new(params: EmscriptenParams, module: Module) -> Result<Self, Error> {
+	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
 		let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 		instance.instantiate(None)?;
 
@@ -176,7 +193,7 @@ impl ModuleInstanceInterface for EmscriptenModuleInstance {
 	}
 }
 
-pub fn env_module(params: EmscriptenParams) -> Result<EmscriptenModuleInstance, Error> {
+pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Error> {
 	debug_assert!(params.total_stack < params.total_memory);
 	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
@@ -191,65 +208,64 @@ pub fn env_module(params: EmscriptenParams) -> Result<EmscriptenModuleInstance, 
 		.table()
 			.with_min(params.table_size)
 			.build()
-			.with_export(ExportEntry::new("table".into(), Internal::Table(INDEX_TABLE)))
-		// globals
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_STACK_BASE as i32)])))
-			.with_export(ExportEntry::new("STACK_BASE".into(), Internal::Global(INDEX_GLOBAL_STACK_BASE)))
+			.with_export(ExportEntry::new("table".into(), Internal::Table(INDEX_TABLE)));
+	let module = builder.build();
 
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(params.static_size.unwrap_or(DEFAULT_STACK_TOP) as i32)])))
-			.with_export(ExportEntry::new("STACKTOP".into(), Internal::Global(INDEX_GLOBAL_STACK_TOP)))
+	let mut function_executor = EmscriptenFunctionExecutor {
+		params: params.clone(),
+	};
 
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack) as i32)])))
-			.with_export(ExportEntry::new("STACK_MAX".into(), Internal::Global(INDEX_GLOBAL_STACK_MAX)))
+	const SIGNATURES: &'static [UserFunctionDescriptor] = &[
+		UserFunctionDescriptor::Static(
+			"getTotalMemory",
+			&[],
+			Some(ValueType::I32),
+		),
+		UserFunctionDescriptor::Static(
+			"enlargeMemory",
+			&[],
+			Some(ValueType::I32),
+		),
+		UserFunctionDescriptor::Static(
+			"assert",
+			&[ValueType::I32],
+			None,
+		),
+		UserFunctionDescriptor::Static(
+			"abort",
+			&[],
+			None,
+		),
+	];
 
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack) as i32)])))
-			.with_export(ExportEntry::new("DYNAMIC_BASE".into(), Internal::Global(INDEX_GLOBAL_DYNAMIC_BASE)))
+	let stack_top = params.static_size.unwrap_or(DEFAULT_STACK_TOP);
 
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const((DEFAULT_STACK_BASE + params.total_stack) as i32)])))
-			.with_export(ExportEntry::new("DYNAMICTOP_PTR".into(), Internal::Global(INDEX_GLOBAL_DYNAMICTOP_PTR)))
+	let elements = UserDefinedElements {
+		executor: Some(&mut function_executor),
+		globals: vec![
+			("STACK_BASE".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(stack_top as i32)).unwrap())),
+			("STACKTOP".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(stack_top as i32)).unwrap())),
+			("STACK_MAX".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32((stack_top + params.total_stack) as i32)).unwrap())),
+			("DYNAMIC_BASE".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32((stack_top + params.total_stack) as i32)).unwrap())),
+			("DYNAMICTOP_PTR".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32((stack_top + params.total_stack) as i32)).unwrap())),
+			("TOTAL_MEMORY".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(params.total_memory as i32)).unwrap())),
+			("ABORT".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(0)).unwrap())),
+			("EXITSTATUS".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(0)).unwrap())),
+			("tableBase".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(DEFAULT_TABLE_BASE as i32)).unwrap())),
+			("memoryBase".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(DEFAULT_MEMORY_BASE as i32)).unwrap())),
+		].into_iter().collect(),
+		functions: ::std::borrow::Cow::from(SIGNATURES),
+	};
 
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(params.total_memory as i32)])))
-			.with_export(ExportEntry::new("TOTAL_MEMORY".into(), Internal::Global(INDEX_GLOBAL_TOTAL_MEMORY)))
+	let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
+	instance.instantiate(None)?;
 
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
-			.with_export(ExportEntry::new("ABORT".into(), Internal::Global(INDEX_GLOBAL_ABORT)))
-
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
-			.with_export(ExportEntry::new("EXITSTATUS".into(), Internal::Global(INDEX_GLOBAL_EXIT_STATUS)))
-
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_TABLE_BASE as i32)]))) // TODO: what is this?
-			.with_export(ExportEntry::new("tableBase".into(), Internal::Global(INDEX_GLOBAL_TABLE_BASE)))
-
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(DEFAULT_MEMORY_BASE as i32)]))) // TODO: what is this?
-			.with_export(ExportEntry::new("memoryBase".into(), Internal::Global(INDEX_GLOBAL_MEMORY_BASE)))
-		// functions
-		.function()
-			.signature().build()
-			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
-			.build()
-			.with_export(ExportEntry::new("abort".into(), Internal::Function(INDEX_FUNC_ABORT)))
-		.function()
-			.signature().param().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
-			.build()
-			.with_export(ExportEntry::new("assert".into(), Internal::Function(INDEX_FUNC_ASSERT)))
-		.function()
-			.signature().return_type().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
-			.build()
-			.with_export(ExportEntry::new("enlargeMemory".into(), Internal::Function(INDEX_FUNC_ENLARGE_MEMORY)))
-		.function()
-			.signature().return_type().i32().build()
-			.body().with_opcodes(Opcodes::new(vec![Opcode::Unreachable, Opcode::End])).build()
-			.build()
-			.with_export(ExportEntry::new("getTotalMemory".into(), Internal::Function(INDEX_FUNC_GET_TOTAL_MEMORY)));
-
-	EmscriptenModuleInstance::new(params, builder.build())
+	Ok(Arc::new(native_module(Arc::new(instance), elements)?))
 }
 
-impl Default for EmscriptenParams {
+impl Default for EnvParams {
 	fn default() -> Self {
-		EmscriptenParams {
+		EnvParams {
 			total_stack: DEFAULT_TOTAL_STACK,
 			total_memory: DEFAULT_TOTAL_MEMORY,
 			allow_memory_growth: DEFAULT_ALLOW_MEMORY_GROWTH,
@@ -259,7 +275,7 @@ impl Default for EmscriptenParams {
 	}
 }
 
-impl EmscriptenParams {
+impl EnvParams {
 	fn max_memory(&self) -> Option<u32> {
 		if self.allow_memory_growth { None } else { Some(self.total_memory) }
 	}

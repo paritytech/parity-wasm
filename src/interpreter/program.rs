@@ -69,7 +69,7 @@ impl ProgramInstanceEssence {
 
 	pub fn with_env_params(env_params: EmscriptenParams) -> Result<Self, Error> {
 		let env_mod = env_module(env_params)?;
-		Ok(ProgramInstanceEssence::with_env_module(Arc::new(env_mod)))
+		Ok(ProgramInstanceEssence::with_env_module(env_mod))
 	}
 
 	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface>) -> Self {

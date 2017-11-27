@@ -23,7 +23,13 @@ pub enum VariableType {
 pub trait ExternalVariableValue {
 	/// Get variable value.
 	fn get(&self) -> RuntimeValue;
+
 	/// Set variable value.
+	///
+	/// WebAssembly specificaiton [requires][0] that if global variable is immutable, then
+	/// it should remain unchanged.
+	///
+	/// [0]: https://webassembly.github.io/spec/appendix/properties.html#global-instance
 	fn set(&mut self, value: RuntimeValue) -> Result<(), Error>;
 }
 

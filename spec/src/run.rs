@@ -59,7 +59,7 @@ fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module
 
 fn try_load(base_dir: &str, module_path: &str) -> Result<(), InterpreterError> {
     let module = try_deserialize(base_dir, module_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
-    let program = ProgramInstance::new().expect("Failed creating program");
+    let program = ProgramInstance::new();
     program.add_module("try_load", module, None).map(|_| ())
 }
 
@@ -172,7 +172,7 @@ pub fn spec(name: &str) {
         .expect(&format!("Failed to load json file {}", &fixture.json));
     let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
-    let program = ProgramInstance::new().expect("Failed creating program");
+    let program = ProgramInstance::new();
     let mut last_module = None;
     for command in &spec.commands {
         println!("command {:?}", command);

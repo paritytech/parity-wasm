@@ -58,8 +58,6 @@ pub enum Error {
 	Value(String),
 	/// Interpreter (code) error.
 	Interpreter(String),
-	/// Env module error.
-	Env(String),
 	/// Native module error.
 	Native(String),
 	/// Trap.
@@ -83,7 +81,6 @@ impl Into<String> for Error {
 			Error::Stack(s) => s,
 			Error::Interpreter(s) => s,
 			Error::Value(s) => s,
-			Error::Env(s) => s,
 			Error::Native(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
 			Error::User(e) => format!("user: {}", e),
@@ -106,7 +103,6 @@ impl ::std::fmt::Display for Error {
 			Error::Stack(ref s) => write!(f, "Stack: {}", s),
 			Error::Interpreter(ref s) => write!(f, "Interpreter: {}", s),
 			Error::Value(ref s) => write!(f, "Value: {}", s),
-			Error::Env(ref s) => write!(f, "Env: {}", s),
 			Error::Native(ref s) => write!(f, "Native: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {}", s),
 			Error::User(ref e) => write!(f, "User: {}", e),
@@ -120,8 +116,8 @@ impl<U> From<U> for Error where U: UserError + Sized {
 	}
 }
 
-mod env;
-mod env_native;
+mod emscripten;
+mod native;
 mod imports;
 mod memory;
 mod module;
@@ -143,5 +139,5 @@ pub use self::table::TableInstance;
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
 pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
-pub use self::env_native::{env_native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
-pub use self::env::EnvParams;
+pub use self::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
+pub use self::emscripten::EmscriptenParams;

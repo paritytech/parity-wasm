@@ -17,8 +17,8 @@ fn main() {
 
     // Intrepreter initialization.
     // It also initializes a default "env" module.
-    let program = parity_wasm::ProgramInstance::with_env_params(
-        interpreter::EnvParams {
+    let program = parity_wasm::ProgramInstance::with_emscripten_env(
+        interpreter::EmscriptenParams {
             total_stack: 128*1024,
             ..Default::default()
         }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use parking_lot::RwLock;
 use elements::Module;
 use interpreter::Error;
-use interpreter::env::{self, env_module};
+use interpreter::emscripten::{EmscriptenParams, env_module};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface};
 
 /// Program instance. Program is a set of instantiated modules.
@@ -20,22 +20,19 @@ pub struct ProgramInstanceEssence {
 
 impl ProgramInstance {
 	/// Create new program instance.
-	pub fn new() -> Result<Self, Error> {
-		ProgramInstance::with_env_params(env::EnvParams::default())
+	pub fn new() -> Self {
+		ProgramInstance {
+			essence: Arc::new(ProgramInstanceEssence::new()),
+		}
 	}
 
-	/// Create new program instance with custom env module params (mostly memory)
-	pub fn with_env_params(params: env::EnvParams) -> Result<Self, Error> {
+	/// Create new program instance with added Emscripten's `env` module.
+	///
+	/// You can specify desired environment params. Or you can just pass `Default::default()`.
+	pub fn with_emscripten_env(params: EmscriptenParams) -> Result<Self, Error> {
 		Ok(ProgramInstance {
 			essence: Arc::new(ProgramInstanceEssence::with_env_params(params)?),
 		})
-	}
-
-	/// Create a new program instance with a custom env module
-	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface>) -> Self {
-		ProgramInstance {
-			essence: Arc::new(ProgramInstanceEssence::with_env_module(env_module)),
-		}
 	}
 
 	/// Instantiate module with validation.
@@ -64,11 +61,13 @@ impl ProgramInstance {
 
 impl ProgramInstanceEssence {
 	/// Create new program essence.
-	pub fn new() -> Result<Self, Error> {
-		ProgramInstanceEssence::with_env_params(env::EnvParams::default())
+	pub fn new() -> Self {
+		ProgramInstanceEssence {
+			modules: RwLock::new(HashMap::new()),
+		}
 	}
 
-	pub fn with_env_params(env_params: env::EnvParams) -> Result<Self, Error> {
+	pub fn with_env_params(env_params: EmscriptenParams) -> Result<Self, Error> {
 		let env_mod = env_module(env_params)?;
 		Ok(ProgramInstanceEssence::with_env_module(Arc::new(env_mod)))
 	}
@@ -80,7 +79,6 @@ impl ProgramInstanceEssence {
 			modules: RwLock::new(modules),
 		}
 	}
-
 
 	/// Get module reference.
 	pub fn module(&self, name: &str) -> Option<Arc<ModuleInstanceInterface>> {

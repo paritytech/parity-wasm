@@ -1,10 +1,13 @@
+//! This module provides some of the simplest exports
+//! from the Emscripten runtime, such as `STACKTOP` or `abort`.
+
 use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use builder::module;
 use elements::{Module, ExportEntry, Internal, GlobalEntry, GlobalType,
 	ValueType, InitExpr, Opcode, Opcodes};
 use interpreter::Error;
-use interpreter::env_native::NATIVE_INDEX_FUNC_MIN;
+use interpreter::native::NATIVE_INDEX_FUNC_MIN;
 use interpreter::module::{ModuleInstanceInterface, ModuleInstance, ExecutionParams,
 	ItemIndex, CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::{MemoryInstance, LINEAR_MEMORY_PAGE_SIZE};
@@ -27,7 +30,7 @@ const DEFAULT_TABLE_BASE: u32 = 0;
 /// Default tableBase variable value.
 const DEFAULT_MEMORY_BASE: u32 = 0;
 
-/// Defaul table size.
+/// Default table size.
 const DEFAULT_TABLE_SIZE: u32 = 64;
 
 /// Index of default memory.
@@ -70,8 +73,8 @@ const INDEX_FUNC_MIN_NONUSED: u32 = 4;
 /// Max index of reserved function.
 const INDEX_FUNC_MAX: u32 = NATIVE_INDEX_FUNC_MIN - 1;
 
-/// Environment parameters.
-pub struct EnvParams {
+/// Emscripten environment parameters.
+pub struct EmscriptenParams {
 	/// Stack size in bytes.
 	pub total_stack: u32,
 	/// Total memory size in bytes.
@@ -84,24 +87,24 @@ pub struct EnvParams {
 	pub static_size: Option<u32>,
 }
 
-pub struct EnvModuleInstance {
-	_params: EnvParams,
+pub struct EmscriptenModuleInstance {
+	_params: EmscriptenParams,
 	instance: ModuleInstance,
 }
 
-impl EnvModuleInstance {
-	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
+impl EmscriptenModuleInstance {
+	pub fn new(params: EmscriptenParams, module: Module) -> Result<Self, Error> {
 		let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 		instance.instantiate(None)?;
 
-		Ok(EnvModuleInstance {
+		Ok(EmscriptenModuleInstance {
 			_params: params,
 			instance: instance,
 		})
 	}
 }
 
-impl ModuleInstanceInterface for EnvModuleInstance {
+impl ModuleInstanceInterface for EmscriptenModuleInstance {
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.instance.execute_index(index, params)
 	}
@@ -173,7 +176,7 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 	}
 }
 
-pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
+pub fn env_module(params: EmscriptenParams) -> Result<EmscriptenModuleInstance, Error> {
 	debug_assert!(params.total_stack < params.total_memory);
 	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
@@ -241,12 +244,12 @@ pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
 			.build()
 			.with_export(ExportEntry::new("getTotalMemory".into(), Internal::Function(INDEX_FUNC_GET_TOTAL_MEMORY)));
 
-	EnvModuleInstance::new(params, builder.build())
+	EmscriptenModuleInstance::new(params, builder.build())
 }
 
-impl Default for EnvParams {
+impl Default for EmscriptenParams {
 	fn default() -> Self {
-		EnvParams {
+		EmscriptenParams {
 			total_stack: DEFAULT_TOTAL_STACK,
 			total_memory: DEFAULT_TOTAL_MEMORY,
 			allow_memory_growth: DEFAULT_ALLOW_MEMORY_GROWTH,
@@ -256,7 +259,7 @@ impl Default for EnvParams {
 	}
 }
 
-impl EnvParams {
+impl EmscriptenParams {
 	fn max_memory(&self) -> Option<u32> {
 		if self.allow_memory_growth { None } else { Some(self.total_memory) }
 	}

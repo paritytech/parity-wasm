@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use std::fmt;
 use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, BlockType, ResizableLimits, Local, ValueType};
 use interpreter::Error;
-use interpreter::env_native::UserFunctionDescriptor;
+use interpreter::native::UserFunctionDescriptor;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::program::ProgramInstanceEssence;

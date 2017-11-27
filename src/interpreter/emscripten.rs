@@ -1,3 +1,6 @@
+//! This module provides some of the simplest exports
+//! from the Emscripten runtime, such as `STACKTOP` or `abort`.
+
 use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use builder::module;
@@ -27,7 +30,7 @@ const DEFAULT_TABLE_BASE: u32 = 0;
 /// Default tableBase variable value.
 const DEFAULT_MEMORY_BASE: u32 = 0;
 
-/// Defaul table size.
+/// Default table size.
 const DEFAULT_TABLE_SIZE: u32 = 64;
 
 /// Index of default memory.

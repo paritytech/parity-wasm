@@ -326,7 +326,7 @@ fn native_env_function_own_memory() {
 fn native_env_global() {
 	struct DummyExecutor;
 	impl UserFunctionExecutor for DummyExecutor {
-		fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+		fn execute(&mut self, _name: &str, _context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 			// this code should be unreachable, because we actually doesn't call any
 			// native functions in this test.
 			unreachable!();

@@ -248,7 +248,7 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 	}
 }
 
-/// Create wrapper for a module with given native user functions .
+/// Create wrapper for a module with given native user functions.
 ///
 /// # Examples
 ///

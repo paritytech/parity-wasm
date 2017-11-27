@@ -160,7 +160,7 @@ struct FunctionExecutor {
 	pub values: Vec<i32>,
 }
 
-impl UserFunctionExecutor for FunctionExecutor {
+impl<'a> UserFunctionExecutor for &'a mut FunctionExecutor {
 	fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 		match name {
 			"add" => {
@@ -213,7 +213,7 @@ fn native_env_function() {
 			globals: HashMap::new(),
 			functions: ::std::borrow::Cow::from(SIGNATURES),
 		};
-		let native_env_instance = Arc::new(native_module(env_instance, functions).unwrap());
+		let native_env_instance = native_module(env_instance, functions).unwrap();
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 		let module = module()
@@ -265,7 +265,7 @@ fn native_env_function_own_memory() {
 		pub memory_ref: Arc<OwnMemoryReference>,
 	}
 
-	impl UserFunctionExecutor for OwnMemoryExecutor {
+	impl<'a> UserFunctionExecutor for &'a mut OwnMemoryExecutor {
 		fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
 			match name {
 				"add" => {
@@ -287,11 +287,11 @@ fn native_env_function_own_memory() {
 	let env_instance = program.module("env").unwrap();
 	let memory_ref = Arc::new(OwnMemoryReference { memory: RefCell::new(None) });
 	let mut executor = OwnMemoryExecutor { memory_ref: memory_ref.clone() };
-	let native_env_instance = Arc::new(native_module(env_instance, UserDefinedElements {
+	let native_env_instance = native_module(env_instance, UserDefinedElements {
 		executor: Some(&mut executor),
 		globals: HashMap::new(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
-	}).unwrap());
+	}).unwrap();
 	let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 	// create module definition with its own memory
@@ -324,11 +324,19 @@ fn native_env_function_own_memory() {
 
 #[test]
 fn native_env_global() {
-	// module constructor
-	let module_constructor = |elements| {
+	struct DummyExecutor;
+	impl UserFunctionExecutor for DummyExecutor {
+		fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+			// this code should be unreachable, because we actually doesn't call any
+			// native functions in this test.
+			unreachable!();
+		}
+	}
+
+	let module_constructor = |elements: UserDefinedElements<DummyExecutor>| {
 		let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
 		let env_instance = program.module("env").unwrap();
-		let native_env_instance = Arc::new(native_module(env_instance.clone(), elements).unwrap());
+		let native_env_instance = native_module(env_instance.clone(), elements).unwrap();
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 		let module = module()
@@ -384,7 +392,7 @@ fn native_custom_error() {
 		globals: HashMap::new(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
 	};
-	let native_env_instance = Arc::new(native_module(env_instance, functions).unwrap());
+	let native_env_instance = native_module(env_instance, functions).unwrap();
 	let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 	let module = module()
@@ -444,11 +452,11 @@ fn env_native_export_entry_type_check() {
 		memory: program.module("env").unwrap().memory(ItemIndex::Internal(0)).unwrap(),
 		values: Vec::new(),
 	};
-	let native_env_instance = Arc::new(native_module(program.module("env").unwrap(), UserDefinedElements {
+	let native_env_instance = native_module(program.module("env").unwrap(), UserDefinedElements {
 		executor: Some(&mut function_executor),
 		globals: vec![("ext_global".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(1312)).unwrap()))].into_iter().collect(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
-	}).unwrap());
+	}).unwrap();
 
 	assert!(native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![ValueType::I32, ValueType::I32], Some(ValueType::I32))))).is_ok());
 	match native_env_instance.export_entry("add", &ExportEntryType::Function(FunctionSignature::Module(&FunctionType::new(vec![], Some(ValueType::I32))))) {

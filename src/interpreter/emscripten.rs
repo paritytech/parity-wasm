@@ -92,7 +92,7 @@ struct EmscriptenFunctionExecutor {
 	params: EnvParams,
 }
 
-impl UserFunctionExecutor for EmscriptenFunctionExecutor {
+impl<'a> UserFunctionExecutor for EmscriptenFunctionExecutor {
 	 fn execute(
 		 &mut self,
 		 name: &str,
@@ -241,7 +241,7 @@ pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Err
 	let stack_top = params.static_size.unwrap_or(DEFAULT_STACK_TOP);
 
 	let elements = UserDefinedElements {
-		executor: Some(&mut function_executor),
+		executor: Some(function_executor),
 		globals: vec![
 			("STACK_BASE".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(stack_top as i32)).unwrap())),
 			("STACKTOP".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(stack_top as i32)).unwrap())),
@@ -260,7 +260,7 @@ pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Err
 	let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 	instance.instantiate(None)?;
 
-	Ok(Arc::new(native_module(Arc::new(instance), elements)?))
+	Ok(native_module(Arc::new(instance), elements)?)
 }
 
 impl Default for EnvParams {

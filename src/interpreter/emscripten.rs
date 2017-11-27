@@ -70,7 +70,7 @@ const INDEX_FUNC_MIN_NONUSED: u32 = 4;
 /// Max index of reserved function.
 const INDEX_FUNC_MAX: u32 = NATIVE_INDEX_FUNC_MIN - 1;
 
-/// Environment parameters.
+/// Emscripten environment parameters.
 pub struct EnvParams {
 	/// Stack size in bytes.
 	pub total_stack: u32,
@@ -84,24 +84,24 @@ pub struct EnvParams {
 	pub static_size: Option<u32>,
 }
 
-pub struct EnvModuleInstance {
+pub struct EmscriptenModuleInstance {
 	_params: EnvParams,
 	instance: ModuleInstance,
 }
 
-impl EnvModuleInstance {
+impl EmscriptenModuleInstance {
 	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
 		let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 		instance.instantiate(None)?;
 
-		Ok(EnvModuleInstance {
+		Ok(EmscriptenModuleInstance {
 			_params: params,
 			instance: instance,
 		})
 	}
 }
 
-impl ModuleInstanceInterface for EnvModuleInstance {
+impl ModuleInstanceInterface for EmscriptenModuleInstance {
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.instance.execute_index(index, params)
 	}
@@ -173,7 +173,7 @@ impl ModuleInstanceInterface for EnvModuleInstance {
 	}
 }
 
-pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
+pub fn env_module(params: EnvParams) -> Result<EmscriptenModuleInstance, Error> {
 	debug_assert!(params.total_stack < params.total_memory);
 	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
@@ -241,7 +241,7 @@ pub fn env_module(params: EnvParams) -> Result<EnvModuleInstance, Error> {
 			.build()
 			.with_export(ExportEntry::new("getTotalMemory".into(), Internal::Function(INDEX_FUNC_GET_TOTAL_MEMORY)));
 
-	EnvModuleInstance::new(params, builder.build())
+	EmscriptenModuleInstance::new(params, builder.build())
 }
 
 impl Default for EnvParams {

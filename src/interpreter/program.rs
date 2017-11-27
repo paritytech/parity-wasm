@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use parking_lot::RwLock;
 use elements::Module;
 use interpreter::Error;
-use interpreter::env::{self, env_module};
+use interpreter::emscripten::{self, env_module};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface};
 
 /// Program instance. Program is a set of instantiated modules.
@@ -21,11 +21,11 @@ pub struct ProgramInstanceEssence {
 impl ProgramInstance {
 	/// Create new program instance.
 	pub fn new() -> Result<Self, Error> {
-		ProgramInstance::with_env_params(env::EnvParams::default())
+		ProgramInstance::with_env_params(emscripten::EnvParams::default())
 	}
 
 	/// Create new program instance with custom env module params (mostly memory)
-	pub fn with_env_params(params: env::EnvParams) -> Result<Self, Error> {
+	pub fn with_env_params(params: emscripten::EnvParams) -> Result<Self, Error> {
 		Ok(ProgramInstance {
 			essence: Arc::new(ProgramInstanceEssence::with_env_params(params)?),
 		})
@@ -65,10 +65,10 @@ impl ProgramInstance {
 impl ProgramInstanceEssence {
 	/// Create new program essence.
 	pub fn new() -> Result<Self, Error> {
-		ProgramInstanceEssence::with_env_params(env::EnvParams::default())
+		ProgramInstanceEssence::with_env_params(emscripten::EnvParams::default())
 	}
 
-	pub fn with_env_params(env_params: env::EnvParams) -> Result<Self, Error> {
+	pub fn with_env_params(env_params: emscripten::EnvParams) -> Result<Self, Error> {
 		let env_mod = env_module(env_params)?;
 		Ok(ProgramInstanceEssence::with_env_module(Arc::new(env_mod)))
 	}
@@ -80,7 +80,6 @@ impl ProgramInstanceEssence {
 			modules: RwLock::new(modules),
 		}
 	}
-
 
 	/// Get module reference.
 	pub fn module(&self, name: &str) -> Option<Arc<ModuleInstanceInterface>> {

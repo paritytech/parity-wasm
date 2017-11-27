@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use parking_lot::RwLock;
 use elements::Module;
 use interpreter::Error;
-use interpreter::emscripten::{self, env_module};
+use interpreter::emscripten::{EmscriptenParams, env_module};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface};
 
 /// Program instance. Program is a set of instantiated modules.
@@ -29,7 +29,7 @@ impl ProgramInstance {
 	/// Create new program instance with added Emscripten's `env` module.
 	///
 	/// You can specify desired environment params. Or you can just pass `Default::default()`.
-	pub fn with_emscripten_env(params: emscripten::EnvParams) -> Result<Self, Error> {
+	pub fn with_emscripten_env(params: EmscriptenParams) -> Result<Self, Error> {
 		Ok(ProgramInstance {
 			essence: Arc::new(ProgramInstanceEssence::with_env_params(params)?),
 		})
@@ -67,7 +67,7 @@ impl ProgramInstanceEssence {
 		}
 	}
 
-	pub fn with_env_params(env_params: emscripten::EnvParams) -> Result<Self, Error> {
+	pub fn with_env_params(env_params: EmscriptenParams) -> Result<Self, Error> {
 		let env_mod = env_module(env_params)?;
 		Ok(ProgramInstanceEssence::with_env_module(Arc::new(env_mod)))
 	}

@@ -74,7 +74,7 @@ const INDEX_FUNC_MIN_NONUSED: u32 = 4;
 const INDEX_FUNC_MAX: u32 = NATIVE_INDEX_FUNC_MIN - 1;
 
 /// Emscripten environment parameters.
-pub struct EnvParams {
+pub struct EmscriptenParams {
 	/// Stack size in bytes.
 	pub total_stack: u32,
 	/// Total memory size in bytes.
@@ -88,12 +88,12 @@ pub struct EnvParams {
 }
 
 pub struct EmscriptenModuleInstance {
-	_params: EnvParams,
+	_params: EmscriptenParams,
 	instance: ModuleInstance,
 }
 
 impl EmscriptenModuleInstance {
-	pub fn new(params: EnvParams, module: Module) -> Result<Self, Error> {
+	pub fn new(params: EmscriptenParams, module: Module) -> Result<Self, Error> {
 		let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module)?;
 		instance.instantiate(None)?;
 
@@ -176,7 +176,7 @@ impl ModuleInstanceInterface for EmscriptenModuleInstance {
 	}
 }
 
-pub fn env_module(params: EnvParams) -> Result<EmscriptenModuleInstance, Error> {
+pub fn env_module(params: EmscriptenParams) -> Result<EmscriptenModuleInstance, Error> {
 	debug_assert!(params.total_stack < params.total_memory);
 	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
@@ -247,9 +247,9 @@ pub fn env_module(params: EnvParams) -> Result<EmscriptenModuleInstance, Error> 
 	EmscriptenModuleInstance::new(params, builder.build())
 }
 
-impl Default for EnvParams {
+impl Default for EmscriptenParams {
 	fn default() -> Self {
-		EnvParams {
+		EmscriptenParams {
 			total_stack: DEFAULT_TOTAL_STACK,
 			total_memory: DEFAULT_TOTAL_MEMORY,
 			allow_memory_growth: DEFAULT_ALLOW_MEMORY_GROWTH,
@@ -259,7 +259,7 @@ impl Default for EnvParams {
 	}
 }
 
-impl EnvParams {
+impl EmscriptenParams {
 	fn max_memory(&self) -> Option<u32> {
 		if self.allow_memory_growth { None } else { Some(self.total_memory) }
 	}

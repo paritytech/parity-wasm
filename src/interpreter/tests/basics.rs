@@ -381,9 +381,16 @@ fn native_env_global() {
 
 #[test]
 fn native_custom_error() {
-	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
-	let env_instance = program.module("env").unwrap();
+	let program = ProgramInstance::new();
+	let env_module = module()
+		.memory()
+			.with_min(1)
+			.build()
+			.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
+		.build();
+	let env_instance = program.add_module("env", env_module, None).unwrap();
 	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
+
 	let mut executor = FunctionExecutor { memory: env_memory.clone(), values: Vec::new() };
 	let functions = UserDefinedElements {
 		executor: Some(&mut executor),

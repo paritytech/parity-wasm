@@ -284,10 +284,9 @@ fn native_env_function_own_memory() {
 		}
 	}
 
-	let env_instance = program.module("env").unwrap();
 	let memory_ref = Arc::new(OwnMemoryReference { memory: RefCell::new(None) });
 	let mut executor = OwnMemoryExecutor { memory_ref: memory_ref.clone() };
-	let native_env_instance = native_module(env_instance, UserDefinedElements {
+	let native_env_instance = simple_native_module(UserDefinedElements {
 		executor: Some(&mut executor),
 		globals: HashMap::new(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),

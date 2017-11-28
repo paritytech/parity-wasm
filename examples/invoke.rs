@@ -16,13 +16,7 @@ fn main() {
     let (_, program_args) = args.split_at(3);
 
     // Intrepreter initialization.
-    // It also initializes a default "env" module.
-    let program = parity_wasm::ProgramInstance::with_emscripten_env(
-        interpreter::EmscriptenParams {
-            total_stack: 128*1024,
-            ..Default::default()
-        }
-    ).expect("Program instance to load");
+    let program = parity_wasm::ProgramInstance::new();
 
     let module = parity_wasm::deserialize_file(&args[1]).expect("File to be deserialized");
 

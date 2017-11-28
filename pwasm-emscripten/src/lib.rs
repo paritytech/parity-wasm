@@ -38,7 +38,7 @@ const INDEX_TABLE: u32 = 0;
 const LINEAR_MEMORY_PAGE_SIZE: u32 = 64 * 1024;
 
 /// Emscripten environment parameters.
-pub struct EnvParams {
+pub struct EmscriptenParams {
 	/// Stack size in bytes.
 	pub total_stack: u32,
 	/// Total memory size in bytes.
@@ -52,7 +52,6 @@ pub struct EnvParams {
 }
 
 struct EmscriptenFunctionExecutor {
-	abort_global: Arc<VariableInstance>,
 	total_mem_global: Arc<VariableInstance>,
 }
 
@@ -64,13 +63,11 @@ impl<'a> UserFunctionExecutor for EmscriptenFunctionExecutor {
 	) -> Result<Option<RuntimeValue>, Error> {
 		match name {
 			"_abort" | "abort" => {
-				self.abort_global.set(RuntimeValue::I32(1))?;
 				Err(Error::Trap("abort".into()).into())
 			}
 			"assert" => {
 				let condition = context.value_stack.pop_as::<i32>()?;
 				if condition == 0 {
-					self.abort_global.set(RuntimeValue::I32(1))?;
 					Err(Error::Trap("assertion failed".into()))
 				} else {
 					Ok(None)
@@ -89,7 +86,7 @@ impl<'a> UserFunctionExecutor for EmscriptenFunctionExecutor {
 	}
 }
 
-pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Error> {
+pub fn env_module(params: EmscriptenParams) -> Result<Arc<ModuleInstanceInterface>, Error> {
 	debug_assert!(params.total_stack < params.total_memory);
 	debug_assert!((params.total_stack % LINEAR_MEMORY_PAGE_SIZE) == 0);
 	debug_assert!((params.total_memory % LINEAR_MEMORY_PAGE_SIZE) == 0);
@@ -115,14 +112,6 @@ pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Err
 		instance.instantiate(None)?;
 		Arc::new(instance)
 	};
-
-	let abort_global = Arc::new(
-		VariableInstance::new(
-			false,
-			VariableType::I32,
-			RuntimeValue::I32(0)
-		).unwrap()
-	);
 	let total_mem_global = Arc::new(
 		VariableInstance::new(
 			false,
@@ -132,7 +121,6 @@ pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Err
 	);
 
 	let function_executor = EmscriptenFunctionExecutor {
-		abort_global: Arc::clone(&abort_global),
 		total_mem_global: Arc::clone(&total_mem_global),
 	};
 
@@ -224,7 +212,6 @@ pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Err
 				),
 			),
 			("TOTAL_MEMORY".into(), total_mem_global),
-			("ABORT".into(), abort_global),
 		].into_iter()
 			.collect(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
@@ -233,9 +220,9 @@ pub fn env_module(params: EnvParams) -> Result<Arc<ModuleInstanceInterface>, Err
 	Ok(native_module(instance, elements)?)
 }
 
-impl Default for EnvParams {
+impl Default for EmscriptenParams {
 	fn default() -> Self {
-		EnvParams {
+		EmscriptenParams {
 			total_stack: DEFAULT_TOTAL_STACK,
 			total_memory: DEFAULT_TOTAL_MEMORY,
 			allow_memory_growth: DEFAULT_ALLOW_MEMORY_GROWTH,
@@ -245,13 +232,13 @@ impl Default for EnvParams {
 	}
 }
 
-impl EnvParams {
+impl EmscriptenParams {
 	fn max_memory(&self) -> Option<u32> {
 		if self.allow_memory_growth { None } else { Some(self.total_memory) }
 	}
 }
 
-pub fn program_with_emscripten_env(params: EnvParams) -> Result<ProgramInstance, Error> {
+pub fn program_with_emscripten_env(params: EmscriptenParams) -> Result<ProgramInstance, Error> {
 	let program = ProgramInstance::new();
 	program.insert_loaded_module("env", env_module(params)?)?;
 	Ok(program)

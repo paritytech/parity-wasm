@@ -7,7 +7,7 @@ use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance};
-use interpreter::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
+use interpreter::native::{simple_native_module, native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::validator::{FunctionValidationContext, Validator};
@@ -334,9 +334,8 @@ fn native_env_global() {
 	}
 
 	let module_constructor = |elements: UserDefinedElements<DummyExecutor>| {
-		let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
-		let env_instance = program.module("env").unwrap();
-		let native_env_instance = native_module(env_instance.clone(), elements).unwrap();
+		let program = ProgramInstance::new();
+		let native_env_instance = simple_native_module(elements).unwrap();
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 		let module = module()

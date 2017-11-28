@@ -1,16 +1,17 @@
 
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use std::borrow::Cow;
 use parking_lot::RwLock;
 use elements::{Internal, ValueType};
 use interpreter::Error;
-use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ExecutionParams, ItemIndex,
 	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
 use interpreter::variable::{VariableInstance, VariableType};
+use builder::module;
 
 /// Min index of native function.
 pub const NATIVE_INDEX_FUNC_MIN: u32 = 10001;
@@ -282,6 +283,12 @@ impl<E: UserFunctionExecutor> ModuleInstanceInterface for NativeModuleInstance<E
 /// ```
 pub fn native_module<'a, E: UserFunctionExecutor + 'a>(base: Arc<ModuleInstanceInterface>, user_elements: UserDefinedElements<E>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
 	Ok(Arc::new(NativeModuleInstance::new(base, user_elements)?))
+}
+
+pub fn simple_native_module<'a, E: UserFunctionExecutor + 'a>(user_elements: UserDefinedElements<E>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
+	let mut instance = ModuleInstance::new(Weak::default(), "env".into(), module().build())?;
+	instance.instantiate(None)?;
+	native_module(Arc::new(instance), user_elements)
 }
 
 impl<'a> PartialEq for UserFunctionDescriptor {

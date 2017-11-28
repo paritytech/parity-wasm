@@ -432,6 +432,8 @@ fn native_custom_error() {
 	assert_eq!(user_error2.downcast_ref::<UserErrorWithCode>().unwrap(), &UserErrorWithCode { error_code: 777 });
 }
 
+// TODO: Move into pwasm-emscripten
+#[ignore]
 #[test]
 fn import_env_mutable_global() {
 	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
@@ -445,12 +447,20 @@ fn import_env_mutable_global() {
 
 #[test]
 fn env_native_export_entry_type_check() {
-	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
+	let program = ProgramInstance::new();
+	let env_module = module()
+		.memory()
+			.with_min(1)
+			.build()
+			.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
+		.build();
+	let env_instance = program.add_module("env", env_module, None).unwrap();
+	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
 	let mut function_executor = FunctionExecutor {
-		memory: program.module("env").unwrap().memory(ItemIndex::Internal(0)).unwrap(),
+		memory: env_memory,
 		values: Vec::new(),
 	};
-	let native_env_instance = native_module(program.module("env").unwrap(), UserDefinedElements {
+	let native_env_instance = native_module(env_instance, UserDefinedElements {
 		executor: Some(&mut function_executor),
 		globals: vec![("ext_global".into(), Arc::new(VariableInstance::new(false, VariableType::I32, RuntimeValue::I32(1312)).unwrap()))].into_iter().collect(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),

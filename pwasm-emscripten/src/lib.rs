@@ -251,8 +251,26 @@ impl EnvParams {
 	}
 }
 
-pub fn program_with_emscripten(params: EnvParams) -> ProgramInstance {
+pub fn program_with_emscripten_env(params: EnvParams) -> Result<ProgramInstance, Error> {
 	let program = ProgramInstance::new();
-	program.insert_loaded_module("env", env_module(params).unwrap()).unwrap();
-	program
+	program.insert_loaded_module("env", env_module(params)?)?;
+	Ok(program)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::program_with_emscripten_env;
+	use parity_wasm::builder::module;
+	use parity_wasm::elements::{ImportEntry, External, GlobalType, ValueType};
+
+	#[test]
+	fn import_env_mutable_global() {
+		let program = program_with_emscripten_env(Default::default()).unwrap();
+
+		let module = module()
+			.with_import(ImportEntry::new("env".into(), "STACKTOP".into(), External::Global(GlobalType::new(ValueType::I32, false))))
+			.build();
+
+		program.add_module("main", module, None).unwrap();
+	}
 }

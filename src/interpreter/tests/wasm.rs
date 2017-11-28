@@ -1,8 +1,9 @@
 use elements::deserialize_file;
-use elements::Module;
+use elements::{Module, Internal, ExportEntry, InitExpr, Opcode, ValueType, GlobalType, GlobalEntry};
 use interpreter::{ExecutionParams, ProgramInstance};
 use interpreter::value::RuntimeValue;
 use interpreter::module::{ModuleInstanceInterface, ItemIndex};
+use builder::module;
 
 #[test]
 fn interpreter_inc_i32() {
@@ -11,7 +12,22 @@ fn interpreter_inc_i32() {
     // The WASM file containing the module and function
     const WASM_FILE: &str = &"res/cases/v1/inc_i32.wasm";
 
-    let program = ProgramInstance::with_emscripten_env(Default::default()).expect("Failed to instanciate program");
+    let program = ProgramInstance::new();
+	let env_module = module()
+		.memory()
+			.with_min(256)
+			.build()
+			.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
+		.table()
+			.with_min(64)
+			.build()
+			.with_export(ExportEntry::new("table".into(), Internal::Table(0)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
+			.with_export(ExportEntry::new("tableBase".into(), Internal::Global(0)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
+			.with_export(ExportEntry::new("memoryBase".into(), Internal::Global(1)))
+		.build();
+	let _env_instance = program.add_module("env", env_module, None).unwrap();
 
     let module: Module =
         deserialize_file(WASM_FILE).expect("Failed to deserialize module from buffer");
@@ -43,7 +59,22 @@ fn interpreter_accumulate_u8() {
     const BUF: &[u8] = &[9,8,7,6,5,4,3,2,1];
 
     // Declare the memory limits of the runtime-environment
-    let program = ProgramInstance::with_emscripten_env(Default::default()).expect("Failed to instanciate program");
+    let program = ProgramInstance::new();
+	let env_module = module()
+		.memory()
+			.with_min(256)
+			.build()
+			.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
+		.table()
+			.with_min(64)
+			.build()
+			.with_export(ExportEntry::new("table".into(), Internal::Table(0)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
+			.with_export(ExportEntry::new("tableBase".into(), Internal::Global(0)))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0)])))
+			.with_export(ExportEntry::new("memoryBase".into(), Internal::Global(1)))
+		.build();
+	let _env_instance = program.add_module("env", env_module, None).unwrap();
 
     // Load the module-structure from wasm-file and add to program
     let module: Module =

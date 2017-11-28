@@ -7,12 +7,13 @@ use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance};
-use interpreter::native::{simple_native_module, native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
+use interpreter::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::validator::{FunctionValidationContext, Validator};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, ExternalVariableValue, VariableType};
+use super::utils::program_with_default_env;
 
 #[test]
 fn import_function() {
@@ -195,14 +196,11 @@ impl<'a> UserFunctionExecutor for &'a mut FunctionExecutor {
 
 #[test]
 fn native_env_function() {
-	let program = ProgramInstance::new();
-	let env_module = module()
-		.memory()
-			.with_min(1)
-			.build()
-			.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
-		.build();
-	let env_instance = program.add_module("env", env_module, None).unwrap();
+	// create new program
+	let program = program_with_default_env();
+	// => env module is created
+	let env_instance = program.module("env").unwrap();
+	// => linear memory is created
 	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
 
 	// create native env module executor
@@ -259,7 +257,7 @@ fn native_env_function() {
 #[test]
 fn native_env_function_own_memory() {
 	// create program + env module is auto instantiated + env module memory is instantiated (we do not need this)
-	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
+	let program = program_with_default_env();
 
 	struct OwnMemoryReference {
 		pub memory: RefCell<Option<Arc<MemoryInstance>>>,
@@ -287,9 +285,10 @@ fn native_env_function_own_memory() {
 		}
 	}
 
+	let env_instance = program.module("env").unwrap();
 	let memory_ref = Arc::new(OwnMemoryReference { memory: RefCell::new(None) });
 	let mut executor = OwnMemoryExecutor { memory_ref: memory_ref.clone() };
-	let native_env_instance = simple_native_module(UserDefinedElements {
+	let native_env_instance = native_module(env_instance, UserDefinedElements {
 		executor: Some(&mut executor),
 		globals: HashMap::new(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
@@ -336,8 +335,9 @@ fn native_env_global() {
 	}
 
 	let module_constructor = |elements: UserDefinedElements<DummyExecutor>| {
-		let program = ProgramInstance::new();
-		let native_env_instance = simple_native_module(elements).unwrap();
+		let program = program_with_default_env();
+		let env_instance = program.module("env").unwrap();
+		let native_env_instance = native_module(env_instance, elements).unwrap();
 		let params = ExecutionParams::with_external("env".into(), native_env_instance);
 
 		let module = module()
@@ -384,14 +384,8 @@ fn native_env_global() {
 
 #[test]
 fn native_custom_error() {
-	let program = ProgramInstance::new();
-	let env_module = module()
-		.memory()
-			.with_min(1)
-			.build()
-			.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
-		.build();
-	let env_instance = program.add_module("env", env_module, None).unwrap();
+	let program = program_with_default_env();
+	let env_instance = program.module("env").unwrap();
 	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
 
 	let mut executor = FunctionExecutor { memory: env_memory.clone(), values: Vec::new() };
@@ -442,29 +436,10 @@ fn native_custom_error() {
 	assert_eq!(user_error2.downcast_ref::<UserErrorWithCode>().unwrap(), &UserErrorWithCode { error_code: 777 });
 }
 
-// TODO: Move into pwasm-emscripten
-#[ignore]
-#[test]
-fn import_env_mutable_global() {
-	let program = ProgramInstance::with_emscripten_env(Default::default()).unwrap();
-
-	let module = module()
-		.with_import(ImportEntry::new("env".into(), "STACKTOP".into(), External::Global(GlobalType::new(ValueType::I32, false))))
-		.build();
-
-	program.add_module("main", module, None).unwrap();
-}
-
 #[test]
 fn env_native_export_entry_type_check() {
-	let program = ProgramInstance::new();
-	let env_module = module()
-		.memory()
-			.with_min(1)
-			.build()
-			.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
-		.build();
-	let env_instance = program.add_module("env", env_module, None).unwrap();
+	let program = program_with_default_env();
+	let env_instance = program.module("env").unwrap();
 	let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
 	let mut function_executor = FunctionExecutor {
 		memory: env_memory,

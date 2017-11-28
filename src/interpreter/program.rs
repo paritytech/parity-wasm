@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use parking_lot::RwLock;
 use elements::Module;
 use interpreter::Error;
-use interpreter::emscripten::{self, env_module};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface};
 
 /// Program instance. Program is a set of instantiated modules.
@@ -24,17 +23,6 @@ impl ProgramInstance {
 		ProgramInstance {
 			essence: Arc::new(ProgramInstanceEssence::new()),
 		}
-	}
-
-	/// Create new program instance with added Emscripten's `env` module.
-	///
-	/// You can specify desired environment params. Or you can just pass `Default::default()`.
-	pub fn with_emscripten_env(params: emscripten::EnvParams) -> Result<Self, Error> {
-		let instance = ProgramInstance {
-			essence: Arc::new(ProgramInstanceEssence::new()),
-		};
-		// instance.essence.modules.write().insert("env".into(), env_module(params)?);
-		Ok(instance)
 	}
 
 	/// Instantiate module with validation.

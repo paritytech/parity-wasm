@@ -1,7 +1,7 @@
-extern crate parity_wasm;
+//! This crate provides some of the simplest exports
+//! from the Emscripten runtime, such as `STACKTOP` or `abort`.
 
-//This module provides some of the simplest exports
-//from the Emscripten runtime, such as `STACKTOP` or `abort`.
+extern crate parity_wasm;
 
 use std::sync::{Arc, Weak};
 use parity_wasm::builder::module;
@@ -64,7 +64,7 @@ impl<'a> UserFunctionExecutor for EmscriptenFunctionExecutor {
 		match name {
 			"_abort" | "abort" => {
 				Err(Error::Trap("abort".into()).into())
-			}
+			},
 			"assert" => {
 				let condition = context.value_stack.pop_as::<i32>()?;
 				if condition == 0 {
@@ -72,15 +72,15 @@ impl<'a> UserFunctionExecutor for EmscriptenFunctionExecutor {
 				} else {
 					Ok(None)
 				}
-			}
+			},
 			"enlargeMemory" => {
 				// TODO: support memory enlarge
 				Ok(Some(RuntimeValue::I32(0)))
-			}
+			},
 			"getTotalMemory" => {
 				let total_memory = self.total_mem_global.get();
 				Ok(Some(total_memory))
-			}
+			},
 			_ => Err(Error::Trap("not implemented".into()).into()),
 		}
 	}

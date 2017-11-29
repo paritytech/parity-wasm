@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use parking_lot::RwLock;
 use elements::Module;
 use interpreter::Error;
-use interpreter::emscripten::{EmscriptenParams, env_module};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface};
 
 /// Program instance. Program is a set of instantiated modules.
@@ -26,15 +25,6 @@ impl ProgramInstance {
 		}
 	}
 
-	/// Create new program instance with added Emscripten's `env` module.
-	///
-	/// You can specify desired environment params. Or you can just pass `Default::default()`.
-	pub fn with_emscripten_env(params: EmscriptenParams) -> Result<Self, Error> {
-		Ok(ProgramInstance {
-			essence: Arc::new(ProgramInstanceEssence::with_env_params(params)?),
-		})
-	}
-
 	/// Instantiate module with validation.
 	pub fn add_module<'a>(&self, name: &str, module: Module, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstance>, Error> {
 		let mut module_instance = ModuleInstance::new(Arc::downgrade(&self.essence), name.into(), module)?;
@@ -47,9 +37,9 @@ impl ProgramInstance {
 	}
 
 	/// Insert instantiated module.
-	pub fn insert_loaded_module(&self, name: &str, module_instance: Arc<ModuleInstance>) -> Result<Arc<ModuleInstance>, Error> {
+	pub fn insert_loaded_module(&self, name: &str, module_instance: Arc<ModuleInstanceInterface>) -> Result<Arc<ModuleInstanceInterface>, Error> {
 		// replace existing module with the same name with new one
-		self.essence.modules.write().insert(name.into(), module_instance.clone());
+		self.essence.modules.write().insert(name.into(), Arc::clone(&module_instance));
 		Ok(module_instance)
 	}
 
@@ -64,19 +54,6 @@ impl ProgramInstanceEssence {
 	pub fn new() -> Self {
 		ProgramInstanceEssence {
 			modules: RwLock::new(HashMap::new()),
-		}
-	}
-
-	pub fn with_env_params(env_params: EmscriptenParams) -> Result<Self, Error> {
-		let env_mod = env_module(env_params)?;
-		Ok(ProgramInstanceEssence::with_env_module(Arc::new(env_mod)))
-	}
-
-	pub fn with_env_module(env_module: Arc<ModuleInstanceInterface>) -> Self {
-		let mut modules = HashMap::new();
-		modules.insert("env".into(), env_module);
-		ProgramInstanceEssence {
-			modules: RwLock::new(modules),
 		}
 	}
 

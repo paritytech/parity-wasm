@@ -69,21 +69,21 @@ impl UserFunctionDescriptor {
 }
 
 /// Set of user-defined module elements.
-pub struct UserDefinedElements<'a> {
+pub struct UserDefinedElements<E: UserFunctionExecutor> {
 	/// User globals list.
 	pub globals: HashMap<String, Arc<VariableInstance>>,
 	/// User functions list.
 	pub functions: Cow<'static, [UserFunctionDescriptor]>,
 	/// Functions executor.
-	pub executor: Option<&'a mut UserFunctionExecutor>,
+	pub executor: Option<E>,
 }
 
 /// Native module instance.
-pub struct NativeModuleInstance<'a> {
+pub struct NativeModuleInstance<E: UserFunctionExecutor> {
 	/// Underlying module reference.
 	base: Arc<ModuleInstanceInterface>,
 	/// User function executor.
-	executor: RwLock<Option<&'a mut UserFunctionExecutor>>,
+	executor: RwLock<Option<E>>,
 	/// By-name functions index.
 	functions_by_name: HashMap<String, u32>,
 	/// User functions list.
@@ -94,9 +94,9 @@ pub struct NativeModuleInstance<'a> {
 	globals: Vec<Arc<VariableInstance>>,
 }
 
-impl<'a> NativeModuleInstance<'a> {
+impl<E: UserFunctionExecutor> NativeModuleInstance<E> {
 	/// Create new native module
-	pub fn new(base: Arc<ModuleInstanceInterface>, elements: UserDefinedElements<'a>) -> Result<Self, Error> {
+	pub fn new(base: Arc<ModuleInstanceInterface>, elements: UserDefinedElements<E>) -> Result<Self, Error> {
 		if !elements.functions.is_empty() && elements.executor.is_none() {
 			return Err(Error::Function("trying to construct native module with functions, but without executor".into()));
 		}
@@ -112,7 +112,7 @@ impl<'a> NativeModuleInstance<'a> {
 	}
 }
 
-impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
+impl<E: UserFunctionExecutor> ModuleInstanceInterface for NativeModuleInstance<E> {
 	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		self.base.execute_index(index, params)
 	}
@@ -280,8 +280,8 @@ impl<'a> ModuleInstanceInterface for NativeModuleInstance<'a> {
 ///     }
 /// }
 /// ```
-pub fn native_module<'a>(base: Arc<ModuleInstanceInterface>, user_elements: UserDefinedElements<'a>) -> Result<NativeModuleInstance, Error> {
-	NativeModuleInstance::new(base, user_elements)
+pub fn native_module<'a, E: UserFunctionExecutor + 'a>(base: Arc<ModuleInstanceInterface>, user_elements: UserDefinedElements<E>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
+	Ok(Arc::new(NativeModuleInstance::new(base, user_elements)?))
 }
 
 impl<'a> PartialEq for UserFunctionDescriptor {

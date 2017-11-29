@@ -4,7 +4,7 @@ extern crate parity_wasm;
 
 use std::env::args;
 
-use parity_wasm::{interpreter, ModuleInstanceInterface};
+use parity_wasm::ModuleInstanceInterface;
 
 fn main() {
     let args: Vec<_> = args().collect();
@@ -15,13 +15,7 @@ fn main() {
     }
 
     // Intrepreter initialization.
-    // It also initializes a default "env" module.
-    let program = parity_wasm::ProgramInstance::with_emscripten_env(
-        interpreter::EmscriptenParams {
-            total_stack: 128*1024,
-            ..Default::default()
-        }
-    ).expect("Failed to load program");
+    let program = parity_wasm::ProgramInstance::new();
 
     // Here we load module using dedicated for this purpose
     // `deserialize_file` function (which works only with modules)

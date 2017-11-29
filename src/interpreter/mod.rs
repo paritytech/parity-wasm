@@ -116,7 +116,6 @@ impl<U> From<U> for Error where U: UserError + Sized {
 	}
 }
 
-mod emscripten;
 mod native;
 mod imports;
 mod memory;
@@ -140,4 +139,3 @@ pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
 pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
 pub use self::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
-pub use self::emscripten::EmscriptenParams;

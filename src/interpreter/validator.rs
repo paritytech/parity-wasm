@@ -474,7 +474,6 @@ impl Validator {
 			let frame = context.require_label(idx)?;
 			(frame.frame_type, frame.block_type)
 		};
-
 		if frame_type != BlockFrameType::Loop {
 			if let BlockType::Value(value_type) = frame_block_type {
 				context.tee_value(value_type.into())?;
@@ -485,8 +484,15 @@ impl Validator {
 
 	fn validate_br_if(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
 		context.pop_value(ValueType::I32.into())?;
-		if let BlockType::Value(value_type) = context.require_label(idx)?.block_type {
-			context.tee_value(value_type.into())?;
+
+		let (frame_type, frame_block_type) = {
+			let frame = context.require_label(idx)?;
+			(frame.frame_type, frame.block_type)
+		};
+		if frame_type != BlockFrameType::Loop {
+			if let BlockType::Value(value_type) = frame_block_type {
+				context.tee_value(value_type.into())?;
+			}
 		}
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}

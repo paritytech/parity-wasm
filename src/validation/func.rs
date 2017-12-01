@@ -67,7 +67,7 @@ impl Validator {
 		func: &Func,
 		body: &FuncBody,
 	) -> Result<(), Error> {
-		let (params, result_ty) = module.require_function(func.type_ref())?;
+		let (params, result_ty) = module.require_function_type(func.type_ref())?;
 
 		// locals = (params + vars)
 		let mut locals = params;

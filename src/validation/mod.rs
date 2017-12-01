@@ -127,6 +127,11 @@ fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 	}
 
 	// Concatenate elements with defined in the module.
+	if let Some(function_section) = module.function_section() {
+		for func_entry in function_section.entries() {
+			func_type_indexes.push(func_entry.type_ref());
+		}
+	}
 	if let Some(table_section) = module.table_section() {
 		for table_entry in table_section.entries() {
 			table_entry.validate()?;

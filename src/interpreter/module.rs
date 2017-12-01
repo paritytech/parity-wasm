@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::iter::repeat;
 use std::sync::{Arc, Weak};
 use std::fmt;
-use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, ResizableLimits, Local, ValueType};
+use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, ResizableLimits, Local, ValueType, BlockType};
 use interpreter::Error;
 use interpreter::native::UserFunctionDescriptor;
 use interpreter::imports::ModuleImports;
@@ -9,6 +10,7 @@ use interpreter::memory::MemoryInstance;
 use interpreter::program::ProgramInstanceEssence;
 use interpreter::runner::{Interpreter, FunctionContext, prepare_function_args};
 use interpreter::table::TableInstance;
+use interpreter::validator::{Validator, FunctionValidationContext};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, VariableType};
 use common::stack::StackWithLimit;
@@ -364,6 +366,41 @@ impl ModuleInstance {
 		let code_section_len = self.module.code_section().map(|s| s.bodies().len()).unwrap_or(0);
 		if function_section_len != code_section_len {
 			return Err(Error::Validation(format!("length of function section is {}, while len of code section is {}", function_section_len, code_section_len)));
+		}
+
+		// validate every function body in user modules
+		if function_section_len != 0 { // tests use invalid code
+			let function_section = self.module.function_section().expect("function_section_len != 0; qed");
+			let code_section = self.module.code_section().expect("function_section_len != 0; function_section_len == code_section_len; qed");
+			// check every function body
+			for (index, function) in function_section.entries().iter().enumerate() {
+				let function_labels = {
+					let function_type = self.function_type_by_index(function.type_ref())?;
+					let function_body = code_section.bodies().get(index as usize).ok_or(Error::Validation(format!("Missing body for function {}", index)))?;
+					let mut locals = function_type.params().to_vec();
+					locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
+
+					let mut context = FunctionValidationContext::new(
+						self,
+						externals,
+						&locals,
+						DEFAULT_VALUE_STACK_LIMIT,
+						DEFAULT_FRAME_STACK_LIMIT,
+						function_type.clone());
+
+					let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
+					Validator::validate_function(&mut context, block_type, function_body.code().elements())
+						.map_err(|e| {
+							if let Error::Validation(msg) = e {
+								Error::Validation(format!("Function #{} validation error: {}", index, msg))
+							} else {
+								e
+							}
+						})?;
+					context.function_labels()
+				};
+				self.functions_labels.insert(index as u32, function_labels);
+			}
 		}
 
 		// use data section to initialize linear memory regions

@@ -129,6 +129,7 @@ impl From<::common::stack::Error> for Error {
 	}
 }
 
+mod validator;
 mod native;
 mod imports;
 mod memory;

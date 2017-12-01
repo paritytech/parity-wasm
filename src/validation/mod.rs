@@ -1,21 +1,25 @@
+#![allow(unused, missing_docs)]
+
 use elements::{Module, ResizableLimits, MemoryType, TableType};
 
 pub struct Error(pub String);
 
 pub fn validate_module(module: &Module) -> Result<(), Error> {
-	if let Some(mem_section) = module.memory_section() {
-		mem_section
-			.entries()
-			.iter()
-			.map(MemoryType::validate)
-			.collect::<Result<_, _>>()?
-	}
+	// TODO: Functions
 
 	if let Some(table_section) = module.table_section() {
 		table_section
 			.entries()
 			.iter()
 			.map(TableType::validate)
+			.collect::<Result<_, _>>()?
+	}
+
+	if let Some(mem_section) = module.memory_section() {
+		mem_section
+			.entries()
+			.iter()
+			.map(MemoryType::validate)
 			.collect::<Result<_, _>>()?
 	}
 

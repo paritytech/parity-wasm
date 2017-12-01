@@ -1,16 +1,15 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
-	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
+	InitExpr, ValueType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance};
 use interpreter::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
-use interpreter::validator::{FunctionValidationContext, Validator};
+use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, ExternalVariableValue, VariableType};
 use super::utils::program_with_default_env;

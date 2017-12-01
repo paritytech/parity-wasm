@@ -669,8 +669,7 @@ impl<'a> CallerContext<'a> {
 pub fn check_limits(limits: &ResizableLimits) -> Result<(), Error> {
 	if let Some(maximum) = limits.maximum() {
 		if maximum < limits.initial() {
-			panic!()
-			// return Err(Error::Validation(format!("maximum limit {} is lesser than minimum {}", maximum, limits.initial())));
+			return Err(Error::Validation(format!("maximum limit {} is lesser than minimum {}", maximum, limits.initial())));
 		}
 	}
 

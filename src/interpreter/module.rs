@@ -232,6 +232,8 @@ impl ModuleInstance {
 
 	/// Run instantiation-time procedures (validation). Module is not completely validated until this call.
 	pub fn instantiate<'a>(&mut self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
+		::validation::validate_module(&self.module)?;
+
 		// validate start section
 		if let Some(start_function) = self.module.start_section() {
 			let func_type_index = self.require_function(ItemIndex::IndexSpace(start_function))?;

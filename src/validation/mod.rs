@@ -8,6 +8,8 @@ use common::stack;
 use self::context::ModuleContext;
 use self::func::{FunctionValidationContext, Validator};
 
+pub use self::module::ValidatedModule;
+
 mod context;
 mod module;
 mod func;
@@ -29,7 +31,7 @@ impl From<stack::Error> for Error {
 	}
 }
 
-pub fn validate_module(module: &Module) -> Result<(), Error> {
+pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 	let context = prepare_context(module)?;
 
 	let function_section_len = module
@@ -74,13 +76,28 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 			// self.functions_labels.insert(index as u32, function_labels);
 		}
 	}
-	Ok(())
+
+	let ModuleContext {
+		types,
+		tables,
+		memories,
+		globals,
+		func_type_indexes,
+	} = context;
+
+	Ok(ValidatedModule {
+		types,
+		tables,
+		memories,
+		globals,
+		func_type_indexes,
+	})
 }
 
 fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 	// TODO: Validate start
- // TODO: Validate imports
- // TODO: Validate exports
+	// TODO: Validate imports
+	// TODO: Validate exports
 
 	// Copy types from module as is.
 	let types = module

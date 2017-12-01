@@ -10,6 +10,7 @@ extern crate parking_lot;
 pub mod elements;
 pub mod builder;
 pub mod interpreter;
+pub mod validation;
 
 pub use elements::{
     Error as SerializationError,

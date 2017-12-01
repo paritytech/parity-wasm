@@ -17,7 +17,7 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 impl ResizableLimits {
 	fn validate(&self) -> Result<(), Error> {
 		if let Some(maximum) = self.maximum() {
-			if self.initial() >= maximum {
+			if self.initial() > maximum {
 				return Err(Error(format!(
 					"maximum limit {} is lesser than minimum {}",
 					maximum,
@@ -59,6 +59,15 @@ mod tests {
 				.build()
 			.build();
 		assert!(validate_module(&m).is_err());
+
+		// min = max
+		let m = module()
+			.memory()
+				.with_min(10)
+				.with_max(Some(10))
+				.build()
+			.build();
+		assert!(validate_module(&m).is_ok());
 
 		// mod is always valid without max.
 		let m = module()

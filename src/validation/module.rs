@@ -1,26 +1,31 @@
 use elements::{MemoryType, TableType, GlobalType, Type};
 
-pub struct ValidatedModule {
+pub struct ModuleContext {
+	pub memories: Vec<MemoryType>,
+	pub tables: Vec<TableType>,
+	pub globals: Vec<GlobalType>,
+	pub types: Vec<Type>,
+	pub func_type_indexes: Vec<u32>,
 }
 
-impl ValidatedModule {
+impl ModuleContext {
 	pub fn memories(&self) -> &[MemoryType] {
-		unimplemented!();
+		&self.memories
 	}
 
 	pub fn tables(&self) -> &[TableType] {
-		unimplemented!();
+		&self.tables
 	}
 
 	pub fn globals(&self) -> &[GlobalType] {
-		unimplemented!();
+		&self.globals
 	}
 
 	pub fn types(&self) -> &[Type] {
-		unimplemented!();
+		&self.types
 	}
 
-	pub fn function_types(&self) -> &[Type] {
-		unimplemented!();
+	pub fn func_type_indexes(&self) -> &[u32] {
+		&self.func_type_indexes
 	}
 }

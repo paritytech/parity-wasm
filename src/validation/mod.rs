@@ -4,8 +4,9 @@ mod module;
 mod func;
 
 use std::fmt;
-use elements::{Module, ResizableLimits, MemoryType, TableType};
+use elements::{Module, ResizableLimits, MemoryType, TableType, GlobalType, External};
 use common::stack;
+use self::module::ModuleContext;
 
 pub struct Error(String);
 
@@ -22,8 +23,6 @@ impl From<stack::Error> for Error {
 }
 
 pub fn validate_module(module: &Module) -> Result<(), Error> {
-	// TODO: Functions
-
 	if let Some(table_section) = module.table_section() {
 		table_section
 			.entries()
@@ -41,6 +40,43 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 	}
 
 	Ok(())
+}
+
+fn prepare_context(module: &Module) -> ModuleContext {
+	// Copy types from module as is.
+	let types = module
+		.type_section()
+		.map(|ts| ts.types().into_iter().cloned().collect())
+		.unwrap_or_default();
+
+	// Fill elements with imported values.
+	let mut func_type_indexes = Vec::new();
+	let mut tables = Vec::new();
+	let mut memories = Vec::new();
+	let mut globals = Vec::new();
+
+	for import_entry in module
+		.import_section()
+		.map(|i| i.entries())
+		.unwrap_or_default()
+	{
+		match import_entry.external() {
+			&External::Function(idx) => func_type_indexes.push(idx),
+			&External::Table(ref table) => tables.push(table.clone()),
+			&External::Memory(ref memory) => memories.push(memory.clone()),
+			&External::Global(ref global) => globals.push(global.clone()),
+		}
+	}
+
+	// Concatenate elements with defined in the module.
+
+	ModuleContext {
+		types,
+		tables,
+		memories,
+		globals,
+		func_type_indexes,
+	}
 }
 
 impl ResizableLimits {

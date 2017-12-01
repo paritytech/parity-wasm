@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use elements::{Opcode, BlockType, ValueType, TableElementType};
 use elements::{FunctionType, Type};
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
-use validation::module::ValidatedModule;
+use validation::module::ModuleContext;
 
 use validation::Error;
 
@@ -17,7 +17,7 @@ const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
 /// Function validation context.
 pub struct FunctionValidationContext<'a> {
 	/// Wasm module
-	module: &'a ValidatedModule,
+	module: &'a ModuleContext,
 	/// Current instruction position.
 	position: usize,
 	/// Local variables.
@@ -546,7 +546,7 @@ impl Validator {
 
 impl<'a> FunctionValidationContext<'a> {
 	pub fn new(
-		module: &'a ValidatedModule,
+		module: &'a ModuleContext,
 		locals: &'a [ValueType],
 		value_stack_limit: usize,
 		frame_stack_limit: usize,
@@ -721,20 +721,15 @@ impl<'a> FunctionValidationContext<'a> {
 	}
 
 	pub fn require_function(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
-		let ty = match self.module.function_types().get(idx as usize) {
-			Some(&Type::Function(ref func_ty)) => func_ty,
+		let ty_idx = match self.module.func_type_indexes().get(idx as usize) {
+			Some(ty_idx) => *ty_idx,
 			None => {
 				return Err(Error(
 					format!("Function at index {} doesn't exists", idx),
 				));
 			}
 		};
-
-		let params = ty.params().to_vec();
-		let return_ty = ty.return_type()
-			.map(BlockType::Value)
-			.unwrap_or(BlockType::NoResult);
-		Ok((params, return_ty))
+		self.require_function_type(ty_idx)
 	}
 
 	pub fn require_function_type(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {

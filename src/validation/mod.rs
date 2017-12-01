@@ -1,17 +1,19 @@
 #![allow(unused, missing_docs)]
 
+use std::fmt;
+use std::iter::repeat;
+use elements::{BlockType, External, FunctionType, GlobalEntry, GlobalType, MemoryType, Module,
+               Opcode, ResizableLimits, TableType, Type, ValueType};
+use common::stack;
+use self::context::ModuleContext;
+use self::func::{FunctionValidationContext, Validator};
+
+mod context;
 mod module;
 mod func;
 
 #[cfg(test)]
 mod tests;
-
-use std::fmt;
-use std::iter::repeat;
-use elements::{Module, ResizableLimits, MemoryType, TableType, GlobalType, FunctionType, External, Opcode, ValueType, BlockType, Type};
-use common::stack;
-use self::module::ModuleContext;
-use self::func::{Validator, FunctionValidationContext};
 
 pub struct Error(String);
 
@@ -34,10 +36,7 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 		.function_section()
 		.map(|s| s.entries().len())
 		.unwrap_or(0);
-	let code_section_len = module
-		.code_section()
-		.map(|s| s.bodies().len())
-		.unwrap_or(0);
+	let code_section_len = module.code_section().map(|s| s.bodies().len()).unwrap_or(0);
 	if function_section_len != code_section_len {
 		return Err(Error(format!(
 			"length of function section is {}, while len of code section is {}",
@@ -47,19 +46,31 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 	}
 
 	// validate every function body in user modules
-	if function_section_len != 0 { // tests use invalid code
-		let function_section = module.function_section().expect("function_section_len != 0; qed");
-		let code_section = module.code_section().expect("function_section_len != 0; function_section_len == code_section_len; qed");
+	if function_section_len != 0 {
+		// tests use invalid code
+		let function_section = module
+			.function_section()
+			.expect("function_section_len != 0; qed");
+		let code_section = module
+			.code_section()
+			.expect("function_section_len != 0; function_section_len == code_section_len; qed");
 		// check every function body
 		for (index, function) in function_section.entries().iter().enumerate() {
 			let function_labels = {
-				let function_body = code_section.bodies().get(index as usize).ok_or(Error(format!("Missing body for function {}", index)))?;
+				let function_body = code_section
+					.bodies()
+					.get(index as usize)
+					.ok_or(Error(format!("Missing body for function {}", index)))?;
 				Validator::validate_function(&context, function, function_body).map_err(|e| {
 					let Error(ref msg) = e;
 					Error(format!("Function #{} validation error: {}", index, msg))
 				})?;
+
+				// TODO: pepyakin
 				// context.function_labels()
 			};
+
+			// TODO: pepyakin
 			// self.functions_labels.insert(index as u32, function_labels);
 		}
 	}
@@ -68,8 +79,8 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 
 fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 	// TODO: Validate start
-	// TODO: Validate imports
-	// TODO: Validate exports
+ // TODO: Validate imports
+ // TODO: Validate exports
 
 	// Copy types from module as is.
 	let types = module
@@ -113,44 +124,7 @@ fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 	}
 	if let Some(global_section) = module.global_section() {
 		for global_entry in global_section.entries() {
-			let init = global_entry.init_expr().code();
-			if init.len() != 2 {
-				return Err(Error(format!("Init expression should always be with length 2")));
-			}
-			let init_expr_ty: ValueType = match init[0] {
-				Opcode::I32Const(_) => ValueType::I32,
-				Opcode::I64Const(_) => ValueType::I64,
-				Opcode::F32Const(_) => ValueType::F32,
-				Opcode::F64Const(_) => ValueType::F64,
-				Opcode::GetGlobal(idx) => {
-					match globals.get(idx as usize) {
-						Some(target_global) => {
-							if target_global.is_mutable() {
-								return Err(Error(
-									format!("Global {} is mutable", idx)
-								));
-							}
-							target_global.content_type()
-						},
-						None => return Err(Error(
-							format!("Global {} doesn't exists", idx)
-						)),
-					}
-				},
-				_ => return Err(Error(format!("Non constant opcode in init expr"))),
-			};
-			if init_expr_ty != global_entry.global_type().content_type() {
-				return Err(Error(
-					format!(
-						"Trying to initialize variable of type {:?} with value of type {:?}",
-						global_entry.global_type().content_type(),
-						init_expr_ty
-					)
-				));
-			}
-			if init[1] != Opcode::End {
-				return Err(Error(format!("Expression doesn't ends with `end` opcode")));
-			}
+			global_entry.validate(&globals)?;
 			globals.push(global_entry.global_type().clone());
 		}
 	}
@@ -188,5 +162,47 @@ impl MemoryType {
 impl TableType {
 	fn validate(&self) -> Result<(), Error> {
 		self.limits().validate()
+	}
+}
+
+impl GlobalEntry {
+	fn validate(&self, globals_sofar: &[GlobalType]) -> Result<(), Error> {
+		let init = self.init_expr().code();
+		if init.len() != 2 {
+			return Err(Error(
+				format!("Init expression should always be with length 2"),
+			));
+		}
+		let init_expr_ty: ValueType = match init[0] {
+			Opcode::I32Const(_) => ValueType::I32,
+			Opcode::I64Const(_) => ValueType::I64,
+			Opcode::F32Const(_) => ValueType::F32,
+			Opcode::F64Const(_) => ValueType::F64,
+			Opcode::GetGlobal(idx) => match globals_sofar.get(idx as usize) {
+				Some(target_global) => {
+					if target_global.is_mutable() {
+						return Err(Error(format!("Global {} is mutable", idx)));
+					}
+					target_global.content_type()
+				}
+				None => {
+					return Err(Error(
+						format!("Global {} doesn't exists or not yet defined", idx),
+					))
+				}
+			},
+			_ => return Err(Error(format!("Non constant opcode in init expr"))),
+		};
+		if init_expr_ty != self.global_type().content_type() {
+			return Err(Error(format!(
+				"Trying to initialize variable of type {:?} with value of type {:?}",
+				self.global_type().content_type(),
+				init_expr_ty
+			)));
+		}
+		if init[1] != Opcode::End {
+			return Err(Error(format!("Expression doesn't ends with `end` opcode")));
+		}
+		Ok(())
 	}
 }

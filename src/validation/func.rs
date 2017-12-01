@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use elements::{Opcode, BlockType, ValueType, TableElementType, Func, FuncBody};
 use elements::{FunctionType, Type};
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
-use validation::module::ModuleContext;
+use validation::context::ModuleContext;
 
 use validation::Error;
 

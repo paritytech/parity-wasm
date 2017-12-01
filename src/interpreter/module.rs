@@ -366,8 +366,6 @@ impl ModuleInstance {
 			return Err(Error::Validation(format!("length of function section is {}, while len of code section is {}", function_section_len, code_section_len)));
 		}
 
-
-
 		// use data section to initialize linear memory regions
 		if let Some(data_section) = self.module.data_section() {
 			for (data_segment_index, data_segment) in data_section.entries().iter().enumerate() {

@@ -4,9 +4,11 @@ mod module;
 mod func;
 
 use std::fmt;
-use elements::{Module, ResizableLimits, MemoryType, TableType, GlobalType, FunctionType, External, Opcode, ValueType};
+use std::iter::repeat;
+use elements::{Module, ResizableLimits, MemoryType, TableType, GlobalType, FunctionType, External, Opcode, ValueType, BlockType, Type};
 use common::stack;
 use self::module::ModuleContext;
+use self::func::{Validator, FunctionValidationContext};
 
 pub struct Error(String);
 
@@ -23,10 +25,49 @@ impl From<stack::Error> for Error {
 }
 
 pub fn validate_module(module: &Module) -> Result<(), Error> {
-	prepare_context(module).map(|_| ())
+	let context = prepare_context(module)?;
+
+	let function_section_len = module
+		.function_section()
+		.map(|s| s.entries().len())
+		.unwrap_or(0);
+	let code_section_len = module
+		.code_section()
+		.map(|s| s.bodies().len())
+		.unwrap_or(0);
+	if function_section_len != code_section_len {
+		return Err(Error(format!(
+			"length of function section is {}, while len of code section is {}",
+			function_section_len,
+			code_section_len
+		)));
+	}
+
+	// validate every function body in user modules
+	if function_section_len != 0 { // tests use invalid code
+		let function_section = module.function_section().expect("function_section_len != 0; qed");
+		let code_section = module.code_section().expect("function_section_len != 0; function_section_len == code_section_len; qed");
+		// check every function body
+		for (index, function) in function_section.entries().iter().enumerate() {
+			let function_labels = {
+				let function_body = code_section.bodies().get(index as usize).ok_or(Error(format!("Missing body for function {}", index)))?;
+				Validator::validate_function(&context, function, function_body).map_err(|e| {
+					let Error(ref msg) = e;
+					Error(format!("Function #{} validation error: {}", index, msg))
+				})?;
+				// context.function_labels()
+			};
+			// self.functions_labels.insert(index as u32, function_labels);
+		}
+	}
+	Ok(())
 }
 
 fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
+	// TODO: Validate start
+	// TODO: Validate imports
+	// TODO: Validate exports
+
 	// Copy types from module as is.
 	let types = module
 		.type_section()
@@ -34,6 +75,8 @@ fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 		.unwrap_or_default();
 
 	// Fill elements with imported values.
+
+	// TODO: Use Func::type_ref?
 	let mut func_type_indexes = Vec::new();
 	let mut tables = Vec::new();
 	let mut memories = Vec::new();

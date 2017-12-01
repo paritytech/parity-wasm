@@ -1,7 +1,8 @@
 use std::u32;
 use std::sync::Arc;
+use std::iter::repeat;
 use std::collections::HashMap;
-use elements::{Opcode, BlockType, ValueType, TableElementType};
+use elements::{Opcode, BlockType, ValueType, TableElementType, Func, FuncBody};
 use elements::{FunctionType, Type};
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 use validation::module::ModuleContext;
@@ -13,6 +14,11 @@ use common::{BlockFrame, BlockFrameType};
 
 /// Constant from wabt' validator.cc to skip alignment validation (not a part of spec).
 const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
+
+/// Maximum number of entries in value stack.
+const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
+/// Maximum number of entries in frame stack.
+const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
 
 /// Function validation context.
 pub struct FunctionValidationContext<'a> {
@@ -56,9 +62,31 @@ pub enum InstructionOutcome {
 }
 
 impl Validator {
-	pub fn validate_function(context: &mut FunctionValidationContext, block_type: BlockType, body: &[Opcode]) -> Result<(), Error> {
-		context.push_label(BlockFrameType::Function, block_type)?;
-		Validator::validate_function_block(context, body)?;
+	pub fn validate_function(
+		module: &ModuleContext,
+		func: &Func,
+		body: &FuncBody,
+	) -> Result<(), Error> {
+		let (params, result_ty) = module.require_function(func.type_ref())?;
+
+		// locals = (params + vars)
+		let mut locals = params;
+		locals.extend(
+			body.locals()
+				.iter()
+				.flat_map(|l| repeat(l.value_type()).take(l.count() as usize)),
+		);
+
+		let mut context = FunctionValidationContext::new(
+			&module,
+			&locals,
+			DEFAULT_VALUE_STACK_LIMIT,
+			DEFAULT_FRAME_STACK_LIMIT,
+			result_ty,
+		);
+
+		context.push_label(BlockFrameType::Function, result_ty)?;
+		Validator::validate_function_block(&mut context, body.code().elements())?;
 		while !context.frame_stack.is_empty() {
 			context.pop_label()?;
 		}
@@ -378,7 +406,7 @@ impl Validator {
 		}
 
 		context.pop_value(ValueType::I32.into())?;
-		context.require_memory(DEFAULT_MEMORY_INDEX)?;
+		context.module.require_memory(DEFAULT_MEMORY_INDEX)?;
 		context.push_value(value_type)?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
@@ -390,7 +418,7 @@ impl Validator {
 			}
 		}
 
-		context.require_memory(DEFAULT_MEMORY_INDEX)?;
+		context.module.require_memory(DEFAULT_MEMORY_INDEX)?;
 		context.pop_value(value_type)?;
 		context.pop_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
@@ -506,7 +534,7 @@ impl Validator {
 	}
 
 	fn validate_call(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
-		let (argument_types, return_type) = context.require_function(idx)?;
+		let (argument_types, return_type) = context.module.require_function(idx)?;
 		for argument_type in argument_types.iter().rev() {
 			context.pop_value((*argument_type).into())?;
 		}
@@ -517,10 +545,10 @@ impl Validator {
 	}
 
 	fn validate_call_indirect(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
-		context.require_table(DEFAULT_TABLE_INDEX, TableElementType::AnyFunc)?;
+		context.module.require_table(DEFAULT_TABLE_INDEX, TableElementType::AnyFunc)?;
 
 		context.pop_value(ValueType::I32.into())?;
-		let (argument_types, return_type) = context.require_function_type(idx)?;
+		let (argument_types, return_type) = context.module.require_function_type(idx)?;
 		for argument_type in argument_types.iter().rev() {
 			context.pop_value((*argument_type).into())?;
 		}
@@ -531,13 +559,13 @@ impl Validator {
 	}
 
 	fn validate_current_memory(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
-		context.require_memory(DEFAULT_MEMORY_INDEX)?;
+		context.module.require_memory(DEFAULT_MEMORY_INDEX)?;
 		context.push_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
 	fn validate_grow_memory(context: &mut FunctionValidationContext) -> Result<InstructionOutcome, Error> {
-		context.require_memory(DEFAULT_MEMORY_INDEX)?;
+		context.module.require_memory(DEFAULT_MEMORY_INDEX)?;
 		context.pop_value(ValueType::I32.into())?;
 		context.push_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
@@ -550,7 +578,7 @@ impl<'a> FunctionValidationContext<'a> {
 		locals: &'a [ValueType],
 		value_stack_limit: usize,
 		frame_stack_limit: usize,
-		func_type: &'a FunctionType,
+		return_type: BlockType,
 	) -> Self {
 		FunctionValidationContext {
 			module: module,
@@ -558,7 +586,7 @@ impl<'a> FunctionValidationContext<'a> {
 			locals: locals,
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
 			frame_stack: StackWithLimit::with_limit(frame_stack_limit),
-			return_type: Some(func_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult)),
+			return_type: Some(return_type),
 			labels: HashMap::new(),
 		}
 	}
@@ -691,62 +719,6 @@ impl<'a> FunctionValidationContext<'a> {
 			ValueType::F32 => StackValueType::Specific(ValueType::F32),
 			ValueType::F64 => StackValueType::Specific(ValueType::F64),
 		})
-	}
-
-	pub fn require_memory(&self, idx: u32) -> Result<(), Error> {
-		if self.module.memories().get(idx as usize).is_none() {
-			return Err(Error(format!("Memory at index {} doesn't exists", idx)));
-		}
-		Ok(())
-	}
-
-	pub fn require_table(&self, idx: u32, expected_type: TableElementType) -> Result<(), Error> {
-		let table = match self.module.tables().get(idx as usize) {
-			Some(table) => table,
-			None => {
-				return Err(Error(format!("Table at index {} doesn't exists", idx)));
-			}
-		};
-
-		if table.elem_type() != expected_type {
-			return Err(Error(format!(
-				"Table {} has element type {:?} while {:?} expected",
-				idx,
-				table.elem_type(),
-				expected_type
-			)));
-		}
-
-		Ok(())
-	}
-
-	pub fn require_function(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
-		let ty_idx = match self.module.func_type_indexes().get(idx as usize) {
-			Some(ty_idx) => *ty_idx,
-			None => {
-				return Err(Error(
-					format!("Function at index {} doesn't exists", idx),
-				));
-			}
-		};
-		self.require_function_type(ty_idx)
-	}
-
-	pub fn require_function_type(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
-		let ty = match self.module.types().get(idx as usize) {
-			Some(&Type::Function(ref func_ty)) => func_ty,
-			None => {
-				return Err(Error(
-					format!("Type at index {} doesn't exists", idx),
-				));
-			}
-		};
-
-		let params = ty.params().to_vec();
-		let return_ty = ty.return_type()
-			.map(BlockType::Value)
-			.unwrap_or(BlockType::NoResult);
-		Ok((params, return_ty))
 	}
 
 	pub fn function_labels(self) -> HashMap<usize, usize> {

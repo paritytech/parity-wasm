@@ -1,8 +1,25 @@
 #![allow(unused, missing_docs)]
 
-use elements::{Module, ResizableLimits, MemoryType, TableType};
+mod module;
+mod func;
 
-pub struct Error(pub String);
+use std::fmt;
+use elements::{Module, ResizableLimits, MemoryType, TableType};
+use common::stack;
+
+pub struct Error(String);
+
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", self.0)
+	}
+}
+
+impl From<stack::Error> for Error {
+	fn from(e: stack::Error) -> Error {
+		Error(format!("Stack: {}", e))
+	}
+}
 
 pub fn validate_module(module: &Module) -> Result<(), Error> {
 	// TODO: Functions
@@ -124,4 +141,24 @@ mod tests {
 			.build();
 		assert!(validate_module(&m).is_ok());
 	}
+
+	// #[test]
+	// fn if_else_with_return_type_validation() {
+	// 	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
+	// 	let mut context = FunctionValidationContext::new(&module_instance, None, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
+
+	// 	Validator::validate_function(&mut context, BlockType::NoResult, &[
+	// 		Opcode::I32Const(1),
+	// 		Opcode::If(BlockType::NoResult),
+	// 			Opcode::I32Const(1),
+	// 			Opcode::If(BlockType::Value(ValueType::I32)),
+	// 				Opcode::I32Const(1),
+	// 			Opcode::Else,
+	// 				Opcode::I32Const(2),
+	// 			Opcode::End,
+	// 		Opcode::Drop,
+	// 		Opcode::End,
+	// 		Opcode::End,
+	// 	]).unwrap();
+	// }
 }

@@ -11,6 +11,7 @@ pub mod elements;
 pub mod builder;
 pub mod interpreter;
 pub mod validation;
+mod common;
 
 pub use elements::{
     Error as SerializationError,

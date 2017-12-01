@@ -1,22 +1,23 @@
 use std::u32;
 use std::sync::Arc;
 use std::collections::HashMap;
-use elements::{Opcode, BlockType, ValueType};
-use interpreter::Error;
+use elements::{Opcode, BlockType, ValueType, TableElementType};
+use elements::{FunctionType, Type};
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, FunctionSignature};
+use validation::module::ValidatedModule;
+
+use validation::Error;
+
 use common::stack::StackWithLimit;
-use interpreter::variable::VariableType;
+use common::{BlockFrame, BlockFrameType};
 
 /// Constant from wabt' validator.cc to skip alignment validation (not a part of spec).
 const NATURAL_ALIGNMENT: u32 = 0xFFFFFFFF;
 
 /// Function validation context.
 pub struct FunctionValidationContext<'a> {
-	/// Wasm module instance (in process of instantiation).
-	module_instance: &'a ModuleInstance,
-	/// Native externals.
-	externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>,
+	/// Wasm module
+	module: &'a ValidatedModule,
 	/// Current instruction position.
 	position: usize,
 	/// Local variables.
@@ -40,38 +41,6 @@ pub enum StackValueType {
 	AnyUnlimited,
 	/// Concrete value type.
 	Specific(ValueType),
-}
-
-/// Control stack frame.
-#[derive(Debug, Clone)]
-pub struct BlockFrame {
-	/// Frame type.
-	pub frame_type: BlockFrameType,
-	/// A signature, which is a block signature type indicating the number and types of result values of the region.
-	pub block_type: BlockType,
-	/// A label for reference to block instruction.
-	pub begin_position: usize,
-	/// A label for reference from branch instructions.
-	pub branch_position: usize,
-	/// A label for reference from end instructions.
-	pub end_position: usize,
-	/// A limit integer value, which is an index into the value stack indicating where to reset it to on a branch to that label.
-	pub value_stack_len: usize,
-}
-
-/// Type of block frame.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BlockFrameType {
-	/// Function frame.
-	Function,
-	/// Usual block frame.
-	Block,
-	/// Loop frame (branching to the beginning of block).
-	Loop,
-	/// True-subblock of if expression.
-	IfTrue,
-	/// False-subblock of if expression.
-	IfFalse,
 }
 
 /// Function validator.
@@ -100,7 +69,7 @@ impl Validator {
 	fn validate_function_block(context: &mut FunctionValidationContext, body: &[Opcode]) -> Result<(), Error> {
 		let body_len = body.len();
 		if body_len == 0 {
-			return Err(Error::Validation("Non-empty function body expected".into()));
+			return Err(Error("Non-empty function body expected".into()));
 		}
 
 		loop {
@@ -372,7 +341,7 @@ impl Validator {
 		let local_type = context.require_local(index)?;
 		let value_type = context.pop_any_value()?;
 		if local_type != value_type {
-			return Err(Error::Validation(format!("Trying to update local {} of type {:?} with value of type {:?}", index, local_type, value_type)));
+			return Err(Error(format!("Trying to update local {} of type {:?} with value of type {:?}", index, local_type, value_type)));
 		}
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
@@ -381,7 +350,7 @@ impl Validator {
 		let local_type = context.require_local(index)?;
 		let value_type = context.tee_any_value()?;
 		if local_type != value_type {
-			return Err(Error::Validation(format!("Trying to update local {} of type {:?} with value of type {:?}", index, local_type, value_type)));
+			return Err(Error(format!("Trying to update local {} of type {:?} with value of type {:?}", index, local_type, value_type)));
 		}
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
@@ -396,7 +365,7 @@ impl Validator {
 		let global_type = context.require_global(index, Some(true))?;
 		let value_type = context.pop_any_value()?;
 		if global_type != value_type {
-			return Err(Error::Validation(format!("Trying to update global {} of type {:?} with value of type {:?}", index, global_type, value_type)));
+			return Err(Error(format!("Trying to update global {} of type {:?} with value of type {:?}", index, global_type, value_type)));
 		}
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
@@ -404,7 +373,7 @@ impl Validator {
 	fn validate_load(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		if align != NATURAL_ALIGNMENT {
 			if 1u32.checked_shl(align).unwrap_or(u32::MAX) > max_align {
-				return Err(Error::Validation(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
+				return Err(Error(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
 			}
 		}
 
@@ -417,7 +386,7 @@ impl Validator {
 	fn validate_store(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
 		if align != NATURAL_ALIGNMENT {
 			if 1u32.checked_shl(align).unwrap_or(u32::MAX) > max_align {
-				return Err(Error::Validation(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
+				return Err(Error(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
 			}
 		}
 
@@ -444,7 +413,7 @@ impl Validator {
 		let block_type = {
 			let top_frame = context.top_label()?;
 			if top_frame.frame_type != BlockFrameType::IfTrue {
-				return Err(Error::Validation("Misplaced else instruction".into()));
+				return Err(Error("Misplaced else instruction".into()));
 			}
 			top_frame.block_type
 		};
@@ -461,7 +430,7 @@ impl Validator {
 			let top_frame = context.top_label()?;
 			if top_frame.frame_type == BlockFrameType::IfTrue {
 				if top_frame.block_type != BlockType::NoResult {
-					return Err(Error::Validation(format!("If block without else required to have NoResult block type. But it have {:?} type", top_frame.block_type)));
+					return Err(Error(format!("If block without else required to have NoResult block type. But it have {:?} type", top_frame.block_type)));
 				}
 			}
 		}
@@ -511,7 +480,7 @@ impl Validator {
 				if label_block.frame_type != BlockFrameType::Loop {
 					if let Some(required_block_type) = required_block_type {
 						if required_block_type != label_block.block_type {
-							return Err(Error::Validation(format!("Labels in br_table points to block of different types: {:?} and {:?}", required_block_type, label_block.block_type)));
+							return Err(Error(format!("Labels in br_table points to block of different types: {:?} and {:?}", required_block_type, label_block.block_type)));
 						}
 					}
 					required_block_type = Some(label_block.block_type);
@@ -548,7 +517,7 @@ impl Validator {
 	}
 
 	fn validate_call_indirect(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
-		context.require_table(DEFAULT_TABLE_INDEX, VariableType::AnyFunc)?;
+		context.require_table(DEFAULT_TABLE_INDEX, TableElementType::AnyFunc)?;
 
 		context.pop_value(ValueType::I32.into())?;
 		let (argument_types, return_type) = context.require_function_type(idx)?;
@@ -577,27 +546,25 @@ impl Validator {
 
 impl<'a> FunctionValidationContext<'a> {
 	pub fn new(
-		module_instance: &'a ModuleInstance,
-		externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>,
+		module: &'a ValidatedModule,
 		locals: &'a [ValueType],
 		value_stack_limit: usize,
 		frame_stack_limit: usize,
-		function: FunctionSignature,
+		func_type: &'a FunctionType,
 	) -> Self {
 		FunctionValidationContext {
-			module_instance: module_instance,
-			externals: externals,
+			module: module,
 			position: 0,
 			locals: locals,
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
 			frame_stack: StackWithLimit::with_limit(frame_stack_limit),
-			return_type: Some(function.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult)),
+			return_type: Some(func_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult)),
 			labels: HashMap::new(),
 		}
 	}
 
 	pub fn push_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
-		self.value_stack.push(value_type.into())
+		Ok(self.value_stack.push(value_type.into())?)
 	}
 
 	pub fn pop_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
@@ -609,7 +576,7 @@ impl<'a> FunctionValidationContext<'a> {
 				self.value_stack.push(StackValueType::AnyUnlimited)?;
 				Ok(())
 			},
-			stack_value_type @ _ => Err(Error::Validation(format!("Expected value of type {:?} on top of stack. Got {:?}", value_type, stack_value_type))),
+			stack_value_type @ _ => Err(Error(format!("Expected value of type {:?} on top of stack. Got {:?}", value_type, stack_value_type))),
 		}
 	}
 
@@ -618,7 +585,7 @@ impl<'a> FunctionValidationContext<'a> {
 		match *self.value_stack.top()? {
 			StackValueType::Specific(stack_value_type) if stack_value_type == value_type => Ok(()),
 			StackValueType::Any | StackValueType::AnyUnlimited => Ok(()),
-			stack_value_type @ _ => Err(Error::Validation(format!("Expected value of type {:?} on top of stack. Got {:?}", value_type, stack_value_type))),
+			stack_value_type @ _ => Err(Error(format!("Expected value of type {:?} on top of stack. Got {:?}", value_type, stack_value_type))),
 		}
 	}
 
@@ -636,26 +603,26 @@ impl<'a> FunctionValidationContext<'a> {
 
 	pub fn tee_any_value(&mut self) -> Result<StackValueType, Error> {
 		self.check_stack_access()?;
-		self.value_stack.top().map(Clone::clone)
+		Ok(self.value_stack.top().map(Clone::clone)?)
 	}
 
 	pub fn unreachable(&mut self) -> Result<(), Error> {
-		self.value_stack.push(StackValueType::AnyUnlimited)
+		Ok(self.value_stack.push(StackValueType::AnyUnlimited)?)
 	}
 
 	pub fn top_label(&self) -> Result<&BlockFrame, Error> {
-		self.frame_stack.top()
+		Ok(self.frame_stack.top()?)
 	}
 
 	pub fn push_label(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
-		self.frame_stack.push(BlockFrame {
+		Ok(self.frame_stack.push(BlockFrame {
 			frame_type: frame_type,
 			block_type: block_type,
 			begin_position: self.position,
 			branch_position: self.position,
 			end_position: self.position,
 			value_stack_len: self.value_stack.len(),
-		})
+		})?)
 	}
 
 	pub fn pop_label(&mut self) -> Result<InstructionOutcome, Error> {
@@ -670,7 +637,7 @@ impl<'a> FunctionValidationContext<'a> {
 		match frame.block_type {
 			BlockType::NoResult if actual_value_type.map(|vt| vt.is_any_unlimited()).unwrap_or(true) => (),
 			BlockType::Value(required_value_type) if actual_value_type.map(|vt| vt == required_value_type).unwrap_or(false) => (),
-			_ => return Err(Error::Validation(format!("Expected block to return {:?} while it has returned {:?}", frame.block_type, actual_value_type))),
+			_ => return Err(Error(format!("Expected block to return {:?} while it has returned {:?}", frame.block_type, actual_value_type))),
 		}
 		if !self.frame_stack.is_empty() {
 			self.labels.insert(frame.begin_position, self.position);
@@ -683,60 +650,108 @@ impl<'a> FunctionValidationContext<'a> {
 	}
 
 	pub fn require_label(&self, idx: u32) -> Result<&BlockFrame, Error> {
-		self.frame_stack.get(idx as usize)
+		Ok(self.frame_stack.get(idx as usize)?)
 	}
 
 	pub fn return_type(&self) -> Result<BlockType, Error> {
-		self.return_type.ok_or(Error::Validation("Trying to return from expression".into()))
+		self.return_type.ok_or(Error("Trying to return from expression".into()))
 	}
 
 	pub fn require_local(&self, idx: u32) -> Result<StackValueType, Error> {
 		self.locals.get(idx as usize)
 			.cloned()
 			.map(Into::into)
-			.ok_or(Error::Validation(format!("Trying to access local with index {} when there are only {} locals", idx, self.locals.len())))
+			.ok_or(Error(format!("Trying to access local with index {} when there are only {} locals", idx, self.locals.len())))
 	}
 
-	pub fn require_global(&self, idx: u32, mutability: Option<bool>) -> Result<StackValueType, Error> {
-		self.module_instance
-			.global(ItemIndex::IndexSpace(idx), None, self.externals.clone())
-			.and_then(|g| match mutability {
-				Some(true) if !g.is_mutable() => Err(Error::Validation(format!("Expected global {} to be mutable", idx))),
-				Some(false) if g.is_mutable() => Err(Error::Validation(format!("Expected global {} to be immutable", idx))),
-				_ => match g.variable_type() {
-					VariableType::AnyFunc => Err(Error::Validation(format!("Expected global {} to have non-AnyFunc type", idx))),
-					VariableType::I32 => Ok(StackValueType::Specific(ValueType::I32)),
-					VariableType::I64 => Ok(StackValueType::Specific(ValueType::I64)),
-					VariableType::F32 => Ok(StackValueType::Specific(ValueType::F32)),
-					VariableType::F64 => Ok(StackValueType::Specific(ValueType::F64)),
-				}
-			})
+	pub fn require_global(
+		&self,
+		idx: u32,
+		mutability: Option<bool>,
+	) -> Result<StackValueType, Error> {
+		let global = match self.module.globals().get(idx as usize) {
+			Some(global) => global,
+			None => {
+				return Err(Error(format!("Global at index {} doesn't exists", idx)));
+			}
+		};
+
+		if let Some(expected_mutable) = mutability {
+			if expected_mutable && !global.is_mutable() {
+				return Err(Error(format!("Expected global {} to be mutable", idx)));
+			}
+			if !expected_mutable && global.is_mutable() {
+				return Err(Error(format!("Expected global {} to be immutable", idx)));
+			}
+		}
+
+		Ok(match global.content_type() {
+			ValueType::I32 => StackValueType::Specific(ValueType::I32),
+			ValueType::I64 => StackValueType::Specific(ValueType::I64),
+			ValueType::F32 => StackValueType::Specific(ValueType::F32),
+			ValueType::F64 => StackValueType::Specific(ValueType::F64),
+		})
 	}
 
 	pub fn require_memory(&self, idx: u32) -> Result<(), Error> {
-		self.module_instance
-			.memory(ItemIndex::IndexSpace(idx))
-			.map(|_| ())
+		if self.module.memories().get(idx as usize).is_none() {
+			return Err(Error(format!("Memory at index {} doesn't exists", idx)));
+		}
+		Ok(())
 	}
 
-	pub fn require_table(&self, idx: u32, variable_type: VariableType) -> Result<(), Error> {
-		self.module_instance
-			.table(ItemIndex::IndexSpace(idx))
-			.and_then(|t| if t.variable_type() == variable_type {
-				Ok(())
-			} else {
-				Err(Error::Validation(format!("Table {} has element type {:?} while {:?} expected", idx, t.variable_type(), variable_type)))
-			})
+	pub fn require_table(&self, idx: u32, expected_type: TableElementType) -> Result<(), Error> {
+		let table = match self.module.tables().get(idx as usize) {
+			Some(table) => table,
+			None => {
+				return Err(Error(format!("Table at index {} doesn't exists", idx)));
+			}
+		};
+
+		if table.elem_type() != expected_type {
+			return Err(Error(format!(
+				"Table {} has element type {:?} while {:?} expected",
+				idx,
+				table.elem_type(),
+				expected_type
+			)));
+		}
+
+		Ok(())
 	}
 
 	pub fn require_function(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
-		self.module_instance.function_type(ItemIndex::IndexSpace(idx))
-			.map(|ft| (ft.params().to_vec(), ft.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult)))
+		let ty = match self.module.function_types().get(idx as usize) {
+			Some(&Type::Function(ref func_ty)) => func_ty,
+			None => {
+				return Err(Error(
+					format!("Function at index {} doesn't exists", idx),
+				));
+			}
+		};
+
+		let params = ty.params().to_vec();
+		let return_ty = ty.return_type()
+			.map(BlockType::Value)
+			.unwrap_or(BlockType::NoResult);
+		Ok((params, return_ty))
 	}
 
 	pub fn require_function_type(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
-		self.module_instance.function_type_by_index(idx)
-			.map(|ft| (ft.params().to_vec(), ft.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult)))
+		let ty = match self.module.types().get(idx as usize) {
+			Some(&Type::Function(ref func_ty)) => func_ty,
+			None => {
+				return Err(Error(
+					format!("Type at index {} doesn't exists", idx),
+				));
+			}
+		};
+
+		let params = ty.params().to_vec();
+		let return_ty = ty.return_type()
+			.map(BlockType::Value)
+			.unwrap_or(BlockType::NoResult);
+		Ok((params, return_ty))
 	}
 
 	pub fn function_labels(self) -> HashMap<usize, usize> {
@@ -748,7 +763,7 @@ impl<'a> FunctionValidationContext<'a> {
 		if self.value_stack.len() > value_stack_min {
 			Ok(())
 		} else {
-			Err(Error::Validation("Trying to access parent frame stack values.".into()))
+			Err(Error("Trying to access parent frame stack values.".into()))
 		}
 	}
 }

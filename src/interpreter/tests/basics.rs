@@ -473,26 +473,6 @@ fn env_native_export_entry_type_check() {
 }
 
 #[test]
-fn if_else_with_return_type_validation() {
-	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
-	let mut context = FunctionValidationContext::new(&module_instance, None, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
-
-	Validator::validate_function(&mut context, BlockType::NoResult, &[
-		Opcode::I32Const(1),
-		Opcode::If(BlockType::NoResult),
-			Opcode::I32Const(1),
-			Opcode::If(BlockType::Value(ValueType::I32)),
-				Opcode::I32Const(1),
-			Opcode::Else,
-				Opcode::I32Const(2),
-			Opcode::End,
-		Opcode::Drop,
-		Opcode::End,
-		Opcode::End,
-	]).unwrap();
-}
-
-#[test]
 fn memory_import_limits_initial() {
 	let core_module = module()
 		.memory().with_min(10).build()

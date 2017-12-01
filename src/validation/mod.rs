@@ -1,4 +1,4 @@
-use elements::{Module, ResizableLimits, MemoryType};
+use elements::{Module, ResizableLimits, MemoryType, TableType};
 
 pub struct Error(pub String);
 
@@ -8,6 +8,14 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 			.entries()
 			.iter()
 			.map(MemoryType::validate)
+			.collect::<Result<_, _>>()?
+	}
+
+	if let Some(table_section) = module.table_section() {
+		table_section
+			.entries()
+			.iter()
+			.map(TableType::validate)
 			.collect::<Result<_, _>>()?
 	}
 
@@ -30,6 +38,12 @@ impl ResizableLimits {
 }
 
 impl MemoryType {
+	fn validate(&self) -> Result<(), Error> {
+		self.limits().validate()
+	}
+}
+
+impl TableType {
 	fn validate(&self) -> Result<(), Error> {
 		self.limits().validate()
 	}
@@ -69,9 +83,38 @@ mod tests {
 			.build();
 		assert!(validate_module(&m).is_ok());
 
-		// mod is always valid without max.
+		// mem is always valid without max.
 		let m = module()
 			.memory()
+				.with_min(10)
+				.build()
+			.build();
+		assert!(validate_module(&m).is_ok());
+	}
+
+	#[test]
+	fn table_limits() {
+		// min > max
+		let m = module()
+			.table()
+				.with_min(10)
+				.with_max(Some(9))
+				.build()
+			.build();
+		assert!(validate_module(&m).is_err());
+
+		// min = max
+		let m = module()
+			.table()
+				.with_min(10)
+				.with_max(Some(10))
+				.build()
+			.build();
+		assert!(validate_module(&m).is_ok());
+
+		// table is always valid without max.
+		let m = module()
+			.table()
 				.with_min(10)
 				.build()
 			.build();

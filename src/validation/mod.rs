@@ -152,8 +152,15 @@ fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 		}
 	}
 	if let Some(global_section) = module.global_section() {
+		// Validation of globals is defined over modified context C', which
+		// contains only imported globals. So we do globals validation
+		// in two passes, in first we validate globals and after all globals are validated
+		// add them in globals list.
 		for global_entry in global_section.entries() {
 			global_entry.validate(&globals)?;
+		}
+
+		for global_entry in global_section.entries() {
 			globals.push(global_entry.global_type().clone());
 		}
 	}

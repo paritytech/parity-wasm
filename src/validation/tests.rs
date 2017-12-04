@@ -82,17 +82,6 @@ fn global_init_const() {
 		.build();
 	assert!(validate_module(&m).is_ok());
 
-	// without delimiting End opcode
-	let m = module()
-		.with_global(
-			GlobalEntry::new(
-				GlobalType::new(ValueType::I32, true),
-				InitExpr::new(vec![Opcode::I32Const(42)])
-			)
-		)
-		.build();
-	assert!(validate_module(&m).is_err());
-
 	// init expr type differs from declared global type
 	let m = module()
 		.with_global(
@@ -108,10 +97,11 @@ fn global_init_const() {
 #[test]
 fn global_init_global() {
 	let m = module()
-		.with_global(
-			GlobalEntry::new(
-				GlobalType::new(ValueType::I32, false),
-				InitExpr::new(vec![Opcode::I32Const(0), Opcode::End])
+		.with_import(
+			ImportEntry::new(
+				"env".into(),
+				"ext_global".into(),
+				External::Global(GlobalType::new(ValueType::I32, false))
 			)
 		)
 		.with_global(
@@ -136,9 +126,27 @@ fn global_init_global() {
 
 	// get_global can reference only const globals
 	let m = module()
+		.with_import(
+			ImportEntry::new(
+				"env".into(),
+				"ext_global".into(),
+				External::Global(GlobalType::new(ValueType::I32, true))
+			)
+		)
 		.with_global(
 			GlobalEntry::new(
 				GlobalType::new(ValueType::I32, true),
+				InitExpr::new(vec![Opcode::GetGlobal(0), Opcode::End])
+			)
+		)
+		.build();
+	assert!(validate_module(&m).is_err());
+
+	// get_global in init_expr can only refer to imported globals.
+	let m = module()
+		.with_global(
+			GlobalEntry::new(
+				GlobalType::new(ValueType::I32, false),
 				InitExpr::new(vec![Opcode::I32Const(0), Opcode::End])
 			)
 		)
@@ -154,6 +162,17 @@ fn global_init_global() {
 
 #[test]
 fn global_init_misc() {
+	// without delimiting End opcode
+	let m = module()
+		.with_global(
+			GlobalEntry::new(
+				GlobalType::new(ValueType::I32, true),
+				InitExpr::new(vec![Opcode::I32Const(42)])
+			)
+		)
+		.build();
+	assert!(validate_module(&m).is_err());
+
 	// empty init expr
 	let m = module()
 			.with_global(

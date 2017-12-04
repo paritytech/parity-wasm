@@ -77,6 +77,14 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 		}
 	}
 
+	// validate start section
+	if let Some(start_function) = module.start_section() {
+		let (params, return_ty) = context.require_function(start_function)?;
+		if return_ty != BlockType::NoResult || params.len() != 0 {
+			return Err(Error("start function expected to have type [] -> []".into()));
+		}
+	}
+
 	let ModuleContext {
 		types,
 		tables,
@@ -95,7 +103,6 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 }
 
 fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
-	// TODO: Validate start
 	// TODO: Validate imports
 	// TODO: Validate exports
 

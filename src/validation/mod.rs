@@ -99,6 +99,17 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 		}
 	}
 
+
+	// there must be no greater than 1 table in tables index space
+	if context.tables().len() > 1 {
+		return Err(Error(format!("too many tables in index space: {}", context.tables().len())));
+	}
+
+	// there must be no greater than 1 linear memory in memory index space
+	if context.memories().len() > 1 {
+		return Err(Error(format!("too many memory regions in index space: {}", context.memories().len())));
+	}
+
 	let ModuleContext {
 		types,
 		tables,

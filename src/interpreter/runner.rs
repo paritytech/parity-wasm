@@ -14,7 +14,7 @@ use interpreter::value::{
 };
 use interpreter::variable::VariableInstance;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX, BlockFrame, BlockFrameType};
-use common::stack::{StackWithLimit};
+use common::stack::StackWithLimit;
 
 /// Function interpreter.
 pub struct Interpreter;

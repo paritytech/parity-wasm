@@ -2,6 +2,7 @@
 
 use std::any::TypeId;
 use validation;
+use common;
 
 /// Custom user error.
 pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug {
@@ -123,8 +124,8 @@ impl From<validation::Error> for Error {
 	}
 }
 
-impl From<::common::stack::Error> for Error {
-	fn from(e: ::common::stack::Error) -> Self {
+impl From<common::stack::Error> for Error {
+	fn from(e: common::stack::Error) -> Self {
 		Error::Stack(e.to_string())
 	}
 }

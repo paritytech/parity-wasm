@@ -6,7 +6,7 @@ use elements::{BlockType, External, FunctionType, GlobalEntry, GlobalType, Inter
                Module, Opcode, ResizableLimits, TableType, Type, ValueType};
 use common::stack;
 use self::context::ModuleContext;
-use self::func::{FunctionValidationContext, Validator};
+use self::func::Validator;
 
 pub use self::module::ValidatedModule;
 

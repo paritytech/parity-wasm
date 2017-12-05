@@ -175,27 +175,61 @@ fn global_init_misc() {
 
 	// empty init expr
 	let m = module()
-			.with_global(
-				GlobalEntry::new(
-					GlobalType::new(ValueType::I32, true),
-					InitExpr::new(vec![Opcode::End])
-				)
+		.with_global(
+			GlobalEntry::new(
+				GlobalType::new(ValueType::I32, true),
+				InitExpr::new(vec![Opcode::End])
 			)
+		)
 		.build();
 	assert!(validate_module(&m).is_err());
 
 	// not an constant opcode used
 	let m = module()
-			.with_global(
-				GlobalEntry::new(
-					GlobalType::new(ValueType::I32, true),
-					InitExpr::new(vec![Opcode::Unreachable, Opcode::End])
-				)
+		.with_global(
+			GlobalEntry::new(
+				GlobalType::new(ValueType::I32, true),
+				InitExpr::new(vec![Opcode::Unreachable, Opcode::End])
 			)
+		)
 		.build();
 	assert!(validate_module(&m).is_err());
 }
 
+#[test]
+fn module_limits_validity() {
+	// module cannot contain more than 1 memory atm.
+	let m = module()
+		.with_import(
+			ImportEntry::new(
+				"core".into(),
+				"memory".into(),
+				External::Memory(MemoryType::new(10, None))
+			)
+		)
+		.memory()
+			.with_min(10)
+			.build()
+		.build();
+	assert!(validate_module(&m).is_err());
+
+	// module cannot contain more than 1 table atm.
+	let m = module()
+		.with_import(
+			ImportEntry::new(
+				"core".into(),
+				"table".into(),
+				External::Table(TableType::new(10, None))
+			)
+		)
+		.table()
+			.with_min(10)
+			.build()
+		.build();
+	assert!(validate_module(&m).is_err());
+}
+
+// TODO: pepyakin
 // #[test]
 // fn if_else_with_return_type_validation() {
 // 	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();

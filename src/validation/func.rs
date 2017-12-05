@@ -21,7 +21,7 @@ const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
 const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
 
 /// Function validation context.
-pub struct FunctionValidationContext<'a> {
+struct FunctionValidationContext<'a> {
 	/// Wasm module
 	module: &'a ModuleContext,
 	/// Current instruction position.
@@ -40,7 +40,7 @@ pub struct FunctionValidationContext<'a> {
 
 /// Value type on the stack.
 #[derive(Debug, Clone, Copy)]
-pub enum StackValueType {
+enum StackValueType {
 	/// Any value type.
 	Any,
 	/// Any number of any values of any type.
@@ -54,7 +54,7 @@ pub struct Validator;
 
 /// Instruction outcome.
 #[derive(Debug, Clone)]
-pub enum InstructionOutcome {
+enum InstructionOutcome {
 	/// Continue with next instruction.
 	ValidateNextInstruction,
 	/// Unreachable instruction reached.
@@ -590,7 +590,7 @@ impl Validator {
 }
 
 impl<'a> FunctionValidationContext<'a> {
-	pub fn new(
+	fn new(
 		module: &'a ModuleContext,
 		locals: &'a [ValueType],
 		value_stack_limit: usize,
@@ -608,11 +608,11 @@ impl<'a> FunctionValidationContext<'a> {
 		}
 	}
 
-	pub fn push_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
+	fn push_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
 		Ok(self.value_stack.push(value_type.into())?)
 	}
 
-	pub fn pop_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
+	fn pop_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
 		self.check_stack_access()?;
 		match self.value_stack.pop()? {
 			StackValueType::Specific(stack_value_type) if stack_value_type == value_type => Ok(()),
@@ -625,7 +625,7 @@ impl<'a> FunctionValidationContext<'a> {
 		}
 	}
 
-	pub fn tee_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
+	fn tee_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
 		self.check_stack_access()?;
 		match *self.value_stack.top()? {
 			StackValueType::Specific(stack_value_type) if stack_value_type == value_type => Ok(()),
@@ -634,7 +634,7 @@ impl<'a> FunctionValidationContext<'a> {
 		}
 	}
 
-	pub fn pop_any_value(&mut self) -> Result<StackValueType, Error> {
+	fn pop_any_value(&mut self) -> Result<StackValueType, Error> {
 		self.check_stack_access()?;
 		match self.value_stack.pop()? {
 			StackValueType::Specific(stack_value_type) => Ok(StackValueType::Specific(stack_value_type)),
@@ -646,20 +646,20 @@ impl<'a> FunctionValidationContext<'a> {
 		}
 	}
 
-	pub fn tee_any_value(&mut self) -> Result<StackValueType, Error> {
+	fn tee_any_value(&mut self) -> Result<StackValueType, Error> {
 		self.check_stack_access()?;
 		Ok(self.value_stack.top().map(Clone::clone)?)
 	}
 
-	pub fn unreachable(&mut self) -> Result<(), Error> {
+	fn unreachable(&mut self) -> Result<(), Error> {
 		Ok(self.value_stack.push(StackValueType::AnyUnlimited)?)
 	}
 
-	pub fn top_label(&self) -> Result<&BlockFrame, Error> {
+	fn top_label(&self) -> Result<&BlockFrame, Error> {
 		Ok(self.frame_stack.top()?)
 	}
 
-	pub fn push_label(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
+	fn push_label(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
 		Ok(self.frame_stack.push(BlockFrame {
 			frame_type: frame_type,
 			block_type: block_type,
@@ -670,7 +670,7 @@ impl<'a> FunctionValidationContext<'a> {
 		})?)
 	}
 
-	pub fn pop_label(&mut self) -> Result<InstructionOutcome, Error> {
+	fn pop_label(&mut self) -> Result<InstructionOutcome, Error> {
 		let frame = self.frame_stack.pop()?;
 		let actual_value_type = if self.value_stack.len() > frame.value_stack_len {
 			Some(self.value_stack.pop()?)
@@ -694,22 +694,22 @@ impl<'a> FunctionValidationContext<'a> {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	pub fn require_label(&self, idx: u32) -> Result<&BlockFrame, Error> {
+	fn require_label(&self, idx: u32) -> Result<&BlockFrame, Error> {
 		Ok(self.frame_stack.get(idx as usize)?)
 	}
 
-	pub fn return_type(&self) -> Result<BlockType, Error> {
+	fn return_type(&self) -> Result<BlockType, Error> {
 		self.return_type.ok_or(Error("Trying to return from expression".into()))
 	}
 
-	pub fn require_local(&self, idx: u32) -> Result<StackValueType, Error> {
+	fn require_local(&self, idx: u32) -> Result<StackValueType, Error> {
 		self.locals.get(idx as usize)
 			.cloned()
 			.map(Into::into)
 			.ok_or(Error(format!("Trying to access local with index {} when there are only {} locals", idx, self.locals.len())))
 	}
 
-	pub fn function_labels(self) -> HashMap<usize, usize> {
+	fn function_labels(self) -> HashMap<usize, usize> {
 		self.labels
 	}
 
@@ -724,21 +724,21 @@ impl<'a> FunctionValidationContext<'a> {
 }
 
 impl StackValueType {
-	pub fn is_any(&self) -> bool {
+	fn is_any(&self) -> bool {
 		match self {
 			&StackValueType::Any => true,
 			_ => false,
 		}
 	}
 
-	pub fn is_any_unlimited(&self) -> bool {
+	fn is_any_unlimited(&self) -> bool {
 		match self {
 			&StackValueType::AnyUnlimited => true,
 			_ => false,
 		}
 	}
 
-	pub fn value_type(&self) -> ValueType {
+	fn value_type(&self) -> ValueType {
 		match self {
 			&StackValueType::Any | &StackValueType::AnyUnlimited => unreachable!("must be checked by caller"),
 			&StackValueType::Specific(value_type) => value_type,

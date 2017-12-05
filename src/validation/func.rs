@@ -709,35 +709,6 @@ impl<'a> FunctionValidationContext<'a> {
 			.ok_or(Error(format!("Trying to access local with index {} when there are only {} locals", idx, self.locals.len())))
 	}
 
-	pub fn require_global(
-		&self,
-		idx: u32,
-		mutability: Option<bool>,
-	) -> Result<StackValueType, Error> {
-		let global = match self.module.globals().get(idx as usize) {
-			Some(global) => global,
-			None => {
-				return Err(Error(format!("Global at index {} doesn't exists", idx)));
-			}
-		};
-
-		if let Some(expected_mutable) = mutability {
-			if expected_mutable && !global.is_mutable() {
-				return Err(Error(format!("Expected global {} to be mutable", idx)));
-			}
-			if !expected_mutable && global.is_mutable() {
-				return Err(Error(format!("Expected global {} to be immutable", idx)));
-			}
-		}
-
-		Ok(match global.content_type() {
-			ValueType::I32 => StackValueType::Specific(ValueType::I32),
-			ValueType::I64 => StackValueType::Specific(ValueType::I64),
-			ValueType::F32 => StackValueType::Specific(ValueType::F32),
-			ValueType::F64 => StackValueType::Specific(ValueType::F64),
-		})
-	}
-
 	pub fn function_labels(self) -> HashMap<usize, usize> {
 		self.labels
 	}

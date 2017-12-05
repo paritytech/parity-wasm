@@ -1,5 +1,6 @@
 use elements::{MemoryType, TableType, GlobalType, Type};
 
+#[derive(Debug)]
 pub struct ValidatedModule {
 	pub memories: Vec<MemoryType>,
 	pub tables: Vec<TableType>,

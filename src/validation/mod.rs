@@ -16,6 +16,7 @@ mod func;
 #[cfg(test)]
 mod tests;
 
+#[derive(Debug)]
 pub struct Error(String);
 
 impl fmt::Display for Error {
@@ -182,8 +183,6 @@ fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 		.unwrap_or_default();
 
 	// Fill elements with imported values.
-
-	// TODO: Use Func::type_ref?
 	let mut func_type_indexes = Vec::new();
 	let mut tables = Vec::new();
 	let mut memories = Vec::new();

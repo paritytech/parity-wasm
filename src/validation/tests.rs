@@ -1,7 +1,7 @@
 use super::validate_module;
 use builder::module;
 use elements::{External, GlobalEntry, GlobalType, ImportEntry, InitExpr, MemoryType,
-               Opcode, Opcodes, TableType, ValueType};
+               Opcode, Opcodes, TableType, ValueType, BlockType};
 
 #[test]
 fn empty_is_valid() {
@@ -275,23 +275,25 @@ fn globals() {
 	assert!(validate_module(&m).is_err());
 }
 
-// TODO: pepyakin
-// #[test]
-// fn if_else_with_return_type_validation() {
-// 	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
-// 	let mut context = FunctionValidationContext::new(&module_instance, None, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
-
-// 	Validator::validate_function(&mut context, BlockType::NoResult, &[
-// 		Opcode::I32Const(1),
-// 		Opcode::If(BlockType::NoResult),
-// 			Opcode::I32Const(1),
-// 			Opcode::If(BlockType::Value(ValueType::I32)),
-// 				Opcode::I32Const(1),
-// 			Opcode::Else,
-// 				Opcode::I32Const(2),
-// 			Opcode::End,
-// 		Opcode::Drop,
-// 		Opcode::End,
-// 		Opcode::End,
-// 	]).unwrap();
-// }
+#[test]
+fn if_else_with_return_type_validation() {
+	let m = module()
+		.function()
+			.signature().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::I32Const(1),
+				Opcode::If(BlockType::NoResult),
+					Opcode::I32Const(1),
+					Opcode::If(BlockType::Value(ValueType::I32)),
+						Opcode::I32Const(1),
+					Opcode::Else,
+						Opcode::I32Const(2),
+					Opcode::End,
+					Opcode::Drop,
+				Opcode::End,
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+	validate_module(&m).unwrap();
+}

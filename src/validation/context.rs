@@ -2,6 +2,7 @@ use elements::{MemoryType, TableType, GlobalType, Type};
 use elements::{BlockType, ValueType};
 use validation::Error;
 
+#[derive(Default, Debug)]
 pub struct ModuleContext {
 	pub memories: Vec<MemoryType>,
 	pub tables: Vec<TableType>,

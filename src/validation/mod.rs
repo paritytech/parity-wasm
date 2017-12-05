@@ -99,6 +99,27 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 		}
 	}
 
+	// validate import section
+	if let Some(import_section) = module.import_section() {
+		for import in import_section.entries() {
+			match import.external() {
+				&External::Function(function_type_index) => {
+					context.require_function(function_type_index)?;
+				},
+				&External::Global(ref global_type) => {
+					if global_type.is_mutable() {
+						return Err(Error(format!("trying to import mutable global {}", import.field())));
+					}
+				},
+				&External::Memory(ref memory_type) => {
+					memory_type.validate()?;
+				},
+				&External::Table(ref table_type) => {
+					table_type.validate()?;
+				},
+			}
+		}
+	}
 
 	// there must be no greater than 1 table in tables index space
 	if context.tables().len() > 1 {
@@ -109,6 +130,10 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 	if context.memories().len() > 1 {
 		return Err(Error(format!("too many memory regions in index space: {}", context.memories().len())));
 	}
+
+
+	// TODO: data section
+	// TODO: element section
 
 	let ModuleContext {
 		types,
@@ -128,8 +153,6 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 }
 
 fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
-	// TODO: Validate imports
-
 	// Copy types from module as is.
 	let types = module
 		.type_section()

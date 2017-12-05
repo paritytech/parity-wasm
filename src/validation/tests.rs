@@ -251,6 +251,33 @@ fn funcs() {
 	assert!(validate_module(&m).is_ok());
 }
 
+#[test]
+fn globals() {
+	// import immutable global is legal.
+	let m = module()
+		.with_import(
+			ImportEntry::new(
+				"env".into(),
+				"ext_global".into(),
+				External::Global(GlobalType::new(ValueType::I32, false))
+			)
+		)
+		.build();
+	assert!(validate_module(&m).is_ok());
+
+	// import mutable global is invalid.
+	let m = module()
+		.with_import(
+			ImportEntry::new(
+				"env".into(),
+				"ext_global".into(),
+				External::Global(GlobalType::new(ValueType::I32, true))
+			)
+		)
+		.build();
+	assert!(validate_module(&m).is_err());
+}
+
 // TODO: pepyakin
 // #[test]
 // fn if_else_with_return_type_validation() {

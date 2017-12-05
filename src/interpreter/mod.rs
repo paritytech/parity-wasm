@@ -1,6 +1,8 @@
 //! WebAssembly interpreter module.
 
 use std::any::TypeId;
+use validation;
+use common;
 
 /// Custom user error.
 pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug {
@@ -116,6 +118,19 @@ impl<U> From<U> for Error where U: UserError + Sized {
 	}
 }
 
+impl From<validation::Error> for Error {
+	fn from(e: validation::Error) -> Self {
+		Error::Validation(e.to_string())
+	}
+}
+
+impl From<common::stack::Error> for Error {
+	fn from(e: common::stack::Error) -> Self {
+		Error::Stack(e.to_string())
+	}
+}
+
+mod validator;
 mod native;
 mod imports;
 mod memory;
@@ -124,7 +139,6 @@ mod program;
 mod runner;
 mod stack;
 mod table;
-mod validator;
 mod value;
 mod variable;
 

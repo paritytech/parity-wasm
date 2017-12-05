@@ -1,16 +1,15 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
-	InitExpr, ValueType, BlockType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
+	InitExpr, ValueType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance};
 use interpreter::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
-use interpreter::module::{ModuleInstance, ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
-use interpreter::validator::{FunctionValidationContext, Validator};
+use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, ExternalVariableValue, VariableType};
 use super::utils::program_with_default_env;
@@ -83,7 +82,7 @@ fn wrong_import() {
 #[test]
 fn global_get_set() {
 	let module = module()
-		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(42)])))
+		.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, true), InitExpr::new(vec![Opcode::I32Const(42), Opcode::End])))
 		.function()
 			.signature().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
@@ -470,26 +469,6 @@ fn env_native_export_entry_type_check() {
 		Err(Error::Validation(_)) => { },
 		result => panic!("Unexpected result {:?}", result),
 	}
-}
-
-#[test]
-fn if_else_with_return_type_validation() {
-	let module_instance = ModuleInstance::new(Weak::default(), "test".into(), module().build()).unwrap();
-	let mut context = FunctionValidationContext::new(&module_instance, None, &[], 1024, 1024, FunctionSignature::Module(&FunctionType::default()));
-
-	Validator::validate_function(&mut context, BlockType::NoResult, &[
-		Opcode::I32Const(1),
-		Opcode::If(BlockType::NoResult),
-			Opcode::I32Const(1),
-			Opcode::If(BlockType::Value(ValueType::I32)),
-				Opcode::I32Const(1),
-			Opcode::Else,
-				Opcode::I32Const(2),
-			Opcode::End,
-		Opcode::Drop,
-		Opcode::End,
-		Opcode::End,
-	]).unwrap();
 }
 
 #[test]

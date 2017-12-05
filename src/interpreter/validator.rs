@@ -3,9 +3,9 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use elements::{Opcode, BlockType, ValueType};
 use interpreter::Error;
-use interpreter::runner::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
+use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ItemIndex, FunctionSignature};
-use interpreter::stack::StackWithLimit;
+use common::stack::StackWithLimit;
 use interpreter::variable::VariableType;
 
 /// Constant from wabt' validator.cc to skip alignment validation (not a part of spec).
@@ -597,7 +597,7 @@ impl<'a> FunctionValidationContext<'a> {
 	}
 
 	pub fn push_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
-		self.value_stack.push(value_type.into())
+		Ok(self.value_stack.push(value_type.into())?)
 	}
 
 	pub fn pop_value(&mut self, value_type: StackValueType) -> Result<(), Error> {
@@ -636,26 +636,26 @@ impl<'a> FunctionValidationContext<'a> {
 
 	pub fn tee_any_value(&mut self) -> Result<StackValueType, Error> {
 		self.check_stack_access()?;
-		self.value_stack.top().map(Clone::clone)
+		Ok(self.value_stack.top().map(Clone::clone)?)
 	}
 
 	pub fn unreachable(&mut self) -> Result<(), Error> {
-		self.value_stack.push(StackValueType::AnyUnlimited)
+		Ok(self.value_stack.push(StackValueType::AnyUnlimited)?)
 	}
 
 	pub fn top_label(&self) -> Result<&BlockFrame, Error> {
-		self.frame_stack.top()
+		Ok(self.frame_stack.top()?)
 	}
 
 	pub fn push_label(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
-		self.frame_stack.push(BlockFrame {
+		Ok(self.frame_stack.push(BlockFrame {
 			frame_type: frame_type,
 			block_type: block_type,
 			begin_position: self.position,
 			branch_position: self.position,
 			end_position: self.position,
 			value_stack_len: self.value_stack.len(),
-		})
+		})?)
 	}
 
 	pub fn pop_label(&mut self) -> Result<InstructionOutcome, Error> {
@@ -683,7 +683,7 @@ impl<'a> FunctionValidationContext<'a> {
 	}
 
 	pub fn require_label(&self, idx: u32) -> Result<&BlockFrame, Error> {
-		self.frame_stack.get(idx as usize)
+		Ok(self.frame_stack.get(idx as usize)?)
 	}
 
 	pub fn return_type(&self) -> Result<BlockType, Error> {

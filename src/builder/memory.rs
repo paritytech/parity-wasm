@@ -45,7 +45,10 @@ impl<F> MemoryBuilder<F> where F: Invoke<MemoryDefinition> {
 
     pub fn with_data(mut self, index: u32, values: Vec<u8>) -> Self {
         self.memory.data.push(MemoryDataDefinition {
-            offset: elements::InitExpr::new(vec![elements::Opcode::I32Const(index as i32)]),
+            offset: elements::InitExpr::new(vec![
+                elements::Opcode::I32Const(index as i32),
+                elements::Opcode::End,
+            ]),
             values: values,
         });
         self

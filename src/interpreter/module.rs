@@ -2,18 +2,18 @@ use std::collections::HashMap;
 use std::iter::repeat;
 use std::sync::{Arc, Weak};
 use std::fmt;
-use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, BlockType, ResizableLimits, Local, ValueType};
+use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, ResizableLimits, Local, ValueType, BlockType};
 use interpreter::Error;
 use interpreter::native::UserFunctionDescriptor;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::program::ProgramInstanceEssence;
 use interpreter::runner::{Interpreter, FunctionContext, prepare_function_args};
-use interpreter::stack::StackWithLimit;
 use interpreter::table::TableInstance;
 use interpreter::validator::{Validator, FunctionValidationContext};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, VariableType};
+use common::stack::StackWithLimit;
 
 /// Maximum number of entries in value stack.
 const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
@@ -232,6 +232,8 @@ impl ModuleInstance {
 
 	/// Run instantiation-time procedures (validation). Module is not completely validated until this call.
 	pub fn instantiate<'a>(&mut self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
+		::validation::validate_module(&self.module)?;
+
 		// validate start section
 		if let Some(start_function) = self.module.start_section() {
 			let func_type_index = self.require_function(ItemIndex::IndexSpace(start_function))?;

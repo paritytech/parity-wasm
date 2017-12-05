@@ -8,18 +8,13 @@ use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local};
 use interpreter::Error;
 use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, InternalFunctionReference, FunctionSignature};
-use interpreter::stack::StackWithLimit;
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
 };
-use interpreter::validator::{BlockFrame, BlockFrameType};
 use interpreter::variable::VariableInstance;
-
-/// Index of default linear memory.
-pub const DEFAULT_MEMORY_INDEX: u32 = 0;
-/// Index of default table.
-pub const DEFAULT_TABLE_INDEX: u32 = 0;
+use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX, BlockFrame, BlockFrameType};
+use common::stack::StackWithLimit;
 
 /// Function interpreter.
 pub struct Interpreter;
@@ -439,6 +434,7 @@ impl Interpreter {
 		context
 			.value_stack_mut()
 			.pop()
+			.map_err(Into::into)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -479,7 +475,7 @@ impl Interpreter {
 	fn run_get_global<'a>(context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
 		context.module()
 			.global(ItemIndex::IndexSpace(index), None, Some(context.externals))
-			.and_then(|g| context.value_stack_mut().push(g.get()))
+			.and_then(|g| context.value_stack_mut().push(g.get()).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -487,6 +483,7 @@ impl Interpreter {
 		context
 			.value_stack_mut()
 			.pop()
+			.map_err(Into::into)
 			.and_then(|v| context.module().global(ItemIndex::IndexSpace(index), None, Some(context.externals)).and_then(|g| g.set(v)))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
@@ -498,7 +495,7 @@ impl Interpreter {
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.and_then(|m| m.get(address, mem::size_of::<T>()))
 			.and_then(|b| T::from_little_endian(b))
-			.and_then(|n| context.value_stack_mut().push(n.into()))
+			.and_then(|n| context.value_stack_mut().push(n.into()).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -513,6 +510,7 @@ impl Interpreter {
 		context
 			.value_stack_mut()
 			.push(stack_value.into())
+			.map_err(Into::into)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -529,9 +527,21 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_store_wrap<'a, T, U>(context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome<'a>, Error>
-		where RuntimeValue: TryInto<T, Error>, T: WrapInto<U>, U: LittleEndianConvert {
-		let stack_value: T = context.value_stack_mut().pop().and_then(|v| v.try_into())?;
+	fn run_store_wrap<'a, T, U>(
+		context: &mut FunctionContext,
+		_align: u32,
+		offset: u32,
+	) -> Result<InstructionOutcome<'a>, Error>
+	where
+		RuntimeValue: TryInto<T, Error>,
+		T: WrapInto<U>,
+		U: LittleEndianConvert,
+	{
+		let stack_value: T = context
+			.value_stack_mut()
+			.pop()
+			.map_err(Into::into)
+			.and_then(|v| v.try_into())?;
 		let stack_value = stack_value.wrap_into().into_little_endian();
 		let address = effective_address(offset, context.value_stack_mut().pop_as::<u32>()?)?;
 		context.module()
@@ -541,19 +551,31 @@ impl Interpreter {
 	}
 
 	fn run_current_memory<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
-		context.module()
+		context
+			.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.map(|m| m.size())
-			.and_then(|s| context.value_stack_mut().push(RuntimeValue::I32(s as i32)))
+			.and_then(|s|
+				context
+					.value_stack_mut()
+					.push(RuntimeValue::I32(s as i32))
+					.map_err(Into::into)
+			)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_grow_memory<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		let pages: u32 = context.value_stack_mut().pop_as()?;
-		context.module()
+		context
+			.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.and_then(|m| m.grow(pages))
-			.and_then(|m| context.value_stack_mut().push(RuntimeValue::I32(m as i32)))
+			.and_then(|m|
+				context
+					.value_stack_mut()
+					.push(RuntimeValue::I32(m as i32))
+					.map_err(Into::into)
+			)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -561,6 +583,7 @@ impl Interpreter {
 		context
 			.value_stack_mut()
 			.push(val)
+			.map_err(Into::into)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -570,7 +593,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_as::<T>()
 			.map(|v| RuntimeValue::I32(if v == Default::default() { 1 } else { 0 }))
-			.and_then(|v| context.value_stack_mut().push(v))
+			.and_then(|v| context.value_stack_mut().push(v).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -580,7 +603,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| RuntimeValue::I32(if left == right { 1 } else { 0 }))
-			.and_then(|v| context.value_stack_mut().push(v))
+			.and_then(|v| context.value_stack_mut().push(v).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -590,7 +613,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| RuntimeValue::I32(if left != right { 1 } else { 0 }))
-			.and_then(|v| context.value_stack_mut().push(v))
+			.and_then(|v| context.value_stack_mut().push(v).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -600,7 +623,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| RuntimeValue::I32(if left < right { 1 } else { 0 }))
-			.and_then(|v| context.value_stack_mut().push(v))
+			.and_then(|v| context.value_stack_mut().push(v).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -610,7 +633,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| RuntimeValue::I32(if left > right { 1 } else { 0 }))
-			.and_then(|v| context.value_stack_mut().push(v))
+			.and_then(|v| context.value_stack_mut().push(v).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -620,7 +643,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| RuntimeValue::I32(if left <= right { 1 } else { 0 }))
-			.and_then(|v| context.value_stack_mut().push(v))
+			.and_then(|v| context.value_stack_mut().push(v).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -630,7 +653,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_pair_as::<T>()
 			.map(|(left, right)| RuntimeValue::I32(if left >= right { 1 } else { 0 }))
-			.and_then(|v| context.value_stack_mut().push(v))
+			.and_then(|v| context.value_stack_mut().push(v).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -911,11 +934,18 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_extend<'a, T, U, V>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
-		where RuntimeValue: From<V> + TryInto<T, Error>, T: ExtendInto<U>, U: TransmuteInto<V> {
+	fn run_extend<'a, T, U, V>(
+		context: &mut FunctionContext,
+	) -> Result<InstructionOutcome<'a>, Error>
+	where
+		RuntimeValue: From<V> + TryInto<T, Error>,
+		T: ExtendInto<U>,
+		U: TransmuteInto<V>,
+	{
 		context
 			.value_stack_mut()
 			.pop_as::<T>()
+			.map_err(Error::into)
 			.map(|v| v.extend_into())
 			.map(|v| v.transmute_into())
 			.map(|v| context.value_stack_mut().push(v.into()))
@@ -928,7 +958,7 @@ impl Interpreter {
 			.value_stack_mut()
 			.pop_as::<T>()
 			.map(TransmuteInto::transmute_into)
-			.and_then(|val| context.value_stack_mut().push(val.into()))
+			.and_then(|val| context.value_stack_mut().push(val.into()).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 }
@@ -1038,19 +1068,18 @@ impl<'a> FunctionContext<'a> {
 			BlockFrameType::Function => usize::MAX,
 			_ => labels[&begin_position] + 1,
 		};
-		self.frame_stack.push(BlockFrame {
+		Ok(self.frame_stack.push(BlockFrame {
 			frame_type: frame_type,
 			block_type: block_type,
 			begin_position: begin_position,
 			branch_position: branch_position,
 			end_position: end_position,
 			value_stack_len: self.value_stack.len(),
-		})
+		})?)
 	}
 
 	pub fn discard_frame(&mut self) -> Result<(), Error> {
-		self.frame_stack.pop()
-			.map(|_| ())
+		Ok(self.frame_stack.pop().map(|_| ())?)
 	}
 
 	pub fn pop_frame(&mut self, is_branch: bool) -> Result<(), Error> {

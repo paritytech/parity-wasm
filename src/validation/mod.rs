@@ -132,7 +132,17 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 	}
 
 
-	// TODO: data section
+	// use data section to initialize linear memory regions
+	if let Some(data_section) = module.data_section() {
+		for data_segment in data_section.entries() {
+			context.require_memory(data_segment.index())?;
+			let init_ty = data_segment.offset().expr_const_type(context.globals())?;
+			if init_ty != ValueType::I32 {
+				return Err(Error(format!("segment offset should return I32")));
+			}
+		}
+	}
+
 	// TODO: element section
 
 	let ModuleContext {
@@ -251,7 +261,6 @@ impl TableType {
 impl GlobalEntry {
 	fn validate(&self, globals: &[GlobalType]) -> Result<(), Error> {
 		let init = self.init_expr();
-		init.validate(globals)?;
 		let init_expr_ty = init.expr_const_type(globals)?;
 		if init_expr_ty != self.global_type().content_type() {
 			return Err(Error(format!(
@@ -265,22 +274,14 @@ impl GlobalEntry {
 }
 
 impl InitExpr {
-	fn validate(&self, globals: &[GlobalType]) -> Result<(), Error> {
+	/// Returns type of this constant expression.
+	fn expr_const_type(&self, globals: &[GlobalType]) -> Result<ValueType, Error> {
 		let code = self.code();
 		if code.len() != 2 {
 			return Err(Error(
-				format!("Init expression should always be with length 2"),
+				format!("Init expression should always be with length 2")
 			));
 		}
-		let _ = self.expr_const_type(globals)?;
-		if code[1] != Opcode::End {
-			return Err(Error(format!("Expression doesn't ends with `end` opcode")));
-		}
-		Ok(())
-	}
-
-	fn expr_const_type(&self, globals: &[GlobalType]) -> Result<ValueType, Error> {
-		let code = self.code();
 		let expr_ty: ValueType = match code[0] {
 			Opcode::I32Const(_) => ValueType::I32,
 			Opcode::I64Const(_) => ValueType::I64,
@@ -301,6 +302,9 @@ impl InitExpr {
 			},
 			_ => return Err(Error(format!("Non constant opcode in init expr"))),
 		};
+		if code[1] != Opcode::End {
+			return Err(Error(format!("Expression doesn't ends with `end` opcode")));
+		}
 		Ok(expr_ty)
 	}
 }

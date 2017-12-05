@@ -58,22 +58,14 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 			.expect("function_section_len != 0; function_section_len == code_section_len; qed");
 		// check every function body
 		for (index, function) in function_section.entries().iter().enumerate() {
-			let function_labels = {
-				let function_body = code_section
-					.bodies()
-					.get(index as usize)
-					.ok_or(Error(format!("Missing body for function {}", index)))?;
-				Validator::validate_function(&context, function, function_body).map_err(|e| {
-					let Error(ref msg) = e;
-					Error(format!("Function #{} validation error: {}", index, msg))
-				})?;
-
-				// TODO: pepyakin
-				// context.function_labels()
-			};
-
-			// TODO: pepyakin
-			// self.functions_labels.insert(index as u32, function_labels);
+			let function_body = code_section
+				.bodies()
+				.get(index as usize)
+				.ok_or(Error(format!("Missing body for function {}", index)))?;
+			Validator::validate_function(&context, function, function_body).map_err(|e| {
+				let Error(ref msg) = e;
+				Error(format!("Function #{} validation error: {}", index, msg))
+			})?;
 		}
 	}
 

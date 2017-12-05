@@ -1,8 +1,10 @@
 #![allow(missing_docs)]
 
 use std::fmt;
-use elements::{BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType,
-               Module, Opcode, ResizableLimits, TableType, ValueType, InitExpr};
+use elements::{
+	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType,
+	Module, Opcode, ResizableLimits, TableType, ValueType, InitExpr
+};
 use common::stack;
 use self::context::ModuleContext;
 use self::func::Validator;

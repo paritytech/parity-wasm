@@ -142,208 +142,208 @@ impl Validator {
 			GetGlobal(index) => Validator::validate_get_global(context, index),
 			SetGlobal(index) => Validator::validate_set_global(context, index),
 
-			I32Load(align, _) => Validator::validate_load(context, align, 4, ValueType::I32.into()),
-			I64Load(align, _) => Validator::validate_load(context, align, 8, ValueType::I64.into()),
-			F32Load(align, _) => Validator::validate_load(context, align, 4, ValueType::F32.into()),
-			F64Load(align, _) => Validator::validate_load(context, align, 8, ValueType::F64.into()),
-			I32Load8S(align, _) => Validator::validate_load(context, align, 1, ValueType::I32.into()),
-			I32Load8U(align, _) => Validator::validate_load(context, align, 1, ValueType::I32.into()),
-			I32Load16S(align, _) => Validator::validate_load(context, align, 2, ValueType::I32.into()),
-			I32Load16U(align, _) => Validator::validate_load(context, align, 2, ValueType::I32.into()),
-			I64Load8S(align, _) => Validator::validate_load(context, align, 1, ValueType::I64.into()),
-			I64Load8U(align, _) => Validator::validate_load(context, align, 1, ValueType::I64.into()),
-			I64Load16S(align, _) => Validator::validate_load(context, align, 2, ValueType::I64.into()),
-			I64Load16U(align, _) => Validator::validate_load(context, align, 2, ValueType::I64.into()),
-			I64Load32S(align, _) => Validator::validate_load(context, align, 4, ValueType::I64.into()),
-			I64Load32U(align, _) => Validator::validate_load(context, align, 4, ValueType::I64.into()),
+			I32Load(align, _) => Validator::validate_load(context, align, 4, ValueType::I32),
+			I64Load(align, _) => Validator::validate_load(context, align, 8, ValueType::I64),
+			F32Load(align, _) => Validator::validate_load(context, align, 4, ValueType::F32),
+			F64Load(align, _) => Validator::validate_load(context, align, 8, ValueType::F64),
+			I32Load8S(align, _) => Validator::validate_load(context, align, 1, ValueType::I32),
+			I32Load8U(align, _) => Validator::validate_load(context, align, 1, ValueType::I32),
+			I32Load16S(align, _) => Validator::validate_load(context, align, 2, ValueType::I32),
+			I32Load16U(align, _) => Validator::validate_load(context, align, 2, ValueType::I32),
+			I64Load8S(align, _) => Validator::validate_load(context, align, 1, ValueType::I64),
+			I64Load8U(align, _) => Validator::validate_load(context, align, 1, ValueType::I64),
+			I64Load16S(align, _) => Validator::validate_load(context, align, 2, ValueType::I64),
+			I64Load16U(align, _) => Validator::validate_load(context, align, 2, ValueType::I64),
+			I64Load32S(align, _) => Validator::validate_load(context, align, 4, ValueType::I64),
+			I64Load32U(align, _) => Validator::validate_load(context, align, 4, ValueType::I64),
 
-			I32Store(align, _) => Validator::validate_store(context, align, 4, ValueType::I32.into()),
-			I64Store(align, _) => Validator::validate_store(context, align, 8, ValueType::I64.into()),
-			F32Store(align, _) => Validator::validate_store(context, align, 4, ValueType::F32.into()),
-			F64Store(align, _) => Validator::validate_store(context, align, 8, ValueType::F64.into()),
-			I32Store8(align, _) => Validator::validate_store(context, align, 1, ValueType::I32.into()),
-			I32Store16(align, _) => Validator::validate_store(context, align, 2, ValueType::I32.into()),
-			I64Store8(align, _) => Validator::validate_store(context, align, 1, ValueType::I64.into()),
-			I64Store16(align, _) => Validator::validate_store(context, align, 2, ValueType::I64.into()),
-			I64Store32(align, _) => Validator::validate_store(context, align, 4, ValueType::I64.into()),
+			I32Store(align, _) => Validator::validate_store(context, align, 4, ValueType::I32),
+			I64Store(align, _) => Validator::validate_store(context, align, 8, ValueType::I64),
+			F32Store(align, _) => Validator::validate_store(context, align, 4, ValueType::F32),
+			F64Store(align, _) => Validator::validate_store(context, align, 8, ValueType::F64),
+			I32Store8(align, _) => Validator::validate_store(context, align, 1, ValueType::I32),
+			I32Store16(align, _) => Validator::validate_store(context, align, 2, ValueType::I32),
+			I64Store8(align, _) => Validator::validate_store(context, align, 1, ValueType::I64),
+			I64Store16(align, _) => Validator::validate_store(context, align, 2, ValueType::I64),
+			I64Store32(align, _) => Validator::validate_store(context, align, 4, ValueType::I64),
 
 			CurrentMemory(_) => Validator::validate_current_memory(context),
 			GrowMemory(_) => Validator::validate_grow_memory(context),
 
-			I32Const(_) => Validator::validate_const(context, ValueType::I32.into()),
-			I64Const(_) => Validator::validate_const(context, ValueType::I64.into()),
-			F32Const(_) => Validator::validate_const(context, ValueType::F32.into()),
-			F64Const(_) => Validator::validate_const(context, ValueType::F64.into()),
+			I32Const(_) => Validator::validate_const(context, ValueType::I32),
+			I64Const(_) => Validator::validate_const(context, ValueType::I64),
+			F32Const(_) => Validator::validate_const(context, ValueType::F32),
+			F64Const(_) => Validator::validate_const(context, ValueType::F64),
 
-			I32Eqz => Validator::validate_testop(context, ValueType::I32.into()),
-			I32Eq => Validator::validate_relop(context, ValueType::I32.into()),
-			I32Ne => Validator::validate_relop(context, ValueType::I32.into()),
-			I32LtS => Validator::validate_relop(context, ValueType::I32.into()),
-			I32LtU => Validator::validate_relop(context, ValueType::I32.into()),
-			I32GtS => Validator::validate_relop(context, ValueType::I32.into()),
-			I32GtU => Validator::validate_relop(context, ValueType::I32.into()),
-			I32LeS => Validator::validate_relop(context, ValueType::I32.into()),
-			I32LeU => Validator::validate_relop(context, ValueType::I32.into()),
-			I32GeS => Validator::validate_relop(context, ValueType::I32.into()),
-			I32GeU => Validator::validate_relop(context, ValueType::I32.into()),
+			I32Eqz => Validator::validate_testop(context, ValueType::I32),
+			I32Eq => Validator::validate_relop(context, ValueType::I32),
+			I32Ne => Validator::validate_relop(context, ValueType::I32),
+			I32LtS => Validator::validate_relop(context, ValueType::I32),
+			I32LtU => Validator::validate_relop(context, ValueType::I32),
+			I32GtS => Validator::validate_relop(context, ValueType::I32),
+			I32GtU => Validator::validate_relop(context, ValueType::I32),
+			I32LeS => Validator::validate_relop(context, ValueType::I32),
+			I32LeU => Validator::validate_relop(context, ValueType::I32),
+			I32GeS => Validator::validate_relop(context, ValueType::I32),
+			I32GeU => Validator::validate_relop(context, ValueType::I32),
 
-			I64Eqz => Validator::validate_testop(context, ValueType::I64.into()),
-			I64Eq => Validator::validate_relop(context, ValueType::I64.into()),
-			I64Ne => Validator::validate_relop(context, ValueType::I64.into()),
-			I64LtS => Validator::validate_relop(context, ValueType::I64.into()),
-			I64LtU => Validator::validate_relop(context, ValueType::I64.into()),
-			I64GtS => Validator::validate_relop(context, ValueType::I64.into()),
-			I64GtU => Validator::validate_relop(context, ValueType::I64.into()),
-			I64LeS => Validator::validate_relop(context, ValueType::I64.into()),
-			I64LeU => Validator::validate_relop(context, ValueType::I64.into()),
-			I64GeS => Validator::validate_relop(context, ValueType::I64.into()),
-			I64GeU => Validator::validate_relop(context, ValueType::I64.into()),
+			I64Eqz => Validator::validate_testop(context, ValueType::I64),
+			I64Eq => Validator::validate_relop(context, ValueType::I64),
+			I64Ne => Validator::validate_relop(context, ValueType::I64),
+			I64LtS => Validator::validate_relop(context, ValueType::I64),
+			I64LtU => Validator::validate_relop(context, ValueType::I64),
+			I64GtS => Validator::validate_relop(context, ValueType::I64),
+			I64GtU => Validator::validate_relop(context, ValueType::I64),
+			I64LeS => Validator::validate_relop(context, ValueType::I64),
+			I64LeU => Validator::validate_relop(context, ValueType::I64),
+			I64GeS => Validator::validate_relop(context, ValueType::I64),
+			I64GeU => Validator::validate_relop(context, ValueType::I64),
 
-			F32Eq => Validator::validate_relop(context, ValueType::F32.into()),
-			F32Ne => Validator::validate_relop(context, ValueType::F32.into()),
-			F32Lt => Validator::validate_relop(context, ValueType::F32.into()),
-			F32Gt => Validator::validate_relop(context, ValueType::F32.into()),
-			F32Le => Validator::validate_relop(context, ValueType::F32.into()),
-			F32Ge => Validator::validate_relop(context, ValueType::F32.into()),
+			F32Eq => Validator::validate_relop(context, ValueType::F32),
+			F32Ne => Validator::validate_relop(context, ValueType::F32),
+			F32Lt => Validator::validate_relop(context, ValueType::F32),
+			F32Gt => Validator::validate_relop(context, ValueType::F32),
+			F32Le => Validator::validate_relop(context, ValueType::F32),
+			F32Ge => Validator::validate_relop(context, ValueType::F32),
 
-			F64Eq => Validator::validate_relop(context, ValueType::F64.into()),
-			F64Ne => Validator::validate_relop(context, ValueType::F64.into()),
-			F64Lt => Validator::validate_relop(context, ValueType::F64.into()),
-			F64Gt => Validator::validate_relop(context, ValueType::F64.into()),
-			F64Le => Validator::validate_relop(context, ValueType::F64.into()),
-			F64Ge => Validator::validate_relop(context, ValueType::F64.into()),
+			F64Eq => Validator::validate_relop(context, ValueType::F64),
+			F64Ne => Validator::validate_relop(context, ValueType::F64),
+			F64Lt => Validator::validate_relop(context, ValueType::F64),
+			F64Gt => Validator::validate_relop(context, ValueType::F64),
+			F64Le => Validator::validate_relop(context, ValueType::F64),
+			F64Ge => Validator::validate_relop(context, ValueType::F64),
 
-			I32Clz => Validator::validate_unop(context, ValueType::I32.into()),
-			I32Ctz => Validator::validate_unop(context, ValueType::I32.into()),
-			I32Popcnt => Validator::validate_unop(context, ValueType::I32.into()),
-			I32Add => Validator::validate_binop(context, ValueType::I32.into()),
-			I32Sub => Validator::validate_binop(context, ValueType::I32.into()),
-			I32Mul => Validator::validate_binop(context, ValueType::I32.into()),
-			I32DivS => Validator::validate_binop(context, ValueType::I32.into()),
-			I32DivU => Validator::validate_binop(context, ValueType::I32.into()),
-			I32RemS => Validator::validate_binop(context, ValueType::I32.into()),
-			I32RemU => Validator::validate_binop(context, ValueType::I32.into()),
-			I32And => Validator::validate_binop(context, ValueType::I32.into()),
-			I32Or => Validator::validate_binop(context, ValueType::I32.into()),
-			I32Xor => Validator::validate_binop(context, ValueType::I32.into()),
-			I32Shl => Validator::validate_binop(context, ValueType::I32.into()),
-			I32ShrS => Validator::validate_binop(context, ValueType::I32.into()),
-			I32ShrU => Validator::validate_binop(context, ValueType::I32.into()),
-			I32Rotl => Validator::validate_binop(context, ValueType::I32.into()),
-			I32Rotr => Validator::validate_binop(context, ValueType::I32.into()),
+			I32Clz => Validator::validate_unop(context, ValueType::I32),
+			I32Ctz => Validator::validate_unop(context, ValueType::I32),
+			I32Popcnt => Validator::validate_unop(context, ValueType::I32),
+			I32Add => Validator::validate_binop(context, ValueType::I32),
+			I32Sub => Validator::validate_binop(context, ValueType::I32),
+			I32Mul => Validator::validate_binop(context, ValueType::I32),
+			I32DivS => Validator::validate_binop(context, ValueType::I32),
+			I32DivU => Validator::validate_binop(context, ValueType::I32),
+			I32RemS => Validator::validate_binop(context, ValueType::I32),
+			I32RemU => Validator::validate_binop(context, ValueType::I32),
+			I32And => Validator::validate_binop(context, ValueType::I32),
+			I32Or => Validator::validate_binop(context, ValueType::I32),
+			I32Xor => Validator::validate_binop(context, ValueType::I32),
+			I32Shl => Validator::validate_binop(context, ValueType::I32),
+			I32ShrS => Validator::validate_binop(context, ValueType::I32),
+			I32ShrU => Validator::validate_binop(context, ValueType::I32),
+			I32Rotl => Validator::validate_binop(context, ValueType::I32),
+			I32Rotr => Validator::validate_binop(context, ValueType::I32),
 
-			I64Clz => Validator::validate_unop(context, ValueType::I64.into()),
-			I64Ctz => Validator::validate_unop(context, ValueType::I64.into()),
-			I64Popcnt => Validator::validate_unop(context, ValueType::I64.into()),
-			I64Add => Validator::validate_binop(context, ValueType::I64.into()),
-			I64Sub => Validator::validate_binop(context, ValueType::I64.into()),
-			I64Mul => Validator::validate_binop(context, ValueType::I64.into()),
-			I64DivS => Validator::validate_binop(context, ValueType::I64.into()),
-			I64DivU => Validator::validate_binop(context, ValueType::I64.into()),
-			I64RemS => Validator::validate_binop(context, ValueType::I64.into()),
-			I64RemU => Validator::validate_binop(context, ValueType::I64.into()),
-			I64And => Validator::validate_binop(context, ValueType::I64.into()),
-			I64Or => Validator::validate_binop(context, ValueType::I64.into()),
-			I64Xor => Validator::validate_binop(context, ValueType::I64.into()),
-			I64Shl => Validator::validate_binop(context, ValueType::I64.into()),
-			I64ShrS => Validator::validate_binop(context, ValueType::I64.into()),
-			I64ShrU => Validator::validate_binop(context, ValueType::I64.into()),
-			I64Rotl => Validator::validate_binop(context, ValueType::I64.into()),
-			I64Rotr => Validator::validate_binop(context, ValueType::I64.into()),
+			I64Clz => Validator::validate_unop(context, ValueType::I64),
+			I64Ctz => Validator::validate_unop(context, ValueType::I64),
+			I64Popcnt => Validator::validate_unop(context, ValueType::I64),
+			I64Add => Validator::validate_binop(context, ValueType::I64),
+			I64Sub => Validator::validate_binop(context, ValueType::I64),
+			I64Mul => Validator::validate_binop(context, ValueType::I64),
+			I64DivS => Validator::validate_binop(context, ValueType::I64),
+			I64DivU => Validator::validate_binop(context, ValueType::I64),
+			I64RemS => Validator::validate_binop(context, ValueType::I64),
+			I64RemU => Validator::validate_binop(context, ValueType::I64),
+			I64And => Validator::validate_binop(context, ValueType::I64),
+			I64Or => Validator::validate_binop(context, ValueType::I64),
+			I64Xor => Validator::validate_binop(context, ValueType::I64),
+			I64Shl => Validator::validate_binop(context, ValueType::I64),
+			I64ShrS => Validator::validate_binop(context, ValueType::I64),
+			I64ShrU => Validator::validate_binop(context, ValueType::I64),
+			I64Rotl => Validator::validate_binop(context, ValueType::I64),
+			I64Rotr => Validator::validate_binop(context, ValueType::I64),
 
-			F32Abs => Validator::validate_unop(context, ValueType::F32.into()),
-			F32Neg => Validator::validate_unop(context, ValueType::F32.into()),
-			F32Ceil => Validator::validate_unop(context, ValueType::F32.into()),
-			F32Floor => Validator::validate_unop(context, ValueType::F32.into()),
-			F32Trunc => Validator::validate_unop(context, ValueType::F32.into()),
-			F32Nearest => Validator::validate_unop(context, ValueType::F32.into()),
-			F32Sqrt => Validator::validate_unop(context, ValueType::F32.into()),
-			F32Add => Validator::validate_binop(context, ValueType::F32.into()),
-			F32Sub => Validator::validate_binop(context, ValueType::F32.into()),
-			F32Mul => Validator::validate_binop(context, ValueType::F32.into()),
-			F32Div => Validator::validate_binop(context, ValueType::F32.into()),
-			F32Min => Validator::validate_binop(context, ValueType::F32.into()),
-			F32Max => Validator::validate_binop(context, ValueType::F32.into()),
-			F32Copysign => Validator::validate_binop(context, ValueType::F32.into()),
+			F32Abs => Validator::validate_unop(context, ValueType::F32),
+			F32Neg => Validator::validate_unop(context, ValueType::F32),
+			F32Ceil => Validator::validate_unop(context, ValueType::F32),
+			F32Floor => Validator::validate_unop(context, ValueType::F32),
+			F32Trunc => Validator::validate_unop(context, ValueType::F32),
+			F32Nearest => Validator::validate_unop(context, ValueType::F32),
+			F32Sqrt => Validator::validate_unop(context, ValueType::F32),
+			F32Add => Validator::validate_binop(context, ValueType::F32),
+			F32Sub => Validator::validate_binop(context, ValueType::F32),
+			F32Mul => Validator::validate_binop(context, ValueType::F32),
+			F32Div => Validator::validate_binop(context, ValueType::F32),
+			F32Min => Validator::validate_binop(context, ValueType::F32),
+			F32Max => Validator::validate_binop(context, ValueType::F32),
+			F32Copysign => Validator::validate_binop(context, ValueType::F32),
 
-			F64Abs => Validator::validate_unop(context, ValueType::F64.into()),
-			F64Neg => Validator::validate_unop(context, ValueType::F64.into()),
-			F64Ceil => Validator::validate_unop(context, ValueType::F64.into()),
-			F64Floor => Validator::validate_unop(context, ValueType::F64.into()),
-			F64Trunc => Validator::validate_unop(context, ValueType::F64.into()),
-			F64Nearest => Validator::validate_unop(context, ValueType::F64.into()),
-			F64Sqrt => Validator::validate_unop(context, ValueType::F64.into()),
-			F64Add => Validator::validate_binop(context, ValueType::F64.into()),
-			F64Sub => Validator::validate_binop(context, ValueType::F64.into()),
-			F64Mul => Validator::validate_binop(context, ValueType::F64.into()),
-			F64Div => Validator::validate_binop(context, ValueType::F64.into()),
-			F64Min => Validator::validate_binop(context, ValueType::F64.into()),
-			F64Max => Validator::validate_binop(context, ValueType::F64.into()),
-			F64Copysign => Validator::validate_binop(context, ValueType::F64.into()),
+			F64Abs => Validator::validate_unop(context, ValueType::F64),
+			F64Neg => Validator::validate_unop(context, ValueType::F64),
+			F64Ceil => Validator::validate_unop(context, ValueType::F64),
+			F64Floor => Validator::validate_unop(context, ValueType::F64),
+			F64Trunc => Validator::validate_unop(context, ValueType::F64),
+			F64Nearest => Validator::validate_unop(context, ValueType::F64),
+			F64Sqrt => Validator::validate_unop(context, ValueType::F64),
+			F64Add => Validator::validate_binop(context, ValueType::F64),
+			F64Sub => Validator::validate_binop(context, ValueType::F64),
+			F64Mul => Validator::validate_binop(context, ValueType::F64),
+			F64Div => Validator::validate_binop(context, ValueType::F64),
+			F64Min => Validator::validate_binop(context, ValueType::F64),
+			F64Max => Validator::validate_binop(context, ValueType::F64),
+			F64Copysign => Validator::validate_binop(context, ValueType::F64),
 
-			I32WarpI64 => Validator::validate_cvtop(context, ValueType::I64.into(), ValueType::I32.into()),
-			I32TruncSF32 => Validator::validate_cvtop(context, ValueType::F32.into(), ValueType::I32.into()),
-			I32TruncUF32 => Validator::validate_cvtop(context, ValueType::F32.into(), ValueType::I32.into()),
-			I32TruncSF64 => Validator::validate_cvtop(context, ValueType::F64.into(), ValueType::I32.into()),
-			I32TruncUF64 => Validator::validate_cvtop(context, ValueType::F64.into(), ValueType::I32.into()),
-			I64ExtendSI32 => Validator::validate_cvtop(context, ValueType::I32.into(), ValueType::I64.into()),
-			I64ExtendUI32 => Validator::validate_cvtop(context, ValueType::I32.into(), ValueType::I64.into()),
-			I64TruncSF32 => Validator::validate_cvtop(context, ValueType::F32.into(), ValueType::I64.into()),
-			I64TruncUF32 => Validator::validate_cvtop(context, ValueType::F32.into(), ValueType::I64.into()),
-			I64TruncSF64 => Validator::validate_cvtop(context, ValueType::F64.into(), ValueType::I64.into()),
-			I64TruncUF64 => Validator::validate_cvtop(context, ValueType::F64.into(), ValueType::I64.into()),
-			F32ConvertSI32 => Validator::validate_cvtop(context, ValueType::I32.into(), ValueType::F32.into()),
-			F32ConvertUI32 => Validator::validate_cvtop(context, ValueType::I32.into(), ValueType::F32.into()),
-			F32ConvertSI64 => Validator::validate_cvtop(context, ValueType::I64.into(), ValueType::F32.into()),
-			F32ConvertUI64 => Validator::validate_cvtop(context, ValueType::I64.into(), ValueType::F32.into()),
-			F32DemoteF64 => Validator::validate_cvtop(context, ValueType::F64.into(), ValueType::F32.into()),
-			F64ConvertSI32 => Validator::validate_cvtop(context, ValueType::I32.into(), ValueType::F64.into()),
-			F64ConvertUI32 => Validator::validate_cvtop(context, ValueType::I32.into(), ValueType::F64.into()),
-			F64ConvertSI64 => Validator::validate_cvtop(context, ValueType::I64.into(), ValueType::F64.into()),
-			F64ConvertUI64 => Validator::validate_cvtop(context, ValueType::I64.into(), ValueType::F64.into()),
-			F64PromoteF32 => Validator::validate_cvtop(context, ValueType::F32.into(), ValueType::F64.into()),
+			I32WarpI64 => Validator::validate_cvtop(context, ValueType::I64, ValueType::I32),
+			I32TruncSF32 => Validator::validate_cvtop(context, ValueType::F32, ValueType::I32),
+			I32TruncUF32 => Validator::validate_cvtop(context, ValueType::F32, ValueType::I32),
+			I32TruncSF64 => Validator::validate_cvtop(context, ValueType::F64, ValueType::I32),
+			I32TruncUF64 => Validator::validate_cvtop(context, ValueType::F64, ValueType::I32),
+			I64ExtendSI32 => Validator::validate_cvtop(context, ValueType::I32, ValueType::I64),
+			I64ExtendUI32 => Validator::validate_cvtop(context, ValueType::I32, ValueType::I64),
+			I64TruncSF32 => Validator::validate_cvtop(context, ValueType::F32, ValueType::I64),
+			I64TruncUF32 => Validator::validate_cvtop(context, ValueType::F32, ValueType::I64),
+			I64TruncSF64 => Validator::validate_cvtop(context, ValueType::F64, ValueType::I64),
+			I64TruncUF64 => Validator::validate_cvtop(context, ValueType::F64, ValueType::I64),
+			F32ConvertSI32 => Validator::validate_cvtop(context, ValueType::I32, ValueType::F32),
+			F32ConvertUI32 => Validator::validate_cvtop(context, ValueType::I32, ValueType::F32),
+			F32ConvertSI64 => Validator::validate_cvtop(context, ValueType::I64, ValueType::F32),
+			F32ConvertUI64 => Validator::validate_cvtop(context, ValueType::I64, ValueType::F32),
+			F32DemoteF64 => Validator::validate_cvtop(context, ValueType::F64, ValueType::F32),
+			F64ConvertSI32 => Validator::validate_cvtop(context, ValueType::I32, ValueType::F64),
+			F64ConvertUI32 => Validator::validate_cvtop(context, ValueType::I32, ValueType::F64),
+			F64ConvertSI64 => Validator::validate_cvtop(context, ValueType::I64, ValueType::F64),
+			F64ConvertUI64 => Validator::validate_cvtop(context, ValueType::I64, ValueType::F64),
+			F64PromoteF32 => Validator::validate_cvtop(context, ValueType::F32, ValueType::F64),
 
-			I32ReinterpretF32 => Validator::validate_cvtop(context, ValueType::F32.into(), ValueType::I32.into()),
-			I64ReinterpretF64 => Validator::validate_cvtop(context, ValueType::F64.into(), ValueType::I64.into()),
-			F32ReinterpretI32 => Validator::validate_cvtop(context, ValueType::I32.into(), ValueType::F32.into()),
-			F64ReinterpretI64 => Validator::validate_cvtop(context, ValueType::I64.into(), ValueType::F64.into()),
+			I32ReinterpretF32 => Validator::validate_cvtop(context, ValueType::F32, ValueType::I32),
+			I64ReinterpretF64 => Validator::validate_cvtop(context, ValueType::F64, ValueType::I64),
+			F32ReinterpretI32 => Validator::validate_cvtop(context, ValueType::I32, ValueType::F32),
+			F64ReinterpretI64 => Validator::validate_cvtop(context, ValueType::I64, ValueType::F64),
 		}
 	}
 
-	fn validate_const(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
-		context.push_value(value_type)?;
+	fn validate_const(context: &mut FunctionValidationContext, value_type: ValueType) -> Result<InstructionOutcome, Error> {
+		context.push_value(value_type.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_unop(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
-		context.pop_value(value_type)?;
-		context.push_value(value_type)?;
+	fn validate_unop(context: &mut FunctionValidationContext, value_type: ValueType) -> Result<InstructionOutcome, Error> {
+		context.pop_value(value_type.into())?;
+		context.push_value(value_type.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_binop(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
-		context.pop_value(value_type)?;
-		context.pop_value(value_type)?;
-		context.push_value(value_type)?;
+	fn validate_binop(context: &mut FunctionValidationContext, value_type: ValueType) -> Result<InstructionOutcome, Error> {
+		context.pop_value(value_type.into())?;
+		context.pop_value(value_type.into())?;
+		context.push_value(value_type.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_testop(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
-		context.pop_value(value_type)?;
+	fn validate_testop(context: &mut FunctionValidationContext, value_type: ValueType) -> Result<InstructionOutcome, Error> {
+		context.pop_value(value_type.into())?;
 		context.push_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_relop(context: &mut FunctionValidationContext, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
-		context.pop_value(value_type)?;
-		context.pop_value(value_type)?;
+	fn validate_relop(context: &mut FunctionValidationContext, value_type: ValueType) -> Result<InstructionOutcome, Error> {
+		context.pop_value(value_type.into())?;
+		context.pop_value(value_type.into())?;
 		context.push_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_cvtop(context: &mut FunctionValidationContext, value_type1: StackValueType, value_type2: StackValueType) -> Result<InstructionOutcome, Error> {
-		context.pop_value(value_type1)?;
-		context.push_value(value_type2)?;
+	fn validate_cvtop(context: &mut FunctionValidationContext, value_type1: ValueType, value_type2: ValueType) -> Result<InstructionOutcome, Error> {
+		context.pop_value(value_type1.into())?;
+		context.push_value(value_type2.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
@@ -405,7 +405,7 @@ impl Validator {
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_load(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
+	fn validate_load(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: ValueType) -> Result<InstructionOutcome, Error> {
 		if align != NATURAL_ALIGNMENT {
 			if 1u32.checked_shl(align).unwrap_or(u32::MAX) > max_align {
 				return Err(Error(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
@@ -414,11 +414,11 @@ impl Validator {
 
 		context.pop_value(ValueType::I32.into())?;
 		context.module.require_memory(DEFAULT_MEMORY_INDEX)?;
-		context.push_value(value_type)?;
+		context.push_value(value_type.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
-	fn validate_store(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: StackValueType) -> Result<InstructionOutcome, Error> {
+	fn validate_store(context: &mut FunctionValidationContext, align: u32, max_align: u32, value_type: ValueType) -> Result<InstructionOutcome, Error> {
 		if align != NATURAL_ALIGNMENT {
 			if 1u32.checked_shl(align).unwrap_or(u32::MAX) > max_align {
 				return Err(Error(format!("Too large memory alignment 2^{} (expected at most {})", align, max_align)));
@@ -426,7 +426,7 @@ impl Validator {
 		}
 
 		context.module.require_memory(DEFAULT_MEMORY_INDEX)?;
-		context.pop_value(value_type)?;
+		context.pop_value(value_type.into())?;
 		context.pop_value(ValueType::I32.into())?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}

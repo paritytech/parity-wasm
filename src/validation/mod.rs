@@ -193,11 +193,11 @@ fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 		.map(|i| i.entries())
 		.unwrap_or_default()
 	{
-		match import_entry.external() {
-			&External::Function(idx) => func_type_indexes.push(idx),
-			&External::Table(ref table) => tables.push(table.clone()),
-			&External::Memory(ref memory) => memories.push(memory.clone()),
-			&External::Global(ref global) => globals.push(global.clone()),
+		match *import_entry.external() {
+			External::Function(idx) => func_type_indexes.push(idx),
+			External::Table(ref table) => tables.push(table.clone()),
+			External::Memory(ref memory) => memories.push(memory.clone()),
+			External::Global(ref global) => globals.push(global.clone()),
 		}
 	}
 

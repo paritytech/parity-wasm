@@ -384,13 +384,19 @@ impl Validator {
 	}
 
 	fn validate_get_global(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome, Error> {
-		let global_type = context.require_global(index, None)?;
+		let global_type: StackValueType = {
+			let global = context.module.require_global(index, None)?;
+			global.content_type().into()
+		};
 		context.push_value(global_type)?;
 		Ok(InstructionOutcome::ValidateNextInstruction)
 	}
 
 	fn validate_set_global(context: &mut FunctionValidationContext, index: u32) -> Result<InstructionOutcome, Error> {
-		let global_type = context.require_global(index, Some(true))?;
+		let global_type: StackValueType = {
+			let global = context.module.require_global(index, Some(true))?;
+			global.content_type().into()
+		};
 		let value_type = context.pop_any_value()?;
 		if global_type != value_type {
 			return Err(Error(format!("Trying to update global {} of type {:?} with value of type {:?}", index, global_type, value_type)));
@@ -545,7 +551,16 @@ impl Validator {
 	}
 
 	fn validate_call_indirect(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
-		context.module.require_table(DEFAULT_TABLE_INDEX, TableElementType::AnyFunc)?;
+		{
+			let table = context.module.require_table(DEFAULT_TABLE_INDEX)?;
+			if table.elem_type() != TableElementType::AnyFunc {
+				return Err(Error(format!(
+					"Table {} has element type {:?} while `anyfunc` expected",
+					idx,
+					table.elem_type()
+				)));
+			}
+		}
 
 		context.pop_value(ValueType::I32.into())?;
 		let (argument_types, return_type) = context.module.require_function_type(idx)?;

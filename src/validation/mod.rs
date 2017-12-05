@@ -2,8 +2,8 @@
 
 use std::fmt;
 use std::iter::repeat;
-use elements::{BlockType, External, FunctionType, GlobalEntry, GlobalType, MemoryType, Module,
-               Opcode, ResizableLimits, TableType, Type, ValueType};
+use elements::{BlockType, External, FunctionType, GlobalEntry, GlobalType, Internal, MemoryType,
+               Module, Opcode, ResizableLimits, TableType, Type, ValueType};
 use common::stack;
 use self::context::ModuleContext;
 use self::func::{FunctionValidationContext, Validator};
@@ -73,7 +73,29 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 	if let Some(start_function) = module.start_section() {
 		let (params, return_ty) = context.require_function(start_function)?;
 		if return_ty != BlockType::NoResult || params.len() != 0 {
-			return Err(Error("start function expected to have type [] -> []".into()));
+			return Err(Error(
+				"start function expected to have type [] -> []".into(),
+			));
+		}
+	}
+
+	// validate export section
+	if let Some(export_section) = module.export_section() {
+		for export in export_section.entries() {
+			match export.internal() {
+				&Internal::Function(function_index) => {
+					context.require_function(function_index)?;
+				}
+				&Internal::Global(global_index) => {
+					context.require_global(global_index, Some(false))?;
+				}
+				&Internal::Memory(memory_index) => {
+					context.require_memory(memory_index)?;
+				}
+				&Internal::Table(table_index) => {
+					context.require_table(table_index)?;
+				}
+			}
 		}
 	}
 
@@ -96,7 +118,6 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 
 fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
 	// TODO: Validate imports
-	// TODO: Validate exports
 
 	// Copy types from module as is.
 	let types = module

@@ -38,7 +38,7 @@ impl ModuleContext {
 		Ok(())
 	}
 
-	pub fn require_table(&self, idx: u32, expected_type: TableElementType) -> Result<(), Error> {
+	pub fn require_table(&self, idx: u32) -> Result<&TableType, Error> {
 		let table = match self.tables().get(idx as usize) {
 			Some(table) => table,
 			None => {
@@ -46,16 +46,7 @@ impl ModuleContext {
 			}
 		};
 
-		if table.elem_type() != expected_type {
-			return Err(Error(format!(
-				"Table {} has element type {:?} while {:?} expected",
-				idx,
-				table.elem_type(),
-				expected_type
-			)));
-		}
-
-		Ok(())
+		Ok(table)
 	}
 
 	pub fn require_function(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
@@ -85,5 +76,29 @@ impl ModuleContext {
 			.map(BlockType::Value)
 			.unwrap_or(BlockType::NoResult);
 		Ok((params, return_ty))
+	}
+
+	pub fn require_global(
+		&self,
+		idx: u32,
+		mutability: Option<bool>,
+	) -> Result<&GlobalType, Error> {
+		let global = match self.globals().get(idx as usize) {
+			Some(global) => global,
+			None => {
+				return Err(Error(format!("Global at index {} doesn't exists", idx)));
+			}
+		};
+
+		if let Some(expected_mutable) = mutability {
+			if expected_mutable && !global.is_mutable() {
+				return Err(Error(format!("Expected global {} to be mutable", idx)));
+			}
+			if !expected_mutable && global.is_mutable() {
+				return Err(Error(format!("Expected global {} to be immutable", idx)));
+			}
+		}
+
+		Ok(global)
 	}
 }

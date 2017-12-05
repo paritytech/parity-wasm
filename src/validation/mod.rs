@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use std::fmt;
 use elements::{
 	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType,

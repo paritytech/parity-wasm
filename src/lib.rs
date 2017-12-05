@@ -10,7 +10,7 @@ extern crate parking_lot;
 pub mod elements;
 pub mod builder;
 pub mod interpreter;
-pub mod validation;
+mod validation;
 mod common;
 
 pub use elements::{

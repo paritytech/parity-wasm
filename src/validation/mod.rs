@@ -131,7 +131,6 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 		return Err(Error(format!("too many memory regions in index space: {}", context.memories().len())));
 	}
 
-
 	// use data section to initialize linear memory regions
 	if let Some(data_section) = module.data_section() {
 		for data_segment in data_section.entries() {
@@ -143,7 +142,21 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 		}
 	}
 
-	// TODO: element section
+	// use element section to fill tables
+	if let Some(element_section) = module.elements_section() {
+		for element_segment in element_section.entries() {
+			context.require_table(element_segment.index())?;
+
+			let init_ty = element_segment.offset().expr_const_type(context.globals())?;
+			if init_ty != ValueType::I32 {
+				return Err(Error(format!("segment offset should return I32")));
+			}
+
+			for function_index in element_segment.members() {
+				context.require_function(*function_index)?;
+			}
+		}
+	}
 
 	let ModuleContext {
 		types,

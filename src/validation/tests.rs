@@ -11,61 +11,59 @@ fn empty_is_valid() {
 }
 
 #[test]
-fn mem_limits() {
-	// min > max
-	let m = module()
-		.memory()
-			.with_min(10)
-			.with_max(Some(9))
-			.build()
-		.build();
-	assert!(validate_module(&m).is_err());
+fn limits() {
+	let test_cases = vec![
+		// min > max
+		(10, Some(9), false),
+		// min = max
+		(10, Some(10), true),
+		// table/memory is always valid without max
+		(10, None, true),
+	];
 
-	// min = max
-	let m = module()
-		.memory()
-			.with_min(10)
-			.with_max(Some(10))
-			.build()
-		.build();
-	assert!(validate_module(&m).is_ok());
+	for (min, max, is_valid) in test_cases {
+		// defined table
+		let m = module()
+			.table()
+				.with_min(min)
+				.with_max(max)
+				.build()
+			.build();
+		assert_eq!(validate_module(&m).is_ok(), is_valid);
 
-	// mem is always valid without max
-	let m = module()
-		.memory()
-			.with_min(10)
-			.build()
-		.build();
-	assert!(validate_module(&m).is_ok());
-}
+		// imported table
+		let m = module()
+			.with_import(
+				ImportEntry::new(
+					"core".into(),
+					"table".into(),
+					External::Table(TableType::new(min, max))
+				)
+			)
+			.build();
+		assert_eq!(validate_module(&m).is_ok(), is_valid);
 
-#[test]
-fn table_limits() {
-	// min > max
-	let m = module()
-		.table()
-			.with_min(10)
-			.with_max(Some(9))
-			.build()
-		.build();
-	assert!(validate_module(&m).is_err());
+		// defined memory
+		let m = module()
+			.memory()
+				.with_min(min)
+				.with_max(max)
+				.build()
+			.build();
+		assert_eq!(validate_module(&m).is_ok(), is_valid);
 
-	// min = max
-	let m = module()
-		.table()
-			.with_min(10)
-			.with_max(Some(10))
-			.build()
-		.build();
-	assert!(validate_module(&m).is_ok());
-
-	// table is always valid without max
-	let m = module()
-		.table()
-			.with_min(10)
-			.build()
-		.build();
-	assert!(validate_module(&m).is_ok());
+		// imported table
+		let m = module()
+			.with_import(
+				ImportEntry::new(
+					"core".into(),
+					"memory".into(),
+					External::Memory(MemoryType::new(min, max))
+				)
+			)
+			.build();
+		assert_eq!(validate_module(&m).is_ok(), is_valid);
+	}
 }
 
 #[test]

@@ -229,6 +229,28 @@ fn module_limits_validity() {
 	assert!(validate_module(&m).is_err());
 }
 
+#[test]
+fn funcs() {
+	// recursive function calls is legal.
+	let m = module()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::Call(1),
+				Opcode::End,
+			])).build()
+			.build()
+		.function()
+			.signature().return_type().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+	assert!(validate_module(&m).is_ok());
+}
+
 // TODO: pepyakin
 // #[test]
 // fn if_else_with_return_type_validation() {

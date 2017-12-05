@@ -108,7 +108,7 @@ impl Validator {
 			}
 
 			context.position += 1;
-			if context.position >= body_len {
+			if context.position == body_len {
 				return Ok(());
 			}
 		}

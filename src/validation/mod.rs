@@ -81,17 +81,17 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 	// validate export section
 	if let Some(export_section) = module.export_section() {
 		for export in export_section.entries() {
-			match export.internal() {
-				&Internal::Function(function_index) => {
+			match *export.internal() {
+				Internal::Function(function_index) => {
 					context.require_function(function_index)?;
 				}
-				&Internal::Global(global_index) => {
+				Internal::Global(global_index) => {
 					context.require_global(global_index, Some(false))?;
 				}
-				&Internal::Memory(memory_index) => {
+				Internal::Memory(memory_index) => {
 					context.require_memory(memory_index)?;
 				}
-				&Internal::Table(table_index) => {
+				Internal::Table(table_index) => {
 					context.require_table(table_index)?;
 				}
 			}
@@ -101,19 +101,19 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 	// validate import section
 	if let Some(import_section) = module.import_section() {
 		for import in import_section.entries() {
-			match import.external() {
-				&External::Function(function_type_index) => {
+			match *import.external() {
+				External::Function(function_type_index) => {
 					context.require_function(function_type_index)?;
 				},
-				&External::Global(ref global_type) => {
+				External::Global(ref global_type) => {
 					if global_type.is_mutable() {
 						return Err(Error(format!("trying to import mutable global {}", import.field())));
 					}
 				},
-				&External::Memory(ref memory_type) => {
+				External::Memory(ref memory_type) => {
 					memory_type.validate()?;
 				},
-				&External::Table(ref table_type) => {
+				External::Table(ref table_type) => {
 					table_type.validate()?;
 				},
 			}
@@ -136,7 +136,7 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 			context.require_memory(data_segment.index())?;
 			let init_ty = data_segment.offset().expr_const_type(context.globals())?;
 			if init_ty != ValueType::I32 {
-				return Err(Error(format!("segment offset should return I32")));
+				return Err(Error("segment offset should return I32".into()));
 			}
 		}
 	}
@@ -148,7 +148,7 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 
 			let init_ty = element_segment.offset().expr_const_type(context.globals())?;
 			if init_ty != ValueType::I32 {
-				return Err(Error(format!("segment offset should return I32")));
+				return Err(Error("segment offset should return I32".into()));
 			}
 
 			for function_index in element_segment.members() {
@@ -290,9 +290,7 @@ impl InitExpr {
 	fn expr_const_type(&self, globals: &[GlobalType]) -> Result<ValueType, Error> {
 		let code = self.code();
 		if code.len() != 2 {
-			return Err(Error(
-				format!("Init expression should always be with length 2")
-			));
+			return Err(Error("Init expression should always be with length 2".into()));
 		}
 		let expr_ty: ValueType = match code[0] {
 			Opcode::I32Const(_) => ValueType::I32,
@@ -312,10 +310,10 @@ impl InitExpr {
 					))
 				}
 			},
-			_ => return Err(Error(format!("Non constant opcode in init expr"))),
+			_ => return Err(Error("Non constant opcode in init expr".into())),
 		};
 		if code[1] != Opcode::End {
-			return Err(Error(format!("Expression doesn't ends with `end` opcode")));
+			return Err(Error("Expression doesn't ends with `end` opcode".into()));
 		}
 		Ok(expr_ty)
 	}

@@ -3,7 +3,7 @@
 use std::fmt;
 use std::iter::repeat;
 use elements::{BlockType, External, FunctionType, GlobalEntry, GlobalType, Internal, MemoryType,
-               Module, Opcode, ResizableLimits, TableType, Type, ValueType};
+               Module, Opcode, ResizableLimits, TableType, Type, ValueType, InitExpr};
 use common::stack;
 use self::context::ModuleContext;
 use self::func::Validator;
@@ -249,19 +249,44 @@ impl TableType {
 }
 
 impl GlobalEntry {
-	fn validate(&self, globals_sofar: &[GlobalType]) -> Result<(), Error> {
-		let init = self.init_expr().code();
-		if init.len() != 2 {
+	fn validate(&self, globals: &[GlobalType]) -> Result<(), Error> {
+		let init = self.init_expr();
+		init.validate(globals)?;
+		let init_expr_ty = init.expr_const_type(globals)?;
+		if init_expr_ty != self.global_type().content_type() {
+			return Err(Error(format!(
+				"Trying to initialize variable of type {:?} with value of type {:?}",
+				self.global_type().content_type(),
+				init_expr_ty
+			)));
+		}
+		Ok(())
+	}
+}
+
+impl InitExpr {
+	fn validate(&self, globals: &[GlobalType]) -> Result<(), Error> {
+		let code = self.code();
+		if code.len() != 2 {
 			return Err(Error(
 				format!("Init expression should always be with length 2"),
 			));
 		}
-		let init_expr_ty: ValueType = match init[0] {
+		let _ = self.expr_const_type(globals)?;
+		if code[1] != Opcode::End {
+			return Err(Error(format!("Expression doesn't ends with `end` opcode")));
+		}
+		Ok(())
+	}
+
+	fn expr_const_type(&self, globals: &[GlobalType]) -> Result<ValueType, Error> {
+		let code = self.code();
+		let expr_ty: ValueType = match code[0] {
 			Opcode::I32Const(_) => ValueType::I32,
 			Opcode::I64Const(_) => ValueType::I64,
 			Opcode::F32Const(_) => ValueType::F32,
 			Opcode::F64Const(_) => ValueType::F64,
-			Opcode::GetGlobal(idx) => match globals_sofar.get(idx as usize) {
+			Opcode::GetGlobal(idx) => match globals.get(idx as usize) {
 				Some(target_global) => {
 					if target_global.is_mutable() {
 						return Err(Error(format!("Global {} is mutable", idx)));
@@ -276,16 +301,6 @@ impl GlobalEntry {
 			},
 			_ => return Err(Error(format!("Non constant opcode in init expr"))),
 		};
-		if init_expr_ty != self.global_type().content_type() {
-			return Err(Error(format!(
-				"Trying to initialize variable of type {:?} with value of type {:?}",
-				self.global_type().content_type(),
-				init_expr_ty
-			)));
-		}
-		if init[1] != Opcode::End {
-			return Err(Error(format!("Expression doesn't ends with `end` opcode")));
-		}
-		Ok(())
+		Ok(expr_ty)
 	}
 }

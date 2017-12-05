@@ -1,5 +1,5 @@
 use elements::{MemoryType, TableType, GlobalType, Type};
-use elements::{Opcode, BlockType, ValueType, TableElementType};
+use elements::{BlockType, ValueType};
 use validation::Error;
 
 pub struct ModuleContext {

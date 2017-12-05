@@ -1,8 +1,7 @@
 use super::validate_module;
 use builder::module;
-use elements::{BlockType, ExportEntry, External, FunctionType, GlobalEntry, GlobalType,
-				ImportEntry, InitExpr, Internal, MemoryType, Opcode, Opcodes, TableType,
-				ValueType};
+use elements::{External, GlobalEntry, GlobalType, ImportEntry, InitExpr, MemoryType,
+               Opcode, Opcodes, TableType, ValueType};
 
 #[test]
 fn empty_is_valid() {

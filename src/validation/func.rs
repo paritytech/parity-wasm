@@ -1,9 +1,7 @@
 use std::u32;
-use std::sync::Arc;
 use std::iter::repeat;
 use std::collections::HashMap;
 use elements::{Opcode, BlockType, ValueType, TableElementType, Func, FuncBody};
-use elements::{FunctionType, Type};
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 use validation::context::ModuleContext;
 
@@ -707,10 +705,6 @@ impl<'a> FunctionValidationContext<'a> {
 			.cloned()
 			.map(Into::into)
 			.ok_or(Error(format!("Trying to access local with index {} when there are only {} locals", idx, self.locals.len())))
-	}
-
-	fn function_labels(self) -> HashMap<usize, usize> {
-		self.labels
 	}
 
 	fn check_stack_access(&self) -> Result<(), Error> {

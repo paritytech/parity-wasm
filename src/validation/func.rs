@@ -70,11 +70,13 @@ impl Validator {
 		let (params, result_ty) = module.require_function_type(func.type_ref())?;
 
 		// locals = (params + vars)
-		let mut locals = params;
+		let mut locals = params.to_vec();
 		locals.extend(
 			body.locals()
 				.iter()
-				.flat_map(|l| repeat(l.value_type()).take(l.count() as usize)),
+				.flat_map(|l| repeat(l.value_type())
+				.take(l.count() as usize)
+			),
 		);
 
 		let mut context = FunctionValidationContext::new(

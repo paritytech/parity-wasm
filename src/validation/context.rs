@@ -49,7 +49,7 @@ impl ModuleContext {
 		Ok(table)
 	}
 
-	pub fn require_function(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
+	pub fn require_function(&self, idx: u32) -> Result<(&[ValueType], BlockType), Error> {
 		let ty_idx = match self.func_type_indexes().get(idx as usize) {
 			Some(ty_idx) => *ty_idx,
 			None => {
@@ -61,7 +61,7 @@ impl ModuleContext {
 		self.require_function_type(ty_idx)
 	}
 
-	pub fn require_function_type(&self, idx: u32) -> Result<(Vec<ValueType>, BlockType), Error> {
+	pub fn require_function_type(&self, idx: u32) -> Result<(&[ValueType], BlockType), Error> {
 		let ty = match self.types().get(idx as usize) {
 			Some(&Type::Function(ref func_ty)) => func_ty,
 			None => {
@@ -71,7 +71,7 @@ impl ModuleContext {
 			}
 		};
 
-		let params = ty.params().to_vec();
+		let params = ty.params();
 		let return_ty = ty.return_type()
 			.map(BlockType::Value)
 			.unwrap_or(BlockType::NoResult);

@@ -555,12 +555,12 @@ impl Interpreter {
 			.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.map(|m| m.size())
-			.and_then(|s| {
+			.and_then(|s|
 				context
 					.value_stack_mut()
 					.push(RuntimeValue::I32(s as i32))
 					.map_err(Into::into)
-			})
+			)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
@@ -570,12 +570,12 @@ impl Interpreter {
 			.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.and_then(|m| m.grow(pages))
-			.and_then(|m| {
+			.and_then(|m|
 				context
 					.value_stack_mut()
 					.push(RuntimeValue::I32(m as i32))
 					.map_err(Into::into)
-			})
+			)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 

@@ -7,7 +7,7 @@ use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance};
-use interpreter::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
+use interpreter::native::{native_module, native_module1, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
 use interpreter::memory::MemoryInstance;
 use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, ExecutionParams, ExportEntryType, FunctionSignature};
 use interpreter::value::{RuntimeValue, TryInto};
@@ -603,6 +603,87 @@ fn table_import_limits_maximum() {
 			},
 			Ok(_) if expected_err == MaximumError::Ok => (),
 			x @ _ => panic!("unexpected result for test_case {:?}: {:?}", test_case, x),
+		}
+	}
+}
+
+#[test]
+fn native_non_env_function() {
+	struct FunctionExecutor;
+
+	impl<'a> UserFunctionExecutor for &'a mut FunctionExecutor {
+		fn execute(&mut self, name: &str, context: CallerContext) -> Result<Option<RuntimeValue>, Error> {
+			match name {
+				"add" => {
+					let fn_argument2 = context.value_stack.pop_as::<u32>().unwrap() as u8;
+					let fn_argument1 = context.value_stack.pop_as::<u32>().unwrap() as u8;
+
+					let sum = fn_argument1 + fn_argument2;
+					Ok(Some(RuntimeValue::I32(sum as i32)))
+				},
+				"sub" => {
+					let fn_argument2 = context.value_stack.pop_as::<u32>().unwrap() as u8;
+					let fn_argument1 = context.value_stack.pop_as::<u32>().unwrap() as u8;
+
+					let diff = fn_argument1 - fn_argument2;
+					Ok(Some(RuntimeValue::I32(diff as i32)))
+
+				},
+				"err" => {
+					Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
+				},
+				_ => Err(Error::Trap("not implemented".into()).into()),
+			}
+		}
+	}
+
+	// create new program
+	let program = ProgramInstance::new();
+
+	// create native env module executor
+	let mut executor = FunctionExecutor {};
+	{
+		let functions = UserDefinedElements {
+			executor: Some(&mut executor),
+			globals: HashMap::new(),
+			functions: ::std::borrow::Cow::from(SIGNATURES),
+		};
+		let native_my_module_instance = native_module1("my_module".into(), functions).unwrap();
+		let params = ExecutionParams::with_external("my_module".into(), native_my_module_instance);
+
+		let module = module()
+			.with_import(ImportEntry::new("my_module".into(), "add".into(), External::Function(0)))
+			.with_import(ImportEntry::new("my_module".into(), "sub".into(), External::Function(0)))
+			.function()
+				.signature().param().i32().param().i32().return_type().i32().build()
+				.body().with_opcodes(Opcodes::new(vec![
+					Opcode::GetLocal(0),
+					Opcode::GetLocal(1),
+					Opcode::Call(0),
+					Opcode::End,
+				])).build()
+				.build()
+			.function()
+				.signature().param().i32().param().i32().return_type().i32().build()
+				.body().with_opcodes(Opcodes::new(vec![
+					Opcode::GetLocal(0),
+					Opcode::GetLocal(1),
+					Opcode::Call(1),
+					Opcode::End,
+				])).build()
+				.build()
+			.build();
+
+		// load module
+		let module_instance = program.add_module("main", module, Some(&params.externals)).unwrap();
+
+		{
+			assert_eq!(module_instance.execute_index(2, params.clone().add_argument(RuntimeValue::I32(7)).add_argument(RuntimeValue::I32(7))).unwrap().unwrap(),
+				RuntimeValue::I32(14));
+			assert_eq!(module_instance.execute_index(2, params.clone().add_argument(RuntimeValue::I32(50)).add_argument(RuntimeValue::I32(6))).unwrap().unwrap(),
+				RuntimeValue::I32(56));
+			assert_eq!(module_instance.execute_index(3, params.clone().add_argument(RuntimeValue::I32(15)).add_argument(RuntimeValue::I32(2))).unwrap().unwrap(),
+				RuntimeValue::I32(13));
 		}
 	}
 }

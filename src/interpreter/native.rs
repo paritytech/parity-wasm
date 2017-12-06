@@ -1,13 +1,14 @@
 
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use std::borrow::Cow;
 use parking_lot::RwLock;
 use elements::{Internal, ValueType};
 use interpreter::Error;
-use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
+use interpreter::module::{ModuleInstance, ModuleInstanceInterface, ExecutionParams, ItemIndex,
 	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
 use interpreter::memory::MemoryInstance;
+use interpreter::program::ProgramInstanceEssence;
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
 use interpreter::variable::{VariableInstance, VariableType};
@@ -95,6 +96,12 @@ pub struct NativeModuleInstance<E: UserFunctionExecutor> {
 }
 
 impl<E: UserFunctionExecutor> NativeModuleInstance<E> {
+	/// Create new native module
+	pub fn new1(program: Weak<ProgramInstanceEssence>, name: String, elements: UserDefinedElements<E>) -> Result<Self, Error> {
+		let module = Arc::new(build_module(program, name, &elements)?);
+		Self::new(module, elements)
+	}
+
 	/// Create new native module
 	pub fn new(base: Arc<ModuleInstanceInterface>, elements: UserDefinedElements<E>) -> Result<Self, Error> {
 		if !elements.functions.is_empty() && elements.executor.is_none() {
@@ -248,6 +255,37 @@ impl<E: UserFunctionExecutor> ModuleInstanceInterface for NativeModuleInstance<E
 	}
 }
 
+fn build_module<E: UserFunctionExecutor>(program: Weak<ProgramInstanceEssence>, name: String, elements: &UserDefinedElements<E>) -> Result<ModuleInstance, Error> {
+	use builder::module;
+	use elements::{ExportEntry, Internal, GlobalType, GlobalEntry, InitExpr, Opcode};
+
+	let mut module = module();
+	let mut function_index = NATIVE_INDEX_FUNC_MIN;
+	let mut global_index = NATIVE_INDEX_GLOBAL_MIN;
+	for (name, global) in &elements.globals {
+		module = module
+			.with_export(ExportEntry::new(name.clone(), Internal::Global(global_index)))
+			.with_global(GlobalEntry::new(GlobalType::new(match global.variable_type() {
+				VariableType::I32 => ValueType::I32,
+				VariableType::I64 => ValueType::I64,
+				VariableType::F32 => ValueType::F32,
+				VariableType::F64 => ValueType::F64,
+				VariableType::AnyFunc => return Err(Error::Global("invalid global type".into())),
+			}, false), InitExpr::new(vec![Opcode::End])));
+		global_index += 1;
+	}
+	for f in &*elements.functions {
+		module = module
+			.with_export(ExportEntry::new(f.name().into(), Internal::Function(function_index)))
+			.function()
+				.signature().with_return_type(f.return_type()).with_params(f.params().to_vec()).build()
+				.build();
+		function_index += 1;
+	}
+
+	ModuleInstance::new(program, name, module.build())
+}
+
 /// Create wrapper for a module with given native user functions.
 ///
 /// # Examples
@@ -282,6 +320,10 @@ impl<E: UserFunctionExecutor> ModuleInstanceInterface for NativeModuleInstance<E
 /// ```
 pub fn native_module<'a, E: UserFunctionExecutor + 'a>(base: Arc<ModuleInstanceInterface>, user_elements: UserDefinedElements<E>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
 	Ok(Arc::new(NativeModuleInstance::new(base, user_elements)?))
+}
+
+pub fn native_module1<'a, E: UserFunctionExecutor + 'a>(name: String, user_elements: UserDefinedElements<E>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
+	Ok(Arc::new(NativeModuleInstance::new1(Default::default(), name, user_elements)?))
 }
 
 impl<'a> PartialEq for UserFunctionDescriptor {

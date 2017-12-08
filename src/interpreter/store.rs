@@ -1,7 +1,7 @@
 // TODO: remove this
 #![allow(unused)]
 
-use elements::{Module, FunctionType, FuncBody, TableType, MemoryType, GlobalType, GlobalEntry, Type};
+use elements::{Module, FunctionType, FuncBody, TableType, MemoryType, GlobalType, GlobalEntry, Type, Opcode};
 use interpreter::RuntimeValue;
 
 #[derive(Copy, Clone, Debug)]
@@ -178,11 +178,13 @@ impl Store {
 		GlobalId(global_id as u32)
 	}
 
-	fn alloc_module(&mut self, module: Module, extern_vals: &[ExternVal]) -> ModuleId {
-		let mut instance = ModuleInstance::new();
-		// Reserve the index of the module, but not yet push the module.
-		let module_id = ModuleId((self.modules.len()) as u32);
-
+	fn alloc_module_internal(
+		&mut self,
+		module: Module,
+		extern_vals: &[ExternVal],
+		instance: &mut ModuleInstance,
+		module_id: ModuleId,
+	) {
 		for extern_val in extern_vals {
 			match *extern_val {
 				ExternVal::Func(func) => instance.funcs.push(func),
@@ -204,11 +206,14 @@ impl Store {
 		}
 
 		{
-			let funcs = module.function_section().map(|fs| fs.entries()).unwrap_or(&[]);
+			let funcs = module
+				.function_section()
+				.map(|fs| fs.entries())
+				.unwrap_or(&[]);
 			let bodies = module.code_section().map(|cs| cs.bodies()).unwrap_or(&[]);
 			debug_assert!(
 				funcs.len() == bodies.len(),
-				"due validation func and body counts must match"
+				"due to validation func and body counts must match"
 			);
 
 			for (ty, body) in Iterator::zip(funcs.into_iter(), bodies.into_iter()) {
@@ -223,21 +228,60 @@ impl Store {
 			instance.tables.push(table_id);
 		}
 
-		for memory in module.memory_section().map(|ms| ms.entries()).unwrap_or(&[])  {
+		for memory in module
+			.memory_section()
+			.map(|ms| ms.entries())
+			.unwrap_or(&[])
+		{
 			let memory_id = self.alloc_memory(memory.clone());
 			instance.memories.push(memory_id);
 		}
 
-		for global in module.global_section().map(|gs| gs.entries()).unwrap_or(&[])  {
-			let init_val = global_init_val(global);
+		for global in module
+			.global_section()
+			.map(|gs| gs.entries())
+			.unwrap_or(&[])
+		{
+			let init_val = global_init_val(global, instance, self);
 			let global_id = self.alloc_global(global.global_type().clone(), init_val);
 			instance.globals.push(global_id);
 		}
+	}
 
-		unimplemented!()
+	fn alloc_module(&mut self, module: Module, extern_vals: &[ExternVal]) -> ModuleId {
+		let mut instance = ModuleInstance::new();
+		// Reserve the index of the module, but not yet push the module.
+		let module_id = ModuleId((self.modules.len()) as u32);
+
+		self.alloc_module_internal(module, extern_vals, &mut instance, module_id);
+
+		self.modules.push(instance);
+		module_id
 	}
 }
 
-fn global_init_val(global: &GlobalEntry) -> RuntimeValue {
-	panic!()
+fn global_init_val(global: &GlobalEntry, module: &ModuleInstance, store: &Store) -> RuntimeValue {
+	let code = global.init_expr().code();
+	debug_assert!(
+		code.len() == 2,
+		"due to validation `code`.len() should be 2"
+	);
+	match code[0] {
+		Opcode::I32Const(v) => v.into(),
+		Opcode::I64Const(v) => v.into(),
+		Opcode::F32Const(v) => RuntimeValue::decode_f32(v),
+		Opcode::F64Const(v) => RuntimeValue::decode_f64(v),
+		Opcode::GetGlobal(idx) => {
+			let global_id = module
+				.globals
+				.get(idx as usize)
+				.expect("due to validation global should exists in module");
+			let global_inst = store
+				.globals
+				.get(global_id.0 as usize)
+				.expect("ID should always be a valid index");
+			global_inst.val.clone()
+		}
+		_ => panic!("due to validation init should be a const expr"),
+	}
 }

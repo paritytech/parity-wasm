@@ -1,16 +1,13 @@
 use std::fmt;
 use elements::{
 	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType,
-	Module, Opcode, ResizableLimits, TableType, ValueType, InitExpr
+	Module, Opcode, ResizableLimits, TableType, ValueType, InitExpr, Type
 };
 use common::stack;
-use self::context::ModuleContext;
+use self::context::ModuleContextBuilder;
 use self::func::Validator;
 
-pub use self::module::ValidatedModule;
-
 mod context;
-mod module;
 mod func;
 
 #[cfg(test)]
@@ -31,8 +28,67 @@ impl From<stack::Error> for Error {
 	}
 }
 
-pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
-	let context = prepare_context(module)?;
+pub fn validate_module(module: &Module) -> Result<(), Error> {
+	let mut context_builder = ModuleContextBuilder::new();
+	let mut imported_globals = Vec::new();
+
+	// Copy types from module as is.
+	context_builder.set_types(
+		module
+			.type_section()
+			.map(|ts| {
+				ts.types()
+					.into_iter()
+					.map(|&Type::Function(ref ty)| ty)
+					.cloned()
+					.collect()
+			})
+			.unwrap_or_default(),
+	);
+
+	// Fill elements with imported values.
+	for import_entry in module
+		.import_section()
+		.map(|i| i.entries())
+		.unwrap_or_default()
+	{
+		match *import_entry.external() {
+			External::Function(idx) => context_builder.push_func_type_index(idx),
+			External::Table(ref table) => context_builder.push_table(table.clone()),
+			External::Memory(ref memory) => context_builder.push_memory(memory.clone()),
+			External::Global(ref global) => {
+				context_builder.push_global(global.clone());
+				imported_globals.push(global.clone());
+			},
+		}
+	}
+
+	// Concatenate elements with defined in the module.
+	if let Some(function_section) = module.function_section() {
+		for func_entry in function_section.entries() {
+			context_builder.push_func_type_index(func_entry.type_ref())
+		}
+	}
+	if let Some(table_section) = module.table_section() {
+		for table_entry in table_section.entries() {
+			table_entry.validate()?;
+			context_builder.push_table(table_entry.clone());
+		}
+	}
+	if let Some(mem_section) = module.memory_section() {
+		for mem_entry in mem_section.entries() {
+			mem_entry.validate()?;
+			context_builder.push_memory(mem_entry.clone());
+		}
+	}
+	if let Some(global_section) = module.global_section() {
+		for global_entry in global_section.entries() {
+			global_entry.validate(&imported_globals)?;
+			context_builder.push_global(global_entry.global_type().clone());
+		}
+	}
+
+	let context = context_builder.build();
 
 	let function_section_len = module
 		.function_section()
@@ -70,8 +126,8 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 	}
 
 	// validate start section
-	if let Some(start_function) = module.start_section() {
-		let (params, return_ty) = context.require_function(start_function)?;
+	if let Some(start_fn_idx) = module.start_section() {
+		let (params, return_ty) = context.require_function(start_fn_idx)?;
 		if return_ty != BlockType::NoResult || params.len() != 0 {
 			return Err(Error(
 				"start function expected to have type [] -> []".into(),
@@ -157,89 +213,7 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 			}
 		}
 	}
-
-	let ModuleContext {
-		types,
-		tables,
-		memories,
-		globals,
-		func_type_indexes,
-	} = context;
-
-	Ok(ValidatedModule {
-		types,
-		tables,
-		memories,
-		globals,
-		func_type_indexes,
-	})
-}
-
-fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
-	// Copy types from module as is.
-	let types = module
-		.type_section()
-		.map(|ts| ts.types().into_iter().cloned().collect())
-		.unwrap_or_default();
-
-	// Fill elements with imported values.
-	let mut func_type_indexes = Vec::new();
-	let mut tables = Vec::new();
-	let mut memories = Vec::new();
-	let mut globals = Vec::new();
-
-	for import_entry in module
-		.import_section()
-		.map(|i| i.entries())
-		.unwrap_or_default()
-	{
-		match *import_entry.external() {
-			External::Function(idx) => func_type_indexes.push(idx),
-			External::Table(ref table) => tables.push(table.clone()),
-			External::Memory(ref memory) => memories.push(memory.clone()),
-			External::Global(ref global) => globals.push(global.clone()),
-		}
-	}
-
-	// Concatenate elements with defined in the module.
-	if let Some(function_section) = module.function_section() {
-		for func_entry in function_section.entries() {
-			func_type_indexes.push(func_entry.type_ref());
-		}
-	}
-	if let Some(table_section) = module.table_section() {
-		for table_entry in table_section.entries() {
-			table_entry.validate()?;
-			tables.push(table_entry.clone());
-		}
-	}
-	if let Some(mem_section) = module.memory_section() {
-		for mem_entry in mem_section.entries() {
-			mem_entry.validate()?;
-			memories.push(mem_entry.clone());
-		}
-	}
-	if let Some(global_section) = module.global_section() {
-		// Validation of globals is defined over modified context C', which
-		// contains only imported globals. So we do globals validation
-		// in two passes, in first we validate globals and after all globals are validated
-		// add them in globals list.
-		for global_entry in global_section.entries() {
-			global_entry.validate(&globals)?;
-		}
-
-		for global_entry in global_section.entries() {
-			globals.push(global_entry.global_type().clone());
-		}
-	}
-
-	Ok(ModuleContext {
-		types,
-		tables,
-		memories,
-		globals,
-		func_type_indexes,
-	})
+	Ok(())
 }
 
 impl ResizableLimits {

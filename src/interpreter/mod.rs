@@ -141,6 +141,7 @@ mod stack;
 mod table;
 mod value;
 mod variable;
+mod store;
 
 #[cfg(test)]
 mod tests;

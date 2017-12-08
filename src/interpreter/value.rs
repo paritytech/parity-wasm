@@ -4,6 +4,8 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use interpreter::Error;
 use interpreter::variable::VariableType;
 
+
+// TODO: Get rid of Null and AnyFunc.
 /// Runtime value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeValue {

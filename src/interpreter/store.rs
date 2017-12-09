@@ -2,7 +2,8 @@
 #![allow(unused)]
 
 use elements::{Module, FunctionType, FuncBody, TableType, MemoryType, GlobalType, GlobalEntry, Type, Opcode};
-use interpreter::RuntimeValue;
+use interpreter::{RuntimeValue, Error};
+use validation::validate_module;
 
 #[derive(Copy, Clone, Debug)]
 pub struct TypeId(u32);
@@ -257,6 +258,15 @@ impl Store {
 
 		self.modules.push(instance);
 		module_id
+	}
+
+	fn instantiate_module(&mut self, module: Module, extern_vals: &[ExternVal]) -> Result<(), Error> {
+		validate_module(&module)?;
+
+		// TODO: check extern_vals
+		let module_id = self.alloc_module(module, extern_vals);
+
+		Ok(())
 	}
 }
 

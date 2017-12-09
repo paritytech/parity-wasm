@@ -11,8 +11,6 @@ use interpreter::variable::VariableType;
 pub enum RuntimeValue {
 	/// Null value.
 	Null,
-	/// Reference to the function in the given module' function index space.
-	AnyFunc(String, u32),
 	/// 32b-length signed/unsigned int.
 	I32(i32),
 	/// 64b-length signed/unsigned int.
@@ -117,7 +115,6 @@ impl RuntimeValue {
 	/// Creates new default value of given type.
 	pub fn default(variable_type: VariableType) -> Self {
 		match variable_type {
-			VariableType::AnyFunc => RuntimeValue::AnyFunc("".into(), 0),
 			VariableType::I32 => RuntimeValue::I32(0),
 			VariableType::I64 => RuntimeValue::I64(0),
 			VariableType::F32 => RuntimeValue::F32(0f32),
@@ -147,7 +144,6 @@ impl RuntimeValue {
 	pub fn variable_type(&self) -> Option<VariableType> {
 		match *self {
 			RuntimeValue::Null => None,
-			RuntimeValue::AnyFunc(_, _) => Some(VariableType::AnyFunc),
 			RuntimeValue::I32(_) => Some(VariableType::I32),
 			RuntimeValue::I64(_) => Some(VariableType::I64),
 			RuntimeValue::F32(_) => Some(VariableType::F32),

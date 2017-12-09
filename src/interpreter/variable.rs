@@ -7,8 +7,6 @@ use interpreter::value::RuntimeValue;
 /// Variable type.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum VariableType {
-	/// Any func value.
-	AnyFunc,
 	/// i32 value.
 	I32,
 	/// i64 value.
@@ -141,14 +139,6 @@ impl From<ValueType> for VariableType {
 			ValueType::I64 => VariableType::I64,
 			ValueType::F32 => VariableType::F32,
 			ValueType::F64 => VariableType::F64,
-		}
-	}
-}
-
-impl From<TableElementType> for VariableType {
-	fn from(tt: TableElementType) -> VariableType {
-		match tt {
-			TableElementType::AnyFunc => VariableType::AnyFunc,
 		}
 	}
 }

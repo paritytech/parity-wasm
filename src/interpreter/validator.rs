@@ -548,7 +548,7 @@ impl Validator {
 	}
 
 	fn validate_call_indirect(context: &mut FunctionValidationContext, idx: u32) -> Result<InstructionOutcome, Error> {
-		context.require_table(DEFAULT_TABLE_INDEX, VariableType::AnyFunc)?;
+		// context.require_table(DEFAULT_TABLE_INDEX, VariableType::AnyFunc)?;
 
 		context.pop_value(ValueType::I32.into())?;
 		let (argument_types, return_type) = context.require_function_type(idx)?;
@@ -704,7 +704,6 @@ impl<'a> FunctionValidationContext<'a> {
 				Some(true) if !g.is_mutable() => Err(Error::Validation(format!("Expected global {} to be mutable", idx))),
 				Some(false) if g.is_mutable() => Err(Error::Validation(format!("Expected global {} to be immutable", idx))),
 				_ => match g.variable_type() {
-					VariableType::AnyFunc => Err(Error::Validation(format!("Expected global {} to have non-AnyFunc type", idx))),
 					VariableType::I32 => Ok(StackValueType::Specific(ValueType::I32)),
 					VariableType::I64 => Ok(StackValueType::Specific(ValueType::I64)),
 					VariableType::F32 => Ok(StackValueType::Specific(ValueType::F32)),

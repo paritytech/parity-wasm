@@ -1,9 +1,11 @@
 // TODO: remove this
 #![allow(unused)]
 
-use elements::{Module, FunctionType, FuncBody, TableType, MemoryType, GlobalType, GlobalEntry, Type, Opcode};
-use interpreter::{RuntimeValue, Error};
+use elements::{FuncBody, FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Module,
+               Opcode, TableType, Type};
+use interpreter::{Error, RuntimeValue, MemoryInstance, TableInstance};
 use validation::validate_module;
+use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
 #[derive(Copy, Clone, Debug)]
 pub struct TypeId(u32);
@@ -42,40 +44,10 @@ pub enum FuncInstance {
 	Host {
 		func_type: TypeId,
 		host_func: HostFuncId,
-	}
+	},
 }
 
-impl FuncInstance {
-
-}
-
-pub struct MemInstance {
-	data: Vec<u8>,
-	max: Option<u32>,
-}
-
-impl MemInstance {
-	fn new(min: u32, max: Option<u32>) -> MemInstance {
-		MemInstance {
-			data: vec![0; min as usize],
-			max,
-		}
-	}
-}
-
-pub struct TableInstance {
-	elements: Vec<Option<FuncId>>,
-	max: Option<u32>,
-}
-
-impl TableInstance {
-	fn new(min: u32, max: Option<u32>) -> TableInstance {
-		TableInstance {
-			elements: vec![None; min as usize],
-			max,
-		}
-	}
-}
+impl FuncInstance {}
 
 pub struct GlobalInstance {
 	val: RuntimeValue,
@@ -84,10 +56,7 @@ pub struct GlobalInstance {
 
 impl GlobalInstance {
 	fn new(val: RuntimeValue, mutable: bool) -> GlobalInstance {
-		GlobalInstance {
-			val,
-			mutable,
-		}
+		GlobalInstance { val, mutable }
 	}
 }
 
@@ -117,7 +86,7 @@ pub struct Store {
 	// TODO: u32 capped vectors.
 	funcs: Vec<FuncInstance>,
 	tables: Vec<TableInstance>,
-	memories: Vec<MemInstance>,
+	memories: Vec<MemoryInstance>,
 	globals: Vec<GlobalInstance>,
 
 	// These are not the part of specification of the Store.
@@ -132,11 +101,15 @@ impl Store {
 	}
 
 	fn resolve_module(&self, id: ModuleId) -> &ModuleInstance {
-		self.modules.get(id.0 as usize).expect("ID should always be a valid index")
+		self.modules
+			.get(id.0 as usize)
+			.expect("ID should always be a valid index")
 	}
 
 	fn resolve_type(&self, id: TypeId) -> &FunctionType {
-		self.types.get(id.0 as usize).expect("ID should always be a valid index")
+		self.types
+			.get(id.0 as usize)
+			.expect("ID should always be a valid index")
 	}
 
 	fn alloc_func_type(&mut self, func_type: FunctionType) -> TypeId {
@@ -149,7 +122,7 @@ impl Store {
 		let func = FuncInstance::Defined {
 			func_type,
 			module,
-			body
+			body,
 		};
 		self.funcs.push(func);
 		let func_id = self.funcs.len() - 1;
@@ -158,18 +131,18 @@ impl Store {
 
 	// TODO: alloc_host_func
 
-	fn alloc_table(&mut self, table_type: TableType) -> TableId {
-		let table = TableInstance::new(table_type.limits().initial(), table_type.limits().maximum());
+	fn alloc_table(&mut self, table_type: &TableType) -> Result<TableId, Error> {
+		let table = TableInstance::new(table_type)?;
 		self.tables.push(table);
 		let table_id = self.tables.len() - 1;
-		TableId(table_id as u32)
+		Ok(TableId(table_id as u32))
 	}
 
-	fn alloc_memory(&mut self, mem_type: MemoryType) -> MemoryId {
-		let mem = MemInstance::new(mem_type.limits().initial(), mem_type.limits().maximum());
+	fn alloc_memory(&mut self, mem_type: &MemoryType) -> Result<MemoryId, Error> {
+		let mem = MemoryInstance::new(&mem_type)?;
 		self.memories.push(mem);
 		let mem_id = self.memories.len() - 1;
-		MemoryId(mem_id as u32)
+		Ok(MemoryId(mem_id as u32))
 	}
 
 	fn alloc_global(&mut self, global_type: GlobalType, val: RuntimeValue) -> GlobalId {
@@ -181,11 +154,11 @@ impl Store {
 
 	fn alloc_module_internal(
 		&mut self,
-		module: Module,
+		module: &Module,
 		extern_vals: &[ExternVal],
 		instance: &mut ModuleInstance,
 		module_id: ModuleId,
-	) {
+	) -> Result<(), Error> {
 		for extern_val in extern_vals {
 			match *extern_val {
 				ExternVal::Func(func) => instance.funcs.push(func),
@@ -214,7 +187,7 @@ impl Store {
 			let bodies = module.code_section().map(|cs| cs.bodies()).unwrap_or(&[]);
 			debug_assert!(
 				funcs.len() == bodies.len(),
-				"due to validation func and body counts must match"
+				"Due to validation func and body counts must match"
 			);
 
 			for (ty, body) in Iterator::zip(funcs.into_iter(), bodies.into_iter()) {
@@ -225,7 +198,7 @@ impl Store {
 		}
 
 		for table in module.table_section().map(|ts| ts.entries()).unwrap_or(&[]) {
-			let table_id = self.alloc_table(table.clone());
+			let table_id = self.alloc_table(table)?;
 			instance.tables.push(table_id);
 		}
 
@@ -234,7 +207,7 @@ impl Store {
 			.map(|ms| ms.entries())
 			.unwrap_or(&[])
 		{
-			let memory_id = self.alloc_memory(memory.clone());
+			let memory_id = self.alloc_memory(memory)?;
 			instance.memories.push(memory_id);
 		}
 
@@ -243,38 +216,86 @@ impl Store {
 			.map(|gs| gs.entries())
 			.unwrap_or(&[])
 		{
-			let init_val = global_init_val(global, instance, self);
+			let init_val = eval_init_expr(global.init_expr(), instance, self);
 			let global_id = self.alloc_global(global.global_type().clone(), init_val);
 			instance.globals.push(global_id);
 		}
+
+		Ok(())
 	}
 
-	fn alloc_module(&mut self, module: Module, extern_vals: &[ExternVal]) -> ModuleId {
+	fn instantiate_module(
+		&mut self,
+		module: &Module,
+		extern_vals: &[ExternVal],
+	) -> Result<(), Error> {
+		// TODO: Add execution params
+
+		validate_module(module)?;
+
+
 		let mut instance = ModuleInstance::new();
 		// Reserve the index of the module, but not yet push the module.
 		let module_id = ModuleId((self.modules.len()) as u32);
+		self.alloc_module_internal(module, extern_vals, &mut instance, module_id)?;
 
-		self.alloc_module_internal(module, extern_vals, &mut instance, module_id);
+		// TODO: assert module is valid with extern_vals.
+
+		for element_segment in module
+			.elements_section()
+			.map(|es| es.entries())
+			.unwrap_or(&[])
+		{
+			let offset_val = match eval_init_expr(element_segment.offset(), &instance, self) {
+				RuntimeValue::I32(v) => v as u32,
+				_ => panic!("Due to validation elem segment offset should evaluate to i32"),
+			};
+
+			let table_id = instance
+				.tables
+				.get(DEFAULT_TABLE_INDEX as usize)
+				.expect("Due to validation default table should exists");
+			let table_inst = self.tables
+				.get_mut(table_id.0 as usize)
+				.expect("ID should be always valid");
+
+			for (j, func_idx) in element_segment.members().into_iter().enumerate() {
+				let func_id = instance
+					.funcs
+					.get(*func_idx as usize)
+					.expect("Due to validation funcs from element segments should exists");
+
+				table_inst.set(offset_val + j as u32, *func_id);
+			}
+		}
+
+		for data_segment in module.data_section().map(|ds| ds.entries()).unwrap_or(&[]) {
+			let offset_val = match eval_init_expr(data_segment.offset(), &instance, self) {
+				RuntimeValue::I32(v) => v as u32,
+				_ => panic!("Due to validation data segment offset should evaluate to i32"),
+			};
+
+			let memory_id = instance
+				.memories
+				.get(DEFAULT_MEMORY_INDEX as usize)
+				.expect("Due to validation default memory should exists");
+			let memory_inst = self.memories
+				.get_mut(memory_id.0 as usize)
+				.expect("ID should be always valid");
+
+			memory_inst.set(offset_val, data_segment.value())?;
+		}
 
 		self.modules.push(instance);
-		module_id
-	}
-
-	fn instantiate_module(&mut self, module: Module, extern_vals: &[ExternVal]) -> Result<(), Error> {
-		validate_module(&module)?;
-
-		// TODO: check extern_vals
-		let module_id = self.alloc_module(module, extern_vals);
-
 		Ok(())
 	}
 }
 
-fn global_init_val(global: &GlobalEntry, module: &ModuleInstance, store: &Store) -> RuntimeValue {
-	let code = global.init_expr().code();
+fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance, store: &Store) -> RuntimeValue {
+	let code = init_expr.code();
 	debug_assert!(
 		code.len() == 2,
-		"due to validation `code`.len() should be 2"
+		"Due to validation `code`.len() should be 2"
 	);
 	match code[0] {
 		Opcode::I32Const(v) => v.into(),
@@ -285,13 +306,13 @@ fn global_init_val(global: &GlobalEntry, module: &ModuleInstance, store: &Store)
 			let global_id = module
 				.globals
 				.get(idx as usize)
-				.expect("due to validation global should exists in module");
+				.expect("Due to validation global should exists in module");
 			let global_inst = store
 				.globals
 				.get(global_id.0 as usize)
 				.expect("ID should always be a valid index");
 			global_inst.val.clone()
 		}
-		_ => panic!("due to validation init should be a const expr"),
+		_ => panic!("Due to validation init should be a const expr"),
 	}
 }

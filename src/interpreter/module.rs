@@ -191,7 +191,7 @@ impl ModuleInstance {
 		let memory = match module.memory_section() {
 			Some(memory_section) => memory_section.entries()
 				.iter()
-				.map(MemoryInstance::new)
+				.map(|mt| MemoryInstance::new(mt).map(Arc::new))
 				.collect::<Result<Vec<_>, _>>()?,
 			None => Vec::new(),
 		};
@@ -200,7 +200,7 @@ impl ModuleInstance {
 		let tables = match module.table_section() {
 			Some(table_section) => table_section.entries()
 				.iter()
-				.map(|tt| TableInstance::new(tt))
+				.map(|tt| TableInstance::new(tt).map(Arc::new))
 				.collect::<Result<Vec<_>, _>>()?,
 			None => Vec::new(),
 		};
@@ -417,19 +417,19 @@ impl ModuleInstance {
 		}
 
 		// use element section to fill tables
-		if let Some(element_section) = self.module.elements_section() {
-			for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(element_segment.offset(), &self.module, &self.imports, VariableType::I32)?.try_into()?;
-				for function_index in element_segment.members() {
-					self.require_function(ItemIndex::IndexSpace(*function_index))?;
-				}
+		// if let Some(element_section) = self.module.elements_section() {
+		// 	for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
+		// 		let offset: u32 = get_initializer(element_segment.offset(), &self.module, &self.imports, VariableType::I32)?.try_into()?;
+		// 		for function_index in element_segment.members() {
+		// 			self.require_function(ItemIndex::IndexSpace(*function_index))?;
+		// 		}
 
-				self.table(ItemIndex::IndexSpace(element_segment.index()))
-					.map_err(|e| Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}: {:?}", element_segment_index, element_segment.index(), e)))
-					.and_then(|m| m.set_raw(offset, self.name.clone(), element_segment.members()))
-					.map_err(|e| Error::Initialization(e.into()))?;
-			}
-		}
+		// 		self.table(ItemIndex::IndexSpace(element_segment.index()))
+		// 			.map_err(|e| Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}: {:?}", element_segment_index, element_segment.index(), e)))
+		// 			.and_then(|m| m.set_raw(offset, self.name.clone(), element_segment.members()))
+		// 			.map_err(|e| Error::Initialization(e.into()))?;
+		// 	}
+		// }
 
 		Ok(())
 	}
@@ -603,22 +603,23 @@ impl ModuleInstanceInterface for ModuleInstance {
 	}
 
 	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
-		let table = self.table(ItemIndex::IndexSpace(table_idx))?;
-		let (module, index) = match table.get(func_idx)? {
-			RuntimeValue::AnyFunc(module, index) => (module.clone(), index),
-			_ => return Err(Error::Function(format!("trying to indirect call function {} via non-anyfunc table {:?}", func_idx, table_idx))),
-		};
+		panic!("TODO")
+		// let table = self.table(ItemIndex::IndexSpace(table_idx))?;
+		// let (module, index) = match table.get(func_idx)? {
+		// 	RuntimeValue::AnyFunc(module, index) => (module.clone(), index),
+		// 	_ => return Err(Error::Function(format!("trying to indirect call function {} via non-anyfunc table {:?}", func_idx, table_idx))),
+		// };
 
-		let module = self.imports.module(externals, &module)?;
-		let required_function_type = self.function_type_by_index(type_idx)?;
-		let actual_function_type = module.function_type(ItemIndex::IndexSpace(index))?;
-		if required_function_type != actual_function_type {
-			return Err(Error::Function(format!("expected indirect function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-				required_function_type.params(), required_function_type.return_type(),
-				actual_function_type.params(), actual_function_type.return_type())));
-		}
+		// let module = self.imports.module(externals, &module)?;
+		// let required_function_type = self.function_type_by_index(type_idx)?;
+		// let actual_function_type = module.function_type(ItemIndex::IndexSpace(index))?;
+		// if required_function_type != actual_function_type {
+		// 	return Err(Error::Function(format!("expected indirect function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
+		// 		required_function_type.params(), required_function_type.return_type(),
+		// 		actual_function_type.params(), actual_function_type.return_type())));
+		// }
 
-		module.function_reference(ItemIndex::IndexSpace(index), externals)
+		// module.function_reference(ItemIndex::IndexSpace(index), externals)
 	}
 
 	fn function_body<'a>(&'a self, internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error> {

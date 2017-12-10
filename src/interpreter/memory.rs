@@ -208,7 +208,7 @@ mod tests {
 	use elements::MemoryType;
 	use std::sync::Arc;
 
-	fn create_memory(initial_content: &[u8]) -> Arc<MemoryInstance> {
+	fn create_memory(initial_content: &[u8]) -> MemoryInstance {
 		let mem = MemoryInstance::new(&MemoryType::new(1, Some(1)))
 			.expect("MemoryInstance created successfuly");
 		mem.set(0, initial_content).expect("Successful initialize the memory");

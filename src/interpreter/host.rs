@@ -1,7 +1,8 @@
 use std::any::Any;
+use std::sync::Arc;
 use std::marker::PhantomData;
 use std::collections::HashMap;
-use elements::{FunctionType, ValueType};
+use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
 use interpreter::store::{Store, ExternVal};
 use interpreter::value::RuntimeValue;
 use interpreter::Error;
@@ -21,7 +22,7 @@ impl<'a, St: 'static> HostModuleBuilder<'a, St> {
 		}
 	}
 
-	pub fn push_func1<
+	pub fn with_func1<
 		Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturn + 'static,
 		P1: FromArg + 'static,
@@ -34,12 +35,25 @@ impl<'a, St: 'static> HostModuleBuilder<'a, St> {
 		let func_type = Func1::<Cl, St, Ret, P1>::derive_func_type();
 		let type_id = self.store.alloc_func_type(func_type);
 
-		let anyfunc = Box::new(f.into()) as Box<AnyFunc>;
+		let anyfunc = Arc::new(f.into()) as Arc<AnyFunc>;
 
 		let func_id = self.store.alloc_host_func(type_id, anyfunc);
-		let extern_val = ExternVal::Func(func_id);
+		self.exports.insert(name.to_owned(), ExternVal::Func(func_id));
+	}
 
-		self.exports.insert(name.to_owned(), extern_val);
+	pub fn with_global(&mut self, name: &str, global_type: GlobalType, val: RuntimeValue) {
+		let global_id = self.store.alloc_global(global_type, val);
+		self.exports.insert(name.to_owned(), ExternVal::Global(global_id));
+	}
+
+	pub fn with_memory(&mut self, name: &str, memory_type: &MemoryType) -> Result<(), Error> {
+		let memory_id = self.store.alloc_memory(memory_type)?;
+		self.exports.insert(name.to_owned(), ExternVal::Memory(memory_id));
+		Ok(())
+	}
+
+	pub fn with_table(&mut self, name: &str, table_type: &TableType) {
+		let table_id = self.store.alloc_table(table_type);
 	}
 }
 

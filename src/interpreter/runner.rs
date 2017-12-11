@@ -8,12 +8,11 @@ use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local};
 use interpreter::Error;
 use interpreter::store::{Store, FuncId, ModuleId, FuncInstance};
-use interpreter::module::{CallerContext, FunctionSignature};
+use interpreter::module::{CallerContext, FunctionSignature, ExecutionParams};
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
 };
-use interpreter::variable::VariableInstance;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX, BlockFrame, BlockFrameType};
 use common::stack::StackWithLimit;
 
@@ -81,12 +80,10 @@ impl<'store, St: 'static> Interpreter<'store, St> {
 			let mut function_context = function_stack.pop_back().expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
 			let function_ref = function_context.function;
 			let function_return = {
-				let func_instance = function_ref.resolve(self.store).clone();
+				let func_body = function_ref.resolve(self.store).body();
 
-				match func_instance {
-					FuncInstance::Defined { body, .. } => {
-						let function_body = body;
-
+				match func_body {
+					Some(function_body) => {
 						if !function_context.is_initialized() {
 							let return_type = function_context.return_type;
 							function_context.initialize(&function_body.locals);
@@ -95,9 +92,9 @@ impl<'store, St: 'static> Interpreter<'store, St> {
 
 						self.do_run_function(&mut function_context, function_body.opcodes.elements(), &function_body.labels)?
 					},
-					FuncInstance::Host { host_func, .. } => {
+					None => {
 						let args: Vec<_> = function_context.locals.drain(..).collect();
-						let result = self.store.invoke_host(self.state, host_func, args)?;
+						let result = self.store.invoke(function_ref, args, self.state)?;
 						RunResult::Return(result)
 					},
 				}
@@ -976,7 +973,7 @@ impl<'a> FunctionContext {
 	pub fn new<'store>(store: &'store Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<RuntimeValue>) -> Self {
 		let func_instance = function.resolve(store);
 		let module = match *func_instance {
-			FuncInstance::Defined { module, .. } => module,
+			FuncInstance::Internal { module, .. } => module,
 			FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 		};
 		FunctionContext {
@@ -995,7 +992,7 @@ impl<'a> FunctionContext {
 		let (function_locals, module, function_return_type) = {
 			let func_instance = function.resolve(store);
 			let module = match *func_instance {
-				FuncInstance::Defined { module, .. } => module,
+				FuncInstance::Internal { module, .. } => module,
 				FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 			};
 			let function_type = func_instance.func_type().resolve(store);

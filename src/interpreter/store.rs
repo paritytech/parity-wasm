@@ -120,25 +120,31 @@ pub enum ExternVal {
 	Global(GlobalId),
 }
 
-#[derive(Clone, Debug)]
 pub enum FuncInstance {
-	Defined {
+	Internal {
 		func_type: TypeId,
 		module: ModuleId,
 		body: Arc<FuncBody>,
 	},
 	Host {
 		func_type: TypeId,
-		host_func: HostFuncId,
+		host_func: Arc<AnyFunc>,
 	},
 }
 
 impl FuncInstance {
 	pub fn func_type(&self) -> TypeId {
 		match *self {
-			FuncInstance::Defined { func_type, .. } | FuncInstance::Host { func_type, .. } => {
+			FuncInstance::Internal { func_type, .. } | FuncInstance::Host { func_type, .. } => {
 				func_type
 			}
+		}
+	}
+
+	pub fn body(&self) -> Option<Arc<FuncBody>> {
+		match *self {
+			FuncInstance::Internal { ref body, .. } => Some(Arc::clone(body)),
+			FuncInstance::Host { .. } => None,
 		}
 	}
 }
@@ -194,7 +200,6 @@ pub struct Store {
 	// However, they can be referenced in several places, so it is handy to have it here.
 	modules: Vec<ModuleInstance>,
 	types: Vec<FunctionType>,
-	host_funcs: Vec<Box<AnyFunc>>,
 }
 
 impl Store {
@@ -220,8 +225,8 @@ impl Store {
 		TypeId(type_id as u32)
 	}
 
-	fn alloc_func(&mut self, module: ModuleId, func_type: TypeId, body: FuncBody) -> FuncId {
-		let func = FuncInstance::Defined {
+	pub fn alloc_func(&mut self, module: ModuleId, func_type: TypeId, body: FuncBody) -> FuncId {
+		let func = FuncInstance::Internal {
 			func_type,
 			module,
 			body: Arc::new(body),
@@ -231,34 +236,31 @@ impl Store {
 		FuncId(func_id as u32)
 	}
 
-	pub fn alloc_host_func(&mut self, func_type: TypeId, anyfunc: Box<AnyFunc>) -> FuncId {
-		self.host_funcs.push(anyfunc);
-		let host_func_id = self.host_funcs.len() - 1;
-
+	pub fn alloc_host_func(&mut self, func_type: TypeId, host_func: Arc<AnyFunc>) -> FuncId {
 		let func = FuncInstance::Host {
 			func_type,
-			host_func: HostFuncId(host_func_id as u32),
+			host_func,
 		};
 		self.funcs.push(func);
 		let func_id = self.funcs.len() - 1;
 		FuncId(func_id as u32)
 	}
 
-	fn alloc_table(&mut self, table_type: &TableType) -> Result<TableId, Error> {
+	pub fn alloc_table(&mut self, table_type: &TableType) -> Result<TableId, Error> {
 		let table = TableInstance::new(table_type)?;
 		self.tables.push(table);
 		let table_id = self.tables.len() - 1;
 		Ok(TableId(table_id as u32))
 	}
 
-	fn alloc_memory(&mut self, mem_type: &MemoryType) -> Result<MemoryId, Error> {
+	pub fn alloc_memory(&mut self, mem_type: &MemoryType) -> Result<MemoryId, Error> {
 		let mem = MemoryInstance::new(&mem_type)?;
 		self.memories.push(mem);
 		let mem_id = self.memories.len() - 1;
 		Ok(MemoryId(mem_id as u32))
 	}
 
-	fn alloc_global(&mut self, global_type: GlobalType, val: RuntimeValue) -> GlobalId {
+	pub fn alloc_global(&mut self, global_type: GlobalType, val: RuntimeValue) -> GlobalId {
 		let global = GlobalInstance::new(val, global_type.is_mutable());
 		self.globals.push(global);
 		let global_id = self.globals.len() - 1;
@@ -376,7 +378,7 @@ impl Store {
 		&mut self,
 		module: &Module,
 		extern_vals: &[ExternVal],
-		start_exec_params: ExecutionParams<St>,
+		state: &mut St,
 	) -> Result<ModuleId, Error> {
 		let mut instance = ModuleInstance::new();
 		// Reserve the index of the module, but not yet push the module.
@@ -442,30 +444,40 @@ impl Store {
 					.get(start_fn_idx as usize)
 					.expect("Due to validation start function should exists")
 			};
-			self.invoke(start_func, start_exec_params)?;
+			self.invoke(start_func, vec![], state)?;
 		}
 
 		Ok(module_id)
 	}
 
-	fn invoke<St>(&mut self, func: FuncId, params: ExecutionParams<St>) -> Result<Option<RuntimeValue>, Error> {
-		let ExecutionParams { args, mut state } = params;
-		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
-		let outer = CallerContext::topmost(&mut args);
-		let inner = {
-			let func_type = func.resolve(self).func_type().resolve(self);
-			let func_signature = FunctionSignature::Module(func_type);
-			let args = prepare_function_args(&func_signature, outer.value_stack)?;
-			FunctionContext::new(self, func, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args)
-		};
-		let mut interpreter = Interpreter::new(self, &mut state);
-		interpreter.run_function(inner)
-	}
+	pub fn invoke<St: 'static>(&mut self, func: FuncId, args: Vec<RuntimeValue>, state: &mut St) -> Result<Option<RuntimeValue>, Error> {
+		enum InvokeKind {
+			Internal(FunctionContext),
+			Host(Arc<AnyFunc>),
+		}
 
-	pub fn invoke_host<St: 'static>(&mut self, state: &mut St, host_func: HostFuncId, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
-		let host_func_instance = self.host_funcs.get(host_func.0 as usize).expect("ID should be always valid");
-		host_func_instance.call_as_any(state as &mut Any, &args);
-		panic!()
+		let result = match *func.resolve(self) {
+			FuncInstance::Internal { func_type, .. } => {
+				let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
+				let outer = CallerContext::topmost(&mut args);
+				let func_signature = FunctionSignature::Module(func_type.resolve(self));
+				let args = prepare_function_args(&func_signature, outer.value_stack)?;
+				let context = FunctionContext::new(self, func, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args);
+				InvokeKind::Internal(context)
+			},
+			FuncInstance::Host { ref host_func, .. } => InvokeKind::Host(Arc::clone(host_func)),
+		};
+
+		match result {
+			InvokeKind::Internal(ctx) => {
+				let mut interpreter = Interpreter::new(self, state);
+				interpreter.run_function(ctx)
+			},
+			InvokeKind::Host(host_func) => {
+				// host_func.call_as_any();
+				panic!()
+			},
+		}
 	}
 
 	pub fn write_global(&mut self, global: GlobalId, val: RuntimeValue) -> Result<(), Error> {

@@ -19,13 +19,9 @@ const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
 const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
 
 /// Execution context.
-#[derive(Clone)]
-pub struct ExecutionParams<St: 'static> {
-	/// Arguments.
-	pub args: Vec<RuntimeValue>,
-
+pub struct ExecutionParams<'a, St: 'static> {
 	/// State that can be used by host functions,
-	pub state: St,
+	pub state: &'a mut St,
 }
 
 /// Export type.
@@ -79,29 +75,10 @@ pub struct InternalFunction<'a> {
 	pub labels: &'a HashMap<usize, usize>,
 }
 
-impl<St> ExecutionParams<St> {
+impl<'a, St> ExecutionParams<'a, St> {
 	/// Add argument.
 	pub fn add_argument(mut self, arg: RuntimeValue) -> Self {
-		self.args.push(arg);
 		self
-	}
-}
-
-impl<St: Default> Default for ExecutionParams<St> {
-	fn default() -> Self {
-		ExecutionParams {
-			args: Vec::default(),
-			state: St::default(),
-		}
-	}
-}
-
-impl<'a, St: Default> From<Vec<RuntimeValue>> for ExecutionParams<St> {
-	fn from(args: Vec<RuntimeValue>) -> ExecutionParams<St> {
-		ExecutionParams {
-			args: args,
-			state: St::default(),
-		}
 	}
 }
 

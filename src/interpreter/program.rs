@@ -26,7 +26,7 @@ impl ProgramInstance {
 		&mut self,
 		name: &str,
 		module: Module,
-		start_exec_params: ExecutionParams<St>,
+		state: &mut St,
 	) -> Result<ModuleId, Error> {
 		let mut extern_vals = Vec::new();
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
@@ -37,7 +37,7 @@ impl ProgramInstance {
 			extern_vals.push(extern_val);
 		}
 
-		let module_id = self.store.instantiate_module(&module, &extern_vals, start_exec_params)?;
+		let module_id = self.store.instantiate_module(&module, &extern_vals, state)?;
 		self.modules.insert(name.to_string(), module_id);
 
 		Ok(module_id)

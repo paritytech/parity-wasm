@@ -439,12 +439,20 @@ impl<'store, St: 'static> Interpreter<'store, St> {
 		let func_ref = table.get(table_func_idx)?;
 
 		let actual_function_type = func_ref.resolve(self.store).func_type().resolve(self.store);
-		let required_function_type = context.module().resolve_type(self.store, type_idx).resolve(self.store);
+		let required_function_type = context
+			.module()
+			.type_by_index(self.store, type_idx)
+			.expect("Due to validation type should exists")
+			.resolve(self.store);
 
 		if required_function_type != actual_function_type {
-			return Err(Error::Function(format!("expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-				required_function_type.params(), required_function_type.return_type(),
-				actual_function_type.params(), actual_function_type.return_type())));
+			return Err(Error::Function(format!(
+				"expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
+				required_function_type.params(),
+				required_function_type.return_type(),
+				actual_function_type.params(),
+				actual_function_type.return_type()
+			)));
 		}
 
 		Ok(InstructionOutcome::ExecuteCall(func_ref))

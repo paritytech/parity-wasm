@@ -32,16 +32,14 @@ pub struct ModuleId(u32);
 
 impl ModuleId {
 	pub fn memory_by_index(&self, store: &Store, idx: u32) -> Option<MemoryId> {
-		let instance = store.resolve_module(*self);
-		instance
+		store.resolve_module(*self)
 			.memories
 			.get(idx as usize)
 			.cloned()
 	}
 
 	pub fn table_by_index(&self, store: &Store, idx: u32) -> Option<TableId> {
-		let instance = store.resolve_module(*self);
-		instance
+		store.resolve_module(*self)
 			.tables
 			.get(idx as usize)
 			.cloned()
@@ -49,27 +47,24 @@ impl ModuleId {
 
 
 	pub fn global_by_index(&self, store: &Store, idx: u32) -> Option<GlobalId> {
-		let instance = store.resolve_module(*self);
-		instance
+		store.resolve_module(*self)
 			.globals
 			.get(idx as usize)
 			.cloned()
 	}
 
 	pub fn func_by_index(&self, store: &Store, idx: u32) -> Option<FuncId> {
-		let instance = store.resolve_module(*self);
-		instance
+		store.resolve_module(*self)
 			.funcs
 			.get(idx as usize)
 			.cloned()
 	}
 
-	pub fn resolve_type(&self, store: &Store, idx: u32) -> TypeId {
-		let instance = store.resolve_module(*self);
-		*instance
+	pub fn type_by_index(&self, store: &Store, idx: u32) -> Option<TypeId> {
+		store.resolve_module(*self)
 			.types
 			.get(idx as usize)
-			.expect("Due to validation type should exists")
+			.cloned()
 	}
 
 	pub fn resolve_export(&self, store: &Store, name: &str) -> Option<ExternVal> {

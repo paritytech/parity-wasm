@@ -3,9 +3,11 @@
 
 use elements::{FuncBody, FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Module,
                Opcode, TableType, Type};
-use interpreter::{Error, RuntimeValue, MemoryInstance, TableInstance};
+use interpreter::{Error, RuntimeValue, MemoryInstance, TableInstance, ExecutionParams, CallerContext, FunctionSignature};
+use interpreter::runner::{FunctionContext, prepare_function_args, Interpreter};
 use validation::validate_module;
-use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
+use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX, DEFAULT_FRAME_STACK_LIMIT, DEFAULT_VALUE_STACK_LIMIT};
+use common::stack::StackWithLimit;
 
 #[derive(Copy, Clone, Debug)]
 pub struct TypeId(u32);
@@ -13,17 +15,43 @@ pub struct TypeId(u32);
 #[derive(Copy, Clone, Debug)]
 pub struct ModuleId(u32);
 
+// TODO: Work on naming: resolve gets instances or ids?
+
+impl ModuleId {
+	pub fn resolve_memory(&self, store: &Store, idx: u32) -> MemoryId {
+		let instance = store.resolve_module(*self);
+		*instance
+			.memories
+			.get(idx as usize)
+			.expect("Due to validation memory should exists")
+	}
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct HostFuncId(u32);
 
 #[derive(Copy, Clone, Debug)]
 pub struct FuncId(u32);
 
+impl FuncId {
+	// TODO: Split?
+	pub fn resolve_type<'s>(&self, store: &'s Store) -> &'s FunctionType {
+		let func = store.funcs.get(self.0 as usize).expect("ID should be always valid");
+		store.resolve_type(func.func_type())
+	}
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct TableId(u32);
 
 #[derive(Copy, Clone, Debug)]
 pub struct MemoryId(u32);
+
+impl MemoryId {
+	pub fn resolve<'s>(&self, store: &'s Store) -> &'s MemoryInstance {
+		store.memories.get(self.0 as usize).expect("ID should be always valid")
+	}
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct GlobalId(u32);
@@ -47,7 +75,15 @@ pub enum FuncInstance {
 	},
 }
 
-impl FuncInstance {}
+impl FuncInstance {
+	fn func_type(&self) -> TypeId {
+		match *self {
+			FuncInstance::Defined { func_type, .. } | FuncInstance::Host { func_type, .. } => {
+				func_type
+			}
+		}
+	}
+}
 
 pub struct GlobalInstance {
 	val: RuntimeValue,
@@ -228,11 +264,11 @@ impl Store {
 		&mut self,
 		module: &Module,
 		extern_vals: &[ExternVal],
+		start_exec_params: ExecutionParams,
 	) -> Result<(), Error> {
 		// TODO: Add execution params
 
 		validate_module(module)?;
-
 
 		let mut instance = ModuleInstance::new();
 		// Reserve the index of the module, but not yet push the module.
@@ -286,8 +322,34 @@ impl Store {
 			memory_inst.set(offset_val, data_segment.value())?;
 		}
 
+		// Finally push instance to it's place
 		self.modules.push(instance);
+
+		// And run module's start function, if any
+		if let Some(start_fn_idx) = module.start_section() {
+			let start_func = {
+				let instance = self.resolve_module(module_id);
+				*instance
+					.funcs
+					.get(start_fn_idx as usize)
+					.expect("Due to validation start function should exists")
+			};
+			self.invoke(start_func, start_exec_params)?;
+		}
+
 		Ok(())
+	}
+
+	fn invoke(&mut self, func: FuncId, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
+		let ExecutionParams { args, externals } = params;
+		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
+		let outer = CallerContext::topmost(&mut args, &externals);
+		let func_type = func.resolve_type(self);
+		let func_signature = FunctionSignature::Module(func_type);
+		let args = prepare_function_args(&func_signature, outer.value_stack)?;
+		let inner = FunctionContext::new(func, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args);
+		let interpreter = Interpreter::new(self);
+		interpreter.run_function(inner)
 	}
 }
 

@@ -63,7 +63,11 @@ enum RunResult<'a> {
 }
 
 impl Interpreter {
-	pub fn run_function(function_context: FunctionContext) -> Result<Option<RuntimeValue>, Error> {
+	pub fn new() -> Interpreter {
+		Interpreter
+	}
+
+	pub fn run_function(&mut self, function_context: FunctionContext) -> Result<Option<RuntimeValue>, Error> {
 		let mut function_stack = VecDeque::new();
 		function_stack.push_back(function_context);
 
@@ -81,7 +85,7 @@ impl Interpreter {
 							function_context.push_frame(function_body.labels, BlockFrameType::Function, return_type)?;
 						}
 
-						Interpreter::do_run_function(&mut function_context, function_body.body, function_body.labels)?
+						self.do_run_function(&mut function_context, function_body.body, function_body.labels)?
 					},
 					None => {
 						// move locals back to the stack
@@ -89,9 +93,10 @@ impl Interpreter {
 						for local in locals_to_move {
 							function_context.value_stack_mut().push(local.get())?;
 						}
-
 						let nested_context = CallerContext::nested(&mut function_context);
-						RunResult::Return(function_ref.module.call_internal_function(nested_context, function_ref.internal_index)?)
+
+						let result = function_ref.module.call_internal_function(nested_context, function_ref.internal_index)?;
+						RunResult::Return(result)
 					},
 				}
 			};
@@ -113,12 +118,12 @@ impl Interpreter {
 		}
 	}
 
-	fn do_run_function<'a>(function_context: &mut FunctionContext<'a>, function_body: &[Opcode], function_labels: &HashMap<usize, usize>) -> Result<RunResult<'a>, Error> {
+	fn do_run_function<'a>(&mut self, function_context: &mut FunctionContext<'a>, function_body: &[Opcode], function_labels: &HashMap<usize, usize>) -> Result<RunResult<'a>, Error> {
 		loop {
 			let instruction = &function_body[function_context.position];
 
 			debug!(target: "interpreter", "running {:?}", instruction);
-			match Interpreter::run_instruction(function_context, function_labels, instruction)? {
+			match self.run_instruction(function_context, function_labels, instruction)? {
 				InstructionOutcome::RunNextInstruction => function_context.position += 1,
 				InstructionOutcome::Branch(mut index) => {
 					// discard index - 1 blocks
@@ -151,219 +156,219 @@ impl Interpreter {
 		}))
 	}
 
-	fn run_instruction<'a>(context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_instruction<'a>(&mut self, context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, opcode: &Opcode) -> Result<InstructionOutcome<'a>, Error> {
 		match opcode {
-			&Opcode::Unreachable => Interpreter::run_unreachable(context),
-			&Opcode::Nop => Interpreter::run_nop(context),
-			&Opcode::Block(block_type) => Interpreter::run_block(context, labels, block_type),
-			&Opcode::Loop(block_type) => Interpreter::run_loop(context, labels, block_type),
-			&Opcode::If(block_type) => Interpreter::run_if(context, labels, block_type),
-			&Opcode::Else => Interpreter::run_else(context, labels),
-			&Opcode::End => Interpreter::run_end(context),
-			&Opcode::Br(idx) => Interpreter::run_br(context, idx),
-			&Opcode::BrIf(idx) => Interpreter::run_br_if(context, idx),
-			&Opcode::BrTable(ref table, default) => Interpreter::run_br_table(context, table, default),
-			&Opcode::Return => Interpreter::run_return(context),
+			&Opcode::Unreachable => self.run_unreachable(context),
+			&Opcode::Nop => self.run_nop(context),
+			&Opcode::Block(block_type) => self.run_block(context, labels, block_type),
+			&Opcode::Loop(block_type) => self.run_loop(context, labels, block_type),
+			&Opcode::If(block_type) => self.run_if(context, labels, block_type),
+			&Opcode::Else => self.run_else(context, labels),
+			&Opcode::End => self.run_end(context),
+			&Opcode::Br(idx) => self.run_br(context, idx),
+			&Opcode::BrIf(idx) => self.run_br_if(context, idx),
+			&Opcode::BrTable(ref table, default) => self.run_br_table(context, table, default),
+			&Opcode::Return => self.run_return(context),
 
-			&Opcode::Call(index) => Interpreter::run_call(context, index),
-			&Opcode::CallIndirect(index, _reserved) => Interpreter::run_call_indirect(context, index),
+			&Opcode::Call(index) => self.run_call(context, index),
+			&Opcode::CallIndirect(index, _reserved) => self.run_call_indirect(context, index),
 
-			&Opcode::Drop => Interpreter::run_drop(context),
-			&Opcode::Select => Interpreter::run_select(context),
+			&Opcode::Drop => self.run_drop(context),
+			&Opcode::Select => self.run_select(context),
 
-			&Opcode::GetLocal(index) => Interpreter::run_get_local(context, index),
-			&Opcode::SetLocal(index) => Interpreter::run_set_local(context, index),
-			&Opcode::TeeLocal(index) => Interpreter::run_tee_local(context, index),
-			&Opcode::GetGlobal(index) => Interpreter::run_get_global(context, index),
-			&Opcode::SetGlobal(index) => Interpreter::run_set_global(context, index),
+			&Opcode::GetLocal(index) => self.run_get_local(context, index),
+			&Opcode::SetLocal(index) => self.run_set_local(context, index),
+			&Opcode::TeeLocal(index) => self.run_tee_local(context, index),
+			&Opcode::GetGlobal(index) => self.run_get_global(context, index),
+			&Opcode::SetGlobal(index) => self.run_set_global(context, index),
 
-			&Opcode::I32Load(align, offset) => Interpreter::run_load::<i32>(context, align, offset),
-			&Opcode::I64Load(align, offset) => Interpreter::run_load::<i64>(context, align, offset),
-			&Opcode::F32Load(align, offset) => Interpreter::run_load::<f32>(context, align, offset),
-			&Opcode::F64Load(align, offset) => Interpreter::run_load::<f64>(context, align, offset),
-			&Opcode::I32Load8S(align, offset) => Interpreter::run_load_extend::<i8, i32>(context, align, offset),
-			&Opcode::I32Load8U(align, offset) => Interpreter::run_load_extend::<u8, i32>(context, align, offset),
-			&Opcode::I32Load16S(align, offset) => Interpreter::run_load_extend::<i16, i32>(context, align, offset),
-			&Opcode::I32Load16U(align, offset) => Interpreter::run_load_extend::<u16, i32>(context, align, offset),
-			&Opcode::I64Load8S(align, offset) => Interpreter::run_load_extend::<i8, i64>(context, align, offset),
-			&Opcode::I64Load8U(align, offset) => Interpreter::run_load_extend::<u8, i64>(context, align, offset),
-			&Opcode::I64Load16S(align, offset) => Interpreter::run_load_extend::<i16, i64>(context, align, offset),
-			&Opcode::I64Load16U(align, offset) => Interpreter::run_load_extend::<u16, i64>(context, align, offset),
-			&Opcode::I64Load32S(align, offset) => Interpreter::run_load_extend::<i32, i64>(context, align, offset),
-			&Opcode::I64Load32U(align, offset) => Interpreter::run_load_extend::<u32, i64>(context, align, offset),
+			&Opcode::I32Load(align, offset) => self.run_load::<i32>(context, align, offset),
+			&Opcode::I64Load(align, offset) => self.run_load::<i64>(context, align, offset),
+			&Opcode::F32Load(align, offset) => self.run_load::<f32>(context, align, offset),
+			&Opcode::F64Load(align, offset) => self.run_load::<f64>(context, align, offset),
+			&Opcode::I32Load8S(align, offset) => self.run_load_extend::<i8, i32>(context, align, offset),
+			&Opcode::I32Load8U(align, offset) => self.run_load_extend::<u8, i32>(context, align, offset),
+			&Opcode::I32Load16S(align, offset) => self.run_load_extend::<i16, i32>(context, align, offset),
+			&Opcode::I32Load16U(align, offset) => self.run_load_extend::<u16, i32>(context, align, offset),
+			&Opcode::I64Load8S(align, offset) => self.run_load_extend::<i8, i64>(context, align, offset),
+			&Opcode::I64Load8U(align, offset) => self.run_load_extend::<u8, i64>(context, align, offset),
+			&Opcode::I64Load16S(align, offset) => self.run_load_extend::<i16, i64>(context, align, offset),
+			&Opcode::I64Load16U(align, offset) => self.run_load_extend::<u16, i64>(context, align, offset),
+			&Opcode::I64Load32S(align, offset) => self.run_load_extend::<i32, i64>(context, align, offset),
+			&Opcode::I64Load32U(align, offset) => self.run_load_extend::<u32, i64>(context, align, offset),
 
-			&Opcode::I32Store(align, offset) => Interpreter::run_store::<i32>(context, align, offset),
-			&Opcode::I64Store(align, offset) => Interpreter::run_store::<i64>(context, align, offset),
-			&Opcode::F32Store(align, offset) => Interpreter::run_store::<f32>(context, align, offset),
-			&Opcode::F64Store(align, offset) => Interpreter::run_store::<f64>(context, align, offset),
-			&Opcode::I32Store8(align, offset) => Interpreter::run_store_wrap::<i32, i8>(context, align, offset),
-			&Opcode::I32Store16(align, offset) => Interpreter::run_store_wrap::<i32, i16>(context, align, offset),
-			&Opcode::I64Store8(align, offset) => Interpreter::run_store_wrap::<i64, i8>(context, align, offset),
-			&Opcode::I64Store16(align, offset) => Interpreter::run_store_wrap::<i64, i16>(context, align, offset),
-			&Opcode::I64Store32(align, offset) => Interpreter::run_store_wrap::<i64, i32>(context, align, offset),
+			&Opcode::I32Store(align, offset) => self.run_store::<i32>(context, align, offset),
+			&Opcode::I64Store(align, offset) => self.run_store::<i64>(context, align, offset),
+			&Opcode::F32Store(align, offset) => self.run_store::<f32>(context, align, offset),
+			&Opcode::F64Store(align, offset) => self.run_store::<f64>(context, align, offset),
+			&Opcode::I32Store8(align, offset) => self.run_store_wrap::<i32, i8>(context, align, offset),
+			&Opcode::I32Store16(align, offset) => self.run_store_wrap::<i32, i16>(context, align, offset),
+			&Opcode::I64Store8(align, offset) => self.run_store_wrap::<i64, i8>(context, align, offset),
+			&Opcode::I64Store16(align, offset) => self.run_store_wrap::<i64, i16>(context, align, offset),
+			&Opcode::I64Store32(align, offset) => self.run_store_wrap::<i64, i32>(context, align, offset),
 
-			&Opcode::CurrentMemory(_) => Interpreter::run_current_memory(context),
-			&Opcode::GrowMemory(_) => Interpreter::run_grow_memory(context),
+			&Opcode::CurrentMemory(_) => self.run_current_memory(context),
+			&Opcode::GrowMemory(_) => self.run_grow_memory(context),
 
-			&Opcode::I32Const(val) => Interpreter::run_const(context, val.into()),
-			&Opcode::I64Const(val) => Interpreter::run_const(context, val.into()),
-			&Opcode::F32Const(val) => Interpreter::run_const(context, RuntimeValue::decode_f32(val)),
-			&Opcode::F64Const(val) => Interpreter::run_const(context, RuntimeValue::decode_f64(val)),
+			&Opcode::I32Const(val) => self.run_const(context, val.into()),
+			&Opcode::I64Const(val) => self.run_const(context, val.into()),
+			&Opcode::F32Const(val) => self.run_const(context, RuntimeValue::decode_f32(val)),
+			&Opcode::F64Const(val) => self.run_const(context, RuntimeValue::decode_f64(val)),
 
-			&Opcode::I32Eqz => Interpreter::run_eqz::<i32>(context),
-			&Opcode::I32Eq => Interpreter::run_eq::<i32>(context),
-			&Opcode::I32Ne => Interpreter::run_ne::<i32>(context),
-			&Opcode::I32LtS => Interpreter::run_lt::<i32>(context),
-			&Opcode::I32LtU => Interpreter::run_lt::<u32>(context),
-			&Opcode::I32GtS => Interpreter::run_gt::<i32>(context),
-			&Opcode::I32GtU => Interpreter::run_gt::<u32>(context),
-			&Opcode::I32LeS => Interpreter::run_lte::<i32>(context),
-			&Opcode::I32LeU => Interpreter::run_lte::<u32>(context),
-			&Opcode::I32GeS => Interpreter::run_gte::<i32>(context),
-			&Opcode::I32GeU => Interpreter::run_gte::<u32>(context),
+			&Opcode::I32Eqz => self.run_eqz::<i32>(context),
+			&Opcode::I32Eq => self.run_eq::<i32>(context),
+			&Opcode::I32Ne => self.run_ne::<i32>(context),
+			&Opcode::I32LtS => self.run_lt::<i32>(context),
+			&Opcode::I32LtU => self.run_lt::<u32>(context),
+			&Opcode::I32GtS => self.run_gt::<i32>(context),
+			&Opcode::I32GtU => self.run_gt::<u32>(context),
+			&Opcode::I32LeS => self.run_lte::<i32>(context),
+			&Opcode::I32LeU => self.run_lte::<u32>(context),
+			&Opcode::I32GeS => self.run_gte::<i32>(context),
+			&Opcode::I32GeU => self.run_gte::<u32>(context),
 
-			&Opcode::I64Eqz => Interpreter::run_eqz::<i64>(context),
-			&Opcode::I64Eq => Interpreter::run_eq::<i64>(context),
-			&Opcode::I64Ne => Interpreter::run_ne::<i64>(context),
-			&Opcode::I64LtS => Interpreter::run_lt::<i64>(context),
-			&Opcode::I64LtU => Interpreter::run_lt::<u64>(context),
-			&Opcode::I64GtS => Interpreter::run_gt::<i64>(context),
-			&Opcode::I64GtU => Interpreter::run_gt::<u64>(context),
-			&Opcode::I64LeS => Interpreter::run_lte::<i64>(context),
-			&Opcode::I64LeU => Interpreter::run_lte::<u64>(context),
-			&Opcode::I64GeS => Interpreter::run_gte::<i64>(context),
-			&Opcode::I64GeU => Interpreter::run_gte::<u64>(context),
+			&Opcode::I64Eqz => self.run_eqz::<i64>(context),
+			&Opcode::I64Eq => self.run_eq::<i64>(context),
+			&Opcode::I64Ne => self.run_ne::<i64>(context),
+			&Opcode::I64LtS => self.run_lt::<i64>(context),
+			&Opcode::I64LtU => self.run_lt::<u64>(context),
+			&Opcode::I64GtS => self.run_gt::<i64>(context),
+			&Opcode::I64GtU => self.run_gt::<u64>(context),
+			&Opcode::I64LeS => self.run_lte::<i64>(context),
+			&Opcode::I64LeU => self.run_lte::<u64>(context),
+			&Opcode::I64GeS => self.run_gte::<i64>(context),
+			&Opcode::I64GeU => self.run_gte::<u64>(context),
 
-			&Opcode::F32Eq => Interpreter::run_eq::<f32>(context),
-			&Opcode::F32Ne => Interpreter::run_ne::<f32>(context),
-			&Opcode::F32Lt => Interpreter::run_lt::<f32>(context),
-			&Opcode::F32Gt => Interpreter::run_gt::<f32>(context),
-			&Opcode::F32Le => Interpreter::run_lte::<f32>(context),
-			&Opcode::F32Ge => Interpreter::run_gte::<f32>(context),
+			&Opcode::F32Eq => self.run_eq::<f32>(context),
+			&Opcode::F32Ne => self.run_ne::<f32>(context),
+			&Opcode::F32Lt => self.run_lt::<f32>(context),
+			&Opcode::F32Gt => self.run_gt::<f32>(context),
+			&Opcode::F32Le => self.run_lte::<f32>(context),
+			&Opcode::F32Ge => self.run_gte::<f32>(context),
 
-			&Opcode::F64Eq => Interpreter::run_eq::<f64>(context),
-			&Opcode::F64Ne => Interpreter::run_ne::<f64>(context),
-			&Opcode::F64Lt => Interpreter::run_lt::<f64>(context),
-			&Opcode::F64Gt => Interpreter::run_gt::<f64>(context),
-			&Opcode::F64Le => Interpreter::run_lte::<f64>(context),
-			&Opcode::F64Ge => Interpreter::run_gte::<f64>(context),
+			&Opcode::F64Eq => self.run_eq::<f64>(context),
+			&Opcode::F64Ne => self.run_ne::<f64>(context),
+			&Opcode::F64Lt => self.run_lt::<f64>(context),
+			&Opcode::F64Gt => self.run_gt::<f64>(context),
+			&Opcode::F64Le => self.run_lte::<f64>(context),
+			&Opcode::F64Ge => self.run_gte::<f64>(context),
 
-			&Opcode::I32Clz => Interpreter::run_clz::<i32>(context),
-			&Opcode::I32Ctz => Interpreter::run_ctz::<i32>(context),
-			&Opcode::I32Popcnt => Interpreter::run_popcnt::<i32>(context),
-			&Opcode::I32Add => Interpreter::run_add::<i32>(context),
-			&Opcode::I32Sub => Interpreter::run_sub::<i32>(context),
-			&Opcode::I32Mul => Interpreter::run_mul::<i32>(context),
-			&Opcode::I32DivS => Interpreter::run_div::<i32, i32>(context),
-			&Opcode::I32DivU => Interpreter::run_div::<i32, u32>(context),
-			&Opcode::I32RemS => Interpreter::run_rem::<i32, i32>(context),
-			&Opcode::I32RemU => Interpreter::run_rem::<i32, u32>(context),
-			&Opcode::I32And => Interpreter::run_and::<i32>(context),
-			&Opcode::I32Or => Interpreter::run_or::<i32>(context),
-			&Opcode::I32Xor => Interpreter::run_xor::<i32>(context),
-			&Opcode::I32Shl => Interpreter::run_shl::<i32>(context, 0x1F),
-			&Opcode::I32ShrS => Interpreter::run_shr::<i32, i32>(context, 0x1F),
-			&Opcode::I32ShrU => Interpreter::run_shr::<i32, u32>(context, 0x1F),
-			&Opcode::I32Rotl => Interpreter::run_rotl::<i32>(context),
-			&Opcode::I32Rotr => Interpreter::run_rotr::<i32>(context),
+			&Opcode::I32Clz => self.run_clz::<i32>(context),
+			&Opcode::I32Ctz => self.run_ctz::<i32>(context),
+			&Opcode::I32Popcnt => self.run_popcnt::<i32>(context),
+			&Opcode::I32Add => self.run_add::<i32>(context),
+			&Opcode::I32Sub => self.run_sub::<i32>(context),
+			&Opcode::I32Mul => self.run_mul::<i32>(context),
+			&Opcode::I32DivS => self.run_div::<i32, i32>(context),
+			&Opcode::I32DivU => self.run_div::<i32, u32>(context),
+			&Opcode::I32RemS => self.run_rem::<i32, i32>(context),
+			&Opcode::I32RemU => self.run_rem::<i32, u32>(context),
+			&Opcode::I32And => self.run_and::<i32>(context),
+			&Opcode::I32Or => self.run_or::<i32>(context),
+			&Opcode::I32Xor => self.run_xor::<i32>(context),
+			&Opcode::I32Shl => self.run_shl::<i32>(context, 0x1F),
+			&Opcode::I32ShrS => self.run_shr::<i32, i32>(context, 0x1F),
+			&Opcode::I32ShrU => self.run_shr::<i32, u32>(context, 0x1F),
+			&Opcode::I32Rotl => self.run_rotl::<i32>(context),
+			&Opcode::I32Rotr => self.run_rotr::<i32>(context),
 
-			&Opcode::I64Clz => Interpreter::run_clz::<i64>(context),
-			&Opcode::I64Ctz => Interpreter::run_ctz::<i64>(context),
-			&Opcode::I64Popcnt => Interpreter::run_popcnt::<i64>(context),
-			&Opcode::I64Add => Interpreter::run_add::<i64>(context),
-			&Opcode::I64Sub => Interpreter::run_sub::<i64>(context),
-			&Opcode::I64Mul => Interpreter::run_mul::<i64>(context),
-			&Opcode::I64DivS => Interpreter::run_div::<i64, i64>(context),
-			&Opcode::I64DivU => Interpreter::run_div::<i64, u64>(context),
-			&Opcode::I64RemS => Interpreter::run_rem::<i64, i64>(context),
-			&Opcode::I64RemU => Interpreter::run_rem::<i64, u64>(context),
-			&Opcode::I64And => Interpreter::run_and::<i64>(context),
-			&Opcode::I64Or => Interpreter::run_or::<i64>(context),
-			&Opcode::I64Xor => Interpreter::run_xor::<i64>(context),
-			&Opcode::I64Shl => Interpreter::run_shl::<i64>(context, 0x3F),
-			&Opcode::I64ShrS => Interpreter::run_shr::<i64, i64>(context, 0x3F),
-			&Opcode::I64ShrU => Interpreter::run_shr::<i64, u64>(context, 0x3F),
-			&Opcode::I64Rotl => Interpreter::run_rotl::<i64>(context),
-			&Opcode::I64Rotr => Interpreter::run_rotr::<i64>(context),
+			&Opcode::I64Clz => self.run_clz::<i64>(context),
+			&Opcode::I64Ctz => self.run_ctz::<i64>(context),
+			&Opcode::I64Popcnt => self.run_popcnt::<i64>(context),
+			&Opcode::I64Add => self.run_add::<i64>(context),
+			&Opcode::I64Sub => self.run_sub::<i64>(context),
+			&Opcode::I64Mul => self.run_mul::<i64>(context),
+			&Opcode::I64DivS => self.run_div::<i64, i64>(context),
+			&Opcode::I64DivU => self.run_div::<i64, u64>(context),
+			&Opcode::I64RemS => self.run_rem::<i64, i64>(context),
+			&Opcode::I64RemU => self.run_rem::<i64, u64>(context),
+			&Opcode::I64And => self.run_and::<i64>(context),
+			&Opcode::I64Or => self.run_or::<i64>(context),
+			&Opcode::I64Xor => self.run_xor::<i64>(context),
+			&Opcode::I64Shl => self.run_shl::<i64>(context, 0x3F),
+			&Opcode::I64ShrS => self.run_shr::<i64, i64>(context, 0x3F),
+			&Opcode::I64ShrU => self.run_shr::<i64, u64>(context, 0x3F),
+			&Opcode::I64Rotl => self.run_rotl::<i64>(context),
+			&Opcode::I64Rotr => self.run_rotr::<i64>(context),
 
-			&Opcode::F32Abs => Interpreter::run_abs::<f32>(context),
-			&Opcode::F32Neg => Interpreter::run_neg::<f32>(context),
-			&Opcode::F32Ceil => Interpreter::run_ceil::<f32>(context),
-			&Opcode::F32Floor => Interpreter::run_floor::<f32>(context),
-			&Opcode::F32Trunc => Interpreter::run_trunc::<f32>(context),
-			&Opcode::F32Nearest => Interpreter::run_nearest::<f32>(context),
-			&Opcode::F32Sqrt => Interpreter::run_sqrt::<f32>(context),
-			&Opcode::F32Add => Interpreter::run_add::<f32>(context),
-			&Opcode::F32Sub => Interpreter::run_sub::<f32>(context),
-			&Opcode::F32Mul => Interpreter::run_mul::<f32>(context),
-			&Opcode::F32Div => Interpreter::run_div::<f32, f32>(context),
-			&Opcode::F32Min => Interpreter::run_min::<f32>(context),
-			&Opcode::F32Max => Interpreter::run_max::<f32>(context),
-			&Opcode::F32Copysign => Interpreter::run_copysign::<f32>(context),
+			&Opcode::F32Abs => self.run_abs::<f32>(context),
+			&Opcode::F32Neg => self.run_neg::<f32>(context),
+			&Opcode::F32Ceil => self.run_ceil::<f32>(context),
+			&Opcode::F32Floor => self.run_floor::<f32>(context),
+			&Opcode::F32Trunc => self.run_trunc::<f32>(context),
+			&Opcode::F32Nearest => self.run_nearest::<f32>(context),
+			&Opcode::F32Sqrt => self.run_sqrt::<f32>(context),
+			&Opcode::F32Add => self.run_add::<f32>(context),
+			&Opcode::F32Sub => self.run_sub::<f32>(context),
+			&Opcode::F32Mul => self.run_mul::<f32>(context),
+			&Opcode::F32Div => self.run_div::<f32, f32>(context),
+			&Opcode::F32Min => self.run_min::<f32>(context),
+			&Opcode::F32Max => self.run_max::<f32>(context),
+			&Opcode::F32Copysign => self.run_copysign::<f32>(context),
 
-			&Opcode::F64Abs => Interpreter::run_abs::<f64>(context),
-			&Opcode::F64Neg => Interpreter::run_neg::<f64>(context),
-			&Opcode::F64Ceil => Interpreter::run_ceil::<f64>(context),
-			&Opcode::F64Floor => Interpreter::run_floor::<f64>(context),
-			&Opcode::F64Trunc => Interpreter::run_trunc::<f64>(context),
-			&Opcode::F64Nearest => Interpreter::run_nearest::<f64>(context),
-			&Opcode::F64Sqrt => Interpreter::run_sqrt::<f64>(context),
-			&Opcode::F64Add => Interpreter::run_add::<f64>(context),
-			&Opcode::F64Sub => Interpreter::run_sub::<f64>(context),
-			&Opcode::F64Mul => Interpreter::run_mul::<f64>(context),
-			&Opcode::F64Div => Interpreter::run_div::<f64, f64>(context),
-			&Opcode::F64Min => Interpreter::run_min::<f64>(context),
-			&Opcode::F64Max => Interpreter::run_max::<f64>(context),
-			&Opcode::F64Copysign => Interpreter::run_copysign::<f64>(context),
+			&Opcode::F64Abs => self.run_abs::<f64>(context),
+			&Opcode::F64Neg => self.run_neg::<f64>(context),
+			&Opcode::F64Ceil => self.run_ceil::<f64>(context),
+			&Opcode::F64Floor => self.run_floor::<f64>(context),
+			&Opcode::F64Trunc => self.run_trunc::<f64>(context),
+			&Opcode::F64Nearest => self.run_nearest::<f64>(context),
+			&Opcode::F64Sqrt => self.run_sqrt::<f64>(context),
+			&Opcode::F64Add => self.run_add::<f64>(context),
+			&Opcode::F64Sub => self.run_sub::<f64>(context),
+			&Opcode::F64Mul => self.run_mul::<f64>(context),
+			&Opcode::F64Div => self.run_div::<f64, f64>(context),
+			&Opcode::F64Min => self.run_min::<f64>(context),
+			&Opcode::F64Max => self.run_max::<f64>(context),
+			&Opcode::F64Copysign => self.run_copysign::<f64>(context),
 
-			&Opcode::I32WarpI64 => Interpreter::run_wrap::<i64, i32>(context),
-			&Opcode::I32TruncSF32 => Interpreter::run_trunc_to_int::<f32, i32, i32>(context),
-			&Opcode::I32TruncUF32 => Interpreter::run_trunc_to_int::<f32, u32, i32>(context),
-			&Opcode::I32TruncSF64 => Interpreter::run_trunc_to_int::<f64, i32, i32>(context),
-			&Opcode::I32TruncUF64 => Interpreter::run_trunc_to_int::<f64, u32, i32>(context),
-			&Opcode::I64ExtendSI32 => Interpreter::run_extend::<i32, i64, i64>(context),
-			&Opcode::I64ExtendUI32 => Interpreter::run_extend::<u32, u64, i64>(context),
-			&Opcode::I64TruncSF32 => Interpreter::run_trunc_to_int::<f32, i64, i64>(context),
-			&Opcode::I64TruncUF32 => Interpreter::run_trunc_to_int::<f32, u64, i64>(context),
-			&Opcode::I64TruncSF64 => Interpreter::run_trunc_to_int::<f64, i64, i64>(context),
-			&Opcode::I64TruncUF64 => Interpreter::run_trunc_to_int::<f64, u64, i64>(context),
-			&Opcode::F32ConvertSI32 => Interpreter::run_extend::<i32, f32, f32>(context),
-			&Opcode::F32ConvertUI32 => Interpreter::run_extend::<u32, f32, f32>(context),
-			&Opcode::F32ConvertSI64 => Interpreter::run_wrap::<i64, f32>(context),
-			&Opcode::F32ConvertUI64 => Interpreter::run_wrap::<u64, f32>(context),
-			&Opcode::F32DemoteF64 => Interpreter::run_wrap::<f64, f32>(context),
-			&Opcode::F64ConvertSI32 => Interpreter::run_extend::<i32, f64, f64>(context),
-			&Opcode::F64ConvertUI32 => Interpreter::run_extend::<u32, f64, f64>(context),
-			&Opcode::F64ConvertSI64 => Interpreter::run_extend::<i64, f64, f64>(context),
-			&Opcode::F64ConvertUI64 => Interpreter::run_extend::<u64, f64, f64>(context),
-			&Opcode::F64PromoteF32 => Interpreter::run_extend::<f32, f64, f64>(context),
+			&Opcode::I32WarpI64 => self.run_wrap::<i64, i32>(context),
+			&Opcode::I32TruncSF32 => self.run_trunc_to_int::<f32, i32, i32>(context),
+			&Opcode::I32TruncUF32 => self.run_trunc_to_int::<f32, u32, i32>(context),
+			&Opcode::I32TruncSF64 => self.run_trunc_to_int::<f64, i32, i32>(context),
+			&Opcode::I32TruncUF64 => self.run_trunc_to_int::<f64, u32, i32>(context),
+			&Opcode::I64ExtendSI32 => self.run_extend::<i32, i64, i64>(context),
+			&Opcode::I64ExtendUI32 => self.run_extend::<u32, u64, i64>(context),
+			&Opcode::I64TruncSF32 => self.run_trunc_to_int::<f32, i64, i64>(context),
+			&Opcode::I64TruncUF32 => self.run_trunc_to_int::<f32, u64, i64>(context),
+			&Opcode::I64TruncSF64 => self.run_trunc_to_int::<f64, i64, i64>(context),
+			&Opcode::I64TruncUF64 => self.run_trunc_to_int::<f64, u64, i64>(context),
+			&Opcode::F32ConvertSI32 => self.run_extend::<i32, f32, f32>(context),
+			&Opcode::F32ConvertUI32 => self.run_extend::<u32, f32, f32>(context),
+			&Opcode::F32ConvertSI64 => self.run_wrap::<i64, f32>(context),
+			&Opcode::F32ConvertUI64 => self.run_wrap::<u64, f32>(context),
+			&Opcode::F32DemoteF64 => self.run_wrap::<f64, f32>(context),
+			&Opcode::F64ConvertSI32 => self.run_extend::<i32, f64, f64>(context),
+			&Opcode::F64ConvertUI32 => self.run_extend::<u32, f64, f64>(context),
+			&Opcode::F64ConvertSI64 => self.run_extend::<i64, f64, f64>(context),
+			&Opcode::F64ConvertUI64 => self.run_extend::<u64, f64, f64>(context),
+			&Opcode::F64PromoteF32 => self.run_extend::<f32, f64, f64>(context),
 
-			&Opcode::I32ReinterpretF32 => Interpreter::run_reinterpret::<f32, i32>(context),
-			&Opcode::I64ReinterpretF64 => Interpreter::run_reinterpret::<f64, i64>(context),
-			&Opcode::F32ReinterpretI32 => Interpreter::run_reinterpret::<i32, f32>(context),
-			&Opcode::F64ReinterpretI64 => Interpreter::run_reinterpret::<i64, f64>(context),
+			&Opcode::I32ReinterpretF32 => self.run_reinterpret::<f32, i32>(context),
+			&Opcode::I64ReinterpretF64 => self.run_reinterpret::<f64, i64>(context),
+			&Opcode::F32ReinterpretI32 => self.run_reinterpret::<i32, f32>(context),
+			&Opcode::F64ReinterpretI64 => self.run_reinterpret::<i64, f64>(context),
 		}
 	}
 
-	fn run_unreachable<'a>(_context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_unreachable<'a>(&mut self, _context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		Err(Error::Trap("programmatic".into()))
 	}
 
-	fn run_nop<'a>(_context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_nop<'a>(&mut self, _context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_block<'a>(context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_block<'a>(&mut self, context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		context.push_frame(labels, BlockFrameType::Block, block_type)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_loop<'a>(context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_loop<'a>(&mut self, context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		context.push_frame(labels, BlockFrameType::Loop, block_type)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_if<'a>(context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_if<'a>(&mut self, context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome<'a>, Error> {
 		let branch = context.value_stack_mut().pop_as()?;
 		let block_frame_type = if branch { BlockFrameType::IfTrue } else {
 			let else_pos = labels[&context.position];
@@ -378,23 +383,23 @@ impl Interpreter {
 		context.push_frame(labels, block_frame_type, block_type).map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_else<'a>(context: &mut FunctionContext, labels: &HashMap<usize, usize>) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_else<'a>(&mut self, context: &mut FunctionContext, labels: &HashMap<usize, usize>) -> Result<InstructionOutcome<'a>, Error> {
 		let end_pos = labels[&context.position];
 		context.pop_frame(false)?;
 		context.position = end_pos;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_end<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_end<'a>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		context.pop_frame(false)?;
 		Ok(InstructionOutcome::End)
 	}
 
-	fn run_br<'a>(_context: &mut FunctionContext, label_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_br<'a>(&mut self, _context: &mut FunctionContext, label_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
 		Ok(InstructionOutcome::Branch(label_idx as usize))
 	}
 
-	fn run_br_if<'a>(context: &mut FunctionContext, label_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_br_if<'a>(&mut self, context: &mut FunctionContext, label_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
 		if context.value_stack_mut().pop_as()? {
 			Ok(InstructionOutcome::Branch(label_idx as usize))
 		} else {
@@ -402,20 +407,20 @@ impl Interpreter {
 		}
 	}
 
-	fn run_br_table<'a>(context: &mut FunctionContext, table: &Vec<u32>, default: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_br_table<'a>(&mut self, context: &mut FunctionContext, table: &Vec<u32>, default: u32) -> Result<InstructionOutcome<'a>, Error> {
 		let index: u32 = context.value_stack_mut().pop_as()?;
 		Ok(InstructionOutcome::Branch(table.get(index as usize).cloned().unwrap_or(default) as usize))
 	}
 
-	fn run_return<'a>(_context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_return<'a>(&mut self, _context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		Ok(InstructionOutcome::Return)
 	}
 
-	fn run_call<'a>(context: &mut FunctionContext<'a>, func_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_call<'a>(&mut self, context: &mut FunctionContext<'a>, func_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
 		Ok(InstructionOutcome::ExecuteCall(context.module().function_reference(ItemIndex::IndexSpace(func_idx), Some(context.externals))?))
 	}
 
-	fn run_call_indirect<'a>(context: &mut FunctionContext<'a>, type_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_call_indirect<'a>(&mut self, context: &mut FunctionContext<'a>, type_idx: u32) -> Result<InstructionOutcome<'a>, Error> {
 		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
 		let function_reference = context.module().function_reference_indirect(DEFAULT_TABLE_INDEX, type_idx, table_func_idx, Some(context.externals))?;
 		{
@@ -430,7 +435,7 @@ impl Interpreter {
 		Ok(InstructionOutcome::ExecuteCall(function_reference))
 	}
 
-	fn run_drop<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_drop<'a>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		context
 			.value_stack_mut()
 			.pop()
@@ -438,7 +443,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_select<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_select<'a>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		context
 			.value_stack_mut()
 			.pop_triple()
@@ -454,32 +459,32 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_get_local<'a>(context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_get_local<'a>(&mut self, context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
 		context.get_local(index as usize)
 			.map(|value| context.value_stack_mut().push(value))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_set_local<'a>(context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_set_local<'a>(&mut self, context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
 		let arg = context.value_stack_mut().pop()?;
 		context.set_local(index as usize, arg)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_tee_local<'a>(context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_tee_local<'a>(&mut self, context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
 		let arg = context.value_stack().top()?.clone();
 		context.set_local(index as usize, arg)
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_get_global<'a>(context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_get_global<'a>(&mut self, context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
 		context.module()
 			.global(ItemIndex::IndexSpace(index), None, Some(context.externals))
 			.and_then(|g| context.value_stack_mut().push(g.get()).map_err(Into::into))
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_set_global<'a>(context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_set_global<'a>(&mut self, context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome<'a>, Error> {
 		context
 			.value_stack_mut()
 			.pop()
@@ -488,7 +493,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_load<'a, T>(context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome<'a>, Error>
+	fn run_load<'a, T>(&mut self, context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T>, T: LittleEndianConvert {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		context.module()
@@ -499,7 +504,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_load_extend<'a, T, U>(context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome<'a>, Error>
+	fn run_load_extend<'a, T, U>(&mut self, context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome<'a>, Error>
 		where T: ExtendInto<U>, RuntimeValue: From<U>, T: LittleEndianConvert {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		let stack_value: U = context.module()
@@ -514,7 +519,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_store<'a, T>(context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome<'a>, Error>
+	fn run_store<'a, T>(&mut self, context: &mut FunctionContext, _align: u32, offset: u32) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: TryInto<T, Error>, T: LittleEndianConvert {
 		let stack_value = context
 			.value_stack_mut()
@@ -528,6 +533,7 @@ impl Interpreter {
 	}
 
 	fn run_store_wrap<'a, T, U>(
+		&mut self,
 		context: &mut FunctionContext,
 		_align: u32,
 		offset: u32,
@@ -550,9 +556,8 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_current_memory<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
-		context
-			.module()
+	fn run_current_memory<'a>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.map(|m| m.size())
 			.and_then(|s|
@@ -564,10 +569,9 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_grow_memory<'a>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_grow_memory<'a>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error> {
 		let pages: u32 = context.value_stack_mut().pop_as()?;
-		context
-			.module()
+		context.module()
 			.memory(ItemIndex::IndexSpace(DEFAULT_MEMORY_INDEX))
 			.and_then(|m| m.grow(pages))
 			.and_then(|m|
@@ -579,7 +583,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_const<'a>(context: &mut FunctionContext, val: RuntimeValue) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_const<'a>(&mut self, context: &mut FunctionContext, val: RuntimeValue) -> Result<InstructionOutcome<'a>, Error> {
 		context
 			.value_stack_mut()
 			.push(val)
@@ -587,7 +591,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_eqz<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_eqz<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: TryInto<T, Error>, T: PartialEq<T> + Default {
 		context
 			.value_stack_mut()
@@ -597,7 +601,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_eq<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_eq<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: TryInto<T, Error>, T: PartialEq<T> {
 		context
 			.value_stack_mut()
@@ -607,7 +611,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_ne<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_ne<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: TryInto<T, Error>, T: PartialEq<T> {
 		context
 			.value_stack_mut()
@@ -617,7 +621,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_lt<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_lt<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: TryInto<T, Error>, T: PartialOrd<T> + Display {
 		context
 			.value_stack_mut()
@@ -627,7 +631,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_gt<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_gt<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: TryInto<T, Error>, T: PartialOrd<T> {
 		context
 			.value_stack_mut()
@@ -637,7 +641,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_lte<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_lte<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: TryInto<T, Error>, T: PartialOrd<T> {
 		context
 			.value_stack_mut()
@@ -647,7 +651,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_gte<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_gte<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: TryInto<T, Error>, T: PartialOrd<T> {
 		context
 			.value_stack_mut()
@@ -657,7 +661,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_clz<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_clz<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Integer<T> {
 		context
 			.value_stack_mut()
@@ -667,7 +671,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_ctz<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_ctz<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Integer<T> {
 		context
 			.value_stack_mut()
@@ -677,7 +681,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_popcnt<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_popcnt<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Integer<T> {
 		context
 			.value_stack_mut()
@@ -687,7 +691,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_add<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_add<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: ArithmeticOps<T> {
 		context
 			.value_stack_mut()
@@ -697,7 +701,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_sub<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_sub<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: ArithmeticOps<T> {
 		context
 			.value_stack_mut()
@@ -707,7 +711,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_mul<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_mul<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: ArithmeticOps<T> {
 		context
 			.value_stack_mut()
@@ -717,7 +721,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_div<'a, T, U>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_div<'a, T, U>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: TransmuteInto<U> + Display, U: ArithmeticOps<U> + TransmuteInto<T> {
 		context
 			.value_stack_mut()
@@ -729,7 +733,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_rem<'a, T, U>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_rem<'a, T, U>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: TransmuteInto<U>, U: Integer<U> + TransmuteInto<T> {
 		context
 			.value_stack_mut()
@@ -741,7 +745,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_and<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_and<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<<T as ops::BitAnd>::Output> + TryInto<T, Error>, T: ops::BitAnd<T> {
 		context
 			.value_stack_mut()
@@ -751,7 +755,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_or<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_or<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<<T as ops::BitOr>::Output> + TryInto<T, Error>, T: ops::BitOr<T> {
 		context
 			.value_stack_mut()
@@ -761,7 +765,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_xor<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_xor<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<<T as ops::BitXor>::Output> + TryInto<T, Error>, T: ops::BitXor<T> {
 		context
 			.value_stack_mut()
@@ -771,7 +775,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_shl<'a, T>(context: &mut FunctionContext, mask: T) -> Result<InstructionOutcome<'a>, Error>
+	fn run_shl<'a, T>(&mut self, context: &mut FunctionContext, mask: T) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<<T as ops::Shl<T>>::Output> + TryInto<T, Error>, T: ops::Shl<T> + ops::BitAnd<T, Output=T> {
 		context
 			.value_stack_mut()
@@ -781,7 +785,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_shr<'a, T, U>(context: &mut FunctionContext, mask: U) -> Result<InstructionOutcome<'a>, Error>
+	fn run_shr<'a, T, U>(&mut self, context: &mut FunctionContext, mask: U) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: TransmuteInto<U>, U: ops::Shr<U> + ops::BitAnd<U, Output=U>, <U as ops::Shr<U>>::Output: TransmuteInto<T> {
 		context
 			.value_stack_mut()
@@ -793,7 +797,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_rotl<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_rotl<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Integer<T> {
 		context
 			.value_stack_mut()
@@ -803,7 +807,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_rotr<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_rotr<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Integer<T> {
 		context
 			.value_stack_mut()
@@ -813,7 +817,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_abs<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_abs<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -823,7 +827,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_neg<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_neg<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<<T as ops::Neg>::Output> + TryInto<T, Error>, T: ops::Neg {
 		context
 			.value_stack_mut()
@@ -833,7 +837,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_ceil<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_ceil<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -843,7 +847,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_floor<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_floor<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -853,7 +857,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_trunc<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_trunc<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -863,7 +867,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_nearest<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_nearest<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -873,7 +877,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_sqrt<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_sqrt<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -883,7 +887,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_min<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_min<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -893,7 +897,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_max<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_max<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -903,7 +907,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_copysign<'a, T>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_copysign<'a, T>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<T> + TryInto<T, Error>, T: Float<T> {
 		context
 			.value_stack_mut()
@@ -913,7 +917,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_wrap<'a, T, U>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_wrap<'a, T, U>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<U> + TryInto<T, Error>, T: WrapInto<U> {
 		context
 			.value_stack_mut()
@@ -923,7 +927,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_trunc_to_int<'a, T, U, V>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_trunc_to_int<'a, T, U, V>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<V> + TryInto<T, Error>, T: TryTruncateInto<U, Error>, U: TransmuteInto<V>,  {
 		context
 			.value_stack_mut()
@@ -934,14 +938,8 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_extend<'a, T, U, V>(
-		context: &mut FunctionContext,
-	) -> Result<InstructionOutcome<'a>, Error>
-	where
-		RuntimeValue: From<V> + TryInto<T, Error>,
-		T: ExtendInto<U>,
-		U: TransmuteInto<V>,
-	{
+	fn run_extend<'a, T, U, V>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+		where RuntimeValue: From<V> + TryInto<T, Error>, T: ExtendInto<U>, U: TransmuteInto<V> {
 		context
 			.value_stack_mut()
 			.pop_as::<T>()
@@ -952,7 +950,7 @@ impl Interpreter {
 			.map(|_| InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_reinterpret<'a, T, U>(context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
+	fn run_reinterpret<'a, T, U>(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome<'a>, Error>
 		where RuntimeValue: From<U>, RuntimeValue: TryInto<T, Error>, T: TransmuteInto<U> {
 		context
 			.value_stack_mut()

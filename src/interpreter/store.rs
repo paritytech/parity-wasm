@@ -48,12 +48,12 @@ impl ModuleId {
 	}
 
 
-	pub fn resolve_global(&self, store: &Store, idx: u32) -> GlobalId {
+	pub fn global_by_index(&self, store: &Store, idx: u32) -> Option<GlobalId> {
 		let instance = store.resolve_module(*self);
-		*instance
+		instance
 			.globals
 			.get(idx as usize)
-			.expect("Due to validation global should exists")
+			.cloned()
 	}
 
 	pub fn func_by_index(&self, store: &Store, idx: u32) -> Option<FuncId> {

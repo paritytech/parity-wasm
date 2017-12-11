@@ -489,18 +489,26 @@ impl<'store, St: 'static> Interpreter<'store, St> {
 		context: &mut FunctionContext,
 		index: u32,
 	) -> Result<InstructionOutcome, Error> {
-		let global = context.module().resolve_global(&self.store, index);
+		let global = context
+			.module()
+			.global_by_index(&self.store, index)
+			.expect("Due to validation global should exists");
 		let val = self.store.read_global(global);
 		context.value_stack_mut().push(val)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_set_global<'a>(&mut self, context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome, Error> {
-		let val = context
-			.value_stack_mut()
-			.pop()?;
+	fn run_set_global<'a>(
+		&mut self,
+		context: &mut FunctionContext,
+		index: u32,
+	) -> Result<InstructionOutcome, Error> {
+		let val = context.value_stack_mut().pop()?;
 
-		let global = context.module().resolve_global(&self.store, index);
+		let global = context
+			.module()
+			.global_by_index(&self.store, index)
+			.expect("Due to validation global should exists");
 		self.store.write_global(global, val)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}

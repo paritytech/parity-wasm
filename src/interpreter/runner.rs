@@ -1,5 +1,6 @@
 use std::mem;
 use std::ops;
+use std::sync::Arc;
 use std::{u32, usize};
 use std::fmt::{self, Display};
 use std::iter::repeat;
@@ -31,7 +32,7 @@ pub struct FunctionContext {
 	/// Function return type.
 	pub return_type: BlockType,
 	/// Local variables.
-	pub locals: Vec<VariableInstance>,
+	pub locals: Vec<RuntimeValue>,
 	/// Values stack.
 	pub value_stack: StackWithLimit<RuntimeValue>,
 	/// Blocks frames stack.
@@ -78,31 +79,24 @@ impl<'store> Interpreter<'store> {
 			let mut function_context = function_stack.pop_back().expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
 			let function_ref = function_context.function;
 			let function_return = {
-				let function_body = function_ref.resolve(self.store).body();
+				let func_instance = function_ref.resolve(self.store).clone();
 
-				match function_body {
-					Some(function_body) => {
+				match func_instance {
+					FuncInstance::Defined { body, .. } => {
+						let function_body = body;
+
 						if !function_context.is_initialized() {
 							let return_type = function_context.return_type;
-							function_context.initialize(&function_body.locals)?;
+							function_context.initialize(&function_body.locals);
 							function_context.push_frame(&function_body.labels, BlockFrameType::Function, return_type)?;
 						}
 
 						self.do_run_function(&mut function_context, function_body.opcodes.elements(), &function_body.labels)?
 					},
-					None => {
-						// move locals back to the stack
-						let locals_to_move: Vec<_> = function_context.locals.drain(..).collect();
-						for local in locals_to_move {
-							function_context.value_stack_mut().push(local.get())?;
-						}
-						let nested_context = CallerContext::nested(&mut function_context);
-
-						// TODO: Call host functions
-						// let result = function_ref.module.call_internal_function(nested_context, function_ref.internal_index)?;
-						// RunResult::Return(result)
-
-						panic!()
+					FuncInstance::Host { host_func, .. } => {
+						let args: Vec<_> = function_context.locals.drain(..).collect();
+						let result = self.store.invoke_host(host_func, args)?;
+						RunResult::Return(result)
 					},
 				}
 			};
@@ -977,7 +971,7 @@ impl<'store> Interpreter<'store> {
 }
 
 impl<'a> FunctionContext {
-	pub fn new<'store>(store: &'store Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
+	pub fn new<'store>(store: &'store Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<RuntimeValue>) -> Self {
 		let func_instance = function.resolve(store);
 		let module = match *func_instance {
 			FuncInstance::Defined { module, .. } => module,
@@ -1026,16 +1020,15 @@ impl<'a> FunctionContext {
 		self.is_initialized
 	}
 
-	pub fn initialize(&mut self, locals: &[Local]) -> Result<(), Error> {
+	pub fn initialize(&mut self, locals: &[Local]) {
 		debug_assert!(!self.is_initialized);
 		self.is_initialized = true;
 
 		let locals = locals.iter()
 			.flat_map(|l| repeat(l.value_type().into()).take(l.count() as usize))
-			.map(|vt| VariableInstance::new(true, vt, RuntimeValue::default(vt)))
-			.collect::<Result<Vec<_>, _>>()?;
+			.map(|vt| RuntimeValue::default(vt))
+			.collect::<Vec<_>>();
 		self.locals.extend(locals);
-		Ok(())
 	}
 
 	pub fn module(&self) -> ModuleId {
@@ -1043,16 +1036,17 @@ impl<'a> FunctionContext {
 	}
 
 	pub fn set_local(&mut self, index: usize, value: RuntimeValue) -> Result<InstructionOutcome, Error> {
-		self.locals.get_mut(index)
-			.ok_or(Error::Local(format!("expected to have local with index {}", index)))
-			.and_then(|l| l.set(value))
-			.map(|_| InstructionOutcome::RunNextInstruction)
+		let l = self.locals.get_mut(index)
+			.ok_or(Error::Local(format!("expected to have local with index {}", index)))?;
+
+		*l = value;
+		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
 	pub fn get_local(&mut self, index: usize) -> Result<RuntimeValue, Error> {
 		self.locals.get(index)
+			.cloned()
 			.ok_or(Error::Local(format!("expected to have local with index {}", index)))
-			.map(|l| l.get())
 	}
 
 	pub fn value_stack(&self) -> &StackWithLimit<RuntimeValue> {
@@ -1136,7 +1130,7 @@ fn effective_address(address: u32, offset: u32) -> Result<u32, Error> {
 	}
 }
 
-pub fn prepare_function_args(function_type: &FunctionSignature, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<VariableInstance>, Error> {
+pub fn prepare_function_args(function_type: &FunctionSignature, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<RuntimeValue>, Error> {
 	let mut args = function_type.params().iter().rev().map(|param_type| {
 		let param_value = caller_stack.pop()?;
 		let actual_type = param_value.variable_type();
@@ -1145,7 +1139,7 @@ pub fn prepare_function_args(function_type: &FunctionSignature, caller_stack: &m
 			return Err(Error::Function(format!("invalid parameter type {:?} when expected {:?}", actual_type, expected_type)));
 		}
 
-		VariableInstance::new(true, expected_type, param_value)
+		Ok(param_value)
 	}).collect::<Result<Vec<_>, _>>()?;
 	args.reverse();
 	Ok(args)

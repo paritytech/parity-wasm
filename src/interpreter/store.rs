@@ -7,6 +7,7 @@ use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Modu
                Opcode, Opcodes, Local, TableType, Type, Internal};
 use interpreter::{Error, RuntimeValue, MemoryInstance, TableInstance, ExecutionParams, CallerContext, FunctionSignature};
 use interpreter::runner::{FunctionContext, prepare_function_args, Interpreter};
+use interpreter::host::AnyFunc;
 use validation::validate_module;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX, DEFAULT_FRAME_STACK_LIMIT, DEFAULT_VALUE_STACK_LIMIT};
 use common::stack::StackWithLimit;
@@ -118,6 +119,7 @@ pub enum ExternVal {
 	Global(GlobalId),
 }
 
+#[derive(Clone, Debug)]
 pub enum FuncInstance {
 	Defined {
 		func_type: TypeId,
@@ -138,15 +140,9 @@ impl FuncInstance {
 			}
 		}
 	}
-
-	pub fn body(&self) -> Option<Arc<FuncBody>> {
-		match *self {
-			FuncInstance::Defined { ref body, .. } => Some(Arc::clone(body)),
-			FuncInstance::Host { .. } => None,
-		}
-	}
 }
 
+#[derive(Clone, Debug)]
 pub struct FuncBody {
 	pub locals: Vec<Local>,
 	pub opcodes: Opcodes,
@@ -197,6 +193,7 @@ pub struct Store {
 	// However, they can be referenced in several places, so it is handy to have it here.
 	modules: Vec<ModuleInstance>,
 	types: Vec<FunctionType>,
+	host_funcs: Vec<Box<AnyFunc>>,
 }
 
 impl Store {
@@ -216,7 +213,7 @@ impl Store {
 			.expect("ID should always be a valid index")
 	}
 
-	fn alloc_func_type(&mut self, func_type: FunctionType) -> TypeId {
+	pub fn alloc_func_type(&mut self, func_type: FunctionType) -> TypeId {
 		self.types.push(func_type);
 		let type_id = self.types.len() - 1;
 		TypeId(type_id as u32)
@@ -233,7 +230,18 @@ impl Store {
 		FuncId(func_id as u32)
 	}
 
-	// TODO: alloc_host_func
+	pub fn alloc_host_func(&mut self, func_type: TypeId, anyfunc: Box<AnyFunc>) -> FuncId {
+		self.host_funcs.push(anyfunc);
+		let host_func_id = self.host_funcs.len() - 1;
+
+		let func = FuncInstance::Host {
+			func_type,
+			host_func: HostFuncId(host_func_id as u32),
+		};
+		self.funcs.push(func);
+		let func_id = self.funcs.len() - 1;
+		FuncId(func_id as u32)
+	}
 
 	fn alloc_table(&mut self, table_type: &TableType) -> Result<TableId, Error> {
 		let table = TableInstance::new(table_type)?;
@@ -451,6 +459,10 @@ impl Store {
 		};
 		let mut interpreter = Interpreter::new(self);
 		interpreter.run_function(inner)
+	}
+
+	pub fn invoke_host(&mut self, host_func: HostFuncId, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+		panic!()
 	}
 
 	pub fn write_global(&mut self, global: GlobalId, val: RuntimeValue) -> Result<(), Error> {

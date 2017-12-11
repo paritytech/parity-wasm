@@ -4,6 +4,7 @@ use elements::Module;
 use interpreter::Error;
 use interpreter::module::{ExecutionParams};
 use interpreter::store::{Store, ModuleId};
+use interpreter::host::HostModuleBuilder;
 
 /// Program instance. Program is a set of instantiated modules.
 pub struct ProgramInstance {
@@ -40,6 +41,10 @@ impl ProgramInstance {
 		self.modules.insert(name.to_string(), module_id);
 
 		Ok(module_id)
+	}
+
+	pub fn with_host_module<St: 'static>(&mut self, name: &str) -> HostModuleBuilder<St> {
+		HostModuleBuilder::new(&mut self.store)
 	}
 
 	/// Get one of the modules by name

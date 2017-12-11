@@ -140,6 +140,7 @@ mod table;
 mod value;
 mod variable;
 mod store;
+mod host;
 
 #[cfg(test)]
 mod tests;

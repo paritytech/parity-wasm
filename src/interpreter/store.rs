@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Module,
-               Opcode, Opcodes, Local, TableType, Type};
+               Opcode, Opcodes, Local, TableType, Type, Internal};
 use interpreter::{Error, RuntimeValue, MemoryInstance, TableInstance, ExecutionParams, CallerContext, FunctionSignature};
 use interpreter::runner::{FunctionContext, prepare_function_args, Interpreter};
 use validation::validate_module;
@@ -67,6 +67,14 @@ impl ModuleId {
 			.get(idx as usize)
 			.expect("Due to validation type should exists")
 	}
+
+	pub fn resolve_export(&self, store: &Store, name: &str) -> Option<ExternVal> {
+		let instance = store.resolve_module(*self);
+		instance
+			.exports
+			.get(name)
+			.cloned()
+	}
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -102,6 +110,7 @@ impl MemoryId {
 #[derive(Copy, Clone, Debug)]
 pub struct GlobalId(u32);
 
+#[derive(Copy, Clone, Debug)]
 pub enum ExternVal {
 	Func(FuncId),
 	Table(TableId),
@@ -167,7 +176,7 @@ struct ModuleInstance {
 	tables: Vec<TableId>,
 	memories: Vec<MemoryId>,
 	globals: Vec<GlobalId>,
-	exports: Vec<ExportInstance>,
+	exports: HashMap<String, ExternVal>,
 }
 
 impl ModuleInstance {
@@ -191,7 +200,7 @@ pub struct Store {
 }
 
 impl Store {
-	fn new() -> Store {
+	pub fn new() -> Store {
 		Store::default()
 	}
 
@@ -328,15 +337,38 @@ impl Store {
 			instance.globals.push(global_id);
 		}
 
+		for export in module.export_section().map(|es| es.entries()).unwrap_or(&[]) {
+			let field = export.field();
+			let extern_val: ExternVal = match *export.internal() {
+				Internal::Function(idx) => {
+					let func_id = instance.funcs.get(idx as usize).expect("Due to validation func should exists");
+					ExternVal::Func(*func_id)
+				},
+				Internal::Global(idx) => {
+					let global_id = instance.globals.get(idx as usize).expect("Due to validation global should exists");
+					ExternVal::Global(*global_id)
+				}
+				Internal::Memory(idx) => {
+					let memory_id = instance.memories.get(idx as usize).expect("Due to validation memory should exists");
+					ExternVal::Memory(*memory_id)
+				}
+				Internal::Table(idx) => {
+					let table_id = instance.tables.get(idx as usize).expect("Due to validation table should exists");
+					ExternVal::Table(*table_id)
+				}
+			};
+			instance.exports.insert(field.into(), extern_val);
+		}
+
 		Ok(())
 	}
 
-	fn instantiate_module(
+	pub fn instantiate_module(
 		&mut self,
 		module: &Module,
 		extern_vals: &[ExternVal],
 		start_exec_params: ExecutionParams,
-	) -> Result<(), Error> {
+	) -> Result<ModuleId, Error> {
 		let mut instance = ModuleInstance::new();
 		// Reserve the index of the module, but not yet push the module.
 		let module_id = ModuleId((self.modules.len()) as u32);
@@ -404,7 +436,7 @@ impl Store {
 			self.invoke(start_func, start_exec_params)?;
 		}
 
-		Ok(())
+		Ok(module_id)
 	}
 
 	fn invoke(&mut self, func: FuncId, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
@@ -414,7 +446,7 @@ impl Store {
 		let func_type = func.resolve(self).func_type().resolve(self);
 		let func_signature = FunctionSignature::Module(func_type);
 		let args = prepare_function_args(&func_signature, outer.value_stack)?;
-		let inner = FunctionContext::new(func, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args);
+		let inner = FunctionContext::new(self, func, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args);
 		let interpreter = Interpreter::new(self);
 		interpreter.run_function(inner)
 	}

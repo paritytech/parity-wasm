@@ -983,7 +983,12 @@ impl<'store> Interpreter<'store> {
 }
 
 impl<'a> FunctionContext<'a> {
-	pub fn new(module: ModuleId, function: FuncId, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
+	pub fn new(store: &Store, function: FuncId, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
+		let func_instance = function.resolve(store);
+		let module = match *func_instance {
+			FuncInstance::Defined { module, .. } => module,
+			FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
+		};
 		FunctionContext {
 			is_initialized: false,
 			function: function,

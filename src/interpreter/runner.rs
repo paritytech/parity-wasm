@@ -8,7 +8,7 @@ use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local};
 use interpreter::Error;
 use interpreter::store::{Store, FuncId, ModuleId, FuncInstance};
-use interpreter::module::{ModuleInstanceInterface, CallerContext, ItemIndex, FunctionSignature};
+use interpreter::module::{ModuleInstanceInterface, CallerContext, FunctionSignature};
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
@@ -87,11 +87,11 @@ impl<'store> Interpreter<'store> {
 					Some(function_body) => {
 						if !function_context.is_initialized() {
 							let return_type = function_context.return_type;
-							function_context.initialize(function_body.locals)?;
-							function_context.push_frame(function_body.labels, BlockFrameType::Function, return_type)?;
+							function_context.initialize(&function_body.locals)?;
+							function_context.push_frame(&function_body.labels, BlockFrameType::Function, return_type)?;
 						}
 
-						self.do_run_function(&mut function_context, function_body.body, function_body.labels)?
+						self.do_run_function(&mut function_context, function_body.opcodes.elements(), &function_body.labels)?
 					},
 					None => {
 						// move locals back to the stack

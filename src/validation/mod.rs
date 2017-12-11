@@ -1,4 +1,5 @@
 use std::fmt;
+use std::collections::HashMap;
 use elements::{
 	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType,
 	Module, Opcode, ResizableLimits, TableType, ValueType, InitExpr, Type
@@ -28,9 +29,14 @@ impl From<stack::Error> for Error {
 	}
 }
 
-pub fn validate_module(module: &Module) -> Result<(), Error> {
+pub struct AuxiliaryData {
+	pub labels: HashMap<usize, HashMap<usize, usize>>,
+}
+
+pub fn validate_module(module: &Module) -> Result<AuxiliaryData, Error> {
 	let mut context_builder = ModuleContextBuilder::new();
 	let mut imported_globals = Vec::new();
+	let mut labels = HashMap::new();
 
 	// Copy types from module as is.
 	context_builder.set_types(
@@ -118,10 +124,11 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 				.bodies()
 				.get(index as usize)
 				.ok_or(Error(format!("Missing body for function {}", index)))?;
-			Validator::validate_function(&context, function, function_body).map_err(|e| {
+			let func_labels = Validator::validate_function(&context, function, function_body).map_err(|e| {
 				let Error(ref msg) = e;
 				Error(format!("Function #{} validation error: {}", index, msg))
 			})?;
+			labels.insert(index, func_labels);
 		}
 	}
 
@@ -213,7 +220,10 @@ pub fn validate_module(module: &Module) -> Result<(), Error> {
 			}
 		}
 	}
-	Ok(())
+
+	Ok(AuxiliaryData {
+		labels,
+	})
 }
 
 impl ResizableLimits {

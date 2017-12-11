@@ -2,8 +2,9 @@
 #![allow(unused)]
 
 use std::sync::Arc;
-use elements::{FuncBody, FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Module,
-               Opcode, TableType, Type};
+use std::collections::HashMap;
+use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Module,
+               Opcode, Opcodes, Local, TableType, Type};
 use interpreter::{Error, RuntimeValue, MemoryInstance, TableInstance, ExecutionParams, CallerContext, FunctionSignature};
 use interpreter::runner::{FunctionContext, prepare_function_args, Interpreter};
 use validation::validate_module;
@@ -137,6 +138,12 @@ impl FuncInstance {
 	}
 }
 
+pub struct FuncBody {
+	pub locals: Vec<Local>,
+	pub opcodes: Opcodes,
+	pub labels: HashMap<usize, usize>,
+}
+
 pub struct GlobalInstance {
 	val: RuntimeValue,
 	mutable: bool,
@@ -247,6 +254,8 @@ impl Store {
 		instance: &mut ModuleInstance,
 		module_id: ModuleId,
 	) -> Result<(), Error> {
+		let aux_data = validate_module(module)?;
+
 		for extern_val in extern_vals {
 			match *extern_val {
 				ExternVal::Func(func) => instance.funcs.push(func),
@@ -278,9 +287,19 @@ impl Store {
 				"Due to validation func and body counts must match"
 			);
 
-			for (ty, body) in Iterator::zip(funcs.into_iter(), bodies.into_iter()) {
+			for (index, (ty, body)) in
+				Iterator::zip(funcs.into_iter(), bodies.into_iter()).enumerate()
+			{
 				let func_type = instance.types[ty.type_ref() as usize];
-				let func_id = self.alloc_func(module_id, func_type, body.clone());
+				let labels = aux_data.labels.remove(&index).expect(
+					"At func validation time labels are collected; Collected labels are added by index; qed",
+				);
+				let func_body = FuncBody {
+					locals: body.locals().to_vec(),
+					opcodes: body.code().clone(),
+					labels: labels,
+				};
+				let func_id = self.alloc_func(module_id, func_type, func_body);
 				instance.funcs.push(func_id);
 			}
 		}
@@ -318,10 +337,6 @@ impl Store {
 		extern_vals: &[ExternVal],
 		start_exec_params: ExecutionParams,
 	) -> Result<(), Error> {
-		// TODO: Add execution params
-
-		validate_module(module)?;
-
 		let mut instance = ModuleInstance::new();
 		// Reserve the index of the module, but not yet push the module.
 		let module_id = ModuleId((self.modules.len()) as u32);

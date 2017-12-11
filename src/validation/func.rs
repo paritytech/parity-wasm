@@ -64,7 +64,7 @@ impl Validator {
 		module: &ModuleContext,
 		func: &Func,
 		body: &FuncBody,
-	) -> Result<(), Error> {
+	) -> Result<HashMap<usize, usize>, Error> {
 		let (params, result_ty) = module.require_function_type(func.type_ref())?;
 
 		// locals = (params + vars)
@@ -91,7 +91,7 @@ impl Validator {
 			context.pop_label()?;
 		}
 
-		Ok(())
+		Ok(context.into_labels())
 	}
 
 	fn validate_function_block(context: &mut FunctionValidationContext, body: &[Opcode]) -> Result<(), Error> {
@@ -715,6 +715,10 @@ impl<'a> FunctionValidationContext<'a> {
 		} else {
 			Err(Error("Trying to access parent frame stack values.".into()))
 		}
+	}
+
+	fn into_labels(self) -> HashMap<usize, usize> {
+		self.labels
 	}
 }
 

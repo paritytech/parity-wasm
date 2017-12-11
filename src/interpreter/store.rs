@@ -20,7 +20,9 @@ pub struct TypeId(u32);
 
 impl TypeId {
 	pub fn resolve<'s>(&self, store: &'s Store) -> &'s FunctionType {
-		store.resolve_type(*self)
+		store.types
+			.get(self.0 as usize)
+			.expect("ID should always be a valid index")
 	}
 }
 
@@ -217,12 +219,6 @@ impl Store {
 
 	fn resolve_module(&self, id: ModuleId) -> &ModuleInstance {
 		self.modules
-			.get(id.0 as usize)
-			.expect("ID should always be a valid index")
-	}
-
-	fn resolve_type(&self, id: TypeId) -> &FunctionType {
-		self.types
 			.get(id.0 as usize)
 			.expect("ID should always be a valid index")
 	}

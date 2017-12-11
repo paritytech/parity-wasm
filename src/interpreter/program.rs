@@ -103,7 +103,9 @@ impl ProgramInstance {
 		let module_id = self.modules.get(module_name).ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
-		let func_id = module_id.resolve_func(&self.store, func_idx);
+		let func_id = module_id.func_by_index(&self.store, func_idx).ok_or_else(|| {
+			Error::Program(format!("Module doesn't contain function at index {}", func_idx))
+		})?;
 
 		self.store.invoke(func_id, args, state)
 	}

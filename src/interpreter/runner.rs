@@ -413,8 +413,15 @@ impl<'store, St: 'static> Interpreter<'store, St> {
 		Ok(InstructionOutcome::Return)
 	}
 
-	fn run_call<'a>(&mut self, context: &mut FunctionContext, func_idx: u32) -> Result<InstructionOutcome, Error> {
-		let func = context.module().resolve_func(self.store, func_idx);
+	fn run_call<'a>(
+		&mut self,
+		context: &mut FunctionContext,
+		func_idx: u32,
+	) -> Result<InstructionOutcome, Error> {
+		let func = context
+			.module()
+			.func_by_index(self.store, func_idx)
+			.expect("Due to validation func should exists");
 		Ok(InstructionOutcome::ExecuteCall(func))
 	}
 

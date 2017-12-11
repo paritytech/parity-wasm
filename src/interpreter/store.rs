@@ -56,12 +56,12 @@ impl ModuleId {
 			.expect("Due to validation global should exists")
 	}
 
-	pub fn resolve_func(&self, store: &Store, idx: u32) -> FuncId {
+	pub fn func_by_index(&self, store: &Store, idx: u32) -> Option<FuncId> {
 		let instance = store.resolve_module(*self);
-		*instance
+		instance
 			.funcs
 			.get(idx as usize)
-			.expect("Due to validation func should exists")
+			.cloned()
 	}
 
 	pub fn resolve_type(&self, store: &Store, idx: u32) -> TypeId {

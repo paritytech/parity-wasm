@@ -5,10 +5,10 @@ use std::{u32, usize};
 use std::fmt::{self, Display};
 use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
-use elements::{Opcode, BlockType, Local};
+use elements::{Opcode, BlockType, Local, FunctionType};
 use interpreter::Error;
 use interpreter::store::{Store, FuncId, ModuleId, FuncInstance};
-use interpreter::module::{CallerContext, FunctionSignature, ExecutionParams};
+use interpreter::module::{CallerContext, ExecutionParams};
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
@@ -970,7 +970,7 @@ impl<'store, St: 'static> Interpreter<'store, St> {
 }
 
 impl<'a> FunctionContext {
-	pub fn new<'store>(store: &'store Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<RuntimeValue>) -> Self {
+	pub fn new<'store>(store: &'store Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
 		let func_instance = function.resolve(store);
 		let module = match *func_instance {
 			FuncInstance::Internal { module, .. } => module,
@@ -996,10 +996,8 @@ impl<'a> FunctionContext {
 				FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 			};
 			let function_type = func_instance.func_type().resolve(store);
-			// TODO: function_signature
-			let function_signature = FunctionSignature::Module(&function_type);
 			let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
-			let function_locals = prepare_function_args(&function_signature, &mut self.value_stack)?;
+			let function_locals = prepare_function_args(function_type, &mut self.value_stack)?;
 			(function_locals, module, function_return_type)
 		};
 
@@ -1129,7 +1127,7 @@ fn effective_address(address: u32, offset: u32) -> Result<u32, Error> {
 	}
 }
 
-pub fn prepare_function_args(function_type: &FunctionSignature, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<RuntimeValue>, Error> {
+pub fn prepare_function_args(function_type: &FunctionType, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<RuntimeValue>, Error> {
 	let mut args = function_type.params().iter().rev().map(|param_type| {
 		let param_value = caller_stack.pop()?;
 		let actual_type = param_value.variable_type();

@@ -6,7 +6,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, Internal, Local, MemoryType,
                Module, Opcode, Opcodes, TableType, Type};
-use interpreter::{CallerContext, Error, ExecutionParams, FunctionSignature, MemoryInstance,
+use interpreter::{Error, ExecutionParams, MemoryInstance,
                   RuntimeValue, TableInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::AnyFunc;
@@ -488,14 +488,13 @@ impl Store {
 		let result = match *func.resolve(self) {
 			FuncInstance::Internal { func_type, .. } => {
 				let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
-				let outer = CallerContext::topmost(&mut args);
-				let func_signature = FunctionSignature::Module(func_type.resolve(self));
-				let args = prepare_function_args(&func_signature, outer.value_stack)?;
+				let func_signature = func_type.resolve(self);
+				let args = prepare_function_args(&func_signature, &mut args)?;
 				let context = FunctionContext::new(
 					self,
 					func,
-					outer.value_stack_limit,
-					outer.frame_stack_limit,
+					DEFAULT_VALUE_STACK_LIMIT,
+					DEFAULT_FRAME_STACK_LIMIT,
 					&func_signature,
 					args,
 				);

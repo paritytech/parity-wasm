@@ -442,11 +442,11 @@ impl Store {
 	fn invoke(&mut self, func: FuncId, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
 		let ExecutionParams { args, externals } = params;
 		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
-		let outer = CallerContext::topmost(&mut args, &externals);
+		let outer = CallerContext::topmost(&mut args);
 		let func_type = func.resolve(self).func_type().resolve(self);
 		let func_signature = FunctionSignature::Module(func_type);
 		let args = prepare_function_args(&func_signature, outer.value_stack)?;
-		let inner = FunctionContext::new(self, func, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args);
+		let inner = FunctionContext::new(self, func, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args);
 		let interpreter = Interpreter::new(self);
 		interpreter.run_function(inner)
 	}

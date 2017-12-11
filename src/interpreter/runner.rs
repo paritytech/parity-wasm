@@ -1,14 +1,13 @@
 use std::mem;
 use std::ops;
 use std::{u32, usize};
-use std::sync::Arc;
 use std::fmt::{self, Display};
 use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local};
 use interpreter::Error;
 use interpreter::store::{Store, FuncId, ModuleId, FuncInstance};
-use interpreter::module::{ModuleInstanceInterface, CallerContext, FunctionSignature};
+use interpreter::module::{CallerContext, FunctionSignature};
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
@@ -23,14 +22,12 @@ pub struct Interpreter<'store> {
 }
 
 /// Function execution context.
-pub struct FunctionContext<'a> {
+pub struct FunctionContext {
 	/// Is context initialized.
 	pub is_initialized: bool,
 	/// Internal function reference.
 	pub function: FuncId,
 	pub module: ModuleId,
-	/// Execution-local external modules.
-	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
 	/// Function return type.
 	pub return_type: BlockType,
 	/// Local variables.
@@ -59,11 +56,11 @@ pub enum InstructionOutcome {
 }
 
 /// Function run result.
-enum RunResult<'a> {
+enum RunResult {
 	/// Function has returned (optional) value.
 	Return(Option<RuntimeValue>),
 	/// Function is calling other function.
-	NestedCall(FunctionContext<'a>),
+	NestedCall(FunctionContext),
 }
 
 impl<'store> Interpreter<'store> {
@@ -127,7 +124,7 @@ impl<'store> Interpreter<'store> {
 		}
 	}
 
-	fn do_run_function<'a>(&mut self, function_context: &mut FunctionContext<'a>, function_body: &[Opcode], function_labels: &HashMap<usize, usize>) -> Result<RunResult<'a>, Error> {
+	fn do_run_function<'a>(&mut self, function_context: &mut FunctionContext, function_body: &[Opcode], function_labels: &HashMap<usize, usize>) -> Result<RunResult, Error> {
 		loop {
 			let instruction = &function_body[function_context.position];
 
@@ -165,7 +162,7 @@ impl<'store> Interpreter<'store> {
 		}))
 	}
 
-	fn run_instruction<'a>(&mut self, context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, opcode: &Opcode) -> Result<InstructionOutcome, Error> {
+	fn run_instruction<'a>(&mut self, context: &mut FunctionContext, labels: &HashMap<usize, usize>, opcode: &Opcode) -> Result<InstructionOutcome, Error> {
 		match opcode {
 			&Opcode::Unreachable => self.run_unreachable(context),
 			&Opcode::Nop => self.run_nop(context),
@@ -367,17 +364,17 @@ impl<'store> Interpreter<'store> {
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_block<'a>(&mut self, context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome, Error> {
+	fn run_block<'a>(&mut self, context: &mut FunctionContext, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome, Error> {
 		context.push_frame(labels, BlockFrameType::Block, block_type)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_loop<'a>(&mut self, context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome, Error> {
+	fn run_loop<'a>(&mut self, context: &mut FunctionContext, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome, Error> {
 		context.push_frame(labels, BlockFrameType::Loop, block_type)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_if<'a>(&mut self, context: &mut FunctionContext<'a>, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome, Error> {
+	fn run_if<'a>(&mut self, context: &mut FunctionContext, labels: &HashMap<usize, usize>, block_type: BlockType) -> Result<InstructionOutcome, Error> {
 		let branch = context.value_stack_mut().pop_as()?;
 		let block_frame_type = if branch { BlockFrameType::IfTrue } else {
 			let else_pos = labels[&context.position];
@@ -425,12 +422,12 @@ impl<'store> Interpreter<'store> {
 		Ok(InstructionOutcome::Return)
 	}
 
-	fn run_call<'a>(&mut self, context: &mut FunctionContext<'a>, func_idx: u32) -> Result<InstructionOutcome, Error> {
+	fn run_call<'a>(&mut self, context: &mut FunctionContext, func_idx: u32) -> Result<InstructionOutcome, Error> {
 		let func = context.module().resolve_func(self.store, func_idx);
 		Ok(InstructionOutcome::ExecuteCall(func))
 	}
 
-	fn run_call_indirect<'a>(&mut self, context: &mut FunctionContext<'a>, type_idx: u32) -> Result<InstructionOutcome, Error> {
+	fn run_call_indirect<'a>(&mut self, context: &mut FunctionContext, type_idx: u32) -> Result<InstructionOutcome, Error> {
 		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
 		let table = context.module().resolve_table(self.store, DEFAULT_TABLE_INDEX).resolve(self.store);
 		let func_ref = table.get(table_func_idx)?;
@@ -982,8 +979,8 @@ impl<'store> Interpreter<'store> {
 	}
 }
 
-impl<'a> FunctionContext<'a> {
-	pub fn new(store: &Store, function: FuncId, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
+impl<'a> FunctionContext {
+	pub fn new(store: &Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
 		let func_instance = function.resolve(store);
 		let module = match *func_instance {
 			FuncInstance::Defined { module, .. } => module,
@@ -993,7 +990,6 @@ impl<'a> FunctionContext<'a> {
 			is_initialized: false,
 			function: function,
 			module: module,
-			externals: externals,
 			return_type: function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult),
 			value_stack: StackWithLimit::with_limit(value_stack_limit),
 			frame_stack: StackWithLimit::with_limit(frame_stack_limit),
@@ -1021,7 +1017,6 @@ impl<'a> FunctionContext<'a> {
 			is_initialized: false,
 			function: function,
 			module: module,
-			externals: self.externals,
 			return_type: function_return_type,
 			value_stack: StackWithLimit::with_limit(self.value_stack.limit() - self.value_stack.len()),
 			frame_stack: StackWithLimit::with_limit(self.frame_stack.limit() - self.frame_stack.len()),
@@ -1048,10 +1043,6 @@ impl<'a> FunctionContext<'a> {
 
 	pub fn module(&self) -> ModuleId {
 		self.module
-	}
-
-	pub fn externals(&self) -> &HashMap<String, Arc<ModuleInstanceInterface + 'a>> {
-		&self.externals
 	}
 
 	pub fn set_local(&mut self, index: usize, value: RuntimeValue) -> Result<InstructionOutcome, Error> {
@@ -1135,7 +1126,7 @@ impl<'a> FunctionContext<'a> {
 	}
 }
 
-impl<'a> fmt::Debug for FunctionContext<'a> {
+impl<'a> fmt::Debug for FunctionContext {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "FunctionContext")
 	}

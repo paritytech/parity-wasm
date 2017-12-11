@@ -117,8 +117,6 @@ pub struct CallerContext<'a> {
 	pub frame_stack_limit: usize,
 	/// Stack of the input parameters
 	pub value_stack: &'a mut StackWithLimit<RuntimeValue>,
-	/// Execution-local external modules.
-	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
 }
 
 /// Internal function ready for interpretation.
@@ -458,7 +456,7 @@ impl ModuleInstanceInterface for ModuleInstance {
 		let ExecutionParams { args, externals } = params;
 		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
 		let function_reference = self.function_reference(ItemIndex::IndexSpace(index), Some(&externals))?;
-		let function_context = CallerContext::topmost(&mut args, &externals);
+		let function_context = CallerContext::topmost(&mut args);
 		function_reference.module.call_internal_function(function_context, function_reference.internal_index)
 	}
 
@@ -638,12 +636,11 @@ impl ModuleInstanceInterface for ModuleInstance {
 
 impl<'a> CallerContext<'a> {
 	/// Top most args
-	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>) -> Self {
+	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>) -> Self {
 		CallerContext {
 			value_stack_limit: DEFAULT_VALUE_STACK_LIMIT,
 			frame_stack_limit: DEFAULT_FRAME_STACK_LIMIT,
 			value_stack: args,
-			externals: externals,
 		}
 	}
 
@@ -653,7 +650,6 @@ impl<'a> CallerContext<'a> {
 			value_stack_limit: outer.value_stack().limit() - outer.value_stack().len(),
 			frame_stack_limit: outer.frame_stack().limit() - outer.frame_stack().len(),
 			value_stack: &mut outer.value_stack,
-			externals: &outer.externals,
 		}
 	}
 }

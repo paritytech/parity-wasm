@@ -130,9 +130,7 @@ impl From<common::stack::Error> for Error {
 	}
 }
 
-mod validator;
 mod native;
-mod imports;
 mod memory;
 mod module;
 mod program;
@@ -147,10 +145,9 @@ mod store;
 mod tests;
 
 pub use self::memory::MemoryInstance;
-pub use self::module::{ModuleInstance, ModuleInstanceInterface,
-	ItemIndex, ExportEntryType, CallerContext, ExecutionParams, FunctionSignature};
+pub use self::module::{ItemIndex, ExportEntryType, CallerContext, ExecutionParams, FunctionSignature};
 pub use self::table::TableInstance;
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
 pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
-pub use self::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
+pub use self::native::{UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};

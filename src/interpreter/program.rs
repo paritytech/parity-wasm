@@ -27,7 +27,7 @@ impl ProgramInstance {
 		module: Module,
 		start_exec_params: ExecutionParams,
 	) -> Result<ModuleId, Error> {
-		let extern_vals = Vec::new();
+		let mut extern_vals = Vec::new();
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
 			let module = self.modules[import_entry.module()];
 			let extern_val = module

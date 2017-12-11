@@ -493,15 +493,14 @@ impl<'store> Interpreter<'store> {
 	) -> Result<InstructionOutcome, Error> {
 		let global = context.module().resolve_global(&self.store, index);
 		let val = self.store.read_global(global);
-		context.value_stack_mut().push(val).map_err(Into::into)?;
+		context.value_stack_mut().push(val)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
 	fn run_set_global<'a>(&mut self, context: &mut FunctionContext, index: u32) -> Result<InstructionOutcome, Error> {
 		let val = context
 			.value_stack_mut()
-			.pop()
-			.map_err(Into::into)?;
+			.pop()?;
 
 		let global = context.module().resolve_global(&self.store, index);
 		self.store.write_global(global, val)?;
@@ -516,7 +515,7 @@ impl<'store> Interpreter<'store> {
 			.resolve(self.store);
 		let b = m.get(address, mem::size_of::<T>())?;
 		let n = T::from_little_endian(b)?;
-		context.value_stack_mut().push(n.into()).map_err(Into::into)?;
+		context.value_stack_mut().push(n.into())?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
@@ -583,8 +582,7 @@ impl<'store> Interpreter<'store> {
 		let s = m.size();
 		context
 			.value_stack_mut()
-			.push(RuntimeValue::I32(s as i32))
-			.map_err(Into::into)?;
+			.push(RuntimeValue::I32(s as i32))?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
@@ -596,8 +594,7 @@ impl<'store> Interpreter<'store> {
 		let m = m.grow(pages)?;
 		context
 			.value_stack_mut()
-			.push(RuntimeValue::I32(m as i32))
-			.map_err(Into::into)?;
+			.push(RuntimeValue::I32(m as i32))?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
@@ -980,7 +977,7 @@ impl<'store> Interpreter<'store> {
 }
 
 impl<'a> FunctionContext {
-	pub fn new(store: &Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
+	pub fn new<'store>(store: &'store Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionSignature, args: Vec<VariableInstance>) -> Self {
 		let func_instance = function.resolve(store);
 		let module = match *func_instance {
 			FuncInstance::Defined { module, .. } => module,

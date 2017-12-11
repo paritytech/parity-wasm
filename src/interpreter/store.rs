@@ -27,9 +27,6 @@ impl TypeId {
 #[derive(Copy, Clone, Debug)]
 pub struct ModuleId(u32);
 
-// TODO: Work on naming: resolve gets instances or ids?
-// global_by_index vs resolve_global?
-
 impl ModuleId {
 	pub fn memory_by_index(&self, store: &Store, idx: u32) -> Option<MemoryId> {
 		store.resolve_module(*self)
@@ -67,9 +64,11 @@ impl ModuleId {
 			.cloned()
 	}
 
-	pub fn resolve_export(&self, store: &Store, name: &str) -> Option<ExternVal> {
-		let instance = store.resolve_module(*self);
-		instance.exports.get(name).cloned()
+	pub fn export_by_name(&self, store: &Store, name: &str) -> Option<ExternVal> {
+		store.resolve_module(*self)
+			.exports
+			.get(name)
+			.cloned()
 	}
 }
 

@@ -32,7 +32,7 @@ impl ProgramInstance {
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
 			let module = self.modules[import_entry.module()];
 			let extern_val = module
-				.resolve_export(&self.store, import_entry.field())
+				.export_by_name(&self.store, import_entry.field())
 				.ok_or_else(|| {
 					Error::Program(format!(
 						"Module {} doesn't have export {}",
@@ -70,7 +70,7 @@ impl ProgramInstance {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
 		let extern_val = module_id
-			.resolve_export(&self.store, func_name)
+			.export_by_name(&self.store, func_name)
 			.ok_or_else(|| {
 				Error::Program(format!(
 					"Module {} doesn't have export {}",

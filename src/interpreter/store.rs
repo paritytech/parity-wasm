@@ -1,6 +1,7 @@
 // TODO: remove this
 #![allow(unused)]
 
+use std::sync::Arc;
 use elements::{FuncBody, FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Module,
                Opcode, TableType, Type};
 use interpreter::{Error, RuntimeValue, MemoryInstance, TableInstance, ExecutionParams, CallerContext, FunctionSignature};
@@ -12,10 +13,17 @@ use common::stack::StackWithLimit;
 #[derive(Copy, Clone, Debug)]
 pub struct TypeId(u32);
 
+impl TypeId {
+	pub fn resolve<'s>(&self, store: &'s Store) -> &'s FunctionType {
+		store.resolve_type(*self)
+	}
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct ModuleId(u32);
 
 // TODO: Work on naming: resolve gets instances or ids?
+// global_by_index vs resolve_global?
 
 impl ModuleId {
 	pub fn resolve_memory(&self, store: &Store, idx: u32) -> MemoryId {
@@ -24,6 +32,39 @@ impl ModuleId {
 			.memories
 			.get(idx as usize)
 			.expect("Due to validation memory should exists")
+	}
+
+	pub fn resolve_table(&self, store: &Store, idx: u32) -> TableId {
+		let instance = store.resolve_module(*self);
+		*instance
+			.tables
+			.get(idx as usize)
+			.expect("Due to validation table should exists")
+	}
+
+
+	pub fn resolve_global(&self, store: &Store, idx: u32) -> GlobalId {
+		let instance = store.resolve_module(*self);
+		*instance
+			.globals
+			.get(idx as usize)
+			.expect("Due to validation global should exists")
+	}
+
+	pub fn resolve_func(&self, store: &Store, idx: u32) -> FuncId {
+		let instance = store.resolve_module(*self);
+		*instance
+			.funcs
+			.get(idx as usize)
+			.expect("Due to validation func should exists")
+	}
+
+	pub fn resolve_type(&self, store: &Store, idx: u32) -> TypeId {
+		let instance = store.resolve_module(*self);
+		*instance
+			.types
+			.get(idx as usize)
+			.expect("Due to validation type should exists")
 	}
 }
 
@@ -34,15 +75,19 @@ pub struct HostFuncId(u32);
 pub struct FuncId(u32);
 
 impl FuncId {
-	// TODO: Split?
-	pub fn resolve_type<'s>(&self, store: &'s Store) -> &'s FunctionType {
-		let func = store.funcs.get(self.0 as usize).expect("ID should be always valid");
-		store.resolve_type(func.func_type())
+	pub fn resolve<'s>(&self, store: &'s Store) -> &'s FuncInstance {
+		store.funcs.get(self.0 as usize).expect("ID should be always valid")
 	}
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct TableId(u32);
+
+impl TableId {
+	pub fn resolve<'s>(&self, store: &'s Store) -> &'s TableInstance {
+		store.tables.get(self.0 as usize).expect("ID should be always valid")
+	}
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct MemoryId(u32);
@@ -67,7 +112,7 @@ pub enum FuncInstance {
 	Defined {
 		func_type: TypeId,
 		module: ModuleId,
-		body: FuncBody,
+		body: Arc<FuncBody>,
 	},
 	Host {
 		func_type: TypeId,
@@ -76,11 +121,18 @@ pub enum FuncInstance {
 }
 
 impl FuncInstance {
-	fn func_type(&self) -> TypeId {
+	pub fn func_type(&self) -> TypeId {
 		match *self {
 			FuncInstance::Defined { func_type, .. } | FuncInstance::Host { func_type, .. } => {
 				func_type
 			}
+		}
+	}
+
+	pub fn body(&self) -> Option<Arc<FuncBody>> {
+		match *self {
+			FuncInstance::Defined { ref body, .. } => Some(Arc::clone(body)),
+			FuncInstance::Host { .. } => None,
 		}
 	}
 }
@@ -158,7 +210,7 @@ impl Store {
 		let func = FuncInstance::Defined {
 			func_type,
 			module,
-			body,
+			body: Arc::new(body),
 		};
 		self.funcs.push(func);
 		let func_id = self.funcs.len() - 1;
@@ -344,12 +396,27 @@ impl Store {
 		let ExecutionParams { args, externals } = params;
 		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
 		let outer = CallerContext::topmost(&mut args, &externals);
-		let func_type = func.resolve_type(self);
+		let func_type = func.resolve(self).func_type().resolve(self);
 		let func_signature = FunctionSignature::Module(func_type);
 		let args = prepare_function_args(&func_signature, outer.value_stack)?;
 		let inner = FunctionContext::new(func, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args);
 		let interpreter = Interpreter::new(self);
 		interpreter.run_function(inner)
+	}
+
+	pub fn write_global(&mut self, global: GlobalId, val: RuntimeValue) -> Result<(), Error> {
+		let global_instance = self.globals.get_mut(global.0 as usize).expect("ID should be always valid");
+		if !global_instance.mutable {
+			// TODO: better error message
+			return Err(Error::Validation("Can't write immutable global".into()));
+		}
+		global_instance.val = val;
+		Ok(())
+	}
+
+	pub fn read_global(&self, global: GlobalId) -> RuntimeValue {
+		let global_instance = self.globals.get_mut(global.0 as usize).expect("ID should be always valid");
+		global_instance.val
 	}
 }
 

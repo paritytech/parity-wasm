@@ -8,12 +8,13 @@ use interpreter::native::UserFunctionDescriptor;
 use interpreter::imports::ModuleImports;
 use interpreter::memory::MemoryInstance;
 use interpreter::program::ProgramInstanceEssence;
-use interpreter::runner::{Interpreter, FunctionContext, prepare_function_args};
+use interpreter::runner::{FunctionContext, prepare_function_args};
 use interpreter::table::TableInstance;
 use interpreter::validator::{Validator, FunctionValidationContext};
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::variable::{VariableInstance, VariableType};
 use common::stack::StackWithLimit;
+use interpreter::store::FuncId;
 
 /// Maximum number of entries in value stack.
 const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
@@ -118,21 +119,6 @@ pub struct CallerContext<'a> {
 	pub value_stack: &'a mut StackWithLimit<RuntimeValue>,
 	/// Execution-local external modules.
 	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
-}
-
-/// Internal function reference.
-#[derive(Clone)]
-pub struct InternalFunctionReference<'a> {
-	/// Module reference.
-	pub module: Arc<ModuleInstanceInterface + 'a>,
-	/// Internal function index.
-	pub internal_index: u32,
-}
-
-impl<'a> fmt::Debug for InternalFunctionReference<'a> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "InternalFunctionReference")
-	}
 }
 
 /// Internal function ready for interpretation.
@@ -640,11 +626,13 @@ impl ModuleInstanceInterface for ModuleInstance {
 	}
 
 	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
-		let function_type = self.function_type(ItemIndex::Internal(index))?;
-		let args = prepare_function_args(&function_type, outer.value_stack)?;
-		let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };
-		let inner = FunctionContext::new(function_ref, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
-		Interpreter::run_function(inner)
+		// TODO:
+		panic!()
+		// let function_type = self.function_type(ItemIndex::Internal(index))?;
+		// let args = prepare_function_args(&function_type, outer.value_stack)?;
+		// let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };
+		// let inner = FunctionContext::new(function_ref, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
+		// Interpreter::run_function(inner)
 	}
 }
 

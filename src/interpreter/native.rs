@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 use elements::{Internal, ValueType};
 use interpreter::Error;
 use interpreter::module::{ModuleInstanceInterface, ExecutionParams, ItemIndex,
-	CallerContext, ExportEntryType, InternalFunctionReference, InternalFunction, FunctionSignature};
+	CallerContext, ExportEntryType, InternalFunction, FunctionSignature};
 use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;

@@ -31,12 +31,12 @@ pub struct ModuleId(u32);
 // global_by_index vs resolve_global?
 
 impl ModuleId {
-	pub fn resolve_memory(&self, store: &Store, idx: u32) -> MemoryId {
+	pub fn memory_by_index(&self, store: &Store, idx: u32) -> Option<MemoryId> {
 		let instance = store.resolve_module(*self);
-		*instance
+		instance
 			.memories
 			.get(idx as usize)
-			.expect("Due to validation memory should exists")
+			.cloned()
 	}
 
 	pub fn table_by_index(&self, store: &Store, idx: u32) -> Option<TableId> {

@@ -425,9 +425,17 @@ impl<'store, St: 'static> Interpreter<'store, St> {
 		Ok(InstructionOutcome::ExecuteCall(func))
 	}
 
-	fn run_call_indirect<'a>(&mut self, context: &mut FunctionContext, type_idx: u32) -> Result<InstructionOutcome, Error> {
+	fn run_call_indirect<'a>(
+		&mut self,
+		context: &mut FunctionContext,
+		type_idx: u32,
+	) -> Result<InstructionOutcome, Error> {
 		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
-		let table = context.module().resolve_table(self.store, DEFAULT_TABLE_INDEX).resolve(self.store);
+		let table = context
+			.module()
+			.table_by_index(self.store, DEFAULT_TABLE_INDEX)
+			.expect("Due to validation table should exists")
+			.resolve(self.store);
 		let func_ref = table.get(table_func_idx)?;
 
 		let actual_function_type = func_ref.resolve(self.store).func_type().resolve(self.store);

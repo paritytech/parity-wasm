@@ -39,12 +39,12 @@ impl ModuleId {
 			.expect("Due to validation memory should exists")
 	}
 
-	pub fn resolve_table(&self, store: &Store, idx: u32) -> TableId {
+	pub fn table_by_index(&self, store: &Store, idx: u32) -> Option<TableId> {
 		let instance = store.resolve_module(*self);
-		*instance
+		instance
 			.tables
 			.get(idx as usize)
-			.expect("Due to validation table should exists")
+			.cloned()
 	}
 
 

@@ -52,8 +52,10 @@ impl<'a, St: 'static> HostModuleBuilder<'a, St> {
 		Ok(())
 	}
 
-	pub fn with_table(&mut self, name: &str, table_type: &TableType) {
-		let table_id = self.store.alloc_table(table_type);
+	pub fn with_table(&mut self, name: &str, table_type: &TableType) -> Result<(), Error> {
+		let table_id = self.store.alloc_table(table_type)?;
+		self.exports.insert(name.to_owned(), ExternVal::Table(table_id));
+		Ok(())
 	}
 }
 
@@ -74,7 +76,7 @@ impl FromArg for i32 {
 	fn from_arg(arg: &RuntimeValue) -> Self {
 		match arg {
 			&RuntimeValue::I32(v) => v,
-			unexpected => panic!("Unexpected runtime value {:?}", unexpected)
+			unexpected => panic!("Expected I32, got {:?}", unexpected),
 		}
 	}
 

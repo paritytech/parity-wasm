@@ -2,7 +2,6 @@
 use std::collections::HashMap;
 use elements::Module;
 use interpreter::Error;
-use interpreter::module::{ExecutionParams};
 use interpreter::store::{Store, ModuleId};
 use interpreter::host::HostModuleBuilder;
 

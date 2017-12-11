@@ -1,6 +1,5 @@
 use std::mem;
 use std::ops;
-use std::sync::Arc;
 use std::{u32, usize};
 use std::fmt::{self, Display};
 use std::iter::repeat;
@@ -8,7 +7,6 @@ use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local, FunctionType};
 use interpreter::Error;
 use interpreter::store::{Store, FuncId, ModuleId, FuncInstance};
-use interpreter::module::{CallerContext, ExecutionParams};
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,

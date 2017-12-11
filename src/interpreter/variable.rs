@@ -1,6 +1,6 @@
 use std::fmt;
 use parking_lot::RwLock;
-use elements::{GlobalType, ValueType, TableElementType};
+use elements::{GlobalType, ValueType};
 use interpreter::Error;
 use interpreter::value::RuntimeValue;
 

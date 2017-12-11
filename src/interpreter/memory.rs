@@ -1,5 +1,4 @@
 use std::u32;
-use std::sync::Arc;
 use std::ops::Range;
 use std::cmp;
 use parking_lot::RwLock;

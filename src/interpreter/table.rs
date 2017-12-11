@@ -3,8 +3,7 @@ use parking_lot::RwLock;
 use elements::{TableType, ResizableLimits};
 use interpreter::Error;
 use interpreter::module::check_limits;
-use interpreter::variable::{VariableInstance, VariableType};
-use interpreter::value::RuntimeValue;
+use interpreter::variable::VariableType;
 use interpreter::store::FuncId;
 
 /// Table instance.
@@ -14,11 +13,6 @@ pub struct TableInstance {
 	/// Table memory buffer.
 	buffer: RwLock<Vec<Option<FuncId>>>,
 
-}
-
-/// Table element. Cloneable wrapper around VariableInstance.
-struct TableElement {
-	pub var: VariableInstance,
 }
 
 impl TableInstance {

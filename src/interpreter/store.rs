@@ -181,7 +181,7 @@ pub struct ExportInstance {
 }
 
 #[derive(Default)]
-struct ModuleInstance {
+pub struct ModuleInstance {
 	types: Vec<TypeId>,
 	funcs: Vec<FuncId>,
 	tables: Vec<TableId>,
@@ -193,6 +193,12 @@ struct ModuleInstance {
 impl ModuleInstance {
 	fn new() -> ModuleInstance {
 		ModuleInstance::default()
+	}
+
+	pub fn with_exports(exports: HashMap<String, ExternVal>) -> ModuleInstance {
+		ModuleInstance {
+			exports, ..Default::default()
+		}
 	}
 }
 
@@ -472,6 +478,12 @@ impl Store {
 		}
 
 		Ok(module_id)
+	}
+
+	pub fn add_module_instance(&mut self, instance: ModuleInstance) -> ModuleId {
+		self.modules.push(instance);
+		let module_id = self.modules.len() - 1;
+		ModuleId(module_id as u32)
 	}
 
 	pub fn invoke<St: 'static>(

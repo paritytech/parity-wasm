@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use elements::Module;
 use interpreter::Error;
 use interpreter::store::{Store, ModuleId};
-use interpreter::host::HostModuleBuilder;
+use interpreter::host::HostModule;
 
 /// Program instance. Program is a set of instantiated modules.
 pub struct ProgramInstance {
@@ -37,13 +37,15 @@ impl ProgramInstance {
 		}
 
 		let module_id = self.store.instantiate_module(&module, &extern_vals, state)?;
-		self.modules.insert(name.to_string(), module_id);
+		self.modules.insert(name.to_owned(), module_id);
 
 		Ok(module_id)
 	}
 
-	pub fn with_host_module<St: 'static>(&mut self, name: &str) -> HostModuleBuilder<St> {
-		HostModuleBuilder::new(&mut self.store)
+	pub fn add_host_module(&mut self, name: &str, host_module: HostModule) -> Result<ModuleId, Error> {
+		let module_id = host_module.allocate(&mut self.store)?;
+		self.modules.insert(name.to_owned(), module_id);
+		Ok(module_id)
 	}
 
 	/// Get one of the modules by name

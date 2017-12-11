@@ -3,28 +3,47 @@ use std::sync::Arc;
 use std::marker::PhantomData;
 use std::collections::HashMap;
 use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
-use interpreter::store::{Store, ExternVal};
+use interpreter::store::{Store, ExternVal, ModuleId, ModuleInstance};
 use interpreter::value::RuntimeValue;
 use interpreter::Error;
 
-pub struct HostModuleBuilder<'a, St> {
-	store: &'a mut Store,
-	exports: HashMap<String, ExternVal>,
+enum HostItem {
+	Func {
+		name: String,
+		func_type: FunctionType,
+		host_func: Arc<AnyFunc>,
+	},
+	Global {
+		name: String,
+		global_type: GlobalType,
+		init_val: RuntimeValue,
+	},
+	Memory {
+		name: String,
+		memory_type: MemoryType,
+	},
+	Table {
+		name: String,
+		table_type: TableType,
+	}
+}
+
+pub struct HostModuleBuilder<St> {
+	items: Vec<HostItem>,
 	_marker: PhantomData<St>,
 }
 
-impl<'a, St: 'static> HostModuleBuilder<'a, St> {
-	pub fn new(store: &'a mut Store) -> Self {
+impl<St: 'static> HostModuleBuilder<St> {
+	pub fn new() -> Self {
 		HostModuleBuilder {
-			store: store,
-			exports: HashMap::new(),
+			items: Vec::new(),
 			_marker: PhantomData,
 		}
 	}
 
 	pub fn with_func1<
 		Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error> + 'static,
-		Ret: AsReturn + 'static,
+		Ret: AsReturnVal + 'static,
 		P1: FromArg + 'static,
 		F: Into<Func1<Cl, St, Ret, P1>>,
 	>(
@@ -33,29 +52,78 @@ impl<'a, St: 'static> HostModuleBuilder<'a, St> {
 		f: F,
 	) {
 		let func_type = Func1::<Cl, St, Ret, P1>::derive_func_type();
-		let type_id = self.store.alloc_func_type(func_type);
+		let host_func = Arc::new(f.into()) as Arc<AnyFunc>;
 
-		let anyfunc = Arc::new(f.into()) as Arc<AnyFunc>;
-
-		let func_id = self.store.alloc_host_func(type_id, anyfunc);
-		self.exports.insert(name.to_owned(), ExternVal::Func(func_id));
+		self.items.push(HostItem::Func {
+			name: name.to_owned(),
+			func_type,
+			host_func,
+		});
 	}
 
-	pub fn with_global(&mut self, name: &str, global_type: GlobalType, val: RuntimeValue) {
-		let global_id = self.store.alloc_global(global_type, val);
-		self.exports.insert(name.to_owned(), ExternVal::Global(global_id));
+	pub fn with_global(&mut self, name: &str, global_type: GlobalType, init_val: RuntimeValue) {
+		self.items.push(HostItem::Global {
+			name: name.to_owned(),
+			global_type,
+			init_val,
+		});
 	}
 
-	pub fn with_memory(&mut self, name: &str, memory_type: &MemoryType) -> Result<(), Error> {
-		let memory_id = self.store.alloc_memory(memory_type)?;
-		self.exports.insert(name.to_owned(), ExternVal::Memory(memory_id));
-		Ok(())
+	pub fn with_memory(&mut self, name: &str, memory_type: MemoryType) {
+		self.items.push(HostItem::Memory {
+			name: name.to_owned(),
+			memory_type,
+		});
 	}
 
-	pub fn with_table(&mut self, name: &str, table_type: &TableType) -> Result<(), Error> {
-		let table_id = self.store.alloc_table(table_type)?;
-		self.exports.insert(name.to_owned(), ExternVal::Table(table_id));
-		Ok(())
+	pub fn with_table(&mut self, name: &str, table_type: TableType) {
+		self.items.push(HostItem::Table {
+			name: name.to_owned(),
+			table_type,
+		});
+	}
+
+	pub fn build(self) -> HostModule {
+		HostModule {
+			items: self.items
+		}
+	}
+}
+
+pub struct HostModule {
+	items: Vec<HostItem>,
+}
+
+impl HostModule {
+	pub(crate) fn allocate(self, store: &mut Store) -> Result<ModuleId, Error> {
+		let mut exports = HashMap::new();
+
+		for item in self.items {
+			match item {
+				HostItem::Func { name, func_type, host_func } => {
+					let type_id = store.alloc_func_type(func_type);
+					let func_id = store.alloc_host_func(type_id, host_func);
+					exports.insert(name, ExternVal::Func(func_id));
+				},
+				HostItem::Global { name, global_type, init_val } => {
+					let global_id = store.alloc_global(global_type, init_val);
+					exports.insert(name, ExternVal::Global(global_id));
+				},
+				HostItem::Memory { name, memory_type } => {
+					let memory_id = store.alloc_memory(&memory_type)?;
+					exports.insert(name, ExternVal::Memory(memory_id));
+				},
+				HostItem::Table { name, table_type } => {
+					let table_id = store.alloc_table(&table_type)?;
+					exports.insert(name, ExternVal::Table(table_id));
+				}
+			}
+		}
+
+		let host_module_instance = ModuleInstance::with_exports(exports);
+		let module_id = store.add_module_instance(host_module_instance);
+
+		Ok(module_id)
 	}
 }
 
@@ -85,12 +153,12 @@ impl FromArg for i32 {
 	}
 }
 
-pub trait AsReturn {
+pub trait AsReturnVal {
 	fn as_return_val(self) -> Option<RuntimeValue>;
 	fn value_type() -> Option<ValueType>;
 }
 
-impl AsReturn for i32 {
+impl AsReturnVal for i32 {
 	fn as_return_val(self) -> Option<RuntimeValue> {
 		Some(self.into())
 	}
@@ -100,7 +168,7 @@ impl AsReturn for i32 {
 	}
 }
 
-impl AsReturn for () {
+impl AsReturnVal for () {
 	fn as_return_val(self) -> Option<RuntimeValue> {
 		None
 	}
@@ -110,14 +178,14 @@ impl AsReturn for () {
 	}
 }
 
-pub struct Func1<Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>, St, Ret: AsReturn, P1: FromArg> {
+pub struct Func1<Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg> {
 	closure: Cl,
 	_marker: PhantomData<(St, Ret, P1)>,
 }
 
 impl<
 	St: 'static,
-	Ret: AsReturn,
+	Ret: AsReturnVal,
 	P1: FromArg,
 	Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>,
 > AnyFunc for Func1<Cl, St, Ret, P1> {
@@ -133,7 +201,7 @@ impl<
 	}
 }
 
-impl<St: 'static, Ret: AsReturn, P1: FromArg, Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>> From<Cl>
+impl<St: 'static, Ret: AsReturnVal, P1: FromArg, Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>> From<Cl>
 	for Func1<Cl, St, Ret, P1> {
 	fn from(cl: Cl) -> Self {
 		Func1 {
@@ -145,7 +213,7 @@ impl<St: 'static, Ret: AsReturn, P1: FromArg, Cl: Fn(&mut St, P1) -> Result<Opti
 
 impl<
 	St: 'static,
-	Ret: AsReturn,
+	Ret: AsReturnVal,
 	P1: FromArg,
 	Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>,
 > Func1<Cl, St, Ret, P1> {

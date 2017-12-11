@@ -18,8 +18,9 @@ use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX, BlockFrame, BlockFrameTy
 use common::stack::StackWithLimit;
 
 /// Function interpreter.
-pub struct Interpreter<'store> {
+pub struct Interpreter<'store, St: 'static> {
 	store: &'store mut Store,
+	state: &'store mut St,
 }
 
 /// Function execution context.
@@ -64,10 +65,11 @@ enum RunResult {
 	NestedCall(FunctionContext),
 }
 
-impl<'store> Interpreter<'store> {
-	pub fn new(store: &mut Store) -> Interpreter {
+impl<'store, St: 'static> Interpreter<'store, St> {
+	pub fn new(store: &'store mut Store, state: &'store mut St) -> Interpreter<'store, St> {
 		Interpreter {
-			store
+			store,
+			state
 		}
 	}
 
@@ -95,7 +97,7 @@ impl<'store> Interpreter<'store> {
 					},
 					FuncInstance::Host { host_func, .. } => {
 						let args: Vec<_> = function_context.locals.drain(..).collect();
-						let result = self.store.invoke_host(host_func, args)?;
+						let result = self.store.invoke_host(self.state, host_func, args)?;
 						RunResult::Return(result)
 					},
 				}

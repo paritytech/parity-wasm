@@ -22,11 +22,11 @@ impl ProgramInstance {
 	}
 
 	/// Instantiate module with validation.
-	pub fn add_module<'a>(
+	pub fn add_module<'a, St: 'static>(
 		&mut self,
 		name: &str,
 		module: Module,
-		start_exec_params: ExecutionParams,
+		start_exec_params: ExecutionParams<St>,
 	) -> Result<ModuleId, Error> {
 		let mut extern_vals = Vec::new();
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {

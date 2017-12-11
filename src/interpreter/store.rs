@@ -2,6 +2,7 @@
 #![allow(unused)]
 
 use std::sync::Arc;
+use std::any::Any;
 use std::collections::HashMap;
 use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Module,
                Opcode, Opcodes, Local, TableType, Type, Internal};
@@ -371,11 +372,11 @@ impl Store {
 		Ok(())
 	}
 
-	pub fn instantiate_module(
+	pub fn instantiate_module<St: 'static>(
 		&mut self,
 		module: &Module,
 		extern_vals: &[ExternVal],
-		start_exec_params: ExecutionParams,
+		start_exec_params: ExecutionParams<St>,
 	) -> Result<ModuleId, Error> {
 		let mut instance = ModuleInstance::new();
 		// Reserve the index of the module, but not yet push the module.
@@ -447,8 +448,8 @@ impl Store {
 		Ok(module_id)
 	}
 
-	fn invoke(&mut self, func: FuncId, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		let ExecutionParams { args } = params;
+	fn invoke<St>(&mut self, func: FuncId, params: ExecutionParams<St>) -> Result<Option<RuntimeValue>, Error> {
+		let ExecutionParams { args, mut state } = params;
 		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
 		let outer = CallerContext::topmost(&mut args);
 		let inner = {
@@ -457,11 +458,13 @@ impl Store {
 			let args = prepare_function_args(&func_signature, outer.value_stack)?;
 			FunctionContext::new(self, func, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args)
 		};
-		let mut interpreter = Interpreter::new(self);
+		let mut interpreter = Interpreter::new(self, &mut state);
 		interpreter.run_function(inner)
 	}
 
-	pub fn invoke_host(&mut self, host_func: HostFuncId, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+	pub fn invoke_host<St: 'static>(&mut self, state: &mut St, host_func: HostFuncId, args: Vec<RuntimeValue>) -> Result<Option<RuntimeValue>, Error> {
+		let host_func_instance = self.host_funcs.get(host_func.0 as usize).expect("ID should be always valid");
+		host_func_instance.call_as_any(state as &mut Any, &args);
 		panic!()
 	}
 

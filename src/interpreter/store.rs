@@ -4,13 +4,15 @@
 use std::sync::Arc;
 use std::any::Any;
 use std::collections::HashMap;
-use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, MemoryType, Module,
-               Opcode, Opcodes, Local, TableType, Type, Internal};
-use interpreter::{Error, RuntimeValue, MemoryInstance, TableInstance, ExecutionParams, CallerContext, FunctionSignature};
-use interpreter::runner::{FunctionContext, prepare_function_args, Interpreter};
+use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, Internal, Local, MemoryType,
+               Module, Opcode, Opcodes, TableType, Type};
+use interpreter::{CallerContext, Error, ExecutionParams, FunctionSignature, MemoryInstance,
+                  RuntimeValue, TableInstance};
+use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::AnyFunc;
 use validation::validate_module;
-use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX, DEFAULT_FRAME_STACK_LIMIT, DEFAULT_VALUE_STACK_LIMIT};
+use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX,
+             DEFAULT_VALUE_STACK_LIMIT};
 use common::stack::StackWithLimit;
 
 #[derive(Copy, Clone, Debug)]
@@ -72,10 +74,7 @@ impl ModuleId {
 
 	pub fn resolve_export(&self, store: &Store, name: &str) -> Option<ExternVal> {
 		let instance = store.resolve_module(*self);
-		instance
-			.exports
-			.get(name)
-			.cloned()
+		instance.exports.get(name).cloned()
 	}
 }
 
@@ -87,7 +86,10 @@ pub struct FuncId(u32);
 
 impl FuncId {
 	pub fn resolve<'s>(&self, store: &'s Store) -> &'s FuncInstance {
-		store.funcs.get(self.0 as usize).expect("ID should be always valid")
+		store
+			.funcs
+			.get(self.0 as usize)
+			.expect("ID should be always valid")
 	}
 }
 
@@ -96,7 +98,10 @@ pub struct TableId(u32);
 
 impl TableId {
 	pub fn resolve<'s>(&self, store: &'s Store) -> &'s TableInstance {
-		store.tables.get(self.0 as usize).expect("ID should be always valid")
+		store
+			.tables
+			.get(self.0 as usize)
+			.expect("ID should be always valid")
 	}
 }
 
@@ -105,7 +110,10 @@ pub struct MemoryId(u32);
 
 impl MemoryId {
 	pub fn resolve<'s>(&self, store: &'s Store) -> &'s MemoryInstance {
-		store.memories.get(self.0 as usize).expect("ID should be always valid")
+		store
+			.memories
+			.get(self.0 as usize)
+			.expect("ID should be always valid")
 	}
 }
 
@@ -348,23 +356,39 @@ impl Store {
 			instance.globals.push(global_id);
 		}
 
-		for export in module.export_section().map(|es| es.entries()).unwrap_or(&[]) {
+		for export in module
+			.export_section()
+			.map(|es| es.entries())
+			.unwrap_or(&[])
+		{
 			let field = export.field();
 			let extern_val: ExternVal = match *export.internal() {
 				Internal::Function(idx) => {
-					let func_id = instance.funcs.get(idx as usize).expect("Due to validation func should exists");
+					let func_id = instance
+						.funcs
+						.get(idx as usize)
+						.expect("Due to validation func should exists");
 					ExternVal::Func(*func_id)
-				},
+				}
 				Internal::Global(idx) => {
-					let global_id = instance.globals.get(idx as usize).expect("Due to validation global should exists");
+					let global_id = instance
+						.globals
+						.get(idx as usize)
+						.expect("Due to validation global should exists");
 					ExternVal::Global(*global_id)
 				}
 				Internal::Memory(idx) => {
-					let memory_id = instance.memories.get(idx as usize).expect("Due to validation memory should exists");
+					let memory_id = instance
+						.memories
+						.get(idx as usize)
+						.expect("Due to validation memory should exists");
 					ExternVal::Memory(*memory_id)
 				}
 				Internal::Table(idx) => {
-					let table_id = instance.tables.get(idx as usize).expect("Due to validation table should exists");
+					let table_id = instance
+						.tables
+						.get(idx as usize)
+						.expect("Due to validation table should exists");
 					ExternVal::Table(*table_id)
 				}
 			};
@@ -450,7 +474,12 @@ impl Store {
 		Ok(module_id)
 	}
 
-	pub fn invoke<St: 'static>(&mut self, func: FuncId, args: Vec<RuntimeValue>, state: &mut St) -> Result<Option<RuntimeValue>, Error> {
+	pub fn invoke<St: 'static>(
+		&mut self,
+		func: FuncId,
+		args: Vec<RuntimeValue>,
+		state: &mut St,
+	) -> Result<Option<RuntimeValue>, Error> {
 		enum InvokeKind {
 			Internal(FunctionContext),
 			Host(Arc<AnyFunc>),
@@ -462,9 +491,16 @@ impl Store {
 				let outer = CallerContext::topmost(&mut args);
 				let func_signature = FunctionSignature::Module(func_type.resolve(self));
 				let args = prepare_function_args(&func_signature, outer.value_stack)?;
-				let context = FunctionContext::new(self, func, outer.value_stack_limit, outer.frame_stack_limit, &func_signature, args);
+				let context = FunctionContext::new(
+					self,
+					func,
+					outer.value_stack_limit,
+					outer.frame_stack_limit,
+					&func_signature,
+					args,
+				);
 				InvokeKind::Internal(context)
-			},
+			}
 			FuncInstance::Host { ref host_func, .. } => InvokeKind::Host(Arc::clone(host_func)),
 		};
 
@@ -472,16 +508,18 @@ impl Store {
 			InvokeKind::Internal(ctx) => {
 				let mut interpreter = Interpreter::new(self, state);
 				interpreter.run_function(ctx)
-			},
+			}
 			InvokeKind::Host(host_func) => {
 				// host_func.call_as_any();
 				panic!()
-			},
+			}
 		}
 	}
 
 	pub fn write_global(&mut self, global: GlobalId, val: RuntimeValue) -> Result<(), Error> {
-		let global_instance = self.globals.get_mut(global.0 as usize).expect("ID should be always valid");
+		let global_instance = self.globals
+			.get_mut(global.0 as usize)
+			.expect("ID should be always valid");
 		if !global_instance.mutable {
 			// TODO: better error message
 			return Err(Error::Validation("Can't write immutable global".into()));
@@ -491,7 +529,9 @@ impl Store {
 	}
 
 	pub fn read_global(&self, global: GlobalId) -> RuntimeValue {
-		let global_instance = self.globals.get(global.0 as usize).expect("ID should be always valid");
+		let global_instance = self.globals
+			.get(global.0 as usize)
+			.expect("ID should be always valid");
 		global_instance.val.clone()
 	}
 }

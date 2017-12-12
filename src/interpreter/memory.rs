@@ -1,6 +1,7 @@
 use std::u32;
 use std::ops::Range;
 use std::cmp;
+use std::fmt;
 use parking_lot::RwLock;
 use elements::{MemoryType, ResizableLimits};
 use interpreter::Error;
@@ -19,6 +20,16 @@ pub struct MemoryInstance {
 	buffer: RwLock<Vec<u8>>,
 	/// Maximum buffer size.
 	maximum_size: u32,
+}
+
+impl fmt::Debug for MemoryInstance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MemoryInstance")
+			.field("limits", &self.limits)
+			.field("buffer.len", &self.buffer.read().len())
+			.field("maximum_size", &self.maximum_size)
+			.finish()
+    }
 }
 
 struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {

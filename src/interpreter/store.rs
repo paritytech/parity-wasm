@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 use std::any::Any;
+use std::fmt;
 use std::collections::HashMap;
 use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, Internal, External, Local, MemoryType,
                Module, Opcode, Opcodes, TableType, Type, ResizableLimits};
@@ -166,6 +167,19 @@ pub enum FuncInstance {
 	},
 }
 
+impl fmt::Debug for FuncInstance {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			FuncInstance::Internal { func_type, module, .. } => {
+				write!(f, "Internal {{ type={:?}, module={:?} }}", func_type, module)
+			},
+			FuncInstance::Host { func_type, .. } => {
+				write!(f, "Host {{ type={:?} }}", func_type)
+			}
+		}
+	}
+}
+
 impl FuncInstance {
 	pub fn func_type(&self) -> TypeId {
 		match *self {
@@ -190,6 +204,7 @@ pub struct FuncBody {
 	pub labels: HashMap<usize, usize>,
 }
 
+#[derive(Debug)]
 pub struct GlobalInstance {
 	val: RuntimeValue,
 	mutable: bool,
@@ -206,7 +221,7 @@ pub struct ExportInstance {
 	val: ExternVal,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ModuleInstance {
 	types: Vec<TypeId>,
 	funcs: Vec<FuncId>,
@@ -228,7 +243,7 @@ impl ModuleInstance {
 	}
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Store {
 	// TODO: u32 capped vectors.
 	funcs: Vec<FuncInstance>,

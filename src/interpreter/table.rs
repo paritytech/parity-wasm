@@ -1,4 +1,5 @@
 use std::u32;
+use std::fmt;
 use parking_lot::RwLock;
 use elements::{TableType, ResizableLimits};
 use interpreter::Error;
@@ -13,6 +14,15 @@ pub struct TableInstance {
 	/// Table memory buffer.
 	buffer: RwLock<Vec<Option<FuncId>>>,
 
+}
+
+impl fmt::Debug for TableInstance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("TableInstance")
+			.field("limits", &self.limits)
+			.field("buffer.len", &self.buffer.read().len())
+			.finish()
+    }
 }
 
 impl TableInstance {

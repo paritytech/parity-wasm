@@ -1,6 +1,6 @@
 mod basics;
 mod wabt;
-// mod wasm;
+mod wasm;
 
 mod utils {
 	use elements::{Internal, ExportEntry, InitExpr, Opcode, ValueType, GlobalType, GlobalEntry};

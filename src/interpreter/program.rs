@@ -113,4 +113,8 @@ impl ProgramInstance {
 	pub fn store(&self) -> &Store {
 		&self.store
 	}
+
+	pub fn module(&self, name: &str) -> Option<ModuleId> {
+		self.modules.get(name).cloned()
+	}
 }

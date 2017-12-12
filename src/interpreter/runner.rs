@@ -1107,10 +1107,6 @@ impl FunctionContext {
 		&self.frame_stack
 	}
 
-	pub fn frame_stack_mut(&mut self) -> &mut StackWithLimit<BlockFrame> {
-		&mut self.frame_stack
-	}
-
 	pub fn push_frame(&mut self, labels: &HashMap<usize, usize>, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), Error> {
 		let begin_position = self.position;
 		let branch_position = match frame_type {

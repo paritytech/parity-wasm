@@ -1,15 +1,10 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
-use std::sync::Arc;
-use std::cell::RefCell;
-use std::collections::HashMap;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
-	InitExpr, ValueType, Opcodes, Opcode, FunctionType, TableType, MemoryType};
+	InitExpr, ValueType, Opcodes, Opcode, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance};
-use interpreter::memory::MemoryInstance;
-use interpreter::value::{RuntimeValue, TryInto};
-use interpreter::variable::{VariableInstance, ExternalVariableValue, VariableType};
+use interpreter::value::RuntimeValue;
 use interpreter::host::{HostModuleBuilder, HostModule};
 use interpreter::store::{Store, MemoryId};
 use super::utils::program_with_default_env;
@@ -241,7 +236,7 @@ fn native_env_global() {
 
 	// try to add module, exporting non-existant env' variable => error
 	{
-		let mut host_module_builder = HostModuleBuilder::<State>::new();
+		let host_module_builder = HostModuleBuilder::<State>::new();
 		assert!(module_constructor(host_module_builder.build()).is_err());
 	}
 
@@ -278,7 +273,7 @@ fn native_custom_error() {
 			.build()
 		.build();
 
-	let module_instance = program.add_module("main", module, &mut state).unwrap();
+	program.add_module("main", module, &mut state).unwrap();
 	let user_error = match program.invoke_index(
 		"main",
 		0,

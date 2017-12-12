@@ -95,7 +95,7 @@ impl From<ModuleScaffold> for elements::Module {
         let import = module.import;
         if import.entries().len() > 0 {
             sections.push(elements::Section::Import(import));
-        }                
+        }
         let functions = module.functions;
         if functions.entries().len() > 0 {
             sections.push(elements::Section::Function(functions));
@@ -159,7 +159,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     }
 
     /// Fill module with sections from iterator
-    pub fn with_sections<I>(mut self, sections: I) -> Self 
+    pub fn with_sections<I>(mut self, sections: I) -> Self
         where I: IntoIterator<Item=elements::Section>
     {
         self.module.other.extend(sections);
@@ -262,7 +262,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
         self.module.import.entries_mut().len() as u32 - 1
     }
 
-    /// Push export entry to module. 
+    /// Push export entry to module.
     pub fn push_export(&mut self, export: elements::ExportEntry) -> u32 {
         self.module.export.entries_mut().push(export);
         self.module.export.entries_mut().len() as u32 - 1
@@ -349,7 +349,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     ///    .build();
     ///
     /// assert_eq!(module.export_section().expect("export section to exist").entries().len(), 1);
-    /// ```    
+    /// ```
     pub fn export(self) -> export::ExportBuilder<Self> {
         export::ExportBuilder::with_callback(self)
     }
@@ -368,7 +368,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     ///    .build();
     ///
     /// assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);
-    /// ```        
+    /// ```
     pub fn global(self) -> global::GlobalBuilder<Self> {
         global::GlobalBuilder::with_callback(self)
     }
@@ -390,18 +390,18 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
     }
 }
 
-impl<F> Invoke<elements::FunctionSection> for ModuleBuilder<F> 
+impl<F> Invoke<elements::FunctionSection> for ModuleBuilder<F>
     where F: Invoke<elements::Module>
 {
 	type Result = Self;
 
 	fn invoke(self, section: elements::FunctionSection) -> Self {
 		self.with_section(elements::Section::Function(section))
-    }    
+    }
 }
 
 impl<F> Invoke<code::SignatureBindings> for ModuleBuilder<F>
-    where F: Invoke<elements::Module> 
+    where F: Invoke<elements::Module>
 {
     type Result = Self;
 
@@ -412,7 +412,7 @@ impl<F> Invoke<code::SignatureBindings> for ModuleBuilder<F>
 
 
 impl<F> Invoke<code::FunctionDefinition> for ModuleBuilder<F>
-    where F: Invoke<elements::Module> 
+    where F: Invoke<elements::Module>
 {
     type Result = Self;
 
@@ -424,7 +424,7 @@ impl<F> Invoke<code::FunctionDefinition> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<memory::MemoryDefinition> for ModuleBuilder<F>
-    where F: Invoke<elements::Module> 
+    where F: Invoke<elements::Module>
 {
     type Result = Self;
 
@@ -436,7 +436,7 @@ impl<F> Invoke<memory::MemoryDefinition> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<table::TableDefinition> for ModuleBuilder<F>
-    where F: Invoke<elements::Module> 
+    where F: Invoke<elements::Module>
 {
     type Result = Self;
 
@@ -448,7 +448,7 @@ impl<F> Invoke<table::TableDefinition> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<elements::ImportEntry> for ModuleBuilder<F>
-    where F: Invoke<elements::Module> 
+    where F: Invoke<elements::Module>
 {
     type Result = Self;
 
@@ -458,7 +458,7 @@ impl<F> Invoke<elements::ImportEntry> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<elements::ExportEntry> for ModuleBuilder<F>
-    where F: Invoke<elements::Module> 
+    where F: Invoke<elements::Module>
 {
     type Result = Self;
 
@@ -468,7 +468,7 @@ impl<F> Invoke<elements::ExportEntry> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<elements::GlobalEntry> for ModuleBuilder<F>
-    where F: Invoke<elements::Module> 
+    where F: Invoke<elements::Module>
 {
     type Result = Self;
 
@@ -477,22 +477,23 @@ impl<F> Invoke<elements::GlobalEntry> for ModuleBuilder<F>
     }
 }
 
-impl<F> Invoke<elements::DataSegment> for ModuleBuilder<F> 
+impl<F> Invoke<elements::DataSegment> for ModuleBuilder<F>
     where F: Invoke<elements::Module>
 {
 	type Result = Self;
 
 	fn invoke(self, segment: elements::DataSegment) -> Self {
 		self.with_data_segment(segment)
-    }    
+    }
 }
 
 /// Start new module builder
+///
 /// # Examples
 ///
 /// ```
 /// use parity_wasm::builder;
-/// 
+///
 /// let module = builder::module()
 ///     .function()
 ///         .signature().param().i32().build()
@@ -553,7 +554,7 @@ mod tests {
             .global().value_type().i64().mutable().init_expr(::elements::Opcode::I64Const(5)).build()
             .build();
 
-        assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);        
+        assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);
     }
 
     #[test]

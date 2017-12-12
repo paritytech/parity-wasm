@@ -1,8 +1,6 @@
 use elements::deserialize_file;
 use elements::Module;
-use interpreter::ExecutionParams;
 use interpreter::value::RuntimeValue;
-use interpreter::module::{ItemIndex};
 use super::utils::program_with_default_env;
 
 #[test]
@@ -23,7 +21,7 @@ fn interpreter_inc_i32() {
 
     let module_result = program.add_module("main", module, &mut ());
 
-    let module = module_result
+    module_result
         .expect("Failed to initialize module");
 
     let retval = program.invoke_export("main", FUNCTION_NAME, args, &mut ()).expect("");
@@ -44,7 +42,7 @@ fn interpreter_accumulate_u8() {
     // Load the module-structure from wasm-file and add to program
     let module: Module =
         deserialize_file(WASM_FILE).expect("Failed to deserialize module from buffer");
-    let module = program
+    program
         .add_module("main", module, &mut ())
         .expect("Failed to initialize module");
 

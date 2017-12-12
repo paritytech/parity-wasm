@@ -1,4 +1,4 @@
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::sync::Arc;
 use std::marker::PhantomData;
 use std::collections::HashMap;
@@ -369,60 +369,4 @@ impl<
 	fn derive_func_type() -> FunctionType {
 		FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type())
 	}
-}
-
-use interpreter::UserError;
-use interpreter::store::MemoryId;
-
-// custom user error
-#[derive(Debug, Clone, PartialEq)]
-struct UserErrorWithCode {
-	error_code: i32,
-}
-
-impl ::std::fmt::Display for UserErrorWithCode {
-	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-		write!(f, "{}", self.error_code)
-	}
-}
-
-impl UserError for UserErrorWithCode {}
-
-// TODO: Rename to state
-// user function executor
-struct FunctionExecutor {
-	pub memory: MemoryId,
-	pub values: Vec<i32>,
-}
-
-// TODO: Remove this stuff
-fn build_env_module() -> HostModule {
-	let mut builder = HostModuleBuilder::<FunctionExecutor>::new();
-	builder.with_func2("add", |store: &mut Store, state: &mut FunctionExecutor, arg: i32, unused: i32| {
-		let memory_value = state.memory.resolve(store).get(0, 1).unwrap()[0];
-		let fn_argument_unused = unused as u8;
-		let fn_argument = arg as u8;
-		assert_eq!(fn_argument_unused, 0);
-
-		let sum = memory_value + fn_argument;
-		state.memory.resolve(store).set(0, &vec![sum]).unwrap();
-		state.values.push(sum as i32);
-		Ok(Some(sum as i32))
-	});
-	builder.with_func2("sub", |store: &mut Store, state: &mut FunctionExecutor, arg: i32, unused: i32| {
-		let memory_value = state.memory.resolve(store).get(0, 1).unwrap()[0];
-		let fn_argument_unused = unused as u8;
-		let fn_argument = arg as u8;
-		assert_eq!(fn_argument_unused, 0);
-
-		let diff = memory_value - fn_argument;
-		state.memory.resolve(store).set(0, &vec![diff]).unwrap();
-		state.values.push(diff as i32);
-		Ok(Some(diff as i32))
-	});
-	builder.with_func0("err", |store: &mut Store, state: &mut FunctionExecutor| -> Result<Option<i32>, Error> {
-		Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
-	});
-	builder.with_memory("memory", MemoryType::new(256, None));
-	builder.build()
 }

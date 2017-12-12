@@ -24,7 +24,7 @@ fn main() {
     // - a module declaration
     // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
     // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
-    let module = program.add_module("main", module, &mut ()).expect("Failed to initialize module");
+    program.add_module("main", module, &mut ()).expect("Failed to initialize module");
 
     // The argument should be parsable as a valid integer
     let argument: i32 = args[2].parse().expect("Integer argument required");

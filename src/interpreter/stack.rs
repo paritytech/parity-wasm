@@ -11,12 +11,6 @@ impl StackWithLimit<RuntimeValue> {
 		TryInto::try_into(value)
 	}
 
-	pub fn pop_pair(&mut self) -> Result<(RuntimeValue, RuntimeValue), InterpreterError> {
-		let right = self.pop()?;
-		let left = self.pop()?;
-		Ok((left, right))
-	}
-
 	pub fn pop_pair_as<T>(&mut self) -> Result<(T, T), InterpreterError>
 	where
 		RuntimeValue: TryInto<T, InterpreterError>,

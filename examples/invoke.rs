@@ -2,7 +2,7 @@ extern crate parity_wasm;
 
 use std::env::args;
 
-use parity_wasm::{interpreter, RuntimeValue};
+use parity_wasm::RuntimeValue;
 use parity_wasm::elements::{Internal, External, Type, FunctionType, ValueType};
 
 
@@ -76,7 +76,7 @@ fn main() {
     // - a module declaration
     // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
     // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
-    let module = program.add_module("main", module, &mut ()).expect("Failed to initialize module");
+    program.add_module("main", module, &mut ()).expect("Failed to initialize module");
 
     println!("Result: {:?}", program.invoke_export("main", func_name, args, &mut ()).expect(""));
 }

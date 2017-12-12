@@ -41,6 +41,25 @@ impl<St: 'static> HostModuleBuilder<St> {
 		}
 	}
 
+	pub fn with_func0<
+		Cl: Fn(&mut St) -> Result<Option<Ret>, Error> + 'static,
+		Ret: AsReturnVal + 'static,
+		F: Into<Func0<Cl, St, Ret>>,
+	>(
+		&mut self,
+		name: &str,
+		f: F,
+	) {
+		let func_type = Func0::<Cl, St, Ret>::derive_func_type();
+		let host_func = Arc::new(f.into()) as Arc<AnyFunc>;
+
+		self.items.push(HostItem::Func {
+			name: name.to_owned(),
+			func_type,
+			host_func,
+		});
+	}
+
 	pub fn with_func1<
 		Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
@@ -52,6 +71,27 @@ impl<St: 'static> HostModuleBuilder<St> {
 		f: F,
 	) {
 		let func_type = Func1::<Cl, St, Ret, P1>::derive_func_type();
+		let host_func = Arc::new(f.into()) as Arc<AnyFunc>;
+
+		self.items.push(HostItem::Func {
+			name: name.to_owned(),
+			func_type,
+			host_func,
+		});
+	}
+
+	pub fn with_func2<
+		Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error> + 'static,
+		Ret: AsReturnVal + 'static,
+		P1: FromArg + 'static,
+		P2: FromArg + 'static,
+		F: Into<Func2<Cl, St, Ret, P1, P2>>,
+	>(
+		&mut self,
+		name: &str,
+		f: F,
+	) {
+		let func_type = Func2::<Cl, St, Ret, P1, P2>::derive_func_type();
 		let host_func = Arc::new(f.into()) as Arc<AnyFunc>;
 
 		self.items.push(HostItem::Func {
@@ -178,6 +218,47 @@ impl AsReturnVal for () {
 	}
 }
 
+pub struct Func0<Cl: Fn(&mut St) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal> {
+	closure: Cl,
+	_marker: PhantomData<(St, Ret)>,
+}
+
+impl<
+	St: 'static,
+	Ret: AsReturnVal,
+	Cl: Fn(&mut St) -> Result<Option<Ret>, Error>,
+> AnyFunc for Func0<Cl, St, Ret> {
+	fn call_as_any(
+		&self,
+		state: &mut Any,
+		args: &[RuntimeValue],
+	) -> Result<Option<RuntimeValue>, Error> {
+		let state = state.downcast_mut::<St>().unwrap();
+		let result = (self.closure)(state);
+		result.map(|r| r.and_then(|r| r.as_return_val()))
+	}
+}
+
+impl<St: 'static, Ret: AsReturnVal, Cl: Fn(&mut St) -> Result<Option<Ret>, Error>> From<Cl>
+	for Func0<Cl, St, Ret> {
+	fn from(cl: Cl) -> Self {
+		Func0 {
+			closure: cl,
+			_marker: PhantomData,
+		}
+	}
+}
+
+impl<
+	St: 'static,
+	Ret: AsReturnVal,
+	Cl: Fn(&mut St) -> Result<Option<Ret>, Error>,
+> Func0<Cl, St, Ret> {
+	fn derive_func_type() -> FunctionType {
+		FunctionType::new(vec![], Ret::value_type())
+	}
+}
+
 pub struct Func1<Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg> {
 	closure: Cl,
 	_marker: PhantomData<(St, Ret, P1)>,
@@ -219,5 +300,52 @@ impl<
 > Func1<Cl, St, Ret, P1> {
 	fn derive_func_type() -> FunctionType {
 		FunctionType::new(vec![P1::value_type()], Ret::value_type())
+	}
+}
+
+pub struct Func2<Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg, P2: FromArg> {
+	closure: Cl,
+	_marker: PhantomData<(St, Ret, P1, P2)>,
+}
+
+impl<
+	St: 'static,
+	Ret: AsReturnVal,
+	P1: FromArg,
+	P2: FromArg,
+	Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>,
+> AnyFunc for Func2<Cl, St, Ret, P1, P2> {
+	fn call_as_any(
+		&self,
+		state: &mut Any,
+		args: &[RuntimeValue],
+	) -> Result<Option<RuntimeValue>, Error> {
+		let state = state.downcast_mut::<St>().unwrap();
+		let p1 = P1::from_arg(&args[0]);
+		let p2 = P2::from_arg(&args[1]);
+		let result = (self.closure)(state, p1, p2);
+		result.map(|r| r.and_then(|r| r.as_return_val()))
+	}
+}
+
+impl<St: 'static, Ret: AsReturnVal, P1: FromArg, P2: FromArg, Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>> From<Cl>
+	for Func2<Cl, St, Ret, P1, P2> {
+	fn from(cl: Cl) -> Self {
+		Func2 {
+			closure: cl,
+			_marker: PhantomData,
+		}
+	}
+}
+
+impl<
+	St: 'static,
+	Ret: AsReturnVal,
+	P1: FromArg,
+	P2: FromArg,
+	Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>,
+> Func2<Cl, St, Ret, P1, P2> {
+	fn derive_func_type() -> FunctionType {
+		FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type())
 	}
 }

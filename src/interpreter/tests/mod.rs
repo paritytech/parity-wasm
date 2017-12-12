@@ -1,5 +1,5 @@
 mod basics;
-// mod wabt;
+mod wabt;
 // mod wasm;
 
 mod utils {

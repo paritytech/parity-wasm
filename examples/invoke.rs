@@ -2,7 +2,7 @@ extern crate parity_wasm;
 
 use std::env::args;
 
-use parity_wasm::{interpreter, ModuleInstanceInterface, RuntimeValue};
+use parity_wasm::{interpreter, RuntimeValue};
 use parity_wasm::elements::{Internal, External, Type, FunctionType, ValueType};
 
 
@@ -16,12 +16,12 @@ fn main() {
     let (_, program_args) = args.split_at(3);
 
     // Intrepreter initialization.
-    let program = parity_wasm::ProgramInstance::new();
+    let mut program = parity_wasm::ProgramInstance::new();
 
     let module = parity_wasm::deserialize_file(&args[1]).expect("File to be deserialized");
 
     // Extracts call arguments from command-line arguments
-    let execution_params = {
+    let args = {
         // Export section has an entry with a func_name with an index inside a module
         let export_section = module.export_section().expect("No export section found");
         // It's a section with function declarations (which are references to the type section entries)
@@ -63,14 +63,12 @@ fn main() {
         };
 
         // Parses arguments and constructs runtime values in correspondence of their types
-        let args: Vec<RuntimeValue> = function_type.params().iter().enumerate().map(|(i, value)| match value {
+        function_type.params().iter().enumerate().map(|(i, value)| match value {
             &ValueType::I32 => RuntimeValue::I32(program_args[i].parse::<i32>().expect(&format!("Can't parse arg #{} as i32", program_args[i]))),
             &ValueType::I64 => RuntimeValue::I64(program_args[i].parse::<i64>().expect(&format!("Can't parse arg #{} as i64", program_args[i]))),
             &ValueType::F32 => RuntimeValue::F32(program_args[i].parse::<f32>().expect(&format!("Can't parse arg #{} as f32", program_args[i]))),
             &ValueType::F64 => RuntimeValue::F64(program_args[i].parse::<f64>().expect(&format!("Can't parse arg #{} as f64", program_args[i]))),
-        }).collect();
-
-        interpreter::ExecutionParams::from(args)
+        }).collect::<Vec<RuntimeValue>>()
     };
 
     // Intialize deserialized module. It adds module into It expects 3 parameters:
@@ -78,7 +76,7 @@ fn main() {
     // - a module declaration
     // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
     // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
-    let module = program.add_module("main", module, None).expect("Failed to initialize module");
+    let module = program.add_module("main", module, &mut ()).expect("Failed to initialize module");
 
-    println!("Result: {:?}", module.execute_export(func_name, execution_params).expect(""));
+    println!("Result: {:?}", program.invoke_export("main", func_name, args, &mut ()).expect(""));
 }

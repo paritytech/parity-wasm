@@ -59,7 +59,7 @@ enum RunResult {
 	/// Function has returned (optional) value.
 	Return(Option<RuntimeValue>),
 	/// Function is calling other function.
-	NestedCall(FunctionContext),
+	NestedCall(FuncId),
 }
 
 impl<'a, St: 'static> Interpreter<'a, St> {
@@ -107,9 +107,23 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 						None => return Ok(return_value),
 					}
 				},
-				RunResult::NestedCall(nested_context) => {
-					function_stack.push_back(function_context);
-					function_stack.push_back(nested_context);
+				RunResult::NestedCall(nested_func) => {
+					let func = nested_func.resolve(self.store).clone();
+					match func {
+						FuncInstance::Internal { .. } => {
+							let nested_context = function_context.nested(self.store, nested_func)?;
+							function_stack.push_back(function_context);
+							function_stack.push_back(nested_context);
+						},
+						FuncInstance::Host { func_type, .. } => {
+							let args = prepare_function_args(func_type.resolve(self.store), &mut function_context.value_stack)?;
+							let return_val = self.store.invoke(nested_func, args, self.state)?;
+							if let Some(return_val) = return_val {
+								function_context.value_stack_mut().push(return_val)?;
+							}
+							function_stack.push_back(function_context);
+						}
+					}
 				},
 			}
 		}
@@ -136,7 +150,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 				},
 				InstructionOutcome::ExecuteCall(func_ref) => {
 					function_context.position += 1;
-					return Ok(RunResult::NestedCall(function_context.nested(self.store, func_ref)?));
+					return Ok(RunResult::NestedCall(func_ref));
 				},
 				InstructionOutcome::End => {
 					if function_context.frame_stack().is_empty() {

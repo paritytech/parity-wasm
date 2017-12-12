@@ -4,8 +4,8 @@
 use std::sync::Arc;
 use std::any::Any;
 use std::collections::HashMap;
-use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, Internal, Local, MemoryType,
-               Module, Opcode, Opcodes, TableType, Type};
+use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, Internal, External, Local, MemoryType,
+               Module, Opcode, Opcodes, TableType, Type, ResizableLimits};
 use interpreter::{Error, ExecutionParams, MemoryInstance,
                   RuntimeValue, TableInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
@@ -43,7 +43,6 @@ impl ModuleId {
 			.get(idx as usize)
 			.cloned()
 	}
-
 
 	pub fn global_by_index(&self, store: &Store, idx: u32) -> Option<GlobalId> {
 		store.resolve_module(*self)
@@ -124,6 +123,37 @@ pub enum ExternVal {
 	Global(GlobalId),
 }
 
+impl ExternVal {
+	pub fn as_func(&self) -> Option<FuncId> {
+		match *self {
+			ExternVal::Func(func) => Some(func),
+			_ => None,
+		}
+	}
+
+	pub fn as_table(&self) -> Option<TableId> {
+		match *self {
+			ExternVal::Table(table) => Some(table),
+			_ => None,
+		}
+	}
+
+	pub fn as_memory(&self) -> Option<MemoryId> {
+		match *self {
+			ExternVal::Memory(memory) => Some(memory),
+			_ => None,
+		}
+	}
+
+	pub fn as_global(&self) -> Option<GlobalId> {
+		match *self {
+			ExternVal::Global(global) => Some(global),
+			_ => None,
+		}
+	}
+}
+
+#[derive(Clone)]
 pub enum FuncInstance {
 	Internal {
 		func_type: TypeId,
@@ -280,15 +310,6 @@ impl Store {
 	) -> Result<(), Error> {
 		let mut aux_data = validate_module(module)?;
 
-		for extern_val in extern_vals {
-			match *extern_val {
-				ExternVal::Func(func) => instance.funcs.push(func),
-				ExternVal::Table(table) => instance.tables.push(table),
-				ExternVal::Memory(memory) => instance.memories.push(memory),
-				ExternVal::Global(global) => instance.globals.push(global),
-			}
-		}
-
 		for type_ in module
 			.type_section()
 			.map(|ts| ts.types())
@@ -403,9 +424,44 @@ impl Store {
 		let mut instance = ModuleInstance::new();
 		// Reserve the index of the module, but not yet push the module.
 		let module_id = ModuleId((self.modules.len()) as u32);
-		self.alloc_module_internal(module, extern_vals, &mut instance, module_id)?;
 
-		// TODO: assert module is valid with extern_vals.
+		{
+			let imports = module.import_section().map(|is| is.entries()).unwrap_or(&[]);
+			if imports.len() != extern_vals.len() {
+				return Err(Error::Initialization(format!("extern_vals length is not equal to import section entries")));
+			}
+
+			for (import, extern_val) in Iterator::zip(imports.into_iter(), extern_vals.into_iter())
+			{
+				match (import.external(), *extern_val) {
+					(&External::Function(ref f), ExternVal::Func(func)) => {
+						// TODO: check func types
+						instance.funcs.push(func)
+					}
+					(&External::Table(ref tt), ExternVal::Table(table)) => {
+						match_limits(table.resolve(self).limits(), tt.limits())?;
+						instance.tables.push(table);
+					}
+					(&External::Memory(ref mt), ExternVal::Memory(memory)) => {
+						match_limits(memory.resolve(self).limits(), mt.limits())?;
+						instance.memories.push(memory);
+					}
+					(&External::Global(ref gl), ExternVal::Global(global)) => {
+						// TODO: check globals
+						instance.globals.push(global)
+					}
+					(expected_import, actual_extern_val) => {
+						return Err(Error::Initialization(format!(
+							"Expected {:?} type, but provided {:?} extern_val",
+							expected_import,
+							actual_extern_val
+						)));
+					}
+				}
+			}
+		}
+
+		self.alloc_module_internal(module, extern_vals, &mut instance, module_id)?;
 
 		for element_segment in module
 			.elements_section()
@@ -484,7 +540,7 @@ impl Store {
 	) -> Result<Option<RuntimeValue>, Error> {
 		enum InvokeKind {
 			Internal(FunctionContext),
-			Host(Arc<AnyFunc>),
+			Host(Arc<AnyFunc>, Vec<RuntimeValue>),
 		}
 
 		let result = match *func.resolve(self) {
@@ -502,7 +558,7 @@ impl Store {
 				);
 				InvokeKind::Internal(context)
 			}
-			FuncInstance::Host { ref host_func, .. } => InvokeKind::Host(Arc::clone(host_func)),
+			FuncInstance::Host { ref host_func, .. } => InvokeKind::Host(Arc::clone(host_func), args),
 		};
 
 		match result {
@@ -510,9 +566,8 @@ impl Store {
 				let mut interpreter = Interpreter::new(self, state);
 				interpreter.run_function(ctx)
 			}
-			InvokeKind::Host(host_func) => {
-				// host_func.call_as_any();
-				panic!()
+			InvokeKind::Host(host_func, args) => {
+				host_func.call_as_any(self, state as &mut Any, &args)
 			}
 		}
 	}
@@ -561,4 +616,28 @@ fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance, store: &Store) 
 		}
 		_ => panic!("Due to validation init should be a const expr"),
 	}
+}
+
+fn match_limits(l1: &ResizableLimits, l2: &ResizableLimits) -> Result<(), Error> {
+	if l1.initial() < l2.initial() {
+		return Err(Error::Initialization(format!(
+			"trying to import with limits l1.initial={} and l2.initial={}",
+			l1.initial(),
+			l2.initial()
+		)));
+	}
+
+	match (l1.maximum(), l2.maximum()) {
+		(_, None) => (),
+		(Some(m1), Some(m2)) if m1 <= m2 => (),
+		_ => {
+			return Err(Error::Initialization(format!(
+				"trying to import with limits l1.max={:?} and l2.max={:?}",
+				l1.maximum(),
+				l2.maximum()
+			)))
+		}
+	}
+
+	Ok(())
 }

@@ -109,4 +109,8 @@ impl ProgramInstance {
 
 		self.store.invoke(func_id, args, state)
 	}
+
+	pub fn store(&self) -> &Store {
+		&self.store
+	}
 }

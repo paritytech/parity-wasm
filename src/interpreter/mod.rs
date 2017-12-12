@@ -151,3 +151,6 @@ pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
 pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
 pub use self::host::{HostModule, HostModuleBuilder, Func1, AnyFunc, AsReturnVal, FromArg};
+
+// TODO: All exports
+pub use self::store::ModuleId;

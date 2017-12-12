@@ -310,14 +310,12 @@ impl Store {
 	) -> Result<(), Error> {
 		let mut aux_data = validate_module(module)?;
 
-		for type_ in module
+		for &Type::Function(ref ty) in module
 			.type_section()
 			.map(|ts| ts.types())
 			.unwrap_or(&[])
-			.into_iter()
-			.map(|&Type::Function(ref ty)| ty)
 		{
-			let type_id = self.alloc_func_type(type_.clone());
+			let type_id = self.alloc_func_type(ty.clone());
 			instance.types.push(type_id);
 		}
 

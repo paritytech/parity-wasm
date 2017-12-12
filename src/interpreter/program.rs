@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use elements::Module;
 use interpreter::Error;
-use interpreter::store::{ModuleId, Store, ExternVal};
+use interpreter::store::{ModuleId, FuncId, Store, ExternVal};
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
 
@@ -59,6 +59,10 @@ impl ProgramInstance {
 		Ok(module_id)
 	}
 
+	pub fn insert_loaded_module(&mut self, name: &str, module: ModuleId) {
+		self.modules.insert(name.to_owned(), module);
+	}
+
 	pub fn invoke_export<St: 'static>(
 		&mut self,
 		module_name: &str,
@@ -100,14 +104,22 @@ impl ProgramInstance {
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
-		let module_id = self.modules.get(module_name).ok_or_else(|| {
+		let module_id = self.modules.get(module_name).cloned().ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
 		let func_id = module_id.func_by_index(&self.store, func_idx).ok_or_else(|| {
 			Error::Program(format!("Module doesn't contain function at index {}", func_idx))
 		})?;
+		self.invoke_func(func_id, args, state)
+	}
 
-		self.store.invoke(func_id, args, state)
+	pub fn invoke_func<St: 'static>(
+		&mut self,
+		func: FuncId,
+		args: Vec<RuntimeValue>,
+		state: &mut St,
+	) -> Result<Option<RuntimeValue>, Error> {
+		self.store.invoke(func, args, state)
 	}
 
 	pub fn store(&self) -> &Store {

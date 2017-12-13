@@ -4,20 +4,18 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 use std::fs::File;
-use std::sync::Arc;
 use std::rc::Rc;
 use std::any::Any;
 
 use serde_json;
 use test;
-use parity_wasm::{self, builder};
+use parity_wasm;
 use parity_wasm::elements::{self, ValueType, GlobalType, MemoryType, TableType, FunctionType};
 use parity_wasm::interpreter::{
     RuntimeValue,
     ProgramInstance,
     Error as InterpreterError,
     ImportResolver,
-    Imports,
     FuncInstance,
     GlobalInstance,
     MemoryInstance,
@@ -108,7 +106,7 @@ impl ImportResolver for SpecModule {
     fn resolve_memory(
         &self,
         field_name: &str,
-        memory_type: &MemoryType,
+        _memory_type: &MemoryType,
     ) -> Result<Rc<MemoryInstance>, InterpreterError> {
         if field_name == "memory" {
             return Ok(Rc::clone(&self.memory));
@@ -120,7 +118,7 @@ impl ImportResolver for SpecModule {
     fn resolve_table(
         &self,
         field_name: &str,
-        table_type: &TableType,
+        _table_type: &TableType,
     ) -> Result<Rc<TableInstance>, InterpreterError> {
         if field_name == "table" {
             return Ok(Rc::clone(&self.table));

@@ -9,7 +9,7 @@ use interpreter::{Error, MemoryInstance,
                   RuntimeValue, TableInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::AnyFunc;
-use interpreter::imports::Imports;
+use interpreter::imports::{Imports, ImportResolver};
 use validation::validate_module;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX,
              DEFAULT_VALUE_STACK_LIMIT};
@@ -549,6 +549,60 @@ impl ModuleInstance {
 		};
 
 		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
+	}
+}
+
+impl ImportResolver for ModuleInstance {
+	fn resolve_func(
+		&self,
+		field_name: &str,
+		_func_type: &FunctionType,
+	) -> Result<Rc<FuncInstance>, Error> {
+		Ok(self.export_by_name(field_name)
+			.ok_or_else(|| {
+				Error::Validation(format!("Export {} not found", field_name))
+			})?
+			.as_func()
+			.ok_or_else(|| Error::Validation(format!("Export {} is not a function", field_name)))?)
+	}
+
+	fn resolve_global(
+		&self,
+		field_name: &str,
+		_global_type: &GlobalType,
+	) -> Result<Rc<GlobalInstance>, Error> {
+		Ok(self.export_by_name(field_name)
+			.ok_or_else(|| {
+				Error::Validation(format!("Export {} not found", field_name))
+			})?
+			.as_global()
+			.ok_or_else(|| Error::Validation(format!("Export {} is not a global", field_name)))?)
+	}
+
+	fn resolve_memory(
+		&self,
+		field_name: &str,
+		_memory_type: &MemoryType,
+	) -> Result<Rc<MemoryInstance>, Error> {
+		Ok(self.export_by_name(field_name)
+			.ok_or_else(|| {
+				Error::Validation(format!("Export {} not found", field_name))
+			})?
+			.as_memory()
+			.ok_or_else(|| Error::Validation(format!("Export {} is not a memory", field_name)))?)
+	}
+
+	fn resolve_table(
+		&self,
+		field_name: &str,
+		_table_type: &TableType,
+	) -> Result<Rc<TableInstance>, Error> {
+		Ok(self.export_by_name(field_name)
+			.ok_or_else(|| {
+				Error::Validation(format!("Export {} not found", field_name))
+			})?
+			.as_table()
+			.ok_or_else(|| Error::Validation(format!("Export {} is not a table", field_name)))?)
 	}
 }
 

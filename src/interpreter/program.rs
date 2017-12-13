@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use elements::Module;
 use interpreter::Error;
-use interpreter::store::{ExternVal, FuncInstance, ModuleInstance};
+use interpreter::store::{FuncInstance, ModuleInstance};
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
 
@@ -71,28 +71,7 @@ impl ProgramInstance {
 		let module_instance = self.modules.get(module_name).ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
-		let extern_val = module_instance
-			.export_by_name(func_name)
-			.ok_or_else(|| {
-				Error::Program(format!(
-					"Module {} doesn't have export {}",
-					module_name,
-					func_name
-				))
-			})?;
-
-		let func_instance = match extern_val {
-			ExternVal::Func(func_instance) => func_instance,
-			unexpected => {
-				return Err(Error::Program(format!(
-					"Export {} is not a function, but {:?}",
-					func_name,
-					unexpected
-				)));
-			}
-		};
-
-		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
+		module_instance.invoke_export(func_name, args, state)
 	}
 
 	pub fn invoke_index<St: 'static>(
@@ -105,10 +84,7 @@ impl ProgramInstance {
 		let module_instance = self.modules.get(module_name).cloned().ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
-		let func_instance = module_instance.func_by_index(func_idx).ok_or_else(|| {
-			Error::Program(format!("Module doesn't contain function at index {}", func_idx))
-		})?;
-		self.invoke_func(func_instance, args, state)
+		module_instance.invoke_index(func_idx, args, state)
 	}
 
 	pub fn invoke_func<St: 'static>(

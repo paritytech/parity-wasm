@@ -190,6 +190,82 @@ impl ModuleInstance {
 		}
 	}
 
+
+	pub fn memory_by_index(&self, idx: u32) -> Option<Rc<MemoryInstance>> {
+		self
+			.memories
+			.borrow()
+			.get(idx as usize)
+			.cloned()
+	}
+
+	pub fn table_by_index(&self, idx: u32) -> Option<Rc<TableInstance>> {
+		self
+			.tables
+			.borrow()
+			.get(idx as usize)
+			.cloned()
+	}
+
+	pub fn global_by_index(&self, idx: u32) -> Option<Rc<GlobalInstance>> {
+		self
+			.globals
+			.borrow()
+			.get(idx as usize)
+			.cloned()
+	}
+
+	pub fn func_by_index(&self, idx: u32) -> Option<Rc<FuncInstance>> {
+		self
+			.funcs
+			.borrow()
+			.get(idx as usize)
+			.cloned()
+	}
+
+	pub fn type_by_index(&self, idx: u32) -> Option<Rc<FunctionType>> {
+		self
+			.types
+			.borrow()
+			.get(idx as usize)
+			.cloned()
+	}
+
+	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
+		self
+			.exports
+			.borrow()
+			.get(name)
+			.cloned()
+	}
+
+	fn push_func(&self, func: Rc<FuncInstance>) {
+		self.funcs.borrow_mut().push(func);
+	}
+
+	fn push_type(&self, func_type: Rc<FunctionType>) {
+		self.types.borrow_mut().push(func_type)
+	}
+
+	fn push_memory(&self, memory: Rc<MemoryInstance>) {
+		self.memories.borrow_mut().push(memory)
+	}
+
+	fn push_table(&self, table: Rc<TableInstance>) {
+		self.tables.borrow_mut().push(table)
+	}
+
+	fn push_global(&self, global: Rc<GlobalInstance>) {
+		self.globals.borrow_mut().push(global)
+	}
+
+	fn insert_export<N: Into<String>>(&self, name: N, extern_val: ExternVal) {
+		self
+			.exports
+			.borrow_mut()
+			.insert(name.into(), extern_val);
+	}
+
 	fn alloc_module_internal(
 		module: &Module,
 		extern_vals: &[ExternVal],
@@ -395,82 +471,47 @@ impl ModuleInstance {
 		Ok(instance)
 	}
 
-	pub fn memory_by_index(&self, idx: u32) -> Option<Rc<MemoryInstance>> {
-		self
-			.memories
-			.borrow()
-			.get(idx as usize)
-			.cloned()
+	pub fn invoke_index<St: 'static>(
+		&self,
+		func_idx: u32,
+		args: Vec<RuntimeValue>,
+		state: &mut St,
+	) -> Result<Option<RuntimeValue>, Error> {
+		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
+			Error::Program(format!("Module doesn't contain function at index {}", func_idx))
+		})?;
+		FuncInstance::invoke(func_instance, args, state)
 	}
 
-	pub fn table_by_index(&self, idx: u32) -> Option<Rc<TableInstance>> {
-		self
-			.tables
-			.borrow()
-			.get(idx as usize)
-			.cloned()
-	}
+	pub fn invoke_export<St: 'static>(
+		&self,
+		func_name: &str,
+		args: Vec<RuntimeValue>,
+		state: &mut St,
+	) -> Result<Option<RuntimeValue>, Error> {
+		let extern_val = self
+			.export_by_name(func_name)
+			.ok_or_else(|| {
+				Error::Program(format!(
+					"Module doesn't have export {}",
+					func_name
+				))
+			})?;
 
-	pub fn global_by_index(&self, idx: u32) -> Option<Rc<GlobalInstance>> {
-		self
-			.globals
-			.borrow()
-			.get(idx as usize)
-			.cloned()
-	}
+		let func_instance = match extern_val {
+			ExternVal::Func(func_instance) => func_instance,
+			unexpected => {
+				return Err(Error::Program(format!(
+					"Export {} is not a function, but {:?}",
+					func_name,
+					unexpected
+				)));
+			}
+		};
 
-	pub fn func_by_index(&self, idx: u32) -> Option<Rc<FuncInstance>> {
-		self
-			.funcs
-			.borrow()
-			.get(idx as usize)
-			.cloned()
-	}
-
-	pub fn type_by_index(&self, idx: u32) -> Option<Rc<FunctionType>> {
-		self
-			.types
-			.borrow()
-			.get(idx as usize)
-			.cloned()
-	}
-
-	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
-		self
-			.exports
-			.borrow()
-			.get(name)
-			.cloned()
-	}
-
-	fn push_func(&self, func: Rc<FuncInstance>) {
-		self.funcs.borrow_mut().push(func);
-	}
-
-	fn push_type(&self, func_type: Rc<FunctionType>) {
-		self.types.borrow_mut().push(func_type)
-	}
-
-	fn push_memory(&self, memory: Rc<MemoryInstance>) {
-		self.memories.borrow_mut().push(memory)
-	}
-
-	fn push_table(&self, table: Rc<TableInstance>) {
-		self.tables.borrow_mut().push(table)
-	}
-
-	fn push_global(&self, global: Rc<GlobalInstance>) {
-		self.globals.borrow_mut().push(global)
-	}
-
-	fn insert_export<N: Into<String>>(&self, name: N, extern_val: ExternVal) {
-		self
-			.exports
-			.borrow_mut()
-			.insert(name.into(), extern_val);
+		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
 	}
 }
-
 
 fn alloc_func_type(func_type: FunctionType) -> Rc<FunctionType> {
 	Rc::new(func_type)

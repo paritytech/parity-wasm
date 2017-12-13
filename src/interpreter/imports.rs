@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 use elements::{FunctionType, GlobalType, MemoryType, TableType};
-use interpreter::store::FuncInstance;
+use interpreter::func::FuncInstance;
 use interpreter::global::GlobalInstance;
 use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;

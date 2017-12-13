@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use elements::{TableType, ResizableLimits};
 use interpreter::Error;
 use interpreter::module::check_limits;
-use interpreter::store::FuncInstance;
+use interpreter::func::FuncInstance;
 
 /// Table instance.
 pub struct TableInstance {

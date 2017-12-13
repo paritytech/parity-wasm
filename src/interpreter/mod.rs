@@ -141,6 +141,7 @@ mod store;
 mod host;
 mod imports;
 mod global;
+mod func;
 
 #[cfg(test)]
 mod tests;
@@ -152,5 +153,6 @@ pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
 pub use self::host::{HostModule, HostModuleBuilder, Func1, AnyFunc, AsReturnVal, FromArg};
 pub use self::imports::{ImportResolver, Imports};
-pub use self::store::{FuncInstance, ModuleInstance};
+pub use self::store::{ModuleInstance};
 pub use self::global::GlobalInstance;
+pub use self::func::FuncInstance;

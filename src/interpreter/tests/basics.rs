@@ -142,7 +142,7 @@ fn build_env_module() -> HostModule {
 		state.values.push(diff as i32);
 		Ok(Some(diff as i32))
 	});
-	builder.with_func0("err", |_: &mut Store, _: &mut FunctionExecutor| -> Result<Option<i32>, Error> {
+	builder.with_func2("err", |_: &mut Store, _: &mut FunctionExecutor, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
 		Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
 	});
 	builder.with_memory("memory", MemoryType::new(256, None));

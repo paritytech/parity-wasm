@@ -335,6 +335,51 @@ impl Store {
 		}
 
 		{
+			let imports = module.import_section().map(|is| is.entries()).unwrap_or(&[]);
+			if imports.len() != extern_vals.len() {
+				return Err(Error::Initialization(format!("extern_vals length is not equal to import section entries")));
+			}
+
+			for (import, extern_val) in Iterator::zip(imports.into_iter(), extern_vals.into_iter())
+			{
+				match (import.external(), *extern_val) {
+					(&External::Function(fn_type_idx), ExternVal::Func(func)) => {
+						let expected_fn_type = instance.types.get(fn_type_idx as usize).expect("Due to validation function type should exists").resolve(self);
+						let actual_fn_type = func.resolve(self).func_type().resolve(self);
+						if expected_fn_type != actual_fn_type {
+							return Err(Error::Initialization(format!(
+								"Expected function with type {:?}, but actual type is {:?} for entry {}",
+								expected_fn_type,
+								actual_fn_type,
+								import.field(),
+							)));
+						}
+						instance.funcs.push(func)
+					}
+					(&External::Table(ref tt), ExternVal::Table(table)) => {
+						match_limits(table.resolve(self).limits(), tt.limits())?;
+						instance.tables.push(table);
+					}
+					(&External::Memory(ref mt), ExternVal::Memory(memory)) => {
+						match_limits(memory.resolve(self).limits(), mt.limits())?;
+						instance.memories.push(memory);
+					}
+					(&External::Global(ref gl), ExternVal::Global(global)) => {
+						// TODO: check globals
+						instance.globals.push(global)
+					}
+					(expected_import, actual_extern_val) => {
+						return Err(Error::Initialization(format!(
+							"Expected {:?} type, but provided {:?} extern_val",
+							expected_import,
+							actual_extern_val
+						)));
+					}
+				}
+			}
+		}
+
+		{
 			let funcs = module
 				.function_section()
 				.map(|fs| fs.entries())
@@ -437,42 +482,6 @@ impl Store {
 		let mut instance = ModuleInstance::new();
 		// Reserve the index of the module, but not yet push the module.
 		let module_id = ModuleId((self.modules.len()) as u32);
-
-		{
-			let imports = module.import_section().map(|is| is.entries()).unwrap_or(&[]);
-			if imports.len() != extern_vals.len() {
-				return Err(Error::Initialization(format!("extern_vals length is not equal to import section entries")));
-			}
-
-			for (import, extern_val) in Iterator::zip(imports.into_iter(), extern_vals.into_iter())
-			{
-				match (import.external(), *extern_val) {
-					(&External::Function(ref f), ExternVal::Func(func)) => {
-						// TODO: check func types
-						instance.funcs.push(func)
-					}
-					(&External::Table(ref tt), ExternVal::Table(table)) => {
-						match_limits(table.resolve(self).limits(), tt.limits())?;
-						instance.tables.push(table);
-					}
-					(&External::Memory(ref mt), ExternVal::Memory(memory)) => {
-						match_limits(memory.resolve(self).limits(), mt.limits())?;
-						instance.memories.push(memory);
-					}
-					(&External::Global(ref gl), ExternVal::Global(global)) => {
-						// TODO: check globals
-						instance.globals.push(global)
-					}
-					(expected_import, actual_extern_val) => {
-						return Err(Error::Initialization(format!(
-							"Expected {:?} type, but provided {:?} extern_val",
-							expected_import,
-							actual_extern_val
-						)));
-					}
-				}
-			}
-		}
 
 		self.alloc_module_internal(module, extern_vals, &mut instance, module_id)?;
 

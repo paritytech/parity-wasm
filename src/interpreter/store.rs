@@ -236,12 +236,7 @@ impl ModuleInstance {
 }
 
 #[derive(Default, Debug)]
-pub struct Store {
-	// These are not the part of specification of the Store.
-	// However, they can be referenced in several places, so it is handy to have it here.
-	modules: Vec<ModuleInstance>,
-	types: Vec<FunctionType>,
-}
+pub struct Store;
 
 impl Store {
 	pub fn new() -> Store {
@@ -393,7 +388,7 @@ impl Store {
 			.map(|gs| gs.entries())
 			.unwrap_or(&[])
 		{
-			let init_val = eval_init_expr(global_entry.init_expr(), &*instance, self);
+			let init_val = eval_init_expr(global_entry.init_expr(), &*instance);
 			let global = self.alloc_global(global_entry.global_type().clone(), init_val);
 			instance.push_global(global);
 		}
@@ -451,7 +446,7 @@ impl Store {
 			.map(|es| es.entries())
 			.unwrap_or(&[])
 		{
-			let offset_val = match eval_init_expr(element_segment.offset(), &instance, self) {
+			let offset_val = match eval_init_expr(element_segment.offset(), &instance) {
 				RuntimeValue::I32(v) => v as u32,
 				_ => panic!("Due to validation elem segment offset should evaluate to i32"),
 			};
@@ -469,7 +464,7 @@ impl Store {
 		}
 
 		for data_segment in module.data_section().map(|ds| ds.entries()).unwrap_or(&[]) {
-			let offset_val = match eval_init_expr(data_segment.offset(), &instance, self) {
+			let offset_val = match eval_init_expr(data_segment.offset(), &instance) {
 				RuntimeValue::I32(v) => v as u32,
 				_ => panic!("Due to validation data segment offset should evaluate to i32"),
 			};
@@ -532,7 +527,7 @@ impl Store {
 	}
 }
 
-fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance, store: &Store) -> RuntimeValue {
+fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance) -> RuntimeValue {
 	let code = init_expr.code();
 	debug_assert!(
 		code.len() == 2,

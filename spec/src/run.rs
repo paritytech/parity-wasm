@@ -15,120 +15,119 @@ use parity_wasm::elements::{self, ValueType, GlobalType, MemoryType, TableType, 
 use parity_wasm::interpreter::{
     RuntimeValue,
     ProgramInstance,
-    ItemIndex,
     Error as InterpreterError,
-	ImportResolver,
-	Imports,
-	FuncInstance,
-	GlobalInstance,
-	MemoryInstance,
-	TableInstance,
-	ModuleInstance,
-	AnyFunc,
+    ImportResolver,
+    Imports,
+    FuncInstance,
+    GlobalInstance,
+    MemoryInstance,
+    TableInstance,
+    ModuleInstance,
+    AnyFunc,
 };
 
 struct DefaultHostCallback;
 
 impl AnyFunc for DefaultHostCallback {
-	fn call_as_any(
-		&self,
-		_: &mut Any,
-		args: &[RuntimeValue],
-	) -> Result<Option<RuntimeValue>, InterpreterError> {
-		println!("called host: {:?}", args);
-		Ok(None)
-	}
+    fn call_as_any(
+        &self,
+        _: &mut Any,
+        args: &[RuntimeValue],
+    ) -> Result<Option<RuntimeValue>, InterpreterError> {
+        println!("called host: {:?}", args);
+        Ok(None)
+    }
 }
 
 struct SpecModule {
-	default_host_callback: Rc<AnyFunc>,
-	table: Rc<TableInstance>,
-	memory: Rc<MemoryInstance>,
-	global_i32: Rc<GlobalInstance>,
-	global_i64: Rc<GlobalInstance>,
-	global_f32: Rc<GlobalInstance>,
-	global_f64: Rc<GlobalInstance>,
+    default_host_callback: Rc<AnyFunc>,
+    table: Rc<TableInstance>,
+    memory: Rc<MemoryInstance>,
+    global_i32: Rc<GlobalInstance>,
+    global_i64: Rc<GlobalInstance>,
+    global_f32: Rc<GlobalInstance>,
+    global_f64: Rc<GlobalInstance>,
 }
 
 impl SpecModule {
-	fn new() -> SpecModule {
-		SpecModule {
-			default_host_callback: Rc::new(DefaultHostCallback) as Rc<AnyFunc>,
-			table: Rc::new(TableInstance::new(&TableType::new(10, Some(20))).unwrap()),
-			memory: Rc::new(MemoryInstance::new(&MemoryType::new(1, Some(2))).unwrap()),
-			global_i32: Rc::new(GlobalInstance::new(RuntimeValue::I32(666), false)),
-			global_i64: Rc::new(GlobalInstance::new(RuntimeValue::I64(666), false)),
-			global_f32: Rc::new(GlobalInstance::new(RuntimeValue::F32(666.0), false)),
-			global_f64: Rc::new(GlobalInstance::new(RuntimeValue::F64(666.0), false)),
-		}
-	}
+    fn new() -> SpecModule {
+        SpecModule {
+            default_host_callback: Rc::new(DefaultHostCallback) as Rc<AnyFunc>,
+            table: Rc::new(TableInstance::new(&TableType::new(10, Some(20))).unwrap()),
+            memory: Rc::new(MemoryInstance::new(&MemoryType::new(1, Some(2))).unwrap()),
+            global_i32: Rc::new(GlobalInstance::new(RuntimeValue::I32(666), false)),
+            global_i64: Rc::new(GlobalInstance::new(RuntimeValue::I64(666), false)),
+            global_f32: Rc::new(GlobalInstance::new(RuntimeValue::F32(666.0), false)),
+            global_f64: Rc::new(GlobalInstance::new(RuntimeValue::F64(666.0), false)),
+        }
+    }
 }
 
 impl ImportResolver for SpecModule {
-	fn resolve_func(
-		&self,
-		field_name: &str,
-		func_type: &FunctionType,
-	) -> Result<Rc<FuncInstance>, InterpreterError> {
-		if field_name == "print" {
-			let func = FuncInstance::Host {
-				func_type: Rc::new(func_type.clone()),
-				host_func: Rc::clone(&self.default_host_callback),
-			};
-			return Ok(Rc::new(func));
-		}
+    fn resolve_func(
+        &self,
+        field_name: &str,
+        func_type: &FunctionType,
+    ) -> Result<Rc<FuncInstance>, InterpreterError> {
+        if field_name == "print" {
+            let func = FuncInstance::Host {
+                func_type: Rc::new(func_type.clone()),
+                host_func: Rc::clone(&self.default_host_callback),
+            };
+            return Ok(Rc::new(func));
+        }
 
-		Err(InterpreterError::Global(format!("Unknown host func import {}", field_name)))
-	}
+        Err(InterpreterError::Global(format!("Unknown host func import {}", field_name)))
+    }
 
-	fn resolve_global(
-		&self,
-		field_name: &str,
-		global_type: &GlobalType,
-	) -> Result<Rc<GlobalInstance>, InterpreterError> {
-		if field_name == "global" {
-			return match global_type.content_type() {
-				ValueType::I32 => {
-					Ok(Rc::clone(&self.global_i32))
-				}
-				ValueType::I64 => {
-					Ok(Rc::clone(&self.global_i64))
-				}
-				ValueType::F32 => {
-					Ok(Rc::clone(&self.global_f32))
-				}
-				ValueType::F64 => {
-					Ok(Rc::clone(&self.global_f64))
-				}
-			};
-		}
+    fn resolve_global(
+        &self,
+        field_name: &str,
+        global_type: &GlobalType,
+    ) -> Result<Rc<GlobalInstance>, InterpreterError> {
+        if field_name == "global" {
+            return match global_type.content_type() {
+                ValueType::I32 => {
+                    Ok(Rc::clone(&self.global_i32))
+                }
+                ValueType::I64 => {
+                    Ok(Rc::clone(&self.global_i64))
+                }
+                ValueType::F32 => {
+                    Ok(Rc::clone(&self.global_f32))
+                }
+                ValueType::F64 => {
+                    Ok(Rc::clone(&self.global_f64))
+                }
+            };
+        }
 
-		Err(InterpreterError::Global(format!("Unknown host global import {}", field_name)))
-	}
+        Err(InterpreterError::Global(format!("Unknown host global import {}", field_name)))
+    }
 
-	fn resolve_memory(
-		&self,
-		field_name: &str,
-		memory_type: &MemoryType,
-	) -> Result<Rc<MemoryInstance>, InterpreterError> {
-		if field_name == "memory" {
-			return Ok(Rc::clone(&self.memory));
-		}
+    fn resolve_memory(
+        &self,
+        field_name: &str,
+        memory_type: &MemoryType,
+    ) -> Result<Rc<MemoryInstance>, InterpreterError> {
+        if field_name == "memory" {
+            return Ok(Rc::clone(&self.memory));
+        }
 
-		Err(InterpreterError::Global(format!("Unknown host memory import {}", field_name)))
-	}
+        Err(InterpreterError::Global(format!("Unknown host memory import {}", field_name)))
+    }
 
-	fn resolve_table(
-		&self,
-		field_name: &str,
-		table_type: &TableType,
-	) -> Result<Rc<TableInstance>, InterpreterError> {
-		if field_name == "table" {
-			return Ok(Rc::clone(&self.table));
-		}
+    fn resolve_table(
+        &self,
+        field_name: &str,
+        table_type: &TableType,
+    ) -> Result<Rc<TableInstance>, InterpreterError> {
+        if field_name == "table" {
+            return Ok(Rc::clone(&self.table));
+        }
 
-		Err(InterpreterError::Global(format!("Unknown host table import {}", field_name)))
-	}
+        Err(InterpreterError::Global(format!("Unknown host table import {}", field_name)))
+    }
 }
 
 fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut ProgramInstance) -> Rc<ModuleInstance> {

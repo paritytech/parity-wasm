@@ -70,10 +70,10 @@ impl ProgramInstance {
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
-		let module_id = self.modules.get(module_name).ok_or_else(|| {
+		let module_instance = self.modules.get(module_name).ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
-		let extern_val = module_id
+		let extern_val = module_instance
 			.export_by_name(func_name)
 			.ok_or_else(|| {
 				Error::Program(format!(
@@ -83,8 +83,8 @@ impl ProgramInstance {
 				))
 			})?;
 
-		let func_id = match extern_val {
-			ExternVal::Func(func_id) => func_id,
+		let func_instance = match extern_val {
+			ExternVal::Func(func_instance) => func_instance,
 			unexpected => {
 				return Err(Error::Program(format!(
 					"Export {} is not a function, but {:?}",
@@ -94,7 +94,7 @@ impl ProgramInstance {
 			}
 		};
 
-		self.store.invoke(func_id, args, state)
+		self.store.invoke(func_instance, args, state)
 	}
 
 	pub fn invoke_index<St: 'static>(
@@ -104,13 +104,13 @@ impl ProgramInstance {
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
-		let module_id = self.modules.get(module_name).cloned().ok_or_else(|| {
+		let module_instance = self.modules.get(module_name).cloned().ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
-		let func_id = module_id.func_by_index(func_idx).ok_or_else(|| {
+		let func_instance = module_instance.func_by_index(func_idx).ok_or_else(|| {
 			Error::Program(format!("Module doesn't contain function at index {}", func_idx))
 		})?;
-		self.invoke_func(func_id, args, state)
+		self.invoke_func(func_instance, args, state)
 	}
 
 	pub fn invoke_func<St: 'static>(

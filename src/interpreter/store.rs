@@ -374,9 +374,9 @@ impl Store {
 			}
 		}
 
-		for table in module.table_section().map(|ts| ts.entries()).unwrap_or(&[]) {
-			let table_id = self.alloc_table(table)?;
-			instance.push_table(table_id);
+		for table_type in module.table_section().map(|ts| ts.entries()).unwrap_or(&[]) {
+			let table = self.alloc_table(table_type)?;
+			instance.push_table(table);
 		}
 
 		for memory_type in module

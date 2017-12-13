@@ -7,7 +7,7 @@ use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local, FunctionType};
 use interpreter::Error;
-use interpreter::store::{Store, ModuleId, FuncInstance};
+use interpreter::store::{Store, FuncInstance, ModuleInstance};
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
@@ -27,7 +27,7 @@ pub struct FunctionContext {
 	pub is_initialized: bool,
 	/// Internal function reference.
 	pub function: Rc<FuncInstance>,
-	pub module: ModuleId,
+	pub module: Rc<ModuleInstance>,
 	/// Function return type.
 	pub return_type: BlockType,
 	/// Local variables.
@@ -433,7 +433,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 	) -> Result<InstructionOutcome, Error> {
 		let func = context
 			.module()
-			.func_by_index(self.store, func_idx)
+			.func_by_index(func_idx)
 			.expect("Due to validation func should exists");
 		Ok(InstructionOutcome::ExecuteCall(func))
 	}
@@ -446,14 +446,14 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		let table_func_idx: u32 = context.value_stack_mut().pop_as()?;
 		let table = context
 			.module()
-			.table_by_index(self.store, DEFAULT_TABLE_INDEX)
+			.table_by_index(DEFAULT_TABLE_INDEX)
 			.expect("Due to validation table should exists");
 		let func_ref = table.get(table_func_idx)?;
 
 		let actual_function_type = func_ref.func_type();
 		let required_function_type = context
 			.module()
-			.type_by_index(self.store, type_idx)
+			.type_by_index(type_idx)
 			.expect("Due to validation type should exists");
 
 		if required_function_type != actual_function_type {
@@ -518,7 +518,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 	) -> Result<InstructionOutcome, Error> {
 		let global = context
 			.module()
-			.global_by_index(&self.store, index)
+			.global_by_index(index)
 			.expect("Due to validation global should exists");
 		let val = global.get();
 		context.value_stack_mut().push(val)?;
@@ -534,7 +534,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 
 		let global = context
 			.module()
-			.global_by_index(&self.store, index)
+			.global_by_index(index)
 			.expect("Due to validation global should exists");
 		global.set(val)?;
 		Ok(InstructionOutcome::RunNextInstruction)
@@ -544,7 +544,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		where RuntimeValue: From<T>, T: LittleEndianConvert {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		let m = context.module()
-			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
+			.memory_by_index(DEFAULT_MEMORY_INDEX)
 			.expect("Due to validation memory should exists");
 		let b = m.get(address, mem::size_of::<T>())?;
 		let n = T::from_little_endian(b)?;
@@ -556,7 +556,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		where T: ExtendInto<U>, RuntimeValue: From<U>, T: LittleEndianConvert {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		let m = context.module()
-			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
+			.memory_by_index(DEFAULT_MEMORY_INDEX)
 			.expect("Due to validation memory should exists");
 		let b = m.get(address, mem::size_of::<T>())?;
 		let v = T::from_little_endian(b)?;
@@ -577,7 +577,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		let address = effective_address(offset, context.value_stack_mut().pop_as::<u32>()?)?;
 
 		let m = context.module()
-			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
+			.memory_by_index(DEFAULT_MEMORY_INDEX)
 			.expect("Due to validation memory should exists");
 		m.set(address, &stack_value)?;
 		Ok(InstructionOutcome::RunNextInstruction)
@@ -602,7 +602,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		let stack_value = stack_value.wrap_into().into_little_endian();
 		let address = effective_address(offset, context.value_stack_mut().pop_as::<u32>()?)?;
 		let m = context.module()
-			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
+			.memory_by_index(DEFAULT_MEMORY_INDEX)
 			.expect("Due to validation memory should exists");
 		m.set(address, &stack_value)?;
 		Ok(InstructionOutcome::RunNextInstruction)
@@ -610,7 +610,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 
 	fn run_current_memory(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
 		let m = context.module()
-			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
+			.memory_by_index(DEFAULT_MEMORY_INDEX)
 			.expect("Due to validation memory should exists");
 		let s = m.size();
 		context
@@ -622,7 +622,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 	fn run_grow_memory(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
 		let pages: u32 = context.value_stack_mut().pop_as()?;
 		let m = context.module()
-			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
+			.memory_by_index(DEFAULT_MEMORY_INDEX)
 			.expect("Due to validation memory should exists");
 		let m = m.grow(pages)?;
 		context
@@ -1012,7 +1012,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 impl FunctionContext {
 	pub fn new<'store>(function: Rc<FuncInstance>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
 		let module = match *function {
-			FuncInstance::Internal { module, .. } => module,
+			FuncInstance::Internal { ref module, .. } => Rc::clone(module),
 			FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 		};
 		FunctionContext {
@@ -1030,7 +1030,7 @@ impl FunctionContext {
 	pub fn nested(&mut self, function: Rc<FuncInstance>) -> Result<Self, Error> {
 		let (function_locals, module, function_return_type) = {
 			let module = match *function {
-				FuncInstance::Internal { module, .. } => module,
+				FuncInstance::Internal { ref module, .. } => Rc::clone(module),
 				FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 			};
 			let function_type = function.func_type();
@@ -1066,8 +1066,8 @@ impl FunctionContext {
 		self.locals.extend(locals);
 	}
 
-	pub fn module(&self) -> ModuleId {
-		self.module
+	pub fn module(&self) -> Rc<ModuleInstance> {
+		Rc::clone(&self.module)
 	}
 
 	pub fn set_local(&mut self, index: usize, value: RuntimeValue) -> Result<InstructionOutcome, Error> {

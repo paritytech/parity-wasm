@@ -2,14 +2,14 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use elements::Module;
 use interpreter::Error;
-use interpreter::store::{ModuleId, Store, ExternVal, FuncInstance};
+use interpreter::store::{Store, ExternVal, FuncInstance, ModuleInstance};
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
 
 /// Program instance. Program is a set of instantiated modules.
 pub struct ProgramInstance {
 	store: Store,
-	modules: HashMap<String, ModuleId>,
+	modules: HashMap<String, Rc<ModuleInstance>>,
 }
 
 impl ProgramInstance {
@@ -27,12 +27,12 @@ impl ProgramInstance {
 		name: &str,
 		module: Module,
 		state: &mut St,
-	) -> Result<ModuleId, Error> {
+	) -> Result<Rc<ModuleInstance>, Error> {
 		let mut extern_vals = Vec::new();
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
-			let module = self.modules[import_entry.module()];
+			let module = self.modules.get(import_entry.module()).ok_or_else(|| Error::Program(format!("Module {} not found", import_entry.module())))?;
 			let extern_val = module
-				.export_by_name(&self.store, import_entry.field())
+				.export_by_name(import_entry.field())
 				.ok_or_else(|| {
 					Error::Program(format!(
 						"Module {} doesn't have export {}",
@@ -43,23 +43,23 @@ impl ProgramInstance {
 			extern_vals.push(extern_val);
 		}
 
-		let module_id = self.store.instantiate_module(&module, &extern_vals, state)?;
-		self.modules.insert(name.to_owned(), module_id);
+		let module_instance = self.store.instantiate_module(&module, &extern_vals, state)?;
+		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
 
-		Ok(module_id)
+		Ok(module_instance)
 	}
 
 	pub fn add_host_module(
 		&mut self,
 		name: &str,
 		host_module: HostModule,
-	) -> Result<ModuleId, Error> {
-		let module_id = host_module.allocate(&mut self.store)?;
-		self.modules.insert(name.to_owned(), module_id);
-		Ok(module_id)
+	) -> Result<Rc<ModuleInstance>, Error> {
+		let module_instance = host_module.allocate()?;
+		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
+		Ok(module_instance)
 	}
 
-	pub fn insert_loaded_module(&mut self, name: &str, module: ModuleId) {
+	pub fn insert_loaded_module(&mut self, name: &str, module: Rc<ModuleInstance>) {
 		self.modules.insert(name.to_owned(), module);
 	}
 
@@ -74,7 +74,7 @@ impl ProgramInstance {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
 		let extern_val = module_id
-			.export_by_name(&self.store, func_name)
+			.export_by_name(func_name)
 			.ok_or_else(|| {
 				Error::Program(format!(
 					"Module {} doesn't have export {}",
@@ -107,7 +107,7 @@ impl ProgramInstance {
 		let module_id = self.modules.get(module_name).cloned().ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
-		let func_id = module_id.func_by_index(&self.store, func_idx).ok_or_else(|| {
+		let func_id = module_id.func_by_index(func_idx).ok_or_else(|| {
 			Error::Program(format!("Module doesn't contain function at index {}", func_idx))
 		})?;
 		self.invoke_func(func_id, args, state)
@@ -126,7 +126,7 @@ impl ProgramInstance {
 		&self.store
 	}
 
-	pub fn module(&self, name: &str) -> Option<ModuleId> {
+	pub fn module(&self, name: &str) -> Option<Rc<ModuleInstance>> {
 		self.modules.get(name).cloned()
 	}
 }

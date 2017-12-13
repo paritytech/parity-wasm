@@ -464,11 +464,11 @@ fn return_void() {
 	let module = program.add_module("main", module, &mut ()).unwrap();
 
 	program.invoke_index("main", 0, vec![RuntimeValue::I32(0)], &mut ()).unwrap();
-	let memory = module.memory_by_index(program.store(), 0).unwrap();
+	let memory = module.memory_by_index(0).unwrap();
 	assert_eq!(memory.get(0, 4).unwrap(), vec![0, 0, 0, 0]);
 
 	program.invoke_index("main", 0, vec![RuntimeValue::I32(1)], &mut ()).unwrap();
-	let memory = module.memory_by_index(program.store(), 0).unwrap();
+	let memory = module.memory_by_index(0).unwrap();
 	assert_eq!(memory.get(0, 4).unwrap(), vec![1, 0, 0, 0]);
 }
 

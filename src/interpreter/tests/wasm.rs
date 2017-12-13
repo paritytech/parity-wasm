@@ -47,7 +47,7 @@ fn interpreter_accumulate_u8() {
         .expect("Failed to initialize module");
 
     let env_module = program.module("env").unwrap();
-    let env_memory = env_module.memory_by_index(program.store(), 0).unwrap();
+    let env_memory = env_module.memory_by_index(0).unwrap();
 
     // Place the octet-sequence at index 0 in linear memory
     let offset: u32 = 0;

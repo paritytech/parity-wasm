@@ -156,7 +156,7 @@ fn native_env_function() {
 	let mut program = program_with_default_env();
 	let env_host_module = build_env_module();
 	let env_module = program.add_host_module("env", env_host_module).unwrap();
-	let env_memory = env_module.export_by_name(program.store(), "memory").unwrap().as_memory().unwrap();
+	let env_memory = env_module.export_by_name("memory").unwrap().as_memory().unwrap();
 
 	let mut state = FunctionExecutor {
 		memory: env_memory,
@@ -255,7 +255,7 @@ fn native_custom_error() {
 	let mut program = program_with_default_env();
 	let env_host_module = build_env_module();
 	let env_module = program.add_host_module("env", env_host_module).unwrap();
-	let env_memory = env_module.export_by_name(program.store(), "memory").unwrap().as_memory().unwrap();
+	let env_memory = env_module.export_by_name("memory").unwrap().as_memory().unwrap();
 
 	let mut state = FunctionExecutor {
 		memory: env_memory,

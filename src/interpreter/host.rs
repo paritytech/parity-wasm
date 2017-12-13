@@ -3,7 +3,9 @@ use std::rc::Rc;
 use std::marker::PhantomData;
 use std::collections::HashMap;
 use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
-use interpreter::store::{Store, ExternVal, ModuleId, ModuleInstance};
+use interpreter::store::{Store, ExternVal, ModuleInstance, GlobalInstance, FuncInstance};
+use interpreter::memory::MemoryInstance;
+use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
 use interpreter::Error;
 
@@ -149,27 +151,29 @@ pub struct HostModule {
 }
 
 impl HostModule {
-	pub(crate) fn allocate(self, store: &mut Store) -> Result<ModuleId, Error> {
+	pub(crate) fn allocate(self) -> Result<Rc<ModuleInstance>, Error> {
 		let mut exports = HashMap::new();
 
 		for item in self.items {
 			match item {
 				HostItem::Func { name, func_type, host_func } => {
-					let type_id = store.alloc_func_type(func_type);
-					let func_id = store.alloc_host_func(type_id, host_func);
-					exports.insert(name, ExternVal::Func(func_id));
+					let func = FuncInstance::Host {
+						func_type: Rc::new(func_type),
+						host_func: host_func,
+					};
+					exports.insert(name, ExternVal::Func(Rc::new(func)));
 				},
 				HostItem::Global { name, global_type, init_val } => {
-					let global_id = store.alloc_global(global_type, init_val);
-					exports.insert(name, ExternVal::Global(global_id));
+					let global = GlobalInstance::new(init_val, global_type.is_mutable());
+					exports.insert(name, ExternVal::Global(Rc::new(global)));
 				},
 				HostItem::Memory { name, memory_type } => {
-					let memory_id = store.alloc_memory(&memory_type)?;
-					exports.insert(name, ExternVal::Memory(memory_id));
+					let memory = MemoryInstance::new(&memory_type)?;
+					exports.insert(name, ExternVal::Memory(Rc::new(memory)));
 				},
 				HostItem::Table { name, table_type } => {
-					let table_id = store.alloc_table(&table_type)?;
-					exports.insert(name, ExternVal::Table(table_id));
+					let table = TableInstance::new(&table_type)?;
+					exports.insert(name, ExternVal::Table(Rc::new(table)));
 				}
 				HostItem::ExternVal { name, extern_val } => {
 					exports.insert(name, extern_val);
@@ -178,9 +182,7 @@ impl HostModule {
 		}
 
 		let host_module_instance = ModuleInstance::with_exports(exports);
-		let module_id = store.add_module_instance(host_module_instance);
-
-		Ok(module_id)
+		Ok(Rc::new(host_module_instance))
 	}
 }
 

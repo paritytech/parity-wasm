@@ -7,7 +7,7 @@ use interpreter::variable::VariableType;
 
 // TODO: Get rid of Null and AnyFunc.
 /// Runtime value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum RuntimeValue {
 	/// Null value.
 	Null,

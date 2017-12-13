@@ -521,7 +521,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 			.module()
 			.global_by_index(&self.store, index)
 			.expect("Due to validation global should exists");
-		let val = self.store.read_global(global);
+		let val = global.get();
 		context.value_stack_mut().push(val)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
@@ -537,7 +537,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 			.module()
 			.global_by_index(&self.store, index)
 			.expect("Due to validation global should exists");
-		self.store.write_global(global, val)?;
+		global.set(val)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 

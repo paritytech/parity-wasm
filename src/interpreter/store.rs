@@ -2,6 +2,7 @@
 #![allow(unused)]
 
 use std::rc::Rc;
+use std::cell::Cell;
 use std::any::Any;
 use std::fmt;
 use std::collections::HashMap;
@@ -45,7 +46,7 @@ impl ModuleId {
 			.cloned()
 	}
 
-	pub fn global_by_index(&self, store: &Store, idx: u32) -> Option<GlobalId> {
+	pub fn global_by_index(&self, store: &Store, idx: u32) -> Option<Rc<GlobalInstance>> {
 		store.resolve_module(*self)
 			.globals
 			.get(idx as usize)
@@ -74,15 +75,12 @@ impl ModuleId {
 	}
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct GlobalId(u32);
-
 #[derive(Clone, Debug)]
 pub enum ExternVal {
 	Func(Rc<FuncInstance>),
 	Table(Rc<TableInstance>),
 	Memory(Rc<MemoryInstance>),
-	Global(GlobalId),
+	Global(Rc<GlobalInstance>),
 }
 
 impl ExternVal {
@@ -107,9 +105,9 @@ impl ExternVal {
 		}
 	}
 
-	pub fn as_global(&self) -> Option<GlobalId> {
+	pub fn as_global(&self) -> Option<Rc<GlobalInstance>> {
 		match *self {
-			ExternVal::Global(global) => Some(global),
+			ExternVal::Global(ref global) => Some(Rc::clone(global)),
 			_ => None,
 		}
 	}
@@ -167,13 +165,29 @@ pub struct FuncBody {
 
 #[derive(Debug)]
 pub struct GlobalInstance {
-	val: RuntimeValue,
+	val: Cell<RuntimeValue>,
 	mutable: bool,
 }
 
 impl GlobalInstance {
 	fn new(val: RuntimeValue, mutable: bool) -> GlobalInstance {
-		GlobalInstance { val, mutable }
+		GlobalInstance {
+			val: Cell::new(val),
+			mutable
+		}
+	}
+
+	pub fn set(&self, val: RuntimeValue) -> Result<(), Error> {
+		if !self.mutable {
+			// TODO: better error message
+			return Err(Error::Validation("Can't set immutable global".into()));
+		}
+		self.val.set(val);
+		Ok(())
+	}
+
+	pub fn get(&self) -> RuntimeValue {
+		self.val.get()
 	}
 }
 
@@ -188,7 +202,7 @@ pub struct ModuleInstance {
 	tables: Vec<Rc<TableInstance>>,
 	funcs: Vec<Rc<FuncInstance>>,
 	memories: Vec<Rc<MemoryInstance>>,
-	globals: Vec<GlobalId>,
+	globals: Vec<Rc<GlobalInstance>>,
 	exports: HashMap<String, ExternVal>,
 }
 
@@ -262,11 +276,9 @@ impl Store {
 		Ok(Rc::new(memory))
 	}
 
-	pub fn alloc_global(&mut self, global_type: GlobalType, val: RuntimeValue) -> GlobalId {
+	pub fn alloc_global(&mut self, global_type: GlobalType, val: RuntimeValue) -> Rc<GlobalInstance> {
 		let global = GlobalInstance::new(val, global_type.is_mutable());
-		self.globals.push(global);
-		let global_id = self.globals.len() - 1;
-		GlobalId(global_id as u32)
+		Rc::new(global)
 	}
 
 	fn alloc_module_internal(
@@ -317,9 +329,9 @@ impl Store {
 						match_limits(memory.limits(), mt.limits())?;
 						instance.memories.push(Rc::clone(memory));
 					}
-					(&External::Global(ref gl), &ExternVal::Global(global)) => {
+					(&External::Global(ref gl), &ExternVal::Global(ref global)) => {
 						// TODO: check globals
-						instance.globals.push(global)
+						instance.globals.push(Rc::clone(global))
 					}
 					(expected_import, actual_extern_val) => {
 						return Err(Error::Initialization(format!(
@@ -399,11 +411,11 @@ impl Store {
 					ExternVal::Func(Rc::clone(func))
 				}
 				Internal::Global(idx) => {
-					let global_id = instance
+					let global = instance
 						.globals
 						.get(idx as usize)
 						.expect("Due to validation global should exists");
-					ExternVal::Global(*global_id)
+					ExternVal::Global(Rc::clone(global))
 				}
 				Internal::Memory(idx) => {
 					let memory = instance
@@ -538,25 +550,6 @@ impl Store {
 			}
 		}
 	}
-
-	pub fn write_global(&mut self, global: GlobalId, val: RuntimeValue) -> Result<(), Error> {
-		let global_instance = self.globals
-			.get_mut(global.0 as usize)
-			.expect("ID should be always valid");
-		if !global_instance.mutable {
-			// TODO: better error message
-			return Err(Error::Validation("Can't write immutable global".into()));
-		}
-		global_instance.val = val;
-		Ok(())
-	}
-
-	pub fn read_global(&self, global: GlobalId) -> RuntimeValue {
-		let global_instance = self.globals
-			.get(global.0 as usize)
-			.expect("ID should be always valid");
-		global_instance.val.clone()
-	}
 }
 
 fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance, store: &Store) -> RuntimeValue {
@@ -571,15 +564,11 @@ fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance, store: &Store) 
 		Opcode::F32Const(v) => RuntimeValue::decode_f32(v),
 		Opcode::F64Const(v) => RuntimeValue::decode_f64(v),
 		Opcode::GetGlobal(idx) => {
-			let global_id = module
+			let global = module
 				.globals
 				.get(idx as usize)
 				.expect("Due to validation global should exists in module");
-			let global_inst = store
-				.globals
-				.get(global_id.0 as usize)
-				.expect("ID should always be a valid index");
-			global_inst.val.clone()
+			global.get()
 		}
 		_ => panic!("Due to validation init should be a const expr"),
 	}

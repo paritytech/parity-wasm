@@ -8,6 +8,7 @@ use interpreter::{Error, UserError, ProgramInstance};
 use interpreter::value::RuntimeValue;
 use interpreter::host::{HostModuleBuilder, HostModule};
 use interpreter::memory::MemoryInstance;
+use interpreter::ModuleInstance;
 use super::utils::program_with_default_env;
 
 #[test]
@@ -36,12 +37,16 @@ fn import_function() {
 			.build()
 		.build();
 
-	let mut program = ProgramInstance::new();
-	program.add_module("external_module", module1, &mut ()).unwrap();
-	program.add_module("main", module2, &mut ()).unwrap();
+	let external_module = ModuleInstance::instantiate(&module1)
+		.assert_no_start()
+		.unwrap();
+	let main_module = ModuleInstance::instantiate(&module2)
+		.with_import("external_module", &*external_module)
+		.assert_no_start()
+		.unwrap();
 
-	assert_eq!(program.invoke_index("external_module", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(3));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(10));
+	assert_eq!(external_module.invoke_index(0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(3));
+	assert_eq!(main_module.invoke_index(1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(10));
 }
 
 #[test]

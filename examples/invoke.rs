@@ -4,7 +4,7 @@ use std::env::args;
 
 use parity_wasm::RuntimeValue;
 use parity_wasm::elements::{Internal, External, Type, FunctionType, ValueType};
-use parity_wasm::interpreter::{ModuleInstance, Imports};
+use parity_wasm::interpreter::ModuleInstance;
 
 
 fn main() {

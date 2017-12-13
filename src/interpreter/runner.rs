@@ -7,7 +7,7 @@ use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local, FunctionType};
 use interpreter::Error;
-use interpreter::store::{Store, FuncInstance, ModuleInstance};
+use interpreter::store::{FuncInstance, ModuleInstance};
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
@@ -17,7 +17,6 @@ use common::stack::StackWithLimit;
 
 /// Function interpreter.
 pub struct Interpreter<'a, St: 'static> {
-	store: &'a mut Store,
 	state: &'a mut St,
 }
 
@@ -64,9 +63,8 @@ enum RunResult {
 }
 
 impl<'a, St: 'static> Interpreter<'a, St> {
-	pub fn new(store: &'a mut Store, state: &'a mut St) -> Interpreter<'a, St> {
+	pub fn new(state: &'a mut St) -> Interpreter<'a, St> {
 		Interpreter {
-			store,
 			state
 		}
 	}
@@ -78,24 +76,14 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		loop {
 			let mut function_context = function_stack.pop_back().expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
 			let function_ref = Rc::clone(&function_context.function);
-			let function_return = {
-				match function_ref.body() {
-					Some(function_body) => {
-						if !function_context.is_initialized() {
-							let return_type = function_context.return_type;
-							function_context.initialize(&function_body.locals);
-							function_context.push_frame(&function_body.labels, BlockFrameType::Function, return_type)?;
-						}
+			let function_body = function_ref.body().expect("Host functions checked in function_return below; Internal functions always have a body; qed");
+			if !function_context.is_initialized() {
+				let return_type = function_context.return_type;
+				function_context.initialize(&function_body.locals);
+				function_context.push_frame(&function_body.labels, BlockFrameType::Function, return_type)?;
+			}
 
-						self.do_run_function(&mut function_context, function_body.opcodes.elements(), &function_body.labels)?
-					},
-					None => {
-						let args: Vec<_> = function_context.locals.drain(..).collect();
-						let result = self.store.invoke(function_ref, args, self.state)?;
-						RunResult::Return(result)
-					},
-				}
-			};
+			let function_return = self.do_run_function(&mut function_context, function_body.opcodes.elements(), &function_body.labels)?;
 
 			match function_return {
 				RunResult::Return(return_value) => {
@@ -116,7 +104,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 						},
 						FuncInstance::Host { ref func_type, .. } => {
 							let args = prepare_function_args(func_type, &mut function_context.value_stack)?;
-							let return_val = self.store.invoke(Rc::clone(&nested_func), args, self.state)?;
+							let return_val = FuncInstance::invoke(Rc::clone(&nested_func), args, self.state)?;
 							if let Some(return_val) = return_val {
 								function_context.value_stack_mut().push(return_val)?;
 							}

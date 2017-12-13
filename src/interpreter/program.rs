@@ -2,13 +2,12 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use elements::Module;
 use interpreter::Error;
-use interpreter::store::{Store, ExternVal, FuncInstance, ModuleInstance};
+use interpreter::store::{ExternVal, FuncInstance, ModuleInstance};
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
 
 /// Program instance. Program is a set of instantiated modules.
 pub struct ProgramInstance {
-	store: Store,
 	modules: HashMap<String, Rc<ModuleInstance>>,
 }
 
@@ -16,7 +15,6 @@ impl ProgramInstance {
 	/// Create new program instance.
 	pub fn new() -> Self {
 		ProgramInstance {
-			store: Store::new(),
 			modules: HashMap::new(),
 		}
 	}
@@ -43,7 +41,7 @@ impl ProgramInstance {
 			extern_vals.push(extern_val);
 		}
 
-		let module_instance = self.store.instantiate_module(&module, &extern_vals, state)?;
+		let module_instance = ModuleInstance::instantiate(&module, &extern_vals, state)?;
 		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
 
 		Ok(module_instance)
@@ -90,11 +88,11 @@ impl ProgramInstance {
 					"Export {} is not a function, but {:?}",
 					func_name,
 					unexpected
-				)))
+				)));
 			}
 		};
 
-		self.store.invoke(func_instance, args, state)
+		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
 	}
 
 	pub fn invoke_index<St: 'static>(
@@ -115,15 +113,11 @@ impl ProgramInstance {
 
 	pub fn invoke_func<St: 'static>(
 		&mut self,
-		func: Rc<FuncInstance>,
+		func_instance: Rc<FuncInstance>,
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
-		self.store.invoke(func, args, state)
-	}
-
-	pub fn store(&self) -> &Store {
-		&self.store
+		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
 	}
 
 	pub fn module(&self, name: &str) -> Option<Rc<ModuleInstance>> {

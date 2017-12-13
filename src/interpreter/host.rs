@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::marker::PhantomData;
 use std::collections::HashMap;
 use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
-use interpreter::store::{Store, ExternVal, ModuleInstance, GlobalInstance, FuncInstance};
+use interpreter::store::{ExternVal, ModuleInstance, GlobalInstance, FuncInstance};
 use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
@@ -48,7 +48,7 @@ impl<St: 'static> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func0<
-		Cl: Fn(&mut Store, &mut St) -> Result<Option<Ret>, Error> + 'static,
+		Cl: Fn(&mut St) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
 		F: Into<Func0<Cl, St, Ret>>,
 		N: Into<String>,
@@ -68,7 +68,7 @@ impl<St: 'static> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func1<
-		Cl: Fn(&mut Store, &mut St, P1) -> Result<Option<Ret>, Error> + 'static,
+		Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
 		P1: FromArg + 'static,
 		F: Into<Func1<Cl, St, Ret, P1>>,
@@ -89,7 +89,7 @@ impl<St: 'static> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func2<
-		Cl: Fn(&mut Store, &mut St, P1, P2) -> Result<Option<Ret>, Error> + 'static,
+		Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
 		P1: FromArg + 'static,
 		P2: FromArg + 'static,
@@ -189,7 +189,6 @@ impl HostModule {
 pub trait AnyFunc {
 	fn call_as_any(
 		&self,
-		store: &mut Store,
 		state: &mut Any,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error>;
@@ -238,7 +237,7 @@ impl AsReturnVal for () {
 	}
 }
 
-pub struct Func0<Cl: Fn(&mut Store, &mut St) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal> {
+pub struct Func0<Cl: Fn(&mut St) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal> {
 	closure: Cl,
 	_marker: PhantomData<(St, Ret)>,
 }
@@ -246,21 +245,20 @@ pub struct Func0<Cl: Fn(&mut Store, &mut St) -> Result<Option<Ret>, Error>, St, 
 impl<
 	St: 'static,
 	Ret: AsReturnVal,
-	Cl: Fn(&mut Store, &mut St) -> Result<Option<Ret>, Error>,
+	Cl: Fn(&mut St) -> Result<Option<Ret>, Error>,
 > AnyFunc for Func0<Cl, St, Ret> {
 	fn call_as_any(
 		&self,
-		store: &mut Store,
 		state: &mut Any,
 		_args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
 		let state = state.downcast_mut::<St>().unwrap();
-		let result = (self.closure)(store, state);
+		let result = (self.closure)(state);
 		result.map(|r| r.and_then(|r| r.as_return_val()))
 	}
 }
 
-impl<St: 'static, Ret: AsReturnVal, Cl: Fn(&mut Store, &mut St) -> Result<Option<Ret>, Error>> From<Cl>
+impl<St: 'static, Ret: AsReturnVal, Cl: Fn(&mut St) -> Result<Option<Ret>, Error>> From<Cl>
 	for Func0<Cl, St, Ret> {
 	fn from(cl: Cl) -> Self {
 		Func0 {
@@ -273,14 +271,14 @@ impl<St: 'static, Ret: AsReturnVal, Cl: Fn(&mut Store, &mut St) -> Result<Option
 impl<
 	St: 'static,
 	Ret: AsReturnVal,
-	Cl: Fn(&mut Store, &mut St) -> Result<Option<Ret>, Error>,
+	Cl: Fn(&mut St) -> Result<Option<Ret>, Error>,
 > Func0<Cl, St, Ret> {
 	fn derive_func_type() -> FunctionType {
 		FunctionType::new(vec![], Ret::value_type())
 	}
 }
 
-pub struct Func1<Cl: Fn(&mut Store, &mut St, P1) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg> {
+pub struct Func1<Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg> {
 	closure: Cl,
 	_marker: PhantomData<(St, Ret, P1)>,
 }
@@ -289,22 +287,21 @@ impl<
 	St: 'static,
 	Ret: AsReturnVal,
 	P1: FromArg,
-	Cl: Fn(&mut Store, &mut St, P1) -> Result<Option<Ret>, Error>,
+	Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>,
 > AnyFunc for Func1<Cl, St, Ret, P1> {
 	fn call_as_any(
 		&self,
-		store: &mut Store,
 		state: &mut Any,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
 		let state = state.downcast_mut::<St>().unwrap();
 		let p1 = P1::from_arg(&args[0]);
-		let result = (self.closure)(store, state, p1);
+		let result = (self.closure)(state, p1);
 		result.map(|r| r.and_then(|r| r.as_return_val()))
 	}
 }
 
-impl<St: 'static, Ret: AsReturnVal, P1: FromArg, Cl: Fn(&mut Store, &mut St, P1) -> Result<Option<Ret>, Error>> From<Cl>
+impl<St: 'static, Ret: AsReturnVal, P1: FromArg, Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>> From<Cl>
 	for Func1<Cl, St, Ret, P1> {
 	fn from(cl: Cl) -> Self {
 		Func1 {
@@ -318,14 +315,14 @@ impl<
 	St: 'static,
 	Ret: AsReturnVal,
 	P1: FromArg,
-	Cl: Fn(&mut Store, &mut St, P1) -> Result<Option<Ret>, Error>,
+	Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>,
 > Func1<Cl, St, Ret, P1> {
 	fn derive_func_type() -> FunctionType {
 		FunctionType::new(vec![P1::value_type()], Ret::value_type())
 	}
 }
 
-pub struct Func2<Cl: Fn(&mut Store, &mut St, P1, P2) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg, P2: FromArg> {
+pub struct Func2<Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg, P2: FromArg> {
 	closure: Cl,
 	_marker: PhantomData<(St, Ret, P1, P2)>,
 }
@@ -335,23 +332,22 @@ impl<
 	Ret: AsReturnVal,
 	P1: FromArg,
 	P2: FromArg,
-	Cl: Fn(&mut Store, &mut St, P1, P2) -> Result<Option<Ret>, Error>,
+	Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>,
 > AnyFunc for Func2<Cl, St, Ret, P1, P2> {
 	fn call_as_any(
 		&self,
-		store: &mut Store,
 		state: &mut Any,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
 		let state = state.downcast_mut::<St>().unwrap();
 		let p1 = P1::from_arg(&args[0]);
 		let p2 = P2::from_arg(&args[1]);
-		let result = (self.closure)(store, state, p1, p2);
+		let result = (self.closure)(state, p1, p2);
 		result.map(|r| r.and_then(|r| r.as_return_val()))
 	}
 }
 
-impl<St: 'static, Ret: AsReturnVal, P1: FromArg, P2: FromArg, Cl: Fn(&mut Store, &mut St, P1, P2) -> Result<Option<Ret>, Error>> From<Cl>
+impl<St: 'static, Ret: AsReturnVal, P1: FromArg, P2: FromArg, Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>> From<Cl>
 	for Func2<Cl, St, Ret, P1, P2> {
 	fn from(cl: Cl) -> Self {
 		Func2 {
@@ -366,7 +362,7 @@ impl<
 	Ret: AsReturnVal,
 	P1: FromArg,
 	P2: FromArg,
-	Cl: Fn(&mut Store, &mut St, P1, P2) -> Result<Option<Ret>, Error>,
+	Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>,
 > Func2<Cl, St, Ret, P1, P2> {
 	fn derive_func_type() -> FunctionType {
 		FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type())

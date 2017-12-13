@@ -7,7 +7,6 @@ use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, Global
 use interpreter::{Error, UserError, ProgramInstance};
 use interpreter::value::RuntimeValue;
 use interpreter::host::{HostModuleBuilder, HostModule};
-use interpreter::store::Store;
 use interpreter::memory::MemoryInstance;
 use super::utils::program_with_default_env;
 
@@ -122,7 +121,7 @@ struct FunctionExecutor {
 
 fn build_env_module() -> HostModule {
 	let mut builder = HostModuleBuilder::<FunctionExecutor>::new();
-	builder.with_func2("add", |_store: &mut Store, state: &mut FunctionExecutor, arg: i32, unused: i32| {
+	builder.with_func2("add", |state: &mut FunctionExecutor, arg: i32, unused: i32| {
 		let memory_value = state.memory.get(0, 1).unwrap()[0];
 		let fn_argument_unused = unused as u8;
 		let fn_argument = arg as u8;
@@ -133,7 +132,7 @@ fn build_env_module() -> HostModule {
 		state.values.push(sum as i32);
 		Ok(Some(sum as i32))
 	});
-	builder.with_func2("sub", |_store: &mut Store, state: &mut FunctionExecutor, arg: i32, unused: i32| {
+	builder.with_func2("sub", |state: &mut FunctionExecutor, arg: i32, unused: i32| {
 		let memory_value = state.memory.get(0, 1).unwrap()[0];
 		let fn_argument_unused = unused as u8;
 		let fn_argument = arg as u8;
@@ -144,7 +143,7 @@ fn build_env_module() -> HostModule {
 		state.values.push(diff as i32);
 		Ok(Some(diff as i32))
 	});
-	builder.with_func2("err", |_: &mut Store, _: &mut FunctionExecutor, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
+	builder.with_func2("err", |_: &mut FunctionExecutor, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
 		Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
 	});
 	builder.with_memory("memory", MemoryType::new(256, None));

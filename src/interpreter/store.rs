@@ -9,6 +9,7 @@ use interpreter::{Error, MemoryInstance,
                   RuntimeValue, TableInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::AnyFunc;
+use interpreter::imports::ImportResolver;
 use validation::validate_module;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX,
              DEFAULT_VALUE_STACK_LIMIT};
@@ -189,7 +190,6 @@ impl ModuleInstance {
 			exports: RefCell::new(exports), ..Default::default()
 		}
 	}
-
 
 	pub fn memory_by_index(&self, idx: u32) -> Option<Rc<MemoryInstance>> {
 		self
@@ -417,7 +417,7 @@ impl ModuleInstance {
 		Ok(())
 	}
 
-	pub fn instantiate<St: 'static>(
+	pub fn instantiate_with_externvals<St: 'static>(
 		module: &Module,
 		extern_vals: &[ExternVal],
 		state: &mut St,
@@ -469,6 +469,44 @@ impl ModuleInstance {
 		}
 
 		Ok(instance)
+	}
+
+	pub fn instantiate<St: 'static, I: ImportResolver>(
+		module: &Module,
+		resolver: &I,
+		state: &mut St,
+	) -> Result<Rc<ModuleInstance>, Error> {
+		let mut extern_vals = Vec::new();
+		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
+			let module_name = import_entry.module();
+			let field_name = import_entry.field();
+			let extern_val = match *import_entry.external() {
+				External::Function(fn_ty_idx) => {
+					// Module is not yet validated so we have to check type indexes.
+					let types = module.type_section().map(|s| s.types()).unwrap_or(&[]);
+					let &Type::Function(ref func_type) = types.get(fn_ty_idx as usize)
+						.ok_or_else(|| Error::Validation(format!("Function type {} not found", fn_ty_idx)))?;
+
+					let func = resolver.resolve_func(module_name, field_name, func_type)?;
+					ExternVal::Func(func)
+				},
+				External::Table(ref table_type) => {
+					let table = resolver.resolve_table(module_name, field_name, table_type)?;
+					ExternVal::Table(table)
+				},
+				External::Memory(ref memory_type) => {
+					let memory = resolver.resolve_memory(module_name, field_name, memory_type)?;
+					ExternVal::Memory(memory)
+				},
+				External::Global(ref global_type) => {
+					let global = resolver.resolve_global(module_name, field_name, global_type)?;
+					ExternVal::Global(global)
+				}
+			};
+			extern_vals.push(extern_val);
+		}
+
+		Self::instantiate_with_externvals(module, &extern_vals, state)
 	}
 
 	pub fn invoke_index<St: 'static>(

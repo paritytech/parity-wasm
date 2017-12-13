@@ -26,10 +26,10 @@ impl ProgramInstance {
 		module: Module,
 		state: &mut St,
 	) -> Result<Rc<ModuleInstance>, Error> {
-		let mut extern_vals = Vec::new();
+		let mut externvals = Vec::new();
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
 			let module = self.modules.get(import_entry.module()).ok_or_else(|| Error::Program(format!("Module {} not found", import_entry.module())))?;
-			let extern_val = module
+			let externval = module
 				.export_by_name(import_entry.field())
 				.ok_or_else(|| {
 					Error::Program(format!(
@@ -38,10 +38,10 @@ impl ProgramInstance {
 						import_entry.field()
 					))
 				})?;
-			extern_vals.push(extern_val);
+			externvals.push(externval);
 		}
 
-		let module_instance = ModuleInstance::instantiate(&module, &extern_vals, state)?;
+		let module_instance = ModuleInstance::instantiate_with_externvals(&module, &externvals, state)?;
 		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
 
 		Ok(module_instance)

@@ -140,6 +140,7 @@ mod value;
 mod variable;
 mod store;
 mod host;
+mod imports;
 
 #[cfg(test)]
 mod tests;

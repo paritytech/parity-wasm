@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use elements::Module;
 use interpreter::Error;
-use interpreter::store::{ModuleInstance};
+use interpreter::module::ModuleInstance;
 use interpreter::func::FuncInstance;
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;

@@ -7,7 +7,7 @@ use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local, FunctionType};
 use interpreter::Error;
-use interpreter::store::ModuleInstance;
+use interpreter::module::ModuleInstance;
 use interpreter::func::FuncInstance;
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::marker::PhantomData;
 use std::collections::HashMap;
 use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
-use interpreter::store::{ExternVal, ModuleInstance};
+use interpreter::module::{ExternVal, ModuleInstance};
 use interpreter::func::FuncInstance;
 use interpreter::global::GlobalInstance;
 use interpreter::memory::MemoryInstance;

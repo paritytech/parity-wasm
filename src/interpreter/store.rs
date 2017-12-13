@@ -1,14 +1,11 @@
-// TODO: remove this
-#![allow(unused)]
-
 use std::rc::Rc;
 use std::cell::{Cell, RefCell};
 use std::any::Any;
 use std::fmt;
 use std::collections::HashMap;
-use elements::{FunctionType, GlobalEntry, GlobalType, InitExpr, Internal, External, Local, MemoryType,
+use elements::{FunctionType, GlobalType, InitExpr, Internal, External, Local, MemoryType,
                Module, Opcode, Opcodes, TableType, Type, ResizableLimits};
-use interpreter::{Error, ExecutionParams, MemoryInstance,
+use interpreter::{Error, MemoryInstance,
                   RuntimeValue, TableInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::AnyFunc;
@@ -172,11 +169,6 @@ impl GlobalInstance {
 	}
 }
 
-pub struct ExportInstance {
-	name: String,
-	val: ExternVal,
-}
-
 #[derive(Default, Debug)]
 pub struct ModuleInstance {
 	types: RefCell<Vec<Rc<FunctionType>>>,
@@ -244,7 +236,7 @@ impl ModuleInstance {
 						match_limits(memory.limits(), mt.limits())?;
 						instance.push_memory(Rc::clone(memory));
 					}
-					(&External::Global(ref gl), &ExternVal::Global(ref global)) => {
+					(&External::Global(ref _gl), &ExternVal::Global(ref global)) => {
 						// TODO: check globals
 						instance.push_global(Rc::clone(global))
 					}
@@ -354,7 +346,7 @@ impl ModuleInstance {
 		extern_vals: &[ExternVal],
 		state: &mut St,
 	) -> Result<Rc<ModuleInstance>, Error> {
-		let mut instance = Rc::new(ModuleInstance::new());
+		let instance = Rc::new(ModuleInstance::new());
 
 		ModuleInstance::alloc_module_internal(module, extern_vals, &instance)?;
 
@@ -376,7 +368,7 @@ impl ModuleInstance {
 					.func_by_index(*func_idx)
 					.expect("Due to validation funcs from element segments should exists");
 
-				table_inst.set(offset_val + j as u32, func);
+				table_inst.set(offset_val + j as u32, func)?;
 			}
 		}
 
@@ -489,14 +481,6 @@ fn alloc_func(module: &Rc<ModuleInstance>, func_type: Rc<FunctionType>, body: Fu
 		func_type,
 		module: Rc::clone(module),
 		body: Rc::new(body),
-	};
-	Rc::new(func)
-}
-
-fn alloc_host_func(func_type: Rc<FunctionType>, host_func: Rc<AnyFunc>) -> Rc<FuncInstance> {
-	let func = FuncInstance::Host {
-		func_type,
-		host_func,
 	};
 	Rc::new(func)
 }

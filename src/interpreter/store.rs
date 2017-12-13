@@ -1,7 +1,7 @@
 // TODO: remove this
 #![allow(unused)]
 
-use std::sync::Arc;
+use std::rc::Rc;
 use std::any::Any;
 use std::fmt;
 use std::collections::HashMap;
@@ -52,7 +52,7 @@ impl ModuleId {
 			.cloned()
 	}
 
-	pub fn func_by_index(&self, store: &Store, idx: u32) -> Option<FuncId> {
+	pub fn func_by_index(&self, store: &Store, idx: u32) -> Option<Rc<FuncInstance>> {
 		store.resolve_module(*self)
 			.funcs
 			.get(idx as usize)
@@ -77,17 +77,6 @@ impl ModuleId {
 #[derive(Copy, Clone, Debug)]
 pub struct HostFuncId(u32);
 
-#[derive(Copy, Clone, Debug)]
-pub struct FuncId(u32);
-
-impl FuncId {
-	pub fn resolve<'s>(&self, store: &'s Store) -> &'s FuncInstance {
-		store
-			.funcs
-			.get(self.0 as usize)
-			.expect("ID should be always valid")
-	}
-}
 
 #[derive(Copy, Clone, Debug)]
 pub struct TableId(u32);
@@ -116,18 +105,18 @@ impl MemoryId {
 #[derive(Copy, Clone, Debug)]
 pub struct GlobalId(u32);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum ExternVal {
-	Func(FuncId),
+	Func(Rc<FuncInstance>),
 	Table(TableId),
 	Memory(MemoryId),
 	Global(GlobalId),
 }
 
 impl ExternVal {
-	pub fn as_func(&self) -> Option<FuncId> {
+	pub fn as_func(&self) -> Option<Rc<FuncInstance>> {
 		match *self {
-			ExternVal::Func(func) => Some(func),
+			ExternVal::Func(ref func) => Some(Rc::clone(func)),
 			_ => None,
 		}
 	}
@@ -159,11 +148,11 @@ pub enum FuncInstance {
 	Internal {
 		func_type: TypeId,
 		module: ModuleId,
-		body: Arc<FuncBody>,
+		body: Rc<FuncBody>,
 	},
 	Host {
 		func_type: TypeId,
-		host_func: Arc<AnyFunc>,
+		host_func: Rc<AnyFunc>,
 	},
 }
 
@@ -189,9 +178,9 @@ impl FuncInstance {
 		}
 	}
 
-	pub fn body(&self) -> Option<Arc<FuncBody>> {
+	pub fn body(&self) -> Option<Rc<FuncBody>> {
 		match *self {
-			FuncInstance::Internal { ref body, .. } => Some(Arc::clone(body)),
+			FuncInstance::Internal { ref body, .. } => Some(Rc::clone(body)),
 			FuncInstance::Host { .. } => None,
 		}
 	}
@@ -224,8 +213,8 @@ pub struct ExportInstance {
 #[derive(Default, Debug)]
 pub struct ModuleInstance {
 	types: Vec<TypeId>,
-	funcs: Vec<FuncId>,
 	tables: Vec<TableId>,
+	funcs: Vec<Rc<FuncInstance>>,
 	memories: Vec<MemoryId>,
 	globals: Vec<GlobalId>,
 	exports: HashMap<String, ExternVal>,
@@ -274,25 +263,21 @@ impl Store {
 		TypeId(type_id as u32)
 	}
 
-	pub fn alloc_func(&mut self, module: ModuleId, func_type: TypeId, body: FuncBody) -> FuncId {
+	pub fn alloc_func(&mut self, module: ModuleId, func_type: TypeId, body: FuncBody) -> Rc<FuncInstance> {
 		let func = FuncInstance::Internal {
 			func_type,
 			module,
-			body: Arc::new(body),
+			body: Rc::new(body),
 		};
-		self.funcs.push(func);
-		let func_id = self.funcs.len() - 1;
-		FuncId(func_id as u32)
+		Rc::new(func)
 	}
 
-	pub fn alloc_host_func(&mut self, func_type: TypeId, host_func: Arc<AnyFunc>) -> FuncId {
+	pub fn alloc_host_func(&mut self, func_type: TypeId, host_func: Rc<AnyFunc>) -> Rc<FuncInstance> {
 		let func = FuncInstance::Host {
 			func_type,
 			host_func,
 		};
-		self.funcs.push(func);
-		let func_id = self.funcs.len() - 1;
-		FuncId(func_id as u32)
+		Rc::new(func)
 	}
 
 	pub fn alloc_table(&mut self, table_type: &TableType) -> Result<TableId, Error> {
@@ -342,10 +327,10 @@ impl Store {
 
 			for (import, extern_val) in Iterator::zip(imports.into_iter(), extern_vals.into_iter())
 			{
-				match (import.external(), *extern_val) {
-					(&External::Function(fn_type_idx), ExternVal::Func(func)) => {
+				match (import.external(), extern_val) {
+					(&External::Function(fn_type_idx), &ExternVal::Func(ref func)) => {
 						let expected_fn_type = instance.types.get(fn_type_idx as usize).expect("Due to validation function type should exists").resolve(self);
-						let actual_fn_type = func.resolve(self).func_type().resolve(self);
+						let actual_fn_type = func.func_type().resolve(self);
 						if expected_fn_type != actual_fn_type {
 							return Err(Error::Initialization(format!(
 								"Expected function with type {:?}, but actual type is {:?} for entry {}",
@@ -354,17 +339,17 @@ impl Store {
 								import.field(),
 							)));
 						}
-						instance.funcs.push(func)
+						instance.funcs.push(Rc::clone(func))
 					}
-					(&External::Table(ref tt), ExternVal::Table(table)) => {
+					(&External::Table(ref tt), &ExternVal::Table(table)) => {
 						match_limits(table.resolve(self).limits(), tt.limits())?;
 						instance.tables.push(table);
 					}
-					(&External::Memory(ref mt), ExternVal::Memory(memory)) => {
+					(&External::Memory(ref mt), &ExternVal::Memory(memory)) => {
 						match_limits(memory.resolve(self).limits(), mt.limits())?;
 						instance.memories.push(memory);
 					}
-					(&External::Global(ref gl), ExternVal::Global(global)) => {
+					(&External::Global(ref gl), &ExternVal::Global(global)) => {
 						// TODO: check globals
 						instance.globals.push(global)
 					}
@@ -439,11 +424,11 @@ impl Store {
 			let field = export.field();
 			let extern_val: ExternVal = match *export.internal() {
 				Internal::Function(idx) => {
-					let func_id = instance
+					let func = instance
 						.funcs
 						.get(idx as usize)
 						.expect("Due to validation func should exists");
-					ExternVal::Func(*func_id)
+					ExternVal::Func(Rc::clone(func))
 				}
 				Internal::Global(idx) => {
 					let global_id = instance
@@ -504,12 +489,12 @@ impl Store {
 				.expect("ID should be always valid");
 
 			for (j, func_idx) in element_segment.members().into_iter().enumerate() {
-				let func_id = instance
+				let func = instance
 					.funcs
 					.get(*func_idx as usize)
 					.expect("Due to validation funcs from element segments should exists");
 
-				table_inst.set(offset_val + j as u32, *func_id);
+				table_inst.set(offset_val + j as u32, Rc::clone(func));
 			}
 		}
 
@@ -537,9 +522,10 @@ impl Store {
 		if let Some(start_fn_idx) = module.start_section() {
 			let start_func = {
 				let instance = self.resolve_module(module_id);
-				*instance
+				instance
 					.funcs
 					.get(start_fn_idx as usize)
+					.cloned()
 					.expect("Due to validation start function should exists")
 			};
 			self.invoke(start_func, vec![], state)?;
@@ -556,23 +542,23 @@ impl Store {
 
 	pub fn invoke<St: 'static>(
 		&mut self,
-		func: FuncId,
+		func: Rc<FuncInstance>,
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		enum InvokeKind {
 			Internal(FunctionContext),
-			Host(Arc<AnyFunc>, Vec<RuntimeValue>),
+			Host(Rc<AnyFunc>, Vec<RuntimeValue>),
 		}
 
-		let result = match *func.resolve(self) {
+		let result = match *func {
 			FuncInstance::Internal { func_type, .. } => {
 				let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
 				let func_signature = func_type.resolve(self);
 				let args = prepare_function_args(&func_signature, &mut args)?;
 				let context = FunctionContext::new(
 					self,
-					func,
+					Rc::clone(&func),
 					DEFAULT_VALUE_STACK_LIMIT,
 					DEFAULT_FRAME_STACK_LIMIT,
 					&func_signature,
@@ -580,7 +566,7 @@ impl Store {
 				);
 				InvokeKind::Internal(context)
 			}
-			FuncInstance::Host { ref host_func, .. } => InvokeKind::Host(Arc::clone(host_func), args),
+			FuncInstance::Host { ref host_func, .. } => InvokeKind::Host(Rc::clone(host_func), args),
 		};
 
 		match result {

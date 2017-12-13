@@ -1,8 +1,8 @@
-
+use std::rc::Rc;
 use std::collections::HashMap;
 use elements::Module;
 use interpreter::Error;
-use interpreter::store::{ModuleId, FuncId, Store, ExternVal};
+use interpreter::store::{ModuleId, Store, ExternVal, FuncInstance};
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
 
@@ -115,7 +115,7 @@ impl ProgramInstance {
 
 	pub fn invoke_func<St: 'static>(
 		&mut self,
-		func: FuncId,
+		func: Rc<FuncInstance>,
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {

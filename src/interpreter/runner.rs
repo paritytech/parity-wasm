@@ -1,12 +1,13 @@
 use std::mem;
 use std::ops;
+use std::rc::Rc;
 use std::{u32, usize};
 use std::fmt::{self, Display};
 use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local, FunctionType};
 use interpreter::Error;
-use interpreter::store::{Store, FuncId, ModuleId, FuncInstance};
+use interpreter::store::{Store, ModuleId, FuncInstance};
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
@@ -25,7 +26,7 @@ pub struct FunctionContext {
 	/// Is context initialized.
 	pub is_initialized: bool,
 	/// Internal function reference.
-	pub function: FuncId,
+	pub function: Rc<FuncInstance>,
 	pub module: ModuleId,
 	/// Function return type.
 	pub return_type: BlockType,
@@ -47,7 +48,7 @@ pub enum InstructionOutcome {
 	/// Branch to given frame.
 	Branch(usize),
 	/// Execute function call.
-	ExecuteCall(FuncId),
+	ExecuteCall(Rc<FuncInstance>),
 	/// End current frame.
 	End,
 	/// Return from current function block.
@@ -59,7 +60,7 @@ enum RunResult {
 	/// Function has returned (optional) value.
 	Return(Option<RuntimeValue>),
 	/// Function is calling other function.
-	NestedCall(FuncId),
+	NestedCall(Rc<FuncInstance>),
 }
 
 impl<'a, St: 'static> Interpreter<'a, St> {
@@ -76,11 +77,9 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 
 		loop {
 			let mut function_context = function_stack.pop_back().expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
-			let function_ref = function_context.function;
+			let function_ref = Rc::clone(&function_context.function);
 			let function_return = {
-				let func_body = function_ref.resolve(self.store).body();
-
-				match func_body {
+				match function_ref.body() {
 					Some(function_body) => {
 						if !function_context.is_initialized() {
 							let return_type = function_context.return_type;
@@ -108,8 +107,8 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 					}
 				},
 				RunResult::NestedCall(nested_func) => {
-					let func = nested_func.resolve(self.store).clone();
-					match func {
+					// TODO: check this
+					match *nested_func {
 						FuncInstance::Internal { .. } => {
 							let nested_context = function_context.nested(self.store, nested_func)?;
 							function_stack.push_back(function_context);
@@ -452,7 +451,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 			.resolve(self.store);
 		let func_ref = table.get(table_func_idx)?;
 
-		let actual_function_type = func_ref.resolve(self.store).func_type().resolve(self.store);
+		let actual_function_type = func_ref.func_type().resolve(self.store);
 		let required_function_type = context
 			.module()
 			.type_by_index(self.store, type_idx)
@@ -1019,9 +1018,8 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 }
 
 impl FunctionContext {
-	pub fn new<'store>(store: &'store Store, function: FuncId, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
-		let func_instance = function.resolve(store);
-		let module = match *func_instance {
+	pub fn new<'store>(store: &'store Store, function: Rc<FuncInstance>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
+		let module = match *function {
 			FuncInstance::Internal { module, .. } => module,
 			FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 		};
@@ -1037,14 +1035,13 @@ impl FunctionContext {
 		}
 	}
 
-	pub fn nested(&mut self, store: &Store, function: FuncId) -> Result<Self, Error> {
+	pub fn nested(&mut self, store: &Store, function: Rc<FuncInstance>) -> Result<Self, Error> {
 		let (function_locals, module, function_return_type) = {
-			let func_instance = function.resolve(store);
-			let module = match *func_instance {
+			let module = match *function {
 				FuncInstance::Internal { module, .. } => module,
 				FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 			};
-			let function_type = func_instance.func_type().resolve(store);
+			let function_type = function.func_type().resolve(store);
 			let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
 			let function_locals = prepare_function_args(function_type, &mut self.value_stack)?;
 			(function_locals, module, function_return_type)

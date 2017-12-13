@@ -1,18 +1,19 @@
 use std::u32;
 use std::fmt;
+use std::rc::Rc;
 use parking_lot::RwLock;
 use elements::{TableType, ResizableLimits};
 use interpreter::Error;
 use interpreter::module::check_limits;
 use interpreter::variable::VariableType;
-use interpreter::store::FuncId;
+use interpreter::store::FuncInstance;
 
 /// Table instance.
 pub struct TableInstance {
 	/// Table limits.
 	limits: ResizableLimits,
 	/// Table memory buffer.
-	buffer: RwLock<Vec<Option<FuncId>>>,
+	buffer: RwLock<Vec<Option<Rc<FuncInstance>>>>,
 
 }
 
@@ -48,10 +49,10 @@ impl TableInstance {
 	}
 
 	/// Get the specific value in the table
-	pub fn get(&self, offset: u32) -> Result<FuncId, Error> {
+	pub fn get(&self, offset: u32) -> Result<Rc<FuncInstance>, Error> {
 		let buffer = self.buffer.read();
 		let buffer_len = buffer.len();
-		let table_elem = buffer.get(offset as usize).ok_or(Error::Table(format!(
+		let table_elem = buffer.get(offset as usize).cloned().ok_or(Error::Table(format!(
 			"trying to read table item with index {} when there are only {} items",
 			offset,
 			buffer_len
@@ -63,7 +64,7 @@ impl TableInstance {
 	}
 
 	/// Set the table element to the specified function.
-	pub fn set(&self, offset: u32, value: FuncId) -> Result<(), Error> {
+	pub fn set(&self, offset: u32, value: Rc<FuncInstance>) -> Result<(), Error> {
 		let mut buffer = self.buffer.write();
 		let buffer_len = buffer.len();
 		let table_elem = buffer.get_mut(offset as usize).ok_or(Error::Table(format!(

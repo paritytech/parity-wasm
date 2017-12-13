@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::sync::Arc;
+use std::rc::Rc;
 use std::marker::PhantomData;
 use std::collections::HashMap;
 use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
@@ -11,7 +11,7 @@ enum HostItem {
 	Func {
 		name: String,
 		func_type: FunctionType,
-		host_func: Arc<AnyFunc>,
+		host_func: Rc<AnyFunc>,
 	},
 	Global {
 		name: String,
@@ -56,7 +56,7 @@ impl<St: 'static> HostModuleBuilder<St> {
 		f: F,
 	) {
 		let func_type = Func0::<Cl, St, Ret>::derive_func_type();
-		let host_func = Arc::new(f.into()) as Arc<AnyFunc>;
+		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
 
 		self.items.push(HostItem::Func {
 			name: name.into(),
@@ -77,7 +77,7 @@ impl<St: 'static> HostModuleBuilder<St> {
 		f: F,
 	) {
 		let func_type = Func1::<Cl, St, Ret, P1>::derive_func_type();
-		let host_func = Arc::new(f.into()) as Arc<AnyFunc>;
+		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
 
 		self.items.push(HostItem::Func {
 			name: name.into(),
@@ -99,7 +99,7 @@ impl<St: 'static> HostModuleBuilder<St> {
 		f: F,
 	) {
 		let func_type = Func2::<Cl, St, Ret, P1, P2>::derive_func_type();
-		let host_func = Arc::new(f.into()) as Arc<AnyFunc>;
+		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
 
 		self.items.push(HostItem::Func {
 			name: name.into(),

@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::any::Any;
 use std::fmt;
 use std::collections::HashMap;
@@ -9,6 +9,7 @@ use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::AnyFunc;
 use interpreter::imports::{ImportResolver, Imports};
+use interpreter::global::GlobalInstance;
 use validation::validate_module;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX,
              DEFAULT_VALUE_STACK_LIMIT};
@@ -145,34 +146,6 @@ pub struct FuncBody {
 	pub locals: Vec<Local>,
 	pub opcodes: Opcodes,
 	pub labels: HashMap<usize, usize>,
-}
-
-#[derive(Debug)]
-pub struct GlobalInstance {
-	val: Cell<RuntimeValue>,
-	mutable: bool,
-}
-
-impl GlobalInstance {
-	pub fn new(val: RuntimeValue, mutable: bool) -> GlobalInstance {
-		GlobalInstance {
-			val: Cell::new(val),
-			mutable,
-		}
-	}
-
-	pub fn set(&self, val: RuntimeValue) -> Result<(), Error> {
-		if !self.mutable {
-			// TODO: better error message
-			return Err(Error::Validation("Can't set immutable global".into()));
-		}
-		self.val.set(val);
-		Ok(())
-	}
-
-	pub fn get(&self) -> RuntimeValue {
-		self.val.get()
-	}
 }
 
 #[derive(Default, Debug)]

@@ -3,13 +3,12 @@ use std::cell::{Cell, RefCell};
 use std::any::Any;
 use std::fmt;
 use std::collections::HashMap;
-use elements::{FunctionType, GlobalType, InitExpr, Internal, External, Local, MemoryType,
-               Module, Opcode, Opcodes, TableType, Type, ResizableLimits};
-use interpreter::{Error, MemoryInstance,
-                  RuntimeValue, TableInstance};
+use elements::{External, FunctionType, GlobalType, InitExpr, Internal, Local, MemoryType, Module,
+               Opcode, Opcodes, ResizableLimits, TableType, Type};
+use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::AnyFunc;
-use interpreter::imports::{Imports, ImportResolver};
+use interpreter::imports::{ImportResolver, Imports};
 use validation::validate_module;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX,
              DEFAULT_VALUE_STACK_LIMIT};
@@ -69,9 +68,16 @@ pub enum FuncInstance {
 impl fmt::Debug for FuncInstance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			&FuncInstance::Internal { ref func_type, ref module, .. } => {
-				write!(f, "Internal {{ type={:?}, module={:?} }}", func_type, module)
-			},
+			&FuncInstance::Internal {
+				ref func_type,
+				ref module,
+				..
+			} => write!(
+				f,
+				"Internal {{ type={:?}, module={:?} }}",
+				func_type,
+				module
+			),
 			&FuncInstance::Host { ref func_type, .. } => {
 				write!(f, "Host {{ type={:?} }}", func_type)
 			}
@@ -82,9 +88,8 @@ impl fmt::Debug for FuncInstance {
 impl FuncInstance {
 	pub fn func_type(&self) -> Rc<FunctionType> {
 		match *self {
-			FuncInstance::Internal { ref func_type, .. } | FuncInstance::Host { ref func_type, .. } => {
-				Rc::clone(func_type)
-			}
+			FuncInstance::Internal { ref func_type, .. } |
+			FuncInstance::Host { ref func_type, .. } => Rc::clone(func_type),
 		}
 	}
 
@@ -120,7 +125,9 @@ impl FuncInstance {
 				);
 				InvokeKind::Internal(context)
 			}
-			FuncInstance::Host { ref host_func, .. } => InvokeKind::Host(Rc::clone(host_func), args),
+			FuncInstance::Host { ref host_func, .. } => {
+				InvokeKind::Host(Rc::clone(host_func), args)
+			}
 		};
 
 		match result {
@@ -128,9 +135,7 @@ impl FuncInstance {
 				let mut interpreter = Interpreter::new(state);
 				interpreter.run_function(ctx)
 			}
-			InvokeKind::Host(host_func, args) => {
-				host_func.call_as_any(state as &mut Any, &args)
-			}
+			InvokeKind::Host(host_func, args) => host_func.call_as_any(state as &mut Any, &args),
 		}
 	}
 }
@@ -152,7 +157,7 @@ impl GlobalInstance {
 	pub fn new(val: RuntimeValue, mutable: bool) -> GlobalInstance {
 		GlobalInstance {
 			val: Cell::new(val),
-			mutable
+			mutable,
 		}
 	}
 
@@ -187,56 +192,33 @@ impl ModuleInstance {
 
 	pub fn with_exports(exports: HashMap<String, ExternVal>) -> ModuleInstance {
 		ModuleInstance {
-			exports: RefCell::new(exports), ..Default::default()
+			exports: RefCell::new(exports),
+			..Default::default()
 		}
 	}
 
 	pub fn memory_by_index(&self, idx: u32) -> Option<Rc<MemoryInstance>> {
-		self
-			.memories
-			.borrow()
-			.get(idx as usize)
-			.cloned()
+		self.memories.borrow().get(idx as usize).cloned()
 	}
 
 	pub fn table_by_index(&self, idx: u32) -> Option<Rc<TableInstance>> {
-		self
-			.tables
-			.borrow()
-			.get(idx as usize)
-			.cloned()
+		self.tables.borrow().get(idx as usize).cloned()
 	}
 
 	pub fn global_by_index(&self, idx: u32) -> Option<Rc<GlobalInstance>> {
-		self
-			.globals
-			.borrow()
-			.get(idx as usize)
-			.cloned()
+		self.globals.borrow().get(idx as usize).cloned()
 	}
 
 	pub fn func_by_index(&self, idx: u32) -> Option<Rc<FuncInstance>> {
-		self
-			.funcs
-			.borrow()
-			.get(idx as usize)
-			.cloned()
+		self.funcs.borrow().get(idx as usize).cloned()
 	}
 
 	pub fn type_by_index(&self, idx: u32) -> Option<Rc<FunctionType>> {
-		self
-			.types
-			.borrow()
-			.get(idx as usize)
-			.cloned()
+		self.types.borrow().get(idx as usize).cloned()
 	}
 
 	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
-		self
-			.exports
-			.borrow()
-			.get(name)
-			.cloned()
+		self.exports.borrow().get(name).cloned()
 	}
 
 	fn push_func(&self, func: Rc<FuncInstance>) {
@@ -260,10 +242,7 @@ impl ModuleInstance {
 	}
 
 	fn insert_export<N: Into<String>>(&self, name: N, extern_val: ExternVal) {
-		self
-			.exports
-			.borrow_mut()
-			.insert(name.into(), extern_val);
+		self.exports.borrow_mut().insert(name.into(), extern_val);
 	}
 
 	fn alloc_module_internal(
@@ -273,26 +252,29 @@ impl ModuleInstance {
 	) -> Result<(), Error> {
 		let mut aux_data = validate_module(module)?;
 
-		for &Type::Function(ref ty) in module
-			.type_section()
-			.map(|ts| ts.types())
-			.unwrap_or(&[])
-		{
+		for &Type::Function(ref ty) in module.type_section().map(|ts| ts.types()).unwrap_or(&[]) {
 			let type_id = alloc_func_type(ty.clone());
 			instance.push_type(type_id);
 		}
 
 		{
-			let imports = module.import_section().map(|is| is.entries()).unwrap_or(&[]);
+			let imports = module
+				.import_section()
+				.map(|is| is.entries())
+				.unwrap_or(&[]);
 			if imports.len() != extern_vals.len() {
-				return Err(Error::Initialization(format!("extern_vals length is not equal to import section entries")));
+				return Err(Error::Initialization(format!(
+					"extern_vals length is not equal to import section entries"
+				)));
 			}
 
 			for (import, extern_val) in Iterator::zip(imports.into_iter(), extern_vals.into_iter())
 			{
 				match (import.external(), extern_val) {
 					(&External::Function(fn_type_idx), &ExternVal::Func(ref func)) => {
-						let expected_fn_type = instance.type_by_index(fn_type_idx).expect("Due to validation function type should exists");
+						let expected_fn_type = instance
+							.type_by_index(fn_type_idx)
+							.expect("Due to validation function type should exists");
 						let actual_fn_type = func.func_type();
 						if expected_fn_type != actual_fn_type {
 							return Err(Error::Initialization(format!(
@@ -341,7 +323,9 @@ impl ModuleInstance {
 			for (index, (ty, body)) in
 				Iterator::zip(funcs.into_iter(), bodies.into_iter()).enumerate()
 			{
-				let func_type = instance.type_by_index(ty.type_ref()).expect("Due to validation type should exists");
+				let func_type = instance
+					.type_by_index(ty.type_ref())
+					.expect("Due to validation type should exists");
 				let labels = aux_data.labels.remove(&index).expect(
 					"At func validation time labels are collected; Collected labels are added by index; qed",
 				);
@@ -463,8 +447,8 @@ impl ModuleInstance {
 		// And run module's start function, if any
 		if let Some(start_fn_idx) = module.start_section() {
 			let start_func = instance
-					.func_by_index(start_fn_idx)
-					.expect("Due to validation start function should exists");
+				.func_by_index(start_fn_idx)
+				.expect("Due to validation start function should exists");
 			FuncInstance::invoke(start_func, vec![], state)?;
 		}
 
@@ -480,25 +464,29 @@ impl ModuleInstance {
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
 			let module_name = import_entry.module();
 			let field_name = import_entry.field();
-			let resolver = imports.resolver(module_name).ok_or_else(|| Error::Initialization(format!("Module {} not found", module_name)))?;
+			let resolver = imports.resolver(module_name).ok_or_else(|| {
+				Error::Initialization(format!("Module {} not found", module_name))
+			})?;
 			let extern_val = match *import_entry.external() {
 				External::Function(fn_ty_idx) => {
 					// Module is not yet validated so we have to check type indexes.
 					let types = module.type_section().map(|s| s.types()).unwrap_or(&[]);
-					let &Type::Function(ref func_type) = types.get(fn_ty_idx as usize)
-						.ok_or_else(|| Error::Validation(format!("Function type {} not found", fn_ty_idx)))?;
+					let &Type::Function(ref func_type) =
+						types.get(fn_ty_idx as usize).ok_or_else(|| {
+							Error::Validation(format!("Function type {} not found", fn_ty_idx))
+						})?;
 
 					let func = resolver.resolve_func(field_name, func_type)?;
 					ExternVal::Func(func)
-				},
+				}
 				External::Table(ref table_type) => {
 					let table = resolver.resolve_table(field_name, table_type)?;
 					ExternVal::Table(table)
-				},
+				}
 				External::Memory(ref memory_type) => {
 					let memory = resolver.resolve_memory(field_name, memory_type)?;
 					ExternVal::Memory(memory)
-				},
+				}
 				External::Global(ref global_type) => {
 					let global = resolver.resolve_global(field_name, global_type)?;
 					ExternVal::Global(global)
@@ -517,7 +505,10 @@ impl ModuleInstance {
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
-			Error::Program(format!("Module doesn't contain function at index {}", func_idx))
+			Error::Program(format!(
+				"Module doesn't contain function at index {}",
+				func_idx
+			))
 		})?;
 		FuncInstance::invoke(func_instance, args, state)
 	}
@@ -528,14 +519,9 @@ impl ModuleInstance {
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
-		let extern_val = self
-			.export_by_name(func_name)
-			.ok_or_else(|| {
-				Error::Program(format!(
-					"Module doesn't have export {}",
-					func_name
-				))
-			})?;
+		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
+			Error::Program(format!("Module doesn't have export {}", func_name))
+		})?;
 
 		let func_instance = match extern_val {
 			ExternVal::Func(func_instance) => func_instance,
@@ -563,7 +549,9 @@ impl ImportResolver for ModuleInstance {
 				Error::Validation(format!("Export {} not found", field_name))
 			})?
 			.as_func()
-			.ok_or_else(|| Error::Validation(format!("Export {} is not a function", field_name)))?)
+			.ok_or_else(|| {
+				Error::Validation(format!("Export {} is not a function", field_name))
+			})?)
 	}
 
 	fn resolve_global(
@@ -576,7 +564,9 @@ impl ImportResolver for ModuleInstance {
 				Error::Validation(format!("Export {} not found", field_name))
 			})?
 			.as_global()
-			.ok_or_else(|| Error::Validation(format!("Export {} is not a global", field_name)))?)
+			.ok_or_else(|| {
+				Error::Validation(format!("Export {} is not a global", field_name))
+			})?)
 	}
 
 	fn resolve_memory(
@@ -589,7 +579,9 @@ impl ImportResolver for ModuleInstance {
 				Error::Validation(format!("Export {} not found", field_name))
 			})?
 			.as_memory()
-			.ok_or_else(|| Error::Validation(format!("Export {} is not a memory", field_name)))?)
+			.ok_or_else(|| {
+				Error::Validation(format!("Export {} is not a memory", field_name))
+			})?)
 	}
 
 	fn resolve_table(
@@ -602,7 +594,9 @@ impl ImportResolver for ModuleInstance {
 				Error::Validation(format!("Export {} not found", field_name))
 			})?
 			.as_table()
-			.ok_or_else(|| Error::Validation(format!("Export {} is not a table", field_name)))?)
+			.ok_or_else(|| {
+				Error::Validation(format!("Export {} is not a table", field_name))
+			})?)
 	}
 }
 
@@ -610,7 +604,11 @@ fn alloc_func_type(func_type: FunctionType) -> Rc<FunctionType> {
 	Rc::new(func_type)
 }
 
-fn alloc_func(module: &Rc<ModuleInstance>, func_type: Rc<FunctionType>, body: FuncBody) -> Rc<FuncInstance> {
+fn alloc_func(
+	module: &Rc<ModuleInstance>,
+	func_type: Rc<FunctionType>,
+	body: FuncBody,
+) -> Rc<FuncInstance> {
 	let func = FuncInstance::Internal {
 		func_type,
 		module: Rc::clone(module),

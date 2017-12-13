@@ -15,7 +15,7 @@ use parity_wasm::elements::{self, ValueType, GlobalType, MemoryType, TableType, 
 use parity_wasm::interpreter::{
     RuntimeValue,
     ProgramInstance,
-    ItemIndex, ExportEntryType,
+    ItemIndex,
     Error as InterpreterError,
 	ImportResolver,
 	Imports,
@@ -278,7 +278,7 @@ pub fn spec(name: &str) {
                         let spec_expected = runtime_values(expected);
                         let actual_result = result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>();
                         for (actual_result, spec_expected) in actual_result.iter().zip(spec_expected.iter()) {
-                            assert_eq!(actual_result.variable_type(), spec_expected.variable_type());
+                            assert_eq!(actual_result.value_type(), spec_expected.value_type());
                             // f32::NAN != f32::NAN
                             match spec_expected {
                                 &RuntimeValue::F32(val) if val.is_nan() => match actual_result {

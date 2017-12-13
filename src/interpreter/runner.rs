@@ -1048,7 +1048,7 @@ impl FunctionContext {
 		self.is_initialized = true;
 
 		let locals = locals.iter()
-			.flat_map(|l| repeat(l.value_type().into()).take(l.count() as usize))
+			.flat_map(|l| repeat(l.value_type()).take(l.count() as usize))
 			.map(|vt| RuntimeValue::default(vt))
 			.collect::<Vec<_>>();
 		self.locals.extend(locals);
@@ -1152,7 +1152,7 @@ fn effective_address(address: u32, offset: u32) -> Result<u32, Error> {
 pub fn prepare_function_args(function_type: &FunctionType, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<RuntimeValue>, Error> {
 	let mut args = function_type.params().iter().rev().map(|param_type| {
 		let param_value = caller_stack.pop()?;
-		let actual_type = param_value.variable_type();
+		let actual_type = param_value.value_type();
 		let expected_type = (*param_type).into();
 		if actual_type != Some(expected_type) {
 			return Err(Error::Function(format!("invalid parameter type {:?} when expected {:?}", actual_type, expected_type)));

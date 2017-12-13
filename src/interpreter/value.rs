@@ -2,15 +2,13 @@ use std::{i32, i64, u32, u64, f32};
 use std::io;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use interpreter::Error;
-use interpreter::variable::VariableType;
+use elements::ValueType;
 
 
 // TODO: Get rid of Null and AnyFunc.
 /// Runtime value.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum RuntimeValue {
-	/// Null value.
-	Null,
 	/// 32b-length signed/unsigned int.
 	I32(i32),
 	/// 64b-length signed/unsigned int.
@@ -113,12 +111,12 @@ pub trait Float<T>: ArithmeticOps<T> {
 
 impl RuntimeValue {
 	/// Creates new default value of given type.
-	pub fn default(variable_type: VariableType) -> Self {
-		match variable_type {
-			VariableType::I32 => RuntimeValue::I32(0),
-			VariableType::I64 => RuntimeValue::I64(0),
-			VariableType::F32 => RuntimeValue::F32(0f32),
-			VariableType::F64 => RuntimeValue::F64(0f64),
+	pub fn default(value_type: ValueType) -> Self {
+		match value_type {
+			ValueType::I32 => RuntimeValue::I32(0),
+			ValueType::I64 => RuntimeValue::I64(0),
+			ValueType::F32 => RuntimeValue::F32(0f32),
+			ValueType::F64 => RuntimeValue::F64(0f64),
 		}
 	}
 
@@ -132,22 +130,13 @@ impl RuntimeValue {
 		RuntimeValue::F64(f64_from_bits(val))
 	}
 
-	/// Returns true if value is null.
-	pub fn is_null(&self) -> bool {
-		match *self {
-			RuntimeValue::Null => true,
-			_ => false,
-		}
-	}
-
 	/// Get variable type for this value.
-	pub fn variable_type(&self) -> Option<VariableType> {
+	pub fn value_type(&self) -> Option<ValueType> {
 		match *self {
-			RuntimeValue::Null => None,
-			RuntimeValue::I32(_) => Some(VariableType::I32),
-			RuntimeValue::I64(_) => Some(VariableType::I64),
-			RuntimeValue::F32(_) => Some(VariableType::F32),
-			RuntimeValue::F64(_) => Some(VariableType::F64),
+			RuntimeValue::I32(_) => Some(ValueType::I32),
+			RuntimeValue::I64(_) => Some(ValueType::I64),
+			RuntimeValue::F32(_) => Some(ValueType::F32),
+			RuntimeValue::F64(_) => Some(ValueType::F64),
 		}
 	}
 }

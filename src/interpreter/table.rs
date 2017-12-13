@@ -5,7 +5,6 @@ use parking_lot::RwLock;
 use elements::{TableType, ResizableLimits};
 use interpreter::Error;
 use interpreter::module::check_limits;
-use interpreter::variable::VariableType;
 use interpreter::store::FuncInstance;
 
 /// Table instance.
@@ -18,12 +17,12 @@ pub struct TableInstance {
 }
 
 impl fmt::Debug for TableInstance {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("TableInstance")
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.debug_struct("TableInstance")
 			.field("limits", &self.limits)
 			.field("buffer.len", &self.buffer.read().len())
 			.finish()
-    }
+	}
 }
 
 impl TableInstance {
@@ -41,11 +40,6 @@ impl TableInstance {
 	/// Return table limits.
 	pub fn limits(&self) -> &ResizableLimits {
 		&self.limits
-	}
-
-	/// Get variable type for this table.
-	pub fn variable_type(&self) -> VariableType {
-		panic!("TODO")
 	}
 
 	/// Get the specific value in the table

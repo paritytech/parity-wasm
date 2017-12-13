@@ -1,20 +1,10 @@
 use elements::ResizableLimits;
 use interpreter::Error;
-use interpreter::VariableType;
 
 /// Execution context.
 pub struct ExecutionParams<'a, St: 'static> {
 	/// State that can be used by host functions,
 	pub state: &'a mut St,
-}
-
-/// Export type.
-#[derive(Debug, Clone)]
-pub enum ExportEntryType {
-	/// Any type.
-	Any,
-	/// Type of global.
-	Global(VariableType),
 }
 
 /// Item index in items index space.

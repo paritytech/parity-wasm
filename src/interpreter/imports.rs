@@ -11,6 +11,12 @@ pub struct Imports<'a> {
 }
 
 impl<'a> Imports<'a> {
+	pub fn new() -> Imports<'a> {
+		Imports {
+			modules: HashMap::new(),
+		}
+	}
+
 	pub fn with_resolver<N: Into<String>>(mut self, name: N, resolver: &'a ImportResolver) -> Imports<'a> {
 		self.modules.insert(name.into(), resolver);
 		self

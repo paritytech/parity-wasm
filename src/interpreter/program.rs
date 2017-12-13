@@ -5,6 +5,7 @@ use interpreter::Error;
 use interpreter::store::{FuncInstance, ModuleInstance};
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
+use interpreter::imports::Imports;
 
 /// Program instance. Program is a set of instantiated modules.
 pub struct ProgramInstance {
@@ -26,22 +27,13 @@ impl ProgramInstance {
 		module: Module,
 		state: &mut St,
 	) -> Result<Rc<ModuleInstance>, Error> {
-		let mut externvals = Vec::new();
-		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
-			let module = self.modules.get(import_entry.module()).ok_or_else(|| Error::Program(format!("Module {} not found", import_entry.module())))?;
-			let externval = module
-				.export_by_name(import_entry.field())
-				.ok_or_else(|| {
-					Error::Program(format!(
-						"Module {} doesn't have export {}",
-						import_entry.module(),
-						import_entry.field()
-					))
-				})?;
-			externvals.push(externval);
-		}
-
-		let module_instance = ModuleInstance::instantiate_with_externvals(&module, &externvals, state)?;
+		let module_instance = {
+			let mut imports = Imports::new();
+			for (module_name, module_instance) in self.modules.iter() {
+				imports.push_resolver(&**module_name, &**module_instance);
+			}
+			ModuleInstance::instantiate(&module, &imports, state)?
+		};
 		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
 
 		Ok(module_instance)

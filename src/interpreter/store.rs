@@ -18,17 +18,6 @@ use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDE
 use common::stack::StackWithLimit;
 
 #[derive(Copy, Clone, Debug)]
-pub struct TypeId(u32);
-
-impl TypeId {
-	pub fn resolve<'s>(&self, store: &'s Store) -> &'s FunctionType {
-		store.types
-			.get(self.0 as usize)
-			.expect("ID should always be a valid index")
-	}
-}
-
-#[derive(Copy, Clone, Debug)]
 pub struct ModuleId(u32);
 
 impl ModuleId {
@@ -60,7 +49,7 @@ impl ModuleId {
 			.cloned()
 	}
 
-	pub fn type_by_index(&self, store: &Store, idx: u32) -> Option<TypeId> {
+	pub fn type_by_index(&self, store: &Store, idx: u32) -> Option<Rc<FunctionType>> {
 		store.resolve_module(*self)
 			.types
 			.get(idx as usize)
@@ -116,23 +105,23 @@ impl ExternVal {
 #[derive(Clone)]
 pub enum FuncInstance {
 	Internal {
-		func_type: TypeId,
+		func_type: Rc<FunctionType>,
 		module: ModuleId,
 		body: Rc<FuncBody>,
 	},
 	Host {
-		func_type: TypeId,
+		func_type: Rc<FunctionType>,
 		host_func: Rc<AnyFunc>,
 	},
 }
 
 impl fmt::Debug for FuncInstance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			FuncInstance::Internal { func_type, module, .. } => {
+		match self {
+			&FuncInstance::Internal { ref func_type, module, .. } => {
 				write!(f, "Internal {{ type={:?}, module={:?} }}", func_type, module)
 			},
-			FuncInstance::Host { func_type, .. } => {
+			&FuncInstance::Host { ref func_type, .. } => {
 				write!(f, "Host {{ type={:?} }}", func_type)
 			}
 		}
@@ -140,10 +129,10 @@ impl fmt::Debug for FuncInstance {
 }
 
 impl FuncInstance {
-	pub fn func_type(&self) -> TypeId {
+	pub fn func_type(&self) -> Rc<FunctionType> {
 		match *self {
-			FuncInstance::Internal { func_type, .. } | FuncInstance::Host { func_type, .. } => {
-				func_type
+			FuncInstance::Internal { ref func_type, .. } | FuncInstance::Host { ref func_type, .. } => {
+				Rc::clone(func_type)
 			}
 		}
 	}
@@ -198,7 +187,7 @@ pub struct ExportInstance {
 
 #[derive(Default, Debug)]
 pub struct ModuleInstance {
-	types: Vec<TypeId>,
+	types: Vec<Rc<FunctionType>>,
 	tables: Vec<Rc<TableInstance>>,
 	funcs: Vec<Rc<FuncInstance>>,
 	memories: Vec<Rc<MemoryInstance>>,
@@ -220,12 +209,6 @@ impl ModuleInstance {
 
 #[derive(Default, Debug)]
 pub struct Store {
-	// TODO: u32 capped vectors.
-	funcs: Vec<FuncInstance>,
-	tables: Vec<TableInstance>,
-	memories: Vec<MemoryInstance>,
-	globals: Vec<GlobalInstance>,
-
 	// These are not the part of specification of the Store.
 	// However, they can be referenced in several places, so it is handy to have it here.
 	modules: Vec<ModuleInstance>,
@@ -243,13 +226,11 @@ impl Store {
 			.expect("ID should always be a valid index")
 	}
 
-	pub fn alloc_func_type(&mut self, func_type: FunctionType) -> TypeId {
-		self.types.push(func_type);
-		let type_id = self.types.len() - 1;
-		TypeId(type_id as u32)
+	pub fn alloc_func_type(&mut self, func_type: FunctionType) -> Rc<FunctionType> {
+		Rc::new(func_type)
 	}
 
-	pub fn alloc_func(&mut self, module: ModuleId, func_type: TypeId, body: FuncBody) -> Rc<FuncInstance> {
+	pub fn alloc_func(&mut self, module: ModuleId, func_type: Rc<FunctionType>, body: FuncBody) -> Rc<FuncInstance> {
 		let func = FuncInstance::Internal {
 			func_type,
 			module,
@@ -258,7 +239,7 @@ impl Store {
 		Rc::new(func)
 	}
 
-	pub fn alloc_host_func(&mut self, func_type: TypeId, host_func: Rc<AnyFunc>) -> Rc<FuncInstance> {
+	pub fn alloc_host_func(&mut self, func_type: Rc<FunctionType>, host_func: Rc<AnyFunc>) -> Rc<FuncInstance> {
 		let func = FuncInstance::Host {
 			func_type,
 			host_func,
@@ -309,9 +290,9 @@ impl Store {
 			{
 				match (import.external(), extern_val) {
 					(&External::Function(fn_type_idx), &ExternVal::Func(ref func)) => {
-						let expected_fn_type = instance.types.get(fn_type_idx as usize).expect("Due to validation function type should exists").resolve(self);
-						let actual_fn_type = func.func_type().resolve(self);
-						if expected_fn_type != actual_fn_type {
+						let expected_fn_type = instance.types.get(fn_type_idx as usize).expect("Due to validation function type should exists");
+						let actual_fn_type = func.func_type();
+						if expected_fn_type != &actual_fn_type {
 							return Err(Error::Initialization(format!(
 								"Expected function with type {:?}, but actual type is {:?} for entry {}",
 								expected_fn_type,
@@ -358,7 +339,7 @@ impl Store {
 			for (index, (ty, body)) in
 				Iterator::zip(funcs.into_iter(), bodies.into_iter()).enumerate()
 			{
-				let func_type = instance.types[ty.type_ref() as usize];
+				let func_type = Rc::clone(&instance.types[ty.type_ref() as usize]);
 				let labels = aux_data.labels.remove(&index).expect(
 					"At func validation time labels are collected; Collected labels are added by index; qed",
 				);
@@ -524,15 +505,14 @@ impl Store {
 		}
 
 		let result = match *func {
-			FuncInstance::Internal { func_type, .. } => {
+			FuncInstance::Internal { ref func_type, .. } => {
 				let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
-				let func_signature = func_type.resolve(self);
-				let args = prepare_function_args(&func_signature, &mut args)?;
+				let args = prepare_function_args(func_type, &mut args)?;
 				let context = FunctionContext::new(
 					Rc::clone(&func),
 					DEFAULT_VALUE_STACK_LIMIT,
 					DEFAULT_FRAME_STACK_LIMIT,
-					&func_signature,
+					func_type,
 					args,
 				);
 				InvokeKind::Internal(context)

@@ -110,13 +110,13 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 					// TODO: check this
 					match *nested_func {
 						FuncInstance::Internal { .. } => {
-							let nested_context = function_context.nested(self.store, nested_func)?;
+							let nested_context = function_context.nested(Rc::clone(&nested_func))?;
 							function_stack.push_back(function_context);
 							function_stack.push_back(nested_context);
 						},
-						FuncInstance::Host { func_type, .. } => {
-							let args = prepare_function_args(func_type.resolve(self.store), &mut function_context.value_stack)?;
-							let return_val = self.store.invoke(nested_func, args, self.state)?;
+						FuncInstance::Host { ref func_type, .. } => {
+							let args = prepare_function_args(func_type, &mut function_context.value_stack)?;
+							let return_val = self.store.invoke(Rc::clone(&nested_func), args, self.state)?;
 							if let Some(return_val) = return_val {
 								function_context.value_stack_mut().push(return_val)?;
 							}
@@ -450,12 +450,11 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 			.expect("Due to validation table should exists");
 		let func_ref = table.get(table_func_idx)?;
 
-		let actual_function_type = func_ref.func_type().resolve(self.store);
+		let actual_function_type = func_ref.func_type();
 		let required_function_type = context
 			.module()
 			.type_by_index(self.store, type_idx)
-			.expect("Due to validation type should exists")
-			.resolve(self.store);
+			.expect("Due to validation type should exists");
 
 		if required_function_type != actual_function_type {
 			return Err(Error::Function(format!(
@@ -1028,15 +1027,15 @@ impl FunctionContext {
 		}
 	}
 
-	pub fn nested(&mut self, store: &Store, function: Rc<FuncInstance>) -> Result<Self, Error> {
+	pub fn nested(&mut self, function: Rc<FuncInstance>) -> Result<Self, Error> {
 		let (function_locals, module, function_return_type) = {
 			let module = match *function {
 				FuncInstance::Internal { module, .. } => module,
 				FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 			};
-			let function_type = function.func_type().resolve(store);
+			let function_type = function.func_type();
 			let function_return_type = function_type.return_type().map(|vt| BlockType::Value(vt)).unwrap_or(BlockType::NoResult);
-			let function_locals = prepare_function_args(function_type, &mut self.value_stack)?;
+			let function_locals = prepare_function_args(&function_type, &mut self.value_stack)?;
 			(function_locals, module, function_return_type)
 		};
 

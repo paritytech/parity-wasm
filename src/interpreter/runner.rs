@@ -1018,7 +1018,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 }
 
 impl FunctionContext {
-	pub fn new<'store>(store: &'store Store, function: Rc<FuncInstance>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
+	pub fn new<'store>(function: Rc<FuncInstance>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
 		let module = match *function {
 			FuncInstance::Internal { module, .. } => module,
 			FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),

@@ -74,9 +74,6 @@ impl ModuleId {
 	}
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct HostFuncId(u32);
-
 
 #[derive(Copy, Clone, Debug)]
 pub struct TableId(u32);
@@ -557,7 +554,6 @@ impl Store {
 				let func_signature = func_type.resolve(self);
 				let args = prepare_function_args(&func_signature, &mut args)?;
 				let context = FunctionContext::new(
-					self,
 					Rc::clone(&func),
 					DEFAULT_VALUE_STACK_LIMIT,
 					DEFAULT_FRAME_STACK_LIMIT,

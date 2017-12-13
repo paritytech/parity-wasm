@@ -465,11 +465,11 @@ fn return_void() {
 
 	program.invoke_index("main", 0, vec![RuntimeValue::I32(0)], &mut ()).unwrap();
 	let memory = module.memory_by_index(program.store(), 0).unwrap();
-	assert_eq!(memory.resolve(program.store()).get(0, 4).unwrap(), vec![0, 0, 0, 0]);
+	assert_eq!(memory.get(0, 4).unwrap(), vec![0, 0, 0, 0]);
 
 	program.invoke_index("main", 0, vec![RuntimeValue::I32(1)], &mut ()).unwrap();
 	let memory = module.memory_by_index(program.store(), 0).unwrap();
-	assert_eq!(memory.resolve(program.store()).get(0, 4).unwrap(), vec![1, 0, 0, 0]);
+	assert_eq!(memory.get(0, 4).unwrap(), vec![1, 0, 0, 0]);
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/call.txt#L3

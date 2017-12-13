@@ -546,8 +546,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		let m = context.module()
 			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
-			.expect("Due to validation memory should exists")
-			.resolve(self.store);
+			.expect("Due to validation memory should exists");
 		let b = m.get(address, mem::size_of::<T>())?;
 		let n = T::from_little_endian(b)?;
 		context.value_stack_mut().push(n.into())?;
@@ -559,8 +558,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		let address = effective_address(offset, context.value_stack_mut().pop_as()?)?;
 		let m = context.module()
 			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
-			.expect("Due to validation memory should exists")
-			.resolve(self.store);
+			.expect("Due to validation memory should exists");
 		let b = m.get(address, mem::size_of::<T>())?;
 		let v = T::from_little_endian(b)?;
 		let stack_value: U = v.extend_into();
@@ -581,8 +579,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 
 		let m = context.module()
 			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
-			.expect("Due to validation memory should exists")
-			.resolve(self.store);
+			.expect("Due to validation memory should exists");
 		m.set(address, &stack_value)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
@@ -607,8 +604,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		let address = effective_address(offset, context.value_stack_mut().pop_as::<u32>()?)?;
 		let m = context.module()
 			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
-			.expect("Due to validation memory should exists")
-			.resolve(self.store);
+			.expect("Due to validation memory should exists");
 		m.set(address, &stack_value)?;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
@@ -616,8 +612,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 	fn run_current_memory(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome, Error> {
 		let m = context.module()
 			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
-			.expect("Due to validation memory should exists")
-			.resolve(self.store);
+			.expect("Due to validation memory should exists");
 		let s = m.size();
 		context
 			.value_stack_mut()
@@ -629,8 +624,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		let pages: u32 = context.value_stack_mut().pop_as()?;
 		let m = context.module()
 			.memory_by_index(self.store, DEFAULT_MEMORY_INDEX)
-			.expect("Due to validation memory should exists")
-			.resolve(self.store);
+			.expect("Due to validation memory should exists");
 		let m = m.grow(pages)?;
 		context
 			.value_stack_mut()

@@ -51,7 +51,7 @@ fn interpreter_accumulate_u8() {
 
     // Place the octet-sequence at index 0 in linear memory
     let offset: u32 = 0;
-    let _ = env_memory.resolve(program.store()).set(offset, BUF);
+    let _ = env_memory.set(offset, BUF);
 
     // Set up the function argument list and invoke the function
     let args = vec![RuntimeValue::I32(BUF.len() as i32), RuntimeValue::I32(offset as i32)];

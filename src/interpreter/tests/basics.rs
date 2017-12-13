@@ -1,12 +1,14 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
+use std::rc::Rc;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, Opcodes, Opcode, TableType, MemoryType};
 use interpreter::{Error, UserError, ProgramInstance};
 use interpreter::value::RuntimeValue;
 use interpreter::host::{HostModuleBuilder, HostModule};
-use interpreter::store::{Store, MemoryId};
+use interpreter::store::Store;
+use interpreter::memory::MemoryInstance;
 use super::utils::program_with_default_env;
 
 #[test]
@@ -114,31 +116,31 @@ impl UserError for UserErrorWithCode {}
 // TODO: Rename to state
 // user function executor
 struct FunctionExecutor {
-	pub memory: MemoryId,
+	pub memory: Rc<MemoryInstance>,
 	pub values: Vec<i32>,
 }
 
 fn build_env_module() -> HostModule {
 	let mut builder = HostModuleBuilder::<FunctionExecutor>::new();
-	builder.with_func2("add", |store: &mut Store, state: &mut FunctionExecutor, arg: i32, unused: i32| {
-		let memory_value = state.memory.resolve(store).get(0, 1).unwrap()[0];
+	builder.with_func2("add", |_store: &mut Store, state: &mut FunctionExecutor, arg: i32, unused: i32| {
+		let memory_value = state.memory.get(0, 1).unwrap()[0];
 		let fn_argument_unused = unused as u8;
 		let fn_argument = arg as u8;
 		assert_eq!(fn_argument_unused, 0);
 
 		let sum = memory_value + fn_argument;
-		state.memory.resolve(store).set(0, &vec![sum]).unwrap();
+		state.memory.set(0, &vec![sum]).unwrap();
 		state.values.push(sum as i32);
 		Ok(Some(sum as i32))
 	});
-	builder.with_func2("sub", |store: &mut Store, state: &mut FunctionExecutor, arg: i32, unused: i32| {
-		let memory_value = state.memory.resolve(store).get(0, 1).unwrap()[0];
+	builder.with_func2("sub", |_store: &mut Store, state: &mut FunctionExecutor, arg: i32, unused: i32| {
+		let memory_value = state.memory.get(0, 1).unwrap()[0];
 		let fn_argument_unused = unused as u8;
 		let fn_argument = arg as u8;
 		assert_eq!(fn_argument_unused, 0);
 
 		let diff = memory_value - fn_argument;
-		state.memory.resolve(store).set(0, &vec![diff]).unwrap();
+		state.memory.set(0, &vec![diff]).unwrap();
 		state.values.push(diff as i32);
 		Ok(Some(diff as i32))
 	});
@@ -208,7 +210,7 @@ fn native_env_function() {
 		}
 	}
 
-	assert_eq!(state.memory.resolve(program.store()).get(0, 1).unwrap()[0], 42);
+	assert_eq!(state.memory.get(0, 1).unwrap()[0], 42);
 	assert_eq!(state.values, vec![7, 57, 42]);
 }
 

@@ -38,7 +38,7 @@ impl ModuleId {
 			.cloned()
 	}
 
-	pub fn table_by_index(&self, store: &Store, idx: u32) -> Option<TableId> {
+	pub fn table_by_index(&self, store: &Store, idx: u32) -> Option<Rc<TableInstance>> {
 		store.resolve_module(*self)
 			.tables
 			.get(idx as usize)
@@ -74,19 +74,6 @@ impl ModuleId {
 	}
 }
 
-
-#[derive(Copy, Clone, Debug)]
-pub struct TableId(u32);
-
-impl TableId {
-	pub fn resolve<'s>(&self, store: &'s Store) -> &'s TableInstance {
-		store
-			.tables
-			.get(self.0 as usize)
-			.expect("ID should be always valid")
-	}
-}
-
 #[derive(Copy, Clone, Debug)]
 pub struct MemoryId(u32);
 
@@ -105,7 +92,7 @@ pub struct GlobalId(u32);
 #[derive(Clone, Debug)]
 pub enum ExternVal {
 	Func(Rc<FuncInstance>),
-	Table(TableId),
+	Table(Rc<TableInstance>),
 	Memory(MemoryId),
 	Global(GlobalId),
 }
@@ -118,9 +105,9 @@ impl ExternVal {
 		}
 	}
 
-	pub fn as_table(&self) -> Option<TableId> {
+	pub fn as_table(&self) -> Option<Rc<TableInstance>> {
 		match *self {
-			ExternVal::Table(table) => Some(table),
+			ExternVal::Table(ref table) => Some(Rc::clone(table)),
 			_ => None,
 		}
 	}
@@ -210,7 +197,7 @@ pub struct ExportInstance {
 #[derive(Default, Debug)]
 pub struct ModuleInstance {
 	types: Vec<TypeId>,
-	tables: Vec<TableId>,
+	tables: Vec<Rc<TableInstance>>,
 	funcs: Vec<Rc<FuncInstance>>,
 	memories: Vec<MemoryId>,
 	globals: Vec<GlobalId>,
@@ -277,11 +264,9 @@ impl Store {
 		Rc::new(func)
 	}
 
-	pub fn alloc_table(&mut self, table_type: &TableType) -> Result<TableId, Error> {
+	pub fn alloc_table(&mut self, table_type: &TableType) -> Result<Rc<TableInstance>, Error> {
 		let table = TableInstance::new(table_type)?;
-		self.tables.push(table);
-		let table_id = self.tables.len() - 1;
-		Ok(TableId(table_id as u32))
+		Ok(Rc::new(table))
 	}
 
 	pub fn alloc_memory(&mut self, mem_type: &MemoryType) -> Result<MemoryId, Error> {
@@ -338,9 +323,9 @@ impl Store {
 						}
 						instance.funcs.push(Rc::clone(func))
 					}
-					(&External::Table(ref tt), &ExternVal::Table(table)) => {
-						match_limits(table.resolve(self).limits(), tt.limits())?;
-						instance.tables.push(table);
+					(&External::Table(ref tt), &ExternVal::Table(ref table)) => {
+						match_limits(table.limits(), tt.limits())?;
+						instance.tables.push(Rc::clone(table));
 					}
 					(&External::Memory(ref mt), &ExternVal::Memory(memory)) => {
 						match_limits(memory.resolve(self).limits(), mt.limits())?;
@@ -442,11 +427,11 @@ impl Store {
 					ExternVal::Memory(*memory_id)
 				}
 				Internal::Table(idx) => {
-					let table_id = instance
+					let table = instance
 						.tables
 						.get(idx as usize)
 						.expect("Due to validation table should exists");
-					ExternVal::Table(*table_id)
+					ExternVal::Table(Rc::clone(table))
 				}
 			};
 			instance.exports.insert(field.into(), extern_val);
@@ -477,14 +462,10 @@ impl Store {
 				_ => panic!("Due to validation elem segment offset should evaluate to i32"),
 			};
 
-			let table_id = instance
+			let table_inst = instance
 				.tables
 				.get(DEFAULT_TABLE_INDEX as usize)
 				.expect("Due to validation default table should exists");
-			let table_inst = self.tables
-				.get_mut(table_id.0 as usize)
-				.expect("ID should be always valid");
-
 			for (j, func_idx) in element_segment.members().into_iter().enumerate() {
 				let func = instance
 					.funcs

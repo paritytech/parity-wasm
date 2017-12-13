@@ -447,8 +447,7 @@ impl<'a, St: 'static> Interpreter<'a, St> {
 		let table = context
 			.module()
 			.table_by_index(self.store, DEFAULT_TABLE_INDEX)
-			.expect("Due to validation table should exists")
-			.resolve(self.store);
+			.expect("Due to validation table should exists");
 		let func_ref = table.get(table_func_idx)?;
 
 		let actual_function_type = func_ref.func_type().resolve(self.store);

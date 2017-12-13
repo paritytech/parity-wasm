@@ -38,7 +38,9 @@ impl ProgramInstance {
 			for (module_name, import_resolver) in self.resolvers.iter() {
 				imports.push_resolver(&**module_name, &**import_resolver);
 			}
-			ModuleInstance::instantiate(&module, &imports, state)?
+			ModuleInstance::instantiate(&module)
+				.with_imports(imports)
+				.run_start(state)?
 		};
 		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
 

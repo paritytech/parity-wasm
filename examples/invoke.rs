@@ -74,7 +74,9 @@ fn main() {
     // - a module declaration
     // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
     // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
-	let main = ModuleInstance::instantiate(&module, &Imports::new(), &mut ()).expect("Failed to initialize module");
+    let main = ModuleInstance::instantiate(&module)
+        .run_start(&mut ())
+        .expect("Failed to initialize module");
 
     println!("Result: {:?}", main.invoke_export(func_name, args, &mut ()).expect(""));
 }

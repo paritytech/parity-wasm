@@ -7,6 +7,7 @@ use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;
 use interpreter::Error;
 
+#[derive(Default)]
 pub struct Imports<'a> {
 	modules: HashMap<String, &'a ImportResolver>,
 }

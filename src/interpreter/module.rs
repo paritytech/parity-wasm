@@ -274,10 +274,9 @@ impl ModuleInstance {
 		Ok(())
 	}
 
-	pub fn instantiate_with_externvals<St: 'static>(
+	fn instantiate_with_externvals(
 		module: &Module,
 		extern_vals: &[ExternVal],
-		state: &mut St,
 	) -> Result<Rc<ModuleInstance>, Error> {
 		let instance = Rc::new(ModuleInstance::new());
 
@@ -317,21 +316,12 @@ impl ModuleInstance {
 			memory_inst.set(offset_val, data_segment.value())?;
 		}
 
-		// And run module's start function, if any
-		if let Some(start_fn_idx) = module.start_section() {
-			let start_func = instance
-				.func_by_index(start_fn_idx)
-				.expect("Due to validation start function should exists");
-			FuncInstance::invoke(start_func, vec![], state)?;
-		}
-
 		Ok(instance)
 	}
 
-	pub fn instantiate<St: 'static>(
+	fn instantiate_with_imports(
 		module: &Module,
 		imports: &Imports,
-		state: &mut St,
 	) -> Result<Rc<ModuleInstance>, Error> {
 		let mut extern_vals = Vec::new();
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
@@ -368,7 +358,11 @@ impl ModuleInstance {
 			extern_vals.push(extern_val);
 		}
 
-		Self::instantiate_with_externvals(module, &extern_vals, state)
+		Self::instantiate_with_externvals(module, &extern_vals)
+	}
+
+	pub fn instantiate<'a>(module: &'a Module) -> InstantiationWizard<'a> {
+		InstantiationWizard::new(module)
 	}
 
 	pub fn invoke_index<St: 'static>(
@@ -408,6 +402,56 @@ impl ModuleInstance {
 		};
 
 		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
+	}
+}
+
+pub struct InstantiationWizard<'a> {
+	module: &'a Module,
+	imports: Option<Imports<'a>>,
+}
+
+impl<'a> InstantiationWizard<'a> {
+	fn new(module: &'a Module) -> Self {
+		InstantiationWizard {
+			module,
+			imports: None,
+		}
+	}
+
+	pub fn with_imports(mut self, imports: Imports<'a>) -> Self {
+		self.imports = Some(imports);
+		self
+	}
+
+	pub fn with_import<N: Into<String>>(
+		mut self,
+		name: N,
+		import_resolver: &'a ImportResolver,
+	) -> Self {
+		self.imports
+			.get_or_insert_with(|| Imports::default())
+			.push_resolver(name, import_resolver);
+		self
+	}
+
+	pub fn run_start<St: 'static>(mut self, state: &mut St) -> Result<Rc<ModuleInstance>, Error> {
+		let imports = self.imports.get_or_insert_with(|| Imports::default());
+		let instance = ModuleInstance::instantiate_with_imports(self.module, imports)?;
+
+		if let Some(start_fn_idx) = self.module.start_section() {
+			let start_func = instance
+				.func_by_index(start_fn_idx)
+				.expect("Due to validation start function should exists");
+			FuncInstance::invoke(start_func, vec![], state)?;
+		}
+		Ok(instance)
+	}
+
+	pub fn assert_no_start(mut self) -> Result<Rc<ModuleInstance>, Error> {
+		assert!(self.module.start_section().is_none());
+		let imports = self.imports.get_or_insert_with(|| Imports::default());
+		let instance = ModuleInstance::instantiate_with_imports(self.module, imports)?;
+		Ok(instance)
 	}
 }
 

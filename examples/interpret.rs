@@ -18,11 +18,13 @@ fn main() {
     let module = parity_wasm::deserialize_file(&args[1]).expect("Failed to load module");
 
     // Intialize deserialized module. It adds module into It expects 3 parameters:
-    // - a name for the module
-    // - a module declaration
-    // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
-    // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
-    let main = ModuleInstance::instantiate(&module, &Imports::new(), &mut ()).expect("Failed to initialize module");
+     // - a name for the module
+     // - a module declaration
+     // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
+     // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
+    let main = ModuleInstance::instantiate(&module)
+        .run_start(&mut ())
+        .expect("Failed to initialize module");
 
     // The argument should be parsable as a valid integer
     let argument: i32 = args[2].parse().expect("Integer argument required");

@@ -5,11 +5,12 @@ use interpreter::Error;
 use interpreter::store::{FuncInstance, ModuleInstance};
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
-use interpreter::imports::Imports;
+use interpreter::imports::{Imports, ImportResolver};
 
 /// Program instance. Program is a set of instantiated modules.
 pub struct ProgramInstance {
 	modules: HashMap<String, Rc<ModuleInstance>>,
+	resolvers: HashMap<String, Box<ImportResolver>>,
 }
 
 impl ProgramInstance {
@@ -17,6 +18,7 @@ impl ProgramInstance {
 	pub fn new() -> Self {
 		ProgramInstance {
 			modules: HashMap::new(),
+			resolvers: HashMap::new(),
 		}
 	}
 
@@ -32,11 +34,22 @@ impl ProgramInstance {
 			for (module_name, module_instance) in self.modules.iter() {
 				imports.push_resolver(&**module_name, &**module_instance);
 			}
+			for (module_name, import_resolver) in self.resolvers.iter() {
+				imports.push_resolver(&**module_name, &**import_resolver);
+			}
 			ModuleInstance::instantiate(&module, &imports, state)?
 		};
 		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
 
 		Ok(module_instance)
+	}
+
+	pub fn add_import_resolver(
+		&mut self,
+		name: &str,
+		import_resolver: Box<ImportResolver>,
+	) {
+		self.resolvers.insert(name.to_owned(), import_resolver);
 	}
 
 	pub fn add_host_module(

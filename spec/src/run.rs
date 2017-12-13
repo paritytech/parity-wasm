@@ -5,47 +5,136 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::fs::File;
 use std::sync::Arc;
+use std::rc::Rc;
+use std::any::Any;
 
 use serde_json;
 use test;
-use parity_wasm::{self, elements, builder};
+use parity_wasm::{self, builder};
+use parity_wasm::elements::{self, ValueType, GlobalType, MemoryType, TableType, FunctionType};
 use parity_wasm::interpreter::{
     RuntimeValue,
     ProgramInstance,
     ItemIndex, ExportEntryType,
     Error as InterpreterError,
-    ModuleId,
+	ImportResolver,
+	Imports,
+	FuncInstance,
+	GlobalInstance,
+	MemoryInstance,
+	TableInstance,
+	ModuleInstance,
+	AnyFunc,
 };
 
-fn spec_test_module() -> elements::Module {
-    builder::module()
-        .function().signature().build().body().build().build()
-        .function().signature().param().i32().build().body().build().build()
-        .function().signature().param().i64().build().body().build().build()
-        .function().signature().param().f32().build().body().build().build()
-        .function().signature().param().f64().build().body().build().build()
-        .function().signature().param().i32().param().f32().build().body().build().build()
-        .function().signature().param().f64().param().f64().build().body().build().build()
-        .global().value_type().i32().init_expr(elements::Opcode::I32Const(666)).build()
-        .with_table(elements::TableType::new(100, None))
-        .memory().with_min(1).with_max(Some(2)).build()
-        .export().field("print").internal().func(0).build()
-        .export().field("print").internal().func(1).build()
-        .export().field("print").internal().func(2).build()
-        .export().field("print").internal().func(3).build()
-        .export().field("print").internal().func(4).build()
-        .export().field("print").internal().func(5).build()
-        .export().field("print").internal().func(6).build()
-        .export().field("global").internal().global(0).build()
-        .export().field("table").internal().table(0).build()
-        .export().field("memory").internal().memory(0).build()
-        .build()
+struct DefaultHostCallback;
+
+impl AnyFunc for DefaultHostCallback {
+	fn call_as_any(
+		&self,
+		_: &mut Any,
+		args: &[RuntimeValue],
+	) -> Result<Option<RuntimeValue>, InterpreterError> {
+		println!("called host: {:?}", args);
+		Ok(None)
+	}
 }
 
-fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut ProgramInstance) -> ModuleId {
+struct SpecModule {
+	default_host_callback: Rc<AnyFunc>,
+	table: Rc<TableInstance>,
+	memory: Rc<MemoryInstance>,
+	global_i32: Rc<GlobalInstance>,
+	global_i64: Rc<GlobalInstance>,
+	global_f32: Rc<GlobalInstance>,
+	global_f64: Rc<GlobalInstance>,
+}
+
+impl SpecModule {
+	fn new() -> SpecModule {
+		SpecModule {
+			default_host_callback: Rc::new(DefaultHostCallback) as Rc<AnyFunc>,
+			table: Rc::new(TableInstance::new(&TableType::new(10, Some(20))).unwrap()),
+			memory: Rc::new(MemoryInstance::new(&MemoryType::new(1, Some(2))).unwrap()),
+			global_i32: Rc::new(GlobalInstance::new(RuntimeValue::I32(666), false)),
+			global_i64: Rc::new(GlobalInstance::new(RuntimeValue::I64(666), false)),
+			global_f32: Rc::new(GlobalInstance::new(RuntimeValue::F32(666.0), false)),
+			global_f64: Rc::new(GlobalInstance::new(RuntimeValue::F64(666.0), false)),
+		}
+	}
+}
+
+impl ImportResolver for SpecModule {
+	fn resolve_func(
+		&self,
+		field_name: &str,
+		func_type: &FunctionType,
+	) -> Result<Rc<FuncInstance>, InterpreterError> {
+		if field_name == "print" {
+			let func = FuncInstance::Host {
+				func_type: Rc::new(func_type.clone()),
+				host_func: Rc::clone(&self.default_host_callback),
+			};
+			return Ok(Rc::new(func));
+		}
+
+		Err(InterpreterError::Global(format!("Unknown host func import {}", field_name)))
+	}
+
+	fn resolve_global(
+		&self,
+		field_name: &str,
+		global_type: &GlobalType,
+	) -> Result<Rc<GlobalInstance>, InterpreterError> {
+		if field_name == "global" {
+			return match global_type.content_type() {
+				ValueType::I32 => {
+					Ok(Rc::clone(&self.global_i32))
+				}
+				ValueType::I64 => {
+					Ok(Rc::clone(&self.global_i64))
+				}
+				ValueType::F32 => {
+					Ok(Rc::clone(&self.global_f32))
+				}
+				ValueType::F64 => {
+					Ok(Rc::clone(&self.global_f64))
+				}
+			};
+		}
+
+		Err(InterpreterError::Global(format!("Unknown host global import {}", field_name)))
+	}
+
+	fn resolve_memory(
+		&self,
+		field_name: &str,
+		memory_type: &MemoryType,
+	) -> Result<Rc<MemoryInstance>, InterpreterError> {
+		if field_name == "memory" {
+			return Ok(Rc::clone(&self.memory));
+		}
+
+		Err(InterpreterError::Global(format!("Unknown host memory import {}", field_name)))
+	}
+
+	fn resolve_table(
+		&self,
+		field_name: &str,
+		table_type: &TableType,
+	) -> Result<Rc<TableInstance>, InterpreterError> {
+		if field_name == "table" {
+			return Ok(Rc::clone(&self.table));
+		}
+
+		Err(InterpreterError::Global(format!("Unknown host table import {}", field_name)))
+	}
+}
+
+fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut ProgramInstance) -> Rc<ModuleInstance> {
     let module = try_deserialize(base_dir, path).expect(&format!("Wasm file {} failed to load", path));
 
-    program.add_module("spectest", spec_test_module(), &mut ()).expect("Failed adding 'spectest' module");
+    program.add_import_resolver("spectest", Box::new(SpecModule::new()) as Box<ImportResolver>);
 
     let module_name = name.as_ref().map(|s| s.as_ref()).unwrap_or("wasm_test").trim_left_matches('$');
     let module_instance = program.add_module(module_name, module, &mut ()).expect(&format!("Failed adding {} module", module_name));
@@ -98,7 +187,7 @@ fn run_action(program: &mut ProgramInstance, action: &test::Action)
             let module = module.clone().unwrap_or("wasm_test".into());
             let module = module.trim_left_matches('$');
             let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
-            let func = module.export_by_name(program.store(), &jstring_to_rstring(field)).unwrap().as_func().unwrap();
+            let func = module.export_by_name(&jstring_to_rstring(field)).unwrap().as_func().unwrap();
             program.invoke_func(func, runtime_values(args), &mut ())
         },
         test::Action::Get { ref module, ref field, .. } => {
@@ -108,11 +197,11 @@ fn run_action(program: &mut ProgramInstance, action: &test::Action)
             let field = jstring_to_rstring(&field);
 
             let global = module
-                .export_by_name(program.store(), &field)
+                .export_by_name(&field)
                 .ok_or_else(|| InterpreterError::Global(format!("Expected to have export with name {}", field)))?
                 .as_global()
                 .ok_or_else(|| InterpreterError::Global(format!("Expected export {} to be a global", field)))?;
-            Ok(Some(program.store().read_global(global)))
+            Ok(Some(global.get()))
         }
     }
 }

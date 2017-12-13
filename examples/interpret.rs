@@ -3,6 +3,7 @@
 extern crate parity_wasm;
 
 use std::env::args;
+use parity_wasm::interpreter::{ModuleInstance, Imports};
 
 fn main() {
     let args: Vec<_> = args().collect();
@@ -11,9 +12,6 @@ fn main() {
         println!("    wasm file should contain exported `_call` function with single I32 argument");
         return;
     }
-
-    // Intrepreter initialization.
-    let mut program = parity_wasm::ProgramInstance::new();
 
     // Here we load module using dedicated for this purpose
     // `deserialize_file` function (which works only with modules)
@@ -24,11 +22,11 @@ fn main() {
     // - a module declaration
     // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
     // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
-    program.add_module("main", module, &mut ()).expect("Failed to initialize module");
+    let main = ModuleInstance::instantiate(&module, &Imports::new(), &mut ()).expect("Failed to initialize module");
 
     // The argument should be parsable as a valid integer
     let argument: i32 = args[2].parse().expect("Integer argument required");
 
     // "_call" export of function to be executed with an i32 argument and prints the result of execution
-    println!("Result: {:?}", program.invoke_export("main", "_call", vec![parity_wasm::RuntimeValue::I32(argument)], &mut ()));
+    println!("Result: {:?}", main.invoke_export("_call", vec![parity_wasm::RuntimeValue::I32(argument)], &mut ()));
 }

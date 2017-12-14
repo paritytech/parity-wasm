@@ -44,6 +44,30 @@ impl fmt::Debug for FuncInstance {
 }
 
 impl FuncInstance {
+	pub fn alloc_internal(
+		module: Rc<ModuleInstance>,
+		func_type: Rc<FunctionType>,
+		body: FuncBody,
+	) -> Rc<Self> {
+		let func = FuncInstance::Internal {
+			func_type,
+			module: module,
+			body: Rc::new(body),
+		};
+		Rc::new(func)
+	}
+
+	pub fn alloc_host(
+		func_type: Rc<FunctionType>,
+		host_func: Rc<AnyFunc>,
+	) -> Rc<Self> {
+		let func = FuncInstance::Host {
+			func_type,
+			host_func,
+		};
+		Rc::new(func)
+	}
+
 	pub fn func_type(&self) -> Rc<FunctionType> {
 		match *self {
 			FuncInstance::Internal { ref func_type, .. } |
@@ -57,9 +81,7 @@ impl FuncInstance {
 			FuncInstance::Host { .. } => None,
 		}
 	}
-}
 
-impl FuncInstance {
 	pub fn invoke<St: 'static>(
 		func: Rc<FuncInstance>,
 		args: Vec<RuntimeValue>,

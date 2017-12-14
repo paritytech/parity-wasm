@@ -59,10 +59,8 @@ impl ProgramInstance {
 		&mut self,
 		name: &str,
 		host_module: HostModule,
-	) -> Result<Rc<ModuleInstance>, Error> {
-		let module_instance = host_module.allocate()?;
-		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
-		Ok(module_instance)
+	) {
+		self.resolvers.insert(name.to_owned(), Box::new(host_module) as Box<ImportResolver>);
 	}
 
 	pub fn insert_loaded_module(&mut self, name: &str, module: Rc<ModuleInstance>) {

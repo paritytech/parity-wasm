@@ -118,7 +118,7 @@ impl ModuleInstance {
 		self.exports.borrow_mut().insert(name.into(), extern_val);
 	}
 
-	fn alloc_module_internal(
+	fn alloc_module(
 		module: &Module,
 		extern_vals: &[ExternVal],
 		instance: &Rc<ModuleInstance>,
@@ -207,7 +207,11 @@ impl ModuleInstance {
 					opcodes: body.code().clone(),
 					labels: labels,
 				};
-				let func_instance = alloc_func(instance, func_type, func_body);
+				let func_instance = FuncInstance::alloc_internal(
+					Rc::clone(instance),
+					func_type,
+					func_body
+				);
 				instance.push_func(func_instance);
 			}
 		}
@@ -280,7 +284,7 @@ impl ModuleInstance {
 	) -> Result<Rc<ModuleInstance>, Error> {
 		let instance = Rc::new(ModuleInstance::new());
 
-		ModuleInstance::alloc_module_internal(module, extern_vals, &instance)?;
+		ModuleInstance::alloc_module(module, extern_vals, &instance)?;
 
 		for element_segment in module
 			.elements_section()
@@ -519,19 +523,6 @@ impl ImportResolver for ModuleInstance {
 
 fn alloc_func_type(func_type: FunctionType) -> Rc<FunctionType> {
 	Rc::new(func_type)
-}
-
-fn alloc_func(
-	module: &Rc<ModuleInstance>,
-	func_type: Rc<FunctionType>,
-	body: FuncBody,
-) -> Rc<FuncInstance> {
-	let func = FuncInstance::Internal {
-		func_type,
-		module: Rc::clone(module),
-		body: Rc::new(body),
-	};
-	Rc::new(func)
 }
 
 fn alloc_table(table_type: &TableType) -> Result<Rc<TableInstance>, Error> {

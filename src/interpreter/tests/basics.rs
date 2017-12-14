@@ -4,11 +4,10 @@ use std::rc::Rc;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, Opcodes, Opcode, TableType, MemoryType};
-use interpreter::{Error, UserError, ProgramInstance};
-use interpreter::value::RuntimeValue;
-use interpreter::host::{HostModuleBuilder, HostModule};
-use interpreter::memory::MemoryInstance;
-use interpreter::ModuleInstance;
+use interpreter::{
+	Error, GlobalInstance, HostModule, HostModuleBuilder, MemoryInstance,
+	ModuleInstance, ProgramInstance, RuntimeValue, UserError
+};
 use super::utils::program_with_default_env;
 
 #[test]
@@ -151,7 +150,7 @@ fn build_env_module() -> HostModule {
 	builder.with_func2("err", |_: &mut FunctionExecutor, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
 		Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
 	});
-	builder.with_memory("memory", MemoryType::new(256, None));
+	builder.insert_memory("memory", Rc::new(MemoryInstance::new(&MemoryType::new(256, None)).unwrap()));
 	builder.build()
 }
 
@@ -159,8 +158,8 @@ fn build_env_module() -> HostModule {
 fn native_env_function() {
 	let mut program = program_with_default_env();
 	let env_host_module = build_env_module();
-	let env_module = program.add_host_module("env", env_host_module).unwrap();
-	let env_memory = env_module.export_by_name("memory").unwrap().as_memory().unwrap();
+	let env_memory = env_host_module.export_by_name("memory").unwrap().as_memory().unwrap();
+	program.add_host_module("env", env_host_module);
 
 	let mut state = FunctionExecutor {
 		memory: env_memory,
@@ -224,7 +223,7 @@ fn native_env_global() {
 
 	let module_constructor = |host_module: HostModule| {
 		let mut program = ProgramInstance::new();
-		program.add_host_module("env", host_module)?;
+		program.add_host_module("env", host_module);
 
 		let module = module()
 			.with_import(ImportEntry::new("env".into(), "ext_global".into(), External::Global(GlobalType::new(ValueType::I32, false))))
@@ -249,7 +248,7 @@ fn native_env_global() {
 	// now add simple variable natively => ok
 	{
 		let mut host_module_builder = HostModuleBuilder::<State>::new();
-		host_module_builder.with_global("ext_global", GlobalType::new(ValueType::I32, false), RuntimeValue::I32(777));
+		host_module_builder.insert_global("ext_global", Rc::new(GlobalInstance::new(RuntimeValue::I32(777), false)));
 		assert_eq!(module_constructor(host_module_builder.build()).unwrap().unwrap(), RuntimeValue::I32(777));
 	}
 }
@@ -258,8 +257,8 @@ fn native_env_global() {
 fn native_custom_error() {
 	let mut program = program_with_default_env();
 	let env_host_module = build_env_module();
-	let env_module = program.add_host_module("env", env_host_module).unwrap();
-	let env_memory = env_module.export_by_name("memory").unwrap().as_memory().unwrap();
+	let env_memory = env_host_module.export_by_name("memory").unwrap().as_memory().unwrap();
+	program.add_host_module("env", env_host_module);
 
 	let mut state = FunctionExecutor {
 		memory: env_memory,

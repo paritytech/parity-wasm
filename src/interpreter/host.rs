@@ -2,6 +2,7 @@ use std::any::Any;
 use std::rc::Rc;
 use std::marker::PhantomData;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
 use interpreter::module::{ExternVal, ModuleInstance};
 use interpreter::func::FuncInstance;
@@ -10,46 +11,22 @@ use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;
 use interpreter::value::RuntimeValue;
 use interpreter::Error;
-
-enum HostItem {
-	Func {
-		name: String,
-		func_type: FunctionType,
-		host_func: Rc<AnyFunc>,
-	},
-	Global {
-		name: String,
-		global_type: GlobalType,
-		init_val: RuntimeValue,
-	},
-	Memory {
-		name: String,
-		memory_type: MemoryType,
-	},
-	Table {
-		name: String,
-		table_type: TableType,
-	},
-	ExternVal {
-		name: String,
-		extern_val: ExternVal,
-	}
-}
+use interpreter::ImportResolver;
 
 pub struct HostModuleBuilder<St> {
-	items: Vec<HostItem>,
+	exports: HashMap<String, ExternVal>,
 	_marker: PhantomData<St>,
 }
 
 impl<St: 'static> HostModuleBuilder<St> {
 	pub fn new() -> Self {
 		HostModuleBuilder {
-			items: Vec::new(),
+			exports: HashMap::new(),
 			_marker: PhantomData,
 		}
 	}
 
-	pub fn with_func0<
+	pub fn insert_func0<
 		Cl: Fn(&mut St) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
 		F: Into<Func0<Cl, St, Ret>>,
@@ -61,12 +38,8 @@ impl<St: 'static> HostModuleBuilder<St> {
 	) {
 		let func_type = Func0::<Cl, St, Ret>::derive_func_type();
 		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
-
-		self.items.push(HostItem::Func {
-			name: name.into(),
-			func_type,
-			host_func,
-		});
+		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
+		self.insert_func(name, func);
 	}
 
 	pub fn with_func1<
@@ -82,12 +55,8 @@ impl<St: 'static> HostModuleBuilder<St> {
 	) {
 		let func_type = Func1::<Cl, St, Ret, P1>::derive_func_type();
 		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
-
-		self.items.push(HostItem::Func {
-			name: name.into(),
-			func_type,
-			host_func,
-		});
+		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
+		self.insert_func(name, func);
 	}
 
 	pub fn with_func2<
@@ -104,87 +73,97 @@ impl<St: 'static> HostModuleBuilder<St> {
 	) {
 		let func_type = Func2::<Cl, St, Ret, P1, P2>::derive_func_type();
 		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
-
-		self.items.push(HostItem::Func {
-			name: name.into(),
-			func_type,
-			host_func,
-		});
+		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
+		self.insert_func(name, func);
 	}
 
-	pub fn with_global<N: Into<String>>(&mut self, name: N, global_type: GlobalType, init_val: RuntimeValue) {
-		self.items.push(HostItem::Global {
-			name: name.into(),
-			global_type,
-			init_val,
-		});
+	pub fn insert_func<N: Into<String>>(&mut self, name: N, func: Rc<FuncInstance>) {
+		self.insert(name, ExternVal::Func(func));
 	}
 
-	pub fn with_memory<N: Into<String>>(&mut self, name: N, memory_type: MemoryType) {
-		self.items.push(HostItem::Memory {
-			name: name.into(),
-			memory_type,
-		});
+	pub fn insert_global<N: Into<String>>(&mut self, name: N, global: Rc<GlobalInstance>) {
+		self.insert(name, ExternVal::Global(global));
 	}
 
-	pub fn with_table<N: Into<String>>(&mut self, name: N, table_type: TableType) {
-		self.items.push(HostItem::Table {
-			name: name.into(),
-			table_type,
-		});
+	pub fn insert_memory<N: Into<String>>(&mut self, name: N, memory: Rc<MemoryInstance>) {
+		self.insert(name, ExternVal::Memory(memory));
 	}
 
-	pub fn with_extern_val<N: Into<String>>(&mut self, name: N, extern_val: ExternVal) {
-		self.items.push(HostItem::ExternVal {
-			name: name.into(),
-			extern_val,
-		});
+	pub fn insert_table<N: Into<String>>(&mut self, name: N, table: Rc<TableInstance>) {
+		self.insert(name, ExternVal::Table(table));
+	}
+
+	pub fn with_global<N: Into<String>>(mut self, name: N, global: Rc<GlobalInstance>) -> Self {
+		self.insert_global(name, global);
+		self
+	}
+
+	pub fn with_memory<N: Into<String>>(mut self, name: N, memory: Rc<MemoryInstance>) -> Self {
+		self.insert_memory(name, memory);
+		self
+	}
+
+	pub fn with_table<N: Into<String>>(mut self, name: N, table: Rc<TableInstance>) -> Self {
+		self.insert_table(name, table);
+		self
+	}
+
+	fn insert<N: Into<String>>(&mut self, name: N, extern_val: ExternVal) {
+		match self.exports.entry(name.into()) {
+			Entry::Vacant(v) => v.insert(extern_val),
+			Entry::Occupied(o) => panic!("Duplicate export name {}", o.key()),
+		};
 	}
 
 	pub fn build(self) -> HostModule {
+		let internal_instance = Rc::new(ModuleInstance::with_exports(self.exports));
 		HostModule {
-			items: self.items
+			internal_instance
 		}
 	}
 }
 
 pub struct HostModule {
-	items: Vec<HostItem>,
+	internal_instance: Rc<ModuleInstance>,
 }
 
 impl HostModule {
-	pub(crate) fn allocate(self) -> Result<Rc<ModuleInstance>, Error> {
-		let mut exports = HashMap::new();
+	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
+		self.internal_instance.export_by_name(name)
+	}
+}
 
-		for item in self.items {
-			match item {
-				HostItem::Func { name, func_type, host_func } => {
-					let func = FuncInstance::Host {
-						func_type: Rc::new(func_type),
-						host_func: host_func,
-					};
-					exports.insert(name, ExternVal::Func(Rc::new(func)));
-				},
-				HostItem::Global { name, global_type, init_val } => {
-					let global = GlobalInstance::new(init_val, global_type.is_mutable());
-					exports.insert(name, ExternVal::Global(Rc::new(global)));
-				},
-				HostItem::Memory { name, memory_type } => {
-					let memory = MemoryInstance::new(&memory_type)?;
-					exports.insert(name, ExternVal::Memory(Rc::new(memory)));
-				},
-				HostItem::Table { name, table_type } => {
-					let table = TableInstance::new(&table_type)?;
-					exports.insert(name, ExternVal::Table(Rc::new(table)));
-				}
-				HostItem::ExternVal { name, extern_val } => {
-					exports.insert(name, extern_val);
-				}
-			}
-		}
+impl ImportResolver for HostModule {
+	fn resolve_func(
+		&self,
+		field_name: &str,
+		func_type: &FunctionType,
+	) -> Result<Rc<FuncInstance>, Error> {
+		self.internal_instance.resolve_func(field_name, func_type)
+	}
 
-		let host_module_instance = ModuleInstance::with_exports(exports);
-		Ok(Rc::new(host_module_instance))
+	fn resolve_global(
+		&self,
+		field_name: &str,
+		global_type: &GlobalType,
+	) -> Result<Rc<GlobalInstance>, Error> {
+		self.internal_instance.resolve_global(field_name, global_type)
+	}
+
+	fn resolve_memory(
+		&self,
+		field_name: &str,
+		memory_type: &MemoryType,
+	) -> Result<Rc<MemoryInstance>, Error> {
+		self.internal_instance.resolve_memory(field_name, memory_type)
+	}
+
+	fn resolve_table(
+		&self,
+		field_name: &str,
+		table_type: &TableType,
+	) -> Result<Rc<TableInstance>, Error> {
+		self.internal_instance.resolve_table(field_name, table_type)
 	}
 }
 

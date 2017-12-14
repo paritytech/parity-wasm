@@ -116,16 +116,14 @@ impl ::std::fmt::Display for UserErrorWithCode {
 
 impl UserError for UserErrorWithCode {}
 
-// TODO: Rename to state
-// user function executor
-struct FunctionExecutor {
+struct TestState {
 	pub memory: Rc<MemoryInstance>,
 	pub values: Vec<i32>,
 }
 
 fn build_env_module() -> HostModule {
-	let mut builder = HostModuleBuilder::<FunctionExecutor>::new();
-	builder.with_func2("add", |state: &mut FunctionExecutor, arg: i32, unused: i32| {
+	let mut builder = HostModuleBuilder::<TestState>::new();
+	builder.with_func2("add", |state: &mut TestState, arg: i32, unused: i32| {
 		let memory_value = state.memory.get(0, 1).unwrap()[0];
 		let fn_argument_unused = unused as u8;
 		let fn_argument = arg as u8;
@@ -136,7 +134,7 @@ fn build_env_module() -> HostModule {
 		state.values.push(sum as i32);
 		Ok(Some(sum as i32))
 	});
-	builder.with_func2("sub", |state: &mut FunctionExecutor, arg: i32, unused: i32| {
+	builder.with_func2("sub", |state: &mut TestState, arg: i32, unused: i32| {
 		let memory_value = state.memory.get(0, 1).unwrap()[0];
 		let fn_argument_unused = unused as u8;
 		let fn_argument = arg as u8;
@@ -147,7 +145,7 @@ fn build_env_module() -> HostModule {
 		state.values.push(diff as i32);
 		Ok(Some(diff as i32))
 	});
-	builder.with_func2("err", |_: &mut FunctionExecutor, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
+	builder.with_func2("err", |_: &mut TestState, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
 		Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
 	});
 	builder.insert_memory("memory", Rc::new(MemoryInstance::new(&MemoryType::new(256, None)).unwrap()));
@@ -161,7 +159,7 @@ fn native_env_function() {
 	let env_memory = env_host_module.export_by_name("memory").unwrap().as_memory().unwrap();
 	program.add_host_module("env", env_host_module);
 
-	let mut state = FunctionExecutor {
+	let mut state = TestState {
 		memory: env_memory,
 		values: Vec::new(),
 	};
@@ -260,7 +258,7 @@ fn native_custom_error() {
 	let env_memory = env_host_module.export_by_name("memory").unwrap().as_memory().unwrap();
 	program.add_host_module("env", env_host_module);
 
-	let mut state = FunctionExecutor {
+	let mut state = TestState {
 		memory: env_memory,
 		values: Vec::new(),
 	};

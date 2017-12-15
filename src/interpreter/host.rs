@@ -1,6 +1,4 @@
-use std::any::Any;
 use std::rc::Rc;
-use std::marker::PhantomData;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
@@ -13,71 +11,59 @@ use interpreter::value::RuntimeValue;
 use interpreter::Error;
 use interpreter::ImportResolver;
 
+pub type HostFunc<St> = Fn(&mut St, &[RuntimeValue]) -> Result<Option<RuntimeValue>, Error>;
+
 pub struct HostModuleBuilder<St> {
-	exports: HashMap<String, ExternVal>,
-	_marker: PhantomData<St>,
+	exports: HashMap<String, ExternVal<St>>,
 }
 
-impl<St: 'static> HostModuleBuilder<St> {
+impl<St> HostModuleBuilder<St> {
 	pub fn new() -> Self {
 		HostModuleBuilder {
 			exports: HashMap::new(),
-			_marker: PhantomData,
 		}
 	}
 
-	pub fn insert_func0<
-		Cl: Fn(&mut St) -> Result<Option<Ret>, Error> + 'static,
-		Ret: AsReturnVal + 'static,
-		F: Into<Func0<Cl, St, Ret>>,
-		N: Into<String>,
-	>(
-		&mut self,
-		name: N,
-		f: F,
-	) {
-		let func_type = Func0::<Cl, St, Ret>::derive_func_type();
-		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
-		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
-		self.insert_func(name, func);
-	}
-
-	pub fn with_func1<
-		Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error> + 'static,
-		Ret: AsReturnVal + 'static,
-		P1: FromArg + 'static,
-		F: Into<Func1<Cl, St, Ret, P1>>,
-		N: Into<String>,
-	>(
-		&mut self,
-		name: N,
-		f: F,
-	) {
-		let func_type = Func1::<Cl, St, Ret, P1>::derive_func_type();
-		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
-		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
-		self.insert_func(name, func);
-	}
+	// pub fn insert_func0<
+	// 	Cl: Fn(&mut St) -> Result<Option<Ret>, Error> + AnyFunc<St> + 'static,
+	// 	Ret: AsReturnVal + 'static,
+	// 	F: Into<Cl>,
+	// 	N: Into<String>,
+	// >(
+	// 	&mut self,
+	// 	name: N,
+	// 	f: Box<F>,
+	// ) {
+	// 	let func_type = FunctionType::new(vec![], Ret::value_type());
+	// 	let host_func = Rc::new(f) as Rc<AnyFunc<St>>;
+	// 	let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
+	// 	self.insert_func(name, func);
+	// }
 
 	pub fn with_func2<
 		Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
 		P1: FromArg + 'static,
 		P2: FromArg + 'static,
-		F: Into<Func2<Cl, St, Ret, P1, P2>>,
 		N: Into<String>,
 	>(
 		&mut self,
 		name: N,
-		f: F,
+		f: Cl,
 	) {
-		let func_type = Func2::<Cl, St, Ret, P1, P2>::derive_func_type();
-		let host_func = Rc::new(f.into()) as Rc<AnyFunc>;
+		let func_type = FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type());
+		let host_func = Rc::new(move |state: &mut St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			let p1 = P1::from_arg(&args[0]);
+			let p2 = P2::from_arg(&args[1]);
+			let result = f(state, p1, p2);
+			result.map(|r| r.and_then(|r| r.as_return_val()))
+		});
+
 		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
 		self.insert_func(name, func);
 	}
 
-	pub fn insert_func<N: Into<String>>(&mut self, name: N, func: Rc<FuncInstance>) {
+	pub fn insert_func<N: Into<String>>(&mut self, name: N, func: Rc<FuncInstance<St>>) {
 		self.insert(name, ExternVal::Func(func));
 	}
 
@@ -89,7 +75,7 @@ impl<St: 'static> HostModuleBuilder<St> {
 		self.insert(name, ExternVal::Memory(memory));
 	}
 
-	pub fn insert_table<N: Into<String>>(&mut self, name: N, table: Rc<TableInstance>) {
+	pub fn insert_table<N: Into<String>>(&mut self, name: N, table: Rc<TableInstance<St>>) {
 		self.insert(name, ExternVal::Table(table));
 	}
 
@@ -103,19 +89,19 @@ impl<St: 'static> HostModuleBuilder<St> {
 		self
 	}
 
-	pub fn with_table<N: Into<String>>(mut self, name: N, table: Rc<TableInstance>) -> Self {
+	pub fn with_table<N: Into<String>>(mut self, name: N, table: Rc<TableInstance<St>>) -> Self {
 		self.insert_table(name, table);
 		self
 	}
 
-	fn insert<N: Into<String>>(&mut self, name: N, extern_val: ExternVal) {
+	fn insert<N: Into<String>>(&mut self, name: N, extern_val: ExternVal<St>) {
 		match self.exports.entry(name.into()) {
 			Entry::Vacant(v) => v.insert(extern_val),
 			Entry::Occupied(o) => panic!("Duplicate export name {}", o.key()),
 		};
 	}
 
-	pub fn build(self) -> HostModule {
+	pub fn build(self) -> HostModule<St> {
 		let internal_instance = Rc::new(ModuleInstance::with_exports(self.exports));
 		HostModule {
 			internal_instance
@@ -123,22 +109,22 @@ impl<St: 'static> HostModuleBuilder<St> {
 	}
 }
 
-pub struct HostModule {
-	internal_instance: Rc<ModuleInstance>,
+pub struct HostModule<St> {
+	internal_instance: Rc<ModuleInstance<St>>,
 }
 
-impl HostModule {
-	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
+impl<St> HostModule<St> {
+	pub fn export_by_name(&self, name: &str) -> Option<ExternVal<St>> {
 		self.internal_instance.export_by_name(name)
 	}
 }
 
-impl ImportResolver for HostModule {
+impl<St> ImportResolver<St> for HostModule<St> {
 	fn resolve_func(
 		&self,
 		field_name: &str,
 		func_type: &FunctionType,
-	) -> Result<Rc<FuncInstance>, Error> {
+	) -> Result<Rc<FuncInstance<St>>, Error> {
 		self.internal_instance.resolve_func(field_name, func_type)
 	}
 
@@ -162,15 +148,15 @@ impl ImportResolver for HostModule {
 		&self,
 		field_name: &str,
 		table_type: &TableType,
-	) -> Result<Rc<TableInstance>, Error> {
+	) -> Result<Rc<TableInstance<St>>, Error> {
 		self.internal_instance.resolve_table(field_name, table_type)
 	}
 }
 
-pub trait AnyFunc {
+pub trait AnyFunc<St> {
 	fn call_as_any(
 		&self,
-		state: &mut Any,
+		state: &mut St,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error>;
 }
@@ -218,134 +204,26 @@ impl AsReturnVal for () {
 	}
 }
 
-pub struct Func0<Cl: Fn(&mut St) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal> {
-	closure: Cl,
-	_marker: PhantomData<(St, Ret)>,
-}
-
-impl<
-	St: 'static,
-	Ret: AsReturnVal,
-	Cl: Fn(&mut St) -> Result<Option<Ret>, Error>,
-> AnyFunc for Func0<Cl, St, Ret> {
+impl<St, Ret: AsReturnVal> AnyFunc<St> for Fn(&mut St) -> Result<Option<Ret>, Error> {
 	fn call_as_any(
 		&self,
-		state: &mut Any,
+		state: &mut St,
 		_args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
-		let state = state.downcast_mut::<St>().unwrap();
-		let result = (self.closure)(state);
+		let result = self(state);
 		result.map(|r| r.and_then(|r| r.as_return_val()))
 	}
 }
 
-impl<St: 'static, Ret: AsReturnVal, Cl: Fn(&mut St) -> Result<Option<Ret>, Error>> From<Cl>
-	for Func0<Cl, St, Ret> {
-	fn from(cl: Cl) -> Self {
-		Func0 {
-			closure: cl,
-			_marker: PhantomData,
-		}
-	}
-}
-
-impl<
-	St: 'static,
-	Ret: AsReturnVal,
-	Cl: Fn(&mut St) -> Result<Option<Ret>, Error>,
-> Func0<Cl, St, Ret> {
-	fn derive_func_type() -> FunctionType {
-		FunctionType::new(vec![], Ret::value_type())
-	}
-}
-
-pub struct Func1<Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg> {
-	closure: Cl,
-	_marker: PhantomData<(St, Ret, P1)>,
-}
-
-impl<
-	St: 'static,
-	Ret: AsReturnVal,
-	P1: FromArg,
-	Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>,
-> AnyFunc for Func1<Cl, St, Ret, P1> {
+impl<St, Ret: AsReturnVal, P1: FromArg, P2: FromArg> AnyFunc<St> for Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error> {
 	fn call_as_any(
 		&self,
-		state: &mut Any,
+		state: &mut St,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
-		let state = state.downcast_mut::<St>().unwrap();
-		let p1 = P1::from_arg(&args[0]);
-		let result = (self.closure)(state, p1);
-		result.map(|r| r.and_then(|r| r.as_return_val()))
-	}
-}
-
-impl<St: 'static, Ret: AsReturnVal, P1: FromArg, Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>> From<Cl>
-	for Func1<Cl, St, Ret, P1> {
-	fn from(cl: Cl) -> Self {
-		Func1 {
-			closure: cl,
-			_marker: PhantomData,
-		}
-	}
-}
-
-impl<
-	St: 'static,
-	Ret: AsReturnVal,
-	P1: FromArg,
-	Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error>,
-> Func1<Cl, St, Ret, P1> {
-	fn derive_func_type() -> FunctionType {
-		FunctionType::new(vec![P1::value_type()], Ret::value_type())
-	}
-}
-
-pub struct Func2<Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>, St, Ret: AsReturnVal, P1: FromArg, P2: FromArg> {
-	closure: Cl,
-	_marker: PhantomData<(St, Ret, P1, P2)>,
-}
-
-impl<
-	St: 'static,
-	Ret: AsReturnVal,
-	P1: FromArg,
-	P2: FromArg,
-	Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>,
-> AnyFunc for Func2<Cl, St, Ret, P1, P2> {
-	fn call_as_any(
-		&self,
-		state: &mut Any,
-		args: &[RuntimeValue],
-	) -> Result<Option<RuntimeValue>, Error> {
-		let state = state.downcast_mut::<St>().unwrap();
 		let p1 = P1::from_arg(&args[0]);
 		let p2 = P2::from_arg(&args[1]);
-		let result = (self.closure)(state, p1, p2);
+		let result = self(state, p1, p2);
 		result.map(|r| r.and_then(|r| r.as_return_val()))
-	}
-}
-
-impl<St: 'static, Ret: AsReturnVal, P1: FromArg, P2: FromArg, Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>> From<Cl>
-	for Func2<Cl, St, Ret, P1, P2> {
-	fn from(cl: Cl) -> Self {
-		Func2 {
-			closure: cl,
-			_marker: PhantomData,
-		}
-	}
-}
-
-impl<
-	St: 'static,
-	Ret: AsReturnVal,
-	P1: FromArg,
-	P2: FromArg,
-	Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error>,
-> Func2<Cl, St, Ret, P1, P2> {
-	fn derive_func_type() -> FunctionType {
-		FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type())
 	}
 }

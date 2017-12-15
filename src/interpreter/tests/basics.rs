@@ -121,7 +121,7 @@ struct TestState {
 	pub values: Vec<i32>,
 }
 
-fn build_env_module() -> HostModule {
+fn build_env_module() -> HostModule<TestState> {
 	let mut builder = HostModuleBuilder::<TestState>::new();
 	builder.with_func2("add", |state: &mut TestState, arg: i32, unused: i32| {
 		let memory_value = state.memory.get(0, 1).unwrap()[0];
@@ -219,7 +219,7 @@ fn native_env_function() {
 fn native_env_global() {
 	struct State;
 
-	let module_constructor = |host_module: HostModule| {
+	let module_constructor = |host_module: HostModule<State>| {
 		let mut program = ProgramInstance::new();
 		program.add_host_module("env", host_module);
 

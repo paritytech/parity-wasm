@@ -1,6 +1,6 @@
 use elements::deserialize_file;
-use elements::Module;
-use interpreter::value::RuntimeValue;
+use elements::{Module, MemoryType};
+use interpreter::RuntimeValue;
 use super::utils::program_with_default_env;
 
 #[test]
@@ -46,8 +46,10 @@ fn interpreter_accumulate_u8() {
         .add_module("main", module, &mut ())
         .expect("Failed to initialize module");
 
-    let env_module = program.module("env").unwrap();
-    let env_memory = env_module.memory_by_index(0).unwrap();
+    let env_memory = {
+        let env_module = program.module("env").unwrap();
+        env_module.resolve_memory("memory", &MemoryType::new(1, None)).unwrap()
+    };
 
     // Place the octet-sequence at index 0 in linear memory
     let offset: u32 = 0;

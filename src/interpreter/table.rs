@@ -8,15 +8,15 @@ use interpreter::module::check_limits;
 use interpreter::func::FuncInstance;
 
 /// Table instance.
-pub struct TableInstance {
+pub struct TableInstance<St> {
 	/// Table limits.
 	limits: ResizableLimits,
 	/// Table memory buffer.
-	buffer: RwLock<Vec<Option<Rc<FuncInstance>>>>,
+	buffer: RwLock<Vec<Option<Rc<FuncInstance<St>>>>>,
 
 }
 
-impl fmt::Debug for TableInstance {
+impl<St> fmt::Debug for TableInstance<St> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("TableInstance")
 			.field("limits", &self.limits)
@@ -25,7 +25,7 @@ impl fmt::Debug for TableInstance {
 	}
 }
 
-impl TableInstance {
+impl<St> TableInstance<St> {
 	/// New instance of the table
 	pub fn new(table_type: &TableType) -> Result<Self, Error> {
 		check_limits(table_type.limits())?;
@@ -43,7 +43,7 @@ impl TableInstance {
 	}
 
 	/// Get the specific value in the table
-	pub fn get(&self, offset: u32) -> Result<Rc<FuncInstance>, Error> {
+	pub fn get(&self, offset: u32) -> Result<Rc<FuncInstance<St>>, Error> {
 		let buffer = self.buffer.read();
 		let buffer_len = buffer.len();
 		let table_elem = buffer.get(offset as usize).cloned().ok_or(Error::Table(format!(
@@ -58,7 +58,7 @@ impl TableInstance {
 	}
 
 	/// Set the table element to the specified function.
-	pub fn set(&self, offset: u32, value: Rc<FuncInstance>) -> Result<(), Error> {
+	pub fn set(&self, offset: u32, value: Rc<FuncInstance<St>>) -> Result<(), Error> {
 		let mut buffer = self.buffer.write();
 		let buffer_len = buffer.len();
 		let table_elem = buffer.get_mut(offset as usize).ok_or(Error::Table(format!(

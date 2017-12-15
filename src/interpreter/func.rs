@@ -5,25 +5,25 @@ use std::any::Any;
 use elements::{FunctionType, Opcodes, Local};
 use interpreter::{Error, ModuleInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
-use interpreter::host::AnyFunc;
+use interpreter::host::HostFunc;
 use interpreter::value::RuntimeValue;
 use common::stack::StackWithLimit;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_VALUE_STACK_LIMIT};
 
 #[derive(Clone)]
-pub enum FuncInstance {
+pub enum FuncInstance<St> {
 	Internal {
 		func_type: Rc<FunctionType>,
-		module: Rc<ModuleInstance>,
+		module: Rc<ModuleInstance<St>>,
 		body: Rc<FuncBody>,
 	},
 	Host {
 		func_type: Rc<FunctionType>,
-		host_func: Rc<AnyFunc>,
+		host_func: Rc<HostFunc<St>>,
 	},
 }
 
-impl fmt::Debug for FuncInstance {
+impl<St: fmt::Debug> fmt::Debug for FuncInstance<St> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			&FuncInstance::Internal {
@@ -43,9 +43,9 @@ impl fmt::Debug for FuncInstance {
 	}
 }
 
-impl FuncInstance {
+impl<St> FuncInstance<St> {
 	pub fn alloc_internal(
-		module: Rc<ModuleInstance>,
+		module: Rc<ModuleInstance<St>>,
 		func_type: Rc<FunctionType>,
 		body: FuncBody,
 	) -> Rc<Self> {
@@ -59,7 +59,7 @@ impl FuncInstance {
 
 	pub fn alloc_host(
 		func_type: Rc<FunctionType>,
-		host_func: Rc<AnyFunc>,
+		host_func: Rc<HostFunc<St>>,
 	) -> Rc<Self> {
 		let func = FuncInstance::Host {
 			func_type,
@@ -82,14 +82,14 @@ impl FuncInstance {
 		}
 	}
 
-	pub fn invoke<St: 'static>(
-		func: Rc<FuncInstance>,
+	pub fn invoke(
+		func: Rc<FuncInstance<St>>,
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
-		enum InvokeKind {
-			Internal(FunctionContext),
-			Host(Rc<AnyFunc>, Vec<RuntimeValue>),
+		enum InvokeKind<St> {
+			Internal(FunctionContext<St>),
+			Host(Rc<HostFunc<St>>, Vec<RuntimeValue>),
 		}
 
 		let result = match *func {
@@ -115,7 +115,7 @@ impl FuncInstance {
 				let mut interpreter = Interpreter::new(state);
 				interpreter.run_function(ctx)
 			}
-			InvokeKind::Host(host_func, args) => host_func.call_as_any(state as &mut Any, &args),
+			InvokeKind::Host(host_func, args) => host_func(state, &args),
 		}
 	}
 }

@@ -3,27 +3,22 @@ mod wabt;
 mod wasm;
 
 mod utils {
-	use elements::{Internal, ExportEntry, InitExpr, Opcode, ValueType, GlobalType, GlobalEntry};
-	use interpreter::ProgramInstance;
-	use builder::module;
+	use elements::{ExportEntry, InitExpr, Opcode, ValueType, GlobalType, GlobalEntry, MemoryType, TableType};
+	use interpreter::{ProgramInstance, HostModuleBuilder, MemoryInstance, TableInstance, GlobalInstance, RuntimeValue};
+	use std::rc::Rc;
 
-	pub fn program_with_default_env() -> ProgramInstance {
-		let mut program = ProgramInstance::new();
-		let env_module = module()
-			.memory()
-				.with_min(256) // 256 pages. 256 * 64K = 16MB
-				.build()
-				.with_export(ExportEntry::new("memory".into(), Internal::Memory(0)))
-			.table()
-				.with_min(64)
-				.build()
-				.with_export(ExportEntry::new("table".into(), Internal::Table(0)))
-			.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0), Opcode::End])))
-				.with_export(ExportEntry::new("tableBase".into(), Internal::Global(0)))
-			.with_global(GlobalEntry::new(GlobalType::new(ValueType::I32, false), InitExpr::new(vec![Opcode::I32Const(0), Opcode::End])))
-				.with_export(ExportEntry::new("memoryBase".into(), Internal::Global(1)))
-			.build();
-		program.add_module("env", env_module, &mut ()).unwrap();
+	pub fn program_with_default_env<St: 'static>() -> ProgramInstance<St> {
+		let mut program = ProgramInstance::<St>::new();
+
+		let mut builder = HostModuleBuilder::<St>::new();
+		// TODO: Alloc
+		builder.insert_memory("memory", Rc::new(MemoryInstance::new(&MemoryType::new(256, None)).unwrap()));
+		builder.insert_table("table", Rc::new(TableInstance::new(&TableType::new(64, None)).unwrap()));
+		builder.insert_global("tableBase", Rc::new(GlobalInstance::new(RuntimeValue::I32(0), false)));
+		builder.insert_global("memoryBase", Rc::new(GlobalInstance::new(RuntimeValue::I32(0), false)));
+		let env_host_module = builder.build();
+
+		program.add_host_module("env", env_host_module);
 		program
 	}
 }

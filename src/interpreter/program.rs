@@ -9,14 +9,14 @@ use interpreter::value::RuntimeValue;
 use interpreter::imports::{Imports, ImportResolver};
 
 /// Program instance. Program is a set of instantiated modules.
-pub struct ProgramInstance {
-	modules: HashMap<String, Rc<ModuleInstance>>,
-	resolvers: HashMap<String, Box<ImportResolver>>,
+pub struct ProgramInstance<St=()> {
+	modules: HashMap<String, Rc<ModuleInstance<St>>>,
+	resolvers: HashMap<String, Box<ImportResolver<St>>>,
 }
 
-impl ProgramInstance {
+impl<St> ProgramInstance<St> {
 	/// Create new program instance.
-	pub fn new() -> Self {
+	pub fn new() -> ProgramInstance<St> {
 		ProgramInstance {
 			modules: HashMap::new(),
 			resolvers: HashMap::new(),
@@ -24,12 +24,12 @@ impl ProgramInstance {
 	}
 
 	/// Instantiate module with validation.
-	pub fn add_module<'a, St: 'static>(
+	pub fn add_module(
 		&mut self,
 		name: &str,
 		module: Module,
 		state: &mut St,
-	) -> Result<Rc<ModuleInstance>, Error> {
+	) -> Result<Rc<ModuleInstance<St>>, Error> {
 		let module_instance = {
 			let mut imports = Imports::new();
 			for (module_name, module_instance) in self.modules.iter() {
@@ -50,7 +50,7 @@ impl ProgramInstance {
 	pub fn add_import_resolver(
 		&mut self,
 		name: &str,
-		import_resolver: Box<ImportResolver>,
+		import_resolver: Box<ImportResolver<St>>,
 	) {
 		self.resolvers.insert(name.to_owned(), import_resolver);
 	}
@@ -58,16 +58,16 @@ impl ProgramInstance {
 	pub fn add_host_module(
 		&mut self,
 		name: &str,
-		host_module: HostModule,
-	) {
-		self.resolvers.insert(name.to_owned(), Box::new(host_module) as Box<ImportResolver>);
+		host_module: HostModule<St>,
+	) where St: 'static {
+		self.resolvers.insert(name.to_owned(), Box::new(host_module) as Box<ImportResolver<St>>);
 	}
 
-	pub fn insert_loaded_module(&mut self, name: &str, module: Rc<ModuleInstance>) {
+	pub fn insert_loaded_module(&mut self, name: &str, module: Rc<ModuleInstance<St>>) {
 		self.modules.insert(name.to_owned(), module);
 	}
 
-	pub fn invoke_export<St: 'static>(
+	pub fn invoke_export(
 		&mut self,
 		module_name: &str,
 		func_name: &str,
@@ -80,7 +80,7 @@ impl ProgramInstance {
 		module_instance.invoke_export(func_name, args, state)
 	}
 
-	pub fn invoke_index<St: 'static>(
+	pub fn invoke_index(
 		&mut self,
 		module_name: &str,
 		func_idx: u32,
@@ -93,16 +93,19 @@ impl ProgramInstance {
 		module_instance.invoke_index(func_idx, args, state)
 	}
 
-	pub fn invoke_func<St: 'static>(
+	pub fn invoke_func(
 		&mut self,
-		func_instance: Rc<FuncInstance>,
+		func_instance: Rc<FuncInstance<St>>,
 		args: Vec<RuntimeValue>,
 		state: &mut St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
 	}
 
-	pub fn module(&self, name: &str) -> Option<Rc<ModuleInstance>> {
-		self.modules.get(name).cloned()
+	pub fn module(&self, name: &str) -> Option<&ImportResolver<St>> {
+		self.modules
+			.get(name)
+			.map(|x| &**x as &ImportResolver<St>)
+			.or_else(|| self.resolvers.get(name).map(|x| &**x))
 	}
 }

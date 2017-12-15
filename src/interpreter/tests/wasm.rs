@@ -47,7 +47,7 @@ fn interpreter_accumulate_u8() {
         .expect("Failed to initialize module");
 
     let env_memory = {
-        let env_module = program.module("env").unwrap();
+        let env_module = program.resolver("env").unwrap();
         env_module.resolve_memory("memory", &MemoryType::new(1, None)).unwrap()
     };
 

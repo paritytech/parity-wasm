@@ -21,25 +21,12 @@ use parity_wasm::interpreter::{
     MemoryInstance,
     TableInstance,
     ModuleInstance,
-    AnyFunc,
+    HostFunc,
 };
 
-struct DefaultHostCallback;
-
-impl AnyFunc for DefaultHostCallback {
-    fn call_as_any(
-        &self,
-        _: &mut Any,
-        args: &[RuntimeValue],
-    ) -> Result<Option<RuntimeValue>, InterpreterError> {
-        println!("called host: {:?}", args);
-        Ok(None)
-    }
-}
-
 struct SpecModule {
-    default_host_callback: Rc<AnyFunc>,
-    table: Rc<TableInstance>,
+    default_host_callback: Rc<HostFunc<()>>,
+    table: Rc<TableInstance<()>>,
     memory: Rc<MemoryInstance>,
     global_i32: Rc<GlobalInstance>,
     global_i64: Rc<GlobalInstance>,
@@ -48,9 +35,14 @@ struct SpecModule {
 }
 
 impl SpecModule {
-    fn new() -> SpecModule {
+    fn new() -> Self {
+        let default_host_callback = Rc::new(|_: &mut (), args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, InterpreterError> {
+            println!("called host: {:?}", args);
+            Ok(None)
+        });
+
         SpecModule {
-            default_host_callback: Rc::new(DefaultHostCallback) as Rc<AnyFunc>,
+            default_host_callback: default_host_callback,
             table: Rc::new(TableInstance::new(&TableType::new(10, Some(20))).unwrap()),
             memory: Rc::new(MemoryInstance::new(&MemoryType::new(1, Some(2))).unwrap()),
             global_i32: Rc::new(GlobalInstance::new(RuntimeValue::I32(666), false)),
@@ -61,18 +53,18 @@ impl SpecModule {
     }
 }
 
-impl ImportResolver for SpecModule {
+impl ImportResolver<()> for SpecModule {
     fn resolve_func(
         &self,
         field_name: &str,
         func_type: &FunctionType,
-    ) -> Result<Rc<FuncInstance>, InterpreterError> {
+    ) -> Result<Rc<FuncInstance<()>>, InterpreterError> {
         if field_name == "print" {
-            let func = FuncInstance::Host {
-                func_type: Rc::new(func_type.clone()),
-                host_func: Rc::clone(&self.default_host_callback),
-            };
-            return Ok(Rc::new(func));
+            let func = FuncInstance::alloc_host(
+                Rc::new(func_type.clone()),
+                Rc::clone(&self.default_host_callback)
+            );
+            return Ok(func);
         }
 
         Err(InterpreterError::Global(format!("Unknown host func import {}", field_name)))
@@ -119,7 +111,7 @@ impl ImportResolver for SpecModule {
         &self,
         field_name: &str,
         _table_type: &TableType,
-    ) -> Result<Rc<TableInstance>, InterpreterError> {
+    ) -> Result<Rc<TableInstance<()>>, InterpreterError> {
         if field_name == "table" {
             return Ok(Rc::clone(&self.table));
         }
@@ -128,10 +120,10 @@ impl ImportResolver for SpecModule {
     }
 }
 
-fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut ProgramInstance) -> Rc<ModuleInstance> {
+fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut ProgramInstance) -> Rc<ModuleInstance<()>> {
     let module = try_deserialize(base_dir, path).expect(&format!("Wasm file {} failed to load", path));
 
-    program.add_import_resolver("spectest", Box::new(SpecModule::new()) as Box<ImportResolver>);
+    program.add_import_resolver("spectest", Box::new(SpecModule::new()) as Box<ImportResolver<()>>);
 
     let module_name = name.as_ref().map(|s| s.as_ref()).unwrap_or("wasm_test").trim_left_matches('$');
     let module_instance = program.add_module(module_name, module, &mut ()).expect(&format!("Failed adding {} module", module_name));

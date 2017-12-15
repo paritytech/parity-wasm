@@ -102,10 +102,14 @@ impl<St> ProgramInstance<St> {
 		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
 	}
 
-	pub fn module(&self, name: &str) -> Option<&ImportResolver<St>> {
+	pub fn resolver(&self, name: &str) -> Option<&ImportResolver<St>> {
 		self.modules
 			.get(name)
 			.map(|x| &**x as &ImportResolver<St>)
 			.or_else(|| self.resolvers.get(name).map(|x| &**x))
+	}
+
+	pub fn module(&self, name: &str) -> Option<Rc<ModuleInstance<St>>> {
+		self.modules.get(name).cloned()
 	}
 }

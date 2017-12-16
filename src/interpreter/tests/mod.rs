@@ -3,7 +3,7 @@ mod wabt;
 mod wasm;
 
 mod utils {
-	use elements::{ExportEntry, InitExpr, Opcode, ValueType, GlobalType, GlobalEntry, MemoryType, TableType};
+	use elements::{MemoryType, TableType};
 	use interpreter::{ProgramInstance, HostModuleBuilder, MemoryInstance, TableInstance, GlobalInstance, RuntimeValue};
 	use std::rc::Rc;
 

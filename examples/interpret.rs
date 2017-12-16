@@ -3,7 +3,7 @@
 extern crate parity_wasm;
 
 use std::env::args;
-use parity_wasm::interpreter::{ModuleInstance, Imports};
+use parity_wasm::interpreter::ModuleInstance;
 
 fn main() {
     let args: Vec<_> = args().collect();

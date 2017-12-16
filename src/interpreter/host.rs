@@ -34,7 +34,7 @@ impl<St> HostModuleBuilder<St> {
 		f: Cl,
 	) {
 		let func_type = FunctionType::new(vec![], Ret::value_type());
-		let host_func = Rc::new(move |state: &mut St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+		let host_func = Rc::new(move |state: &mut St, _args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 			let result = f(state);
 			result.map(|r| r.and_then(|r| r.as_return_val()))
 		});

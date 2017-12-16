@@ -1,7 +1,6 @@
 use std::rc::Rc;
 use std::fmt;
 use std::collections::HashMap;
-use std::any::Any;
 use elements::{FunctionType, Opcodes, Local};
 use interpreter::{Error, ModuleInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};

@@ -290,6 +290,67 @@ fn native_custom_error() {
 }
 
 #[test]
+fn native_ref_state() {
+	// Some external state that we want to use from our host module.
+	type ExtState = i32;
+	let mut ext_state = 0;
+
+	// This structure holds state for our host module.
+	struct HostState<'a> {
+		ext_state: &'a mut ExtState,
+	}
+
+	let main_module = module()
+		.function().signature().param().i32().build().body().build().build()
+		.with_import(ImportEntry::new("env".into(), "inc".into(), External::Function(0)))
+		.function()
+			.signature().param().i32().param().i32().build()
+			.body().with_opcodes(Opcodes::new(vec![
+				// inc(arg_0);
+				// inc(arg_1);
+				Opcode::GetLocal(0),
+				Opcode::Call(0),
+				Opcode::GetLocal(1),
+				Opcode::Call(0),
+				Opcode::End,
+			])).build()
+			.build()
+		.build();
+
+	{
+		let host_module = {
+			let mut host_module_builder = HostModuleBuilder::<HostState>::new();
+			host_module_builder.with_func1(
+				"inc",
+				|state: &mut HostState, val: i32| -> Result<Option<()>, Error> {
+					*state.ext_state += val;
+					Ok(None)
+				},
+			);
+			host_module_builder.build()
+		};
+
+		let mut host_state = HostState {
+			ext_state: &mut ext_state,
+		};
+
+		let instance = ModuleInstance::instantiate(&main_module)
+			.with_import("env", &host_module)
+			.assert_no_start()
+			.expect("Instantiate module successfully");
+		instance
+			.invoke_index(
+				1,
+				vec![RuntimeValue::I32(7), RuntimeValue::I32(2)],
+				&mut host_state,
+			)
+			.expect("Invoke internal func successfully");
+	};
+
+	assert_eq!(ext_state, 7 + 2);
+}
+
+#[test]
 fn memory_import_limits_initial() {
 	let core_module = module()
 		.memory().with_min(10).build()

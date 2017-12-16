@@ -24,21 +24,45 @@ impl<St> HostModuleBuilder<St> {
 		}
 	}
 
-	// pub fn insert_func0<
-	// 	Cl: Fn(&mut St) -> Result<Option<Ret>, Error> + AnyFunc<St> + 'static,
-	// 	Ret: AsReturnVal + 'static,
-	// 	F: Into<Cl>,
-	// 	N: Into<String>,
-	// >(
-	// 	&mut self,
-	// 	name: N,
-	// 	f: Box<F>,
-	// ) {
-	// 	let func_type = FunctionType::new(vec![], Ret::value_type());
-	// 	let host_func = Rc::new(f) as Rc<AnyFunc<St>>;
-	// 	let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
-	// 	self.insert_func(name, func);
-	// }
+	pub fn with_func0<
+		Cl: Fn(&mut St) -> Result<Option<Ret>, Error> + 'static,
+		Ret: AsReturnVal + 'static,
+		N: Into<String>,
+	>(
+		&mut self,
+		name: N,
+		f: Cl,
+	) {
+		let func_type = FunctionType::new(vec![], Ret::value_type());
+		let host_func = Rc::new(move |state: &mut St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			let result = f(state);
+			result.map(|r| r.and_then(|r| r.as_return_val()))
+		});
+
+		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
+		self.insert_func(name, func);
+	}
+
+	pub fn with_func1<
+		Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error> + 'static,
+		Ret: AsReturnVal + 'static,
+		P1: FromArg + 'static,
+		N: Into<String>,
+	>(
+		&mut self,
+		name: N,
+		f: Cl,
+	) {
+		let func_type = FunctionType::new(vec![P1::value_type()], Ret::value_type());
+		let host_func = Rc::new(move |state: &mut St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			let arg0 = P1::from_arg(&args[0]);
+			let result = f(state, arg0);
+			result.map(|r| r.and_then(|r| r.as_return_val()))
+		});
+
+		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
+		self.insert_func(name, func);
+	}
 
 	pub fn with_func2<
 		Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error> + 'static,

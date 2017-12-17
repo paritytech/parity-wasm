@@ -11,7 +11,7 @@ use interpreter::value::RuntimeValue;
 use interpreter::Error;
 use interpreter::ImportResolver;
 
-pub type HostFunc<St> = Fn(&mut St, &[RuntimeValue]) -> Result<Option<RuntimeValue>, Error>;
+pub type HostFunc<St> = Fn(&St, &[RuntimeValue]) -> Result<Option<RuntimeValue>, Error>;
 
 pub struct HostModuleBuilder<St> {
 	exports: HashMap<String, ExternVal<St>>,
@@ -25,7 +25,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func0<
-		Cl: Fn(&mut St) -> Result<Option<Ret>, Error> + 'static,
+		Cl: Fn(&St) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
 		N: Into<String>,
 	>(
@@ -34,7 +34,7 @@ impl<St> HostModuleBuilder<St> {
 		f: Cl,
 	) {
 		let func_type = FunctionType::new(vec![], Ret::value_type());
-		let host_func = Rc::new(move |state: &mut St, _args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+		let host_func = Rc::new(move |state: &St, _args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 			let result = f(state);
 			result.map(|r| r.and_then(|r| r.as_return_val()))
 		});
@@ -44,7 +44,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func1<
-		Cl: Fn(&mut St, P1) -> Result<Option<Ret>, Error> + 'static,
+		Cl: Fn(&St, P1) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
 		P1: FromArg + 'static,
 		N: Into<String>,
@@ -54,7 +54,7 @@ impl<St> HostModuleBuilder<St> {
 		f: Cl,
 	) {
 		let func_type = FunctionType::new(vec![P1::value_type()], Ret::value_type());
-		let host_func = Rc::new(move |state: &mut St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+		let host_func = Rc::new(move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 			let arg0 = P1::from_arg(&args[0]);
 			let result = f(state, arg0);
 			result.map(|r| r.and_then(|r| r.as_return_val()))
@@ -65,7 +65,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func2<
-		Cl: Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error> + 'static,
+		Cl: Fn(&St, P1, P2) -> Result<Option<Ret>, Error> + 'static,
 		Ret: AsReturnVal + 'static,
 		P1: FromArg + 'static,
 		P2: FromArg + 'static,
@@ -76,7 +76,7 @@ impl<St> HostModuleBuilder<St> {
 		f: Cl,
 	) {
 		let func_type = FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type());
-		let host_func = Rc::new(move |state: &mut St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+		let host_func = Rc::new(move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 			let p1 = P1::from_arg(&args[0]);
 			let p2 = P2::from_arg(&args[1]);
 			let result = f(state, p1, p2);
@@ -180,7 +180,7 @@ impl<St> ImportResolver<St> for HostModule<St> {
 pub trait AnyFunc<St> {
 	fn call_as_any(
 		&self,
-		state: &mut St,
+		state: &St,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error>;
 }
@@ -228,10 +228,10 @@ impl AsReturnVal for () {
 	}
 }
 
-impl<St, Ret: AsReturnVal> AnyFunc<St> for Fn(&mut St) -> Result<Option<Ret>, Error> {
+impl<St, Ret: AsReturnVal> AnyFunc<St> for Fn(&St) -> Result<Option<Ret>, Error> {
 	fn call_as_any(
 		&self,
-		state: &mut St,
+		state: &St,
 		_args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
 		let result = self(state);
@@ -239,10 +239,10 @@ impl<St, Ret: AsReturnVal> AnyFunc<St> for Fn(&mut St) -> Result<Option<Ret>, Er
 	}
 }
 
-impl<St, Ret: AsReturnVal, P1: FromArg, P2: FromArg> AnyFunc<St> for Fn(&mut St, P1, P2) -> Result<Option<Ret>, Error> {
+impl<St, Ret: AsReturnVal, P1: FromArg, P2: FromArg> AnyFunc<St> for Fn(&St, P1, P2) -> Result<Option<Ret>, Error> {
 	fn call_as_any(
 		&self,
-		state: &mut St,
+		state: &St,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
 		let p1 = P1::from_arg(&args[0]);

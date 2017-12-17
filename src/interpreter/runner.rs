@@ -18,7 +18,7 @@ use common::stack::StackWithLimit;
 
 /// Function interpreter.
 pub struct Interpreter<'a, St: 'a> {
-	state: &'a mut St,
+	state: &'a St,
 }
 
 /// Function execution context.
@@ -64,7 +64,7 @@ enum RunResult<St> {
 }
 
 impl<'a, St: 'a> Interpreter<'a, St> {
-	pub fn new(state: &'a mut St) -> Interpreter<'a, St> {
+	pub fn new(state: &'a St) -> Interpreter<'a, St> {
 		Interpreter {
 			state
 		}

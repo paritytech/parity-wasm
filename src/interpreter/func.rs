@@ -84,7 +84,7 @@ impl<St> FuncInstance<St> {
 	pub fn invoke(
 		func: Rc<FuncInstance<St>>,
 		args: Vec<RuntimeValue>,
-		state: &mut St,
+		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		enum InvokeKind<St> {
 			Internal(FunctionContext<St>),

@@ -1,6 +1,7 @@
 ///! Basic tests for instructions/constructions, missing in wabt tests
 
 use std::rc::Rc;
+use std::cell::RefCell;
 use builder::module;
 use elements::{ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
 	InitExpr, ValueType, Opcodes, Opcode, TableType, MemoryType};
@@ -118,12 +119,12 @@ impl UserError for UserErrorWithCode {}
 
 struct TestState {
 	pub memory: Rc<MemoryInstance>,
-	pub values: Vec<i32>,
+	pub values: RefCell<Vec<i32>>,
 }
 
 fn build_env_module() -> HostModule<TestState> {
 	let mut builder = HostModuleBuilder::<TestState>::new();
-	builder.with_func2("add", |state: &mut TestState, arg: i32, unused: i32| {
+	builder.with_func2("add", |state: &TestState, arg: i32, unused: i32| {
 		let memory_value = state.memory.get(0, 1).unwrap()[0];
 		let fn_argument_unused = unused as u8;
 		let fn_argument = arg as u8;
@@ -131,10 +132,10 @@ fn build_env_module() -> HostModule<TestState> {
 
 		let sum = memory_value + fn_argument;
 		state.memory.set(0, &vec![sum]).unwrap();
-		state.values.push(sum as i32);
+		state.values.borrow_mut().push(sum as i32);
 		Ok(Some(sum as i32))
 	});
-	builder.with_func2("sub", |state: &mut TestState, arg: i32, unused: i32| {
+	builder.with_func2("sub", |state: &TestState, arg: i32, unused: i32| {
 		let memory_value = state.memory.get(0, 1).unwrap()[0];
 		let fn_argument_unused = unused as u8;
 		let fn_argument = arg as u8;
@@ -142,10 +143,10 @@ fn build_env_module() -> HostModule<TestState> {
 
 		let diff = memory_value - fn_argument;
 		state.memory.set(0, &vec![diff]).unwrap();
-		state.values.push(diff as i32);
+		state.values.borrow_mut().push(diff as i32);
 		Ok(Some(diff as i32))
 	});
-	builder.with_func2("err", |_: &mut TestState, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
+	builder.with_func2("err", |_: &TestState, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
 		Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
 	});
 	builder.insert_memory("memory", Rc::new(MemoryInstance::new(&MemoryType::new(256, None)).unwrap()));
@@ -161,7 +162,7 @@ fn native_env_function() {
 
 	let mut state = TestState {
 		memory: env_memory,
-		values: Vec::new(),
+		values: RefCell::new(Vec::new()),
 	};
 	{
 		let module = module()
@@ -212,7 +213,7 @@ fn native_env_function() {
 	}
 
 	assert_eq!(state.memory.get(0, 1).unwrap()[0], 42);
-	assert_eq!(state.values, vec![7, 57, 42]);
+	assert_eq!(&*state.values.borrow(), &[7, 57, 42]);
 }
 
 #[test]
@@ -233,8 +234,8 @@ fn native_env_global() {
 				])).build()
 				.build()
 			.build();
-		program.add_module("main", module, &mut State)?;
-		program.invoke_index("main", 0, vec![], &mut State)
+		program.add_module("main", module, &State)?;
+		program.invoke_index("main", 0, vec![], &State)
 	};
 
 	// try to add module, exporting non-existant env' variable => error
@@ -260,7 +261,7 @@ fn native_custom_error() {
 
 	let mut state = TestState {
 		memory: env_memory,
-		values: Vec::new(),
+		values: RefCell::new(Vec::new()),
 	};
 
 	let module = module()
@@ -297,7 +298,7 @@ fn native_ref_state() {
 
 	// This structure holds state for our host module.
 	struct HostState<'a> {
-		ext_state: &'a mut ExtState,
+		ext_state: RefCell<&'a mut ExtState>,
 	}
 
 	let main_module = module()
@@ -322,8 +323,13 @@ fn native_ref_state() {
 			let mut host_module_builder = HostModuleBuilder::<HostState>::new();
 			host_module_builder.with_func1(
 				"inc",
-				|state: &mut HostState, val: i32| -> Result<Option<()>, Error> {
-					*state.ext_state += val;
+				|state: &HostState, val: i32| -> Result<Option<()>, Error> {
+					let mut ext_state = state.ext_state.borrow_mut();
+					// TODO: fix this
+					fn inc(acc: &mut i32, val: i32) {
+						*acc += val;
+					}
+					inc(&mut *ext_state, val);
 					Ok(None)
 				},
 			);
@@ -331,7 +337,7 @@ fn native_ref_state() {
 		};
 
 		let mut host_state = HostState {
-			ext_state: &mut ext_state,
+			ext_state: RefCell::new(&mut ext_state),
 		};
 
 		let instance = ModuleInstance::instantiate(&main_module)

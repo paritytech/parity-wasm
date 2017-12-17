@@ -401,7 +401,7 @@ impl<St> ModuleInstance<St> {
 		&self,
 		func_idx: u32,
 		args: Vec<RuntimeValue>,
-		state: &mut St,
+		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
 			Error::Program(format!(
@@ -416,7 +416,7 @@ impl<St> ModuleInstance<St> {
 		&self,
 		func_name: &str,
 		args: Vec<RuntimeValue>,
-		state: &mut St,
+		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
 			Error::Program(format!("Module doesn't have export {}", func_name))
@@ -466,7 +466,7 @@ impl<'a, St: 'a> InstantiationWizard<'a, St> {
 		self
 	}
 
-	pub fn run_start(mut self, state: &mut St) -> Result<Rc<ModuleInstance<St>>, Error> {
+	pub fn run_start(mut self, state: &St) -> Result<Rc<ModuleInstance<St>>, Error> {
 		let imports = self.imports.get_or_insert_with(|| Imports::default());
 		let instance = ModuleInstance::instantiate_with_imports(self.module, imports)?;
 

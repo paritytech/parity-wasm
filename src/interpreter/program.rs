@@ -28,7 +28,7 @@ impl<St> ProgramInstance<St> {
 		&mut self,
 		name: &str,
 		module: Module,
-		state: &mut St,
+		state: &St,
 	) -> Result<Rc<ModuleInstance<St>>, Error> {
 		let module_instance = {
 			let mut imports = Imports::new();
@@ -72,7 +72,7 @@ impl<St> ProgramInstance<St> {
 		module_name: &str,
 		func_name: &str,
 		args: Vec<RuntimeValue>,
-		state: &mut St,
+		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let module_instance = self.modules.get(module_name).ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
@@ -85,7 +85,7 @@ impl<St> ProgramInstance<St> {
 		module_name: &str,
 		func_idx: u32,
 		args: Vec<RuntimeValue>,
-		state: &mut St,
+		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let module_instance = self.modules.get(module_name).cloned().ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
@@ -97,7 +97,7 @@ impl<St> ProgramInstance<St> {
 		&mut self,
 		func_instance: Rc<FuncInstance<St>>,
 		args: Vec<RuntimeValue>,
-		state: &mut St,
+		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
 	}

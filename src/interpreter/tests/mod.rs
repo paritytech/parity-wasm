@@ -11,7 +11,6 @@ mod utils {
 		let mut program = ProgramInstance::<St>::new();
 
 		let mut builder = HostModuleBuilder::<St>::new();
-		// TODO: Alloc
 		builder.insert_memory("memory", Rc::new(MemoryInstance::new(&MemoryType::new(256, None)).unwrap()));
 		builder.insert_table("table", Rc::new(TableInstance::new(&TableType::new(64, None)).unwrap()));
 		builder.insert_global("tableBase", Rc::new(GlobalInstance::new(RuntimeValue::I32(0), false)));

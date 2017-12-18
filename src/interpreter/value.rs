@@ -5,7 +5,6 @@ use interpreter::Error;
 use elements::ValueType;
 
 
-// TODO: Get rid of Null and AnyFunc.
 /// Runtime value.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum RuntimeValue {

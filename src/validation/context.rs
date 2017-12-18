@@ -1,7 +1,6 @@
 use elements::{MemoryType, TableType, GlobalType, BlockType, ValueType, FunctionType};
 use validation::Error;
 
-// TODO: We can get away with references only.
 #[derive(Default, Debug)]
 pub struct ModuleContext {
 	pub memories: Vec<MemoryType>,

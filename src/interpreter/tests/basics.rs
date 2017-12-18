@@ -325,11 +325,7 @@ fn native_ref_state() {
 				"inc",
 				|state: &HostState, val: i32| -> Result<(), Error> {
 					let mut ext_state = state.ext_state.borrow_mut();
-					// TODO: fix this
-					fn inc(acc: &mut i32, val: i32) {
-						*acc += val;
-					}
-					inc(&mut *ext_state, val);
+					**(&mut *ext_state) += val;
 					Ok(())
 				},
 			);

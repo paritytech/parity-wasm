@@ -1,7 +1,7 @@
 use std::u32;
 use std::fmt;
 use std::rc::Rc;
-use parking_lot::RwLock;
+use std::cell::RefCell;
 use elements::{TableType, ResizableLimits};
 use interpreter::Error;
 use interpreter::module::check_limits;
@@ -12,7 +12,7 @@ pub struct TableInstance<St> {
 	/// Table limits.
 	limits: ResizableLimits,
 	/// Table memory buffer.
-	buffer: RwLock<Vec<Option<Rc<FuncInstance<St>>>>>,
+	buffer: RefCell<Vec<Option<Rc<FuncInstance<St>>>>>,
 
 }
 
@@ -20,7 +20,7 @@ impl<St> fmt::Debug for TableInstance<St> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("TableInstance")
 			.field("limits", &self.limits)
-			.field("buffer.len", &self.buffer.read().len())
+			.field("buffer.len", &self.buffer.borrow().len())
 			.finish()
 	}
 }
@@ -31,7 +31,7 @@ impl<St> TableInstance<St> {
 		check_limits(table_type.limits())?;
 		Ok(TableInstance {
 			limits: table_type.limits().clone(),
-			buffer: RwLock::new(
+			buffer: RefCell::new(
 				vec![None; table_type.limits().initial() as usize]
 			),
 		})
@@ -44,7 +44,7 @@ impl<St> TableInstance<St> {
 
 	/// Get the specific value in the table
 	pub fn get(&self, offset: u32) -> Result<Rc<FuncInstance<St>>, Error> {
-		let buffer = self.buffer.read();
+		let buffer = self.buffer.borrow();
 		let buffer_len = buffer.len();
 		let table_elem = buffer.get(offset as usize).cloned().ok_or(Error::Table(format!(
 			"trying to read table item with index {} when there are only {} items",
@@ -59,7 +59,7 @@ impl<St> TableInstance<St> {
 
 	/// Set the table element to the specified function.
 	pub fn set(&self, offset: u32, value: Rc<FuncInstance<St>>) -> Result<(), Error> {
-		let mut buffer = self.buffer.write();
+		let mut buffer = self.buffer.borrow_mut();
 		let buffer_len = buffer.len();
 		let table_elem = buffer.get_mut(offset as usize).ok_or(Error::Table(format!(
 			"trying to update table item with index {} when there are only {} items",

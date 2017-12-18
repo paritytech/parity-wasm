@@ -1,6 +1,8 @@
 //! WebAssembly interpreter module.
 
+// TODO(pepyakin): Fix these asap
 #![allow(deprecated)]
+#![allow(missing_docs)]
 
 use std::any::TypeId;
 use validation;

@@ -133,7 +133,7 @@ fn build_env_module() -> HostModule<TestState> {
 		let sum = memory_value + fn_argument;
 		state.memory.set(0, &vec![sum]).unwrap();
 		state.values.borrow_mut().push(sum as i32);
-		Ok(Some(sum as i32))
+		Ok(sum as i32)
 	});
 	builder.with_func2("sub", |state: &TestState, arg: i32, unused: i32| {
 		let memory_value = state.memory.get(0, 1).unwrap()[0];
@@ -144,9 +144,9 @@ fn build_env_module() -> HostModule<TestState> {
 		let diff = memory_value - fn_argument;
 		state.memory.set(0, &vec![diff]).unwrap();
 		state.values.borrow_mut().push(diff as i32);
-		Ok(Some(diff as i32))
+		Ok(diff as i32)
 	});
-	builder.with_func2("err", |_: &TestState, _unused1: i32, _unused2: i32| -> Result<Option<i32>, Error> {
+	builder.with_func2("err", |_: &TestState, _unused1: i32, _unused2: i32| -> Result<i32, Error> {
 		Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
 	});
 	builder.insert_memory("memory", Rc::new(MemoryInstance::new(&MemoryType::new(256, None)).unwrap()));
@@ -323,14 +323,14 @@ fn native_ref_state() {
 			let mut host_module_builder = HostModuleBuilder::<HostState>::new();
 			host_module_builder.with_func1(
 				"inc",
-				|state: &HostState, val: i32| -> Result<Option<()>, Error> {
+				|state: &HostState, val: i32| -> Result<(), Error> {
 					let mut ext_state = state.ext_state.borrow_mut();
 					// TODO: fix this
 					fn inc(acc: &mut i32, val: i32) {
 						*acc += val;
 					}
 					inc(&mut *ext_state, val);
-					Ok(None)
+					Ok(())
 				},
 			);
 			host_module_builder.build()

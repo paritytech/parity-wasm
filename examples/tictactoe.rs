@@ -4,8 +4,9 @@ use std::env;
 use std::fmt;
 use std::rc::Rc;
 use parity_wasm::elements::Module;
-use parity_wasm::interpreter::{Error as InterpreterError, HostModule, HostModuleBuilder,
-							   ModuleInstance, UserError};
+use parity_wasm::interpreter::{
+	Error as InterpreterError, HostModule, HostModuleBuilder,
+	ModuleInstance, UserError};
 
 #[derive(Debug)]
 pub enum Error {
@@ -157,16 +158,16 @@ fn env_host_module<'a>() -> HostModule<Runtime<'a>> {
 	let mut builder = HostModuleBuilder::<Runtime>::new();
 	builder.with_func1(
 		"set",
-		|state: &Runtime, idx: i32| -> Result<Option<()>, InterpreterError> {
+		|state: &Runtime, idx: i32| -> Result<(), InterpreterError> {
 			state.game.set(idx, state.player)?;
-			Ok(None)
+			Ok(())
 		},
 	);
 	builder.with_func1(
 		"get",
-		|state: &Runtime, idx: i32| -> Result<Option<i32>, InterpreterError> {
+		|state: &Runtime, idx: i32| -> Result<i32, InterpreterError> {
 			let val: i32 = tictactoe::Player::into_i32(state.game.get(idx).unwrap());
-			Ok(Some(val))
+			Ok(val)
 		},
 	);
 	builder.build()

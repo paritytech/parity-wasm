@@ -151,7 +151,7 @@ pub use self::memory::MemoryInstance;
 pub use self::table::TableInstance;
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
-pub use self::host::{HostModule, HostModuleBuilder, HostFunc, AsReturnVal, FromArg};
+pub use self::host::{HostModule, HostModuleBuilder, HostFunc, IntoReturnVal, FromArg};
 pub use self::imports::{ImportResolver, Imports};
 pub use self::module::ModuleInstance;
 pub use self::global::GlobalInstance;

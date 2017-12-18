@@ -7,7 +7,7 @@ use interpreter::func::FuncInstance;
 use interpreter::global::GlobalInstance;
 use interpreter::memory::MemoryInstance;
 use interpreter::table::TableInstance;
-use interpreter::value::RuntimeValue;
+use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::Error;
 use interpreter::ImportResolver;
 
@@ -25,8 +25,8 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func0<
-		Cl: Fn(&St) -> Result<Option<Ret>, Error> + 'static,
-		Ret: AsReturnVal + 'static,
+		Cl: Fn(&St) -> Result<Ret, Error> + 'static,
+		Ret: IntoReturnVal + 'static,
 		N: Into<String>,
 	>(
 		&mut self,
@@ -35,8 +35,8 @@ impl<St> HostModuleBuilder<St> {
 	) {
 		let func_type = FunctionType::new(vec![], Ret::value_type());
 		let host_func = Rc::new(move |state: &St, _args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
-			let result = f(state);
-			result.map(|r| r.and_then(|r| r.as_return_val()))
+			let result = f(state)?.into_return_val();
+			Ok(result)
 		});
 
 		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
@@ -44,8 +44,8 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func1<
-		Cl: Fn(&St, P1) -> Result<Option<Ret>, Error> + 'static,
-		Ret: AsReturnVal + 'static,
+		Cl: Fn(&St, P1) -> Result<Ret, Error> + 'static,
+		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
 		N: Into<String>,
 	>(
@@ -56,8 +56,8 @@ impl<St> HostModuleBuilder<St> {
 		let func_type = FunctionType::new(vec![P1::value_type()], Ret::value_type());
 		let host_func = Rc::new(move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 			let arg0 = P1::from_arg(&args[0]);
-			let result = f(state, arg0);
-			result.map(|r| r.and_then(|r| r.as_return_val()))
+			let result = f(state, arg0)?.into_return_val();
+			Ok(result)
 		});
 
 		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
@@ -65,8 +65,8 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func2<
-		Cl: Fn(&St, P1, P2) -> Result<Option<Ret>, Error> + 'static,
-		Ret: AsReturnVal + 'static,
+		Cl: Fn(&St, P1, P2) -> Result<Ret, Error> + 'static,
+		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
 		P2: FromArg + 'static,
 		N: Into<String>,
@@ -79,8 +79,8 @@ impl<St> HostModuleBuilder<St> {
 		let host_func = Rc::new(move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 			let p1 = P1::from_arg(&args[0]);
 			let p2 = P2::from_arg(&args[1]);
-			let result = f(state, p1, p2);
-			result.map(|r| r.and_then(|r| r.as_return_val()))
+			let result = f(state, p1, p2)?.into_return_val();
+			Ok(result)
 		});
 
 		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
@@ -177,77 +177,70 @@ impl<St> ImportResolver<St> for HostModule<St> {
 	}
 }
 
-pub trait AnyFunc<St> {
-	fn call_as_any(
-		&self,
-		state: &St,
-		args: &[RuntimeValue],
-	) -> Result<Option<RuntimeValue>, Error>;
-}
-
-pub trait FromArg {
+pub trait FromArg where Self: Sized {
 	fn from_arg(arg: &RuntimeValue) -> Self;
 	fn value_type() -> ValueType;
 }
 
-impl FromArg for i32 {
-	fn from_arg(arg: &RuntimeValue) -> Self {
-		match arg {
-			&RuntimeValue::I32(v) => v,
-			unexpected => panic!("Expected I32, got {:?}", unexpected),
-		}
-	}
+macro_rules! impl_from_arg {
+	($ty: ident, $val_ty: ident) => {
+		impl FromArg for $ty {
+			fn from_arg(arg: &RuntimeValue) -> Self {
+				arg
+					.try_into()
+					.expect(
+						concat!("Due to validation, arg expected to be ", stringify!($val_ty))
+					)
+			}
 
-	fn value_type() -> ValueType {
-		ValueType::I32
+			fn value_type() -> ValueType {
+				use self::ValueType::*;
+				$val_ty
+			}
+		}
 	}
 }
 
-pub trait AsReturnVal {
-	fn as_return_val(self) -> Option<RuntimeValue>;
+impl_from_arg!(i32, I32);
+impl_from_arg!(u32, I32);
+impl_from_arg!(i64, I64);
+impl_from_arg!(u64, I64);
+impl_from_arg!(f32, F32);
+impl_from_arg!(f64, F64);
+
+pub trait IntoReturnVal {
+	fn into_return_val(self) -> Option<RuntimeValue>;
 	fn value_type() -> Option<ValueType>;
 }
 
-impl AsReturnVal for i32 {
-	fn as_return_val(self) -> Option<RuntimeValue> {
-		Some(self.into())
-	}
+macro_rules! impl_into_return_val {
+	($ty: ident, $val_ty: ident) => {
+		impl IntoReturnVal for $ty {
+			fn into_return_val(self) -> Option<RuntimeValue> {
+				Some(self.into())
+			}
 
-	fn value_type() -> Option<ValueType> {
-		Some(ValueType::I32)
+			fn value_type() -> Option<ValueType> {
+				use self::ValueType::*;
+				Some($val_ty)
+			}
+		}
 	}
 }
 
-impl AsReturnVal for () {
-	fn as_return_val(self) -> Option<RuntimeValue> {
+impl_into_return_val!(i32, I32);
+impl_into_return_val!(u32, I32);
+impl_into_return_val!(i64, I64);
+impl_into_return_val!(u64, I64);
+impl_into_return_val!(f32, F32);
+impl_into_return_val!(f64, F64);
+
+impl IntoReturnVal for () {
+	fn into_return_val(self) -> Option<RuntimeValue> {
 		None
 	}
 
 	fn value_type() -> Option<ValueType> {
 		None
-	}
-}
-
-impl<St, Ret: AsReturnVal> AnyFunc<St> for Fn(&St) -> Result<Option<Ret>, Error> {
-	fn call_as_any(
-		&self,
-		state: &St,
-		_args: &[RuntimeValue],
-	) -> Result<Option<RuntimeValue>, Error> {
-		let result = self(state);
-		result.map(|r| r.and_then(|r| r.as_return_val()))
-	}
-}
-
-impl<St, Ret: AsReturnVal, P1: FromArg, P2: FromArg> AnyFunc<St> for Fn(&St, P1, P2) -> Result<Option<Ret>, Error> {
-	fn call_as_any(
-		&self,
-		state: &St,
-		args: &[RuntimeValue],
-	) -> Result<Option<RuntimeValue>, Error> {
-		let p1 = P1::from_arg(&args[0]);
-		let p2 = P2::from_arg(&args[1]);
-		let result = self(state, p1, p2);
-		result.map(|r| r.and_then(|r| r.as_return_val()))
 	}
 }

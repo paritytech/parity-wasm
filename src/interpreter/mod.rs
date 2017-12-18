@@ -46,7 +46,7 @@ pub enum Error {
 	Validation(String),
 	/// Error while instantiating a module. Might occur when provided
 	/// with incorrect exports (i.e. linkage failure).
-	Instatiation(String),
+	Instantiation(String),
 	/// Function-level error.
 	Function(String),
 	/// Table-level error.
@@ -78,7 +78,7 @@ impl Into<String> for Error {
 		match self {
 			Error::Program(s) => s,
 			Error::Validation(s) => s,
-			Error::Instatiation(s) => s,
+			Error::Instantiation(s) => s,
 			Error::Function(s) => s,
 			Error::Table(s) => s,
 			Error::Memory(s) => s,
@@ -100,7 +100,7 @@ impl ::std::fmt::Display for Error {
 		match *self {
 			Error::Program(ref s) => write!(f, "Program: {}", s),
 			Error::Validation(ref s) => write!(f, "Validation: {}", s),
-			Error::Instatiation(ref s) => write!(f, "Instatiation: {}", s),
+			Error::Instantiation(ref s) => write!(f, "Instantiation: {}", s),
 			Error::Function(ref s) => write!(f, "Function: {}", s),
 			Error::Table(ref s) => write!(f, "Table: {}", s),
 			Error::Memory(ref s) => write!(f, "Memory: {}", s),

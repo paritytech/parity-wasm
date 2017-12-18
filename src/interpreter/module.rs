@@ -170,7 +170,7 @@ impl<St> ModuleInstance<St> {
 				&[],
 			);
 			if imports.len() != extern_vals.len() {
-				return Err(Error::Instatiation(format!(
+				return Err(Error::Instantiation(format!(
 					"extern_vals length is not equal to import section entries"
 				)));
 			}
@@ -185,7 +185,7 @@ impl<St> ModuleInstance<St> {
 						);
 						let actual_fn_type = func.func_type();
 						if expected_fn_type != actual_fn_type {
-							return Err(Error::Instatiation(format!(
+							return Err(Error::Instantiation(format!(
 								"Expected function with type {:?}, but actual type is {:?} for entry {}",
 								expected_fn_type,
 								actual_fn_type,
@@ -204,7 +204,7 @@ impl<St> ModuleInstance<St> {
 					}
 					(&External::Global(ref gl), &ExternVal::Global(ref global)) => {
 						if gl.content_type() != global.value_type() {
-							return Err(Error::Instatiation(format!(
+							return Err(Error::Instantiation(format!(
 								"Expect global with {:?} type, but provided global with {:?} type",
 								gl.content_type(),
 								global.value_type(),
@@ -213,7 +213,7 @@ impl<St> ModuleInstance<St> {
 						instance.push_global(Rc::clone(global))
 					}
 					(expected_import, actual_extern_val) => {
-						return Err(Error::Instatiation(format!(
+						return Err(Error::Instantiation(format!(
 							"Expected {:?} type, but provided {:?} extern_val",
 							expected_import,
 							actual_extern_val
@@ -365,7 +365,7 @@ impl<St> ModuleInstance<St> {
 			let module_name = import_entry.module();
 			let field_name = import_entry.field();
 			let resolver = imports.resolver(module_name).ok_or_else(|| {
-				Error::Instatiation(format!("Module {} not found", module_name))
+				Error::Instantiation(format!("Module {} not found", module_name))
 			})?;
 			let extern_val = match *import_entry.external() {
 				External::Function(fn_ty_idx) => {
@@ -596,7 +596,7 @@ fn eval_init_expr<T>(init_expr: &InitExpr, module: &ModuleInstance<T>) -> Runtim
 
 fn match_limits(l1: &ResizableLimits, l2: &ResizableLimits) -> Result<(), Error> {
 	if l1.initial() < l2.initial() {
-		return Err(Error::Instatiation(format!(
+		return Err(Error::Instantiation(format!(
 			"trying to import with limits l1.initial={} and l2.initial={}",
 			l1.initial(),
 			l2.initial()
@@ -607,7 +607,7 @@ fn match_limits(l1: &ResizableLimits, l2: &ResizableLimits) -> Result<(), Error>
 		(_, None) => (),
 		(Some(m1), Some(m2)) if m1 <= m2 => (),
 		_ => {
-			return Err(Error::Instatiation(format!(
+			return Err(Error::Instantiation(format!(
 				"trying to import with limits l1.max={:?} and l2.max={:?}",
 				l1.maximum(),
 				l2.maximum()

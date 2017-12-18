@@ -2,7 +2,7 @@ use std::u32;
 use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
-use elements::{TableType, ResizableLimits};
+use elements::{ResizableLimits, TableType};
 use interpreter::Error;
 use interpreter::module::check_limits;
 use interpreter::func::FuncInstance;
@@ -13,7 +13,6 @@ pub struct TableInstance<St> {
 	limits: ResizableLimits,
 	/// Table memory buffer.
 	buffer: RefCell<Vec<Option<Rc<FuncInstance<St>>>>>,
-
 }
 
 impl<St> fmt::Debug for TableInstance<St> {
@@ -31,9 +30,7 @@ impl<St> TableInstance<St> {
 		check_limits(table_type.limits())?;
 		Ok(TableInstance {
 			limits: table_type.limits().clone(),
-			buffer: RefCell::new(
-				vec![None; table_type.limits().initial() as usize]
-			),
+			buffer: RefCell::new(vec![None; table_type.limits().initial() as usize]),
 		})
 	}
 
@@ -46,11 +43,13 @@ impl<St> TableInstance<St> {
 	pub fn get(&self, offset: u32) -> Result<Rc<FuncInstance<St>>, Error> {
 		let buffer = self.buffer.borrow();
 		let buffer_len = buffer.len();
-		let table_elem = buffer.get(offset as usize).cloned().ok_or(Error::Table(format!(
-			"trying to read table item with index {} when there are only {} items",
-			offset,
-			buffer_len
-		)))?;
+		let table_elem = buffer.get(offset as usize).cloned().ok_or(
+			Error::Table(format!(
+				"trying to read table item with index {} when there are only {} items",
+				offset,
+				buffer_len
+			)),
+		)?;
 		Ok(table_elem.ok_or(Error::Table(format!(
 			"trying to read uninitialized element on index {}",
 			offset

@@ -23,13 +23,13 @@ pub struct MemoryInstance {
 }
 
 impl fmt::Debug for MemoryInstance {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("MemoryInstance")
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.debug_struct("MemoryInstance")
 			.field("limits", &self.limits)
 			.field("buffer.len", &self.buffer.borrow().len())
 			.field("maximum_size", &self.maximum_size)
 			.finish()
-    }
+	}
 }
 
 struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {

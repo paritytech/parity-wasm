@@ -19,12 +19,14 @@ impl<'a, St: 'a> Default for Imports<'a, St> {
 
 impl<'a, St: 'a> Imports<'a, St> {
 	pub fn new() -> Imports<'a, St> {
-		Imports {
-			modules: HashMap::new(),
-		}
+		Imports { modules: HashMap::new() }
 	}
 
-	pub fn with_resolver<N: Into<String>>(mut self, name: N, resolver: &'a ImportResolver<St>) -> Self {
+	pub fn with_resolver<N: Into<String>>(
+		mut self,
+		name: N,
+		resolver: &'a ImportResolver<St>,
+	) -> Self {
 		self.modules.insert(name.into(), resolver);
 		self
 	}

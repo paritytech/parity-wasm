@@ -19,7 +19,10 @@ impl GlobalInstance {
 
 	pub fn set(&self, val: RuntimeValue) -> Result<(), Error> {
 		assert!(self.mutable, "Attempt to change an immutable variable");
-		assert!(self.value_type() == val.value_type(), "Attempt to change variable type");
+		assert!(
+			self.value_type() == val.value_type(),
+			"Attempt to change variable type"
+		);
 		self.val.set(val);
 		Ok(())
 	}

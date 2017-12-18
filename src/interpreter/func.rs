@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::fmt;
 use std::collections::HashMap;
 use std::borrow::Cow;
-use elements::{FunctionType, Opcodes, Local};
+use elements::{FunctionType, Local, Opcodes};
 use interpreter::{Error, ModuleInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::HostFunc;
@@ -30,12 +30,14 @@ impl<St: fmt::Debug> fmt::Debug for FuncInstance<St> {
 				ref func_type,
 				ref module,
 				..
-			} => write!(
-				f,
-				"Internal {{ type={:?}, module={:?} }}",
-				func_type,
-				module
-			),
+			} => {
+				write!(
+					f,
+					"Internal {{ type={:?}, module={:?} }}",
+					func_type,
+					module
+				)
+			}
 			&FuncInstance::Host { ref func_type, .. } => {
 				write!(f, "Host {{ type={:?} }}", func_type)
 			}
@@ -57,10 +59,7 @@ impl<St> FuncInstance<St> {
 		Rc::new(func)
 	}
 
-	pub fn alloc_host(
-		func_type: Rc<FunctionType>,
-		host_func: Rc<HostFunc<St>>,
-	) -> Rc<Self> {
+	pub fn alloc_host(func_type: Rc<FunctionType>, host_func: Rc<HostFunc<St>>) -> Rc<Self> {
 		let func = FuncInstance::Host {
 			func_type,
 			host_func,
@@ -94,7 +93,8 @@ impl<St> FuncInstance<St> {
 
 		let result = match *func {
 			FuncInstance::Internal { ref func_type, .. } => {
-				let mut stack = StackWithLimit::with_data(args.into_iter().cloned(), DEFAULT_VALUE_STACK_LIMIT);
+				let mut stack =
+					StackWithLimit::with_data(args.into_iter().cloned(), DEFAULT_VALUE_STACK_LIMIT);
 				let args = prepare_function_args(func_type, &mut stack)?;
 				let context = FunctionContext::new(
 					Rc::clone(&func),

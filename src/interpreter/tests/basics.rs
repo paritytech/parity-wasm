@@ -37,10 +37,10 @@ fn import_function() {
 			.build()
 		.build();
 
-	let external_module = ModuleInstance::instantiate(&module1)
+	let external_module = ModuleInstance::new(&module1)
 		.assert_no_start()
 		.unwrap();
-	let main_module = ModuleInstance::instantiate(&module2)
+	let main_module = ModuleInstance::new(&module2)
 		.with_import("external_module", &*external_module)
 		.assert_no_start()
 		.unwrap();
@@ -340,7 +340,7 @@ fn native_ref_state() {
 			ext_state: RefCell::new(&mut ext_state),
 		};
 
-		let instance = ModuleInstance::instantiate(&main_module)
+		let instance = ModuleInstance::new(&main_module)
 			.with_import("env", &host_module)
 			.assert_no_start()
 			.expect("Instantiate module successfully");

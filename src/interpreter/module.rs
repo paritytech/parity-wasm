@@ -70,7 +70,7 @@ impl<St> ExternVal<St> {
 	}
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct ModuleInstance<St> {
 	types: RefCell<Vec<Rc<FunctionType>>>,
 	tables: RefCell<Vec<Rc<TableInstance<St>>>>,
@@ -80,8 +80,8 @@ pub struct ModuleInstance<St> {
 	exports: RefCell<HashMap<String, ExternVal<St>>>,
 }
 
-impl<St> ModuleInstance<St> {
-	fn new() -> ModuleInstance<St> {
+impl<St> Default for ModuleInstance<St> {
+	fn default() -> Self {
 		ModuleInstance {
 			types: RefCell::new(Vec::new()),
 			tables: RefCell::new(Vec::new()),
@@ -91,9 +91,11 @@ impl<St> ModuleInstance<St> {
 			exports: RefCell::new(HashMap::new()),
 		}
 	}
+}
 
-	pub fn with_exports(exports: HashMap<String, ExternVal<St>>) -> ModuleInstance<St> {
-		let mut instance = Self::new();
+impl<St> ModuleInstance<St> {
+	pub fn with_exports(exports: HashMap<String, ExternVal<St>>) -> Self {
+		let mut instance = Self::default();
 		instance.exports = RefCell::new(exports);
 		instance
 	}
@@ -310,7 +312,7 @@ impl<St> ModuleInstance<St> {
 		module: &Module,
 		extern_vals: &[ExternVal<St>],
 	) -> Result<Rc<ModuleInstance<St>>, Error> {
-		let instance = Rc::new(ModuleInstance::new());
+		let instance = Rc::new(ModuleInstance::default());
 
 		ModuleInstance::alloc_module(module, extern_vals, &instance)?;
 
@@ -393,8 +395,8 @@ impl<St> ModuleInstance<St> {
 		Self::instantiate_with_externvals(module, &extern_vals)
 	}
 
-	pub fn instantiate<'a>(module: &'a Module) -> InstantiationWizard<'a, St> {
-		InstantiationWizard::new(module)
+	pub fn new<'a>(module: &'a Module) -> InstantiationBuilder<'a, St> {
+		InstantiationBuilder::new(module)
 	}
 
 	pub fn invoke_index(
@@ -437,14 +439,14 @@ impl<St> ModuleInstance<St> {
 	}
 }
 
-pub struct InstantiationWizard<'a, St: 'a> {
+pub struct InstantiationBuilder<'a, St: 'a> {
 	module: &'a Module,
 	imports: Option<Imports<'a, St>>,
 }
 
-impl<'a, St: 'a> InstantiationWizard<'a, St> {
+impl<'a, St: 'a> InstantiationBuilder<'a, St> {
 	fn new(module: &'a Module) -> Self {
-		InstantiationWizard {
+		InstantiationBuilder {
 			module,
 			imports: None,
 		}

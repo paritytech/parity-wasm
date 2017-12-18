@@ -38,7 +38,7 @@ impl<St> ProgramInstance<St> {
 			for (module_name, import_resolver) in self.resolvers.iter() {
 				imports.push_resolver(&**module_name, &**import_resolver);
 			}
-			ModuleInstance::instantiate(&module)
+			ModuleInstance::new(&module)
 				.with_imports(imports)
 				.run_start(state)?
 		};

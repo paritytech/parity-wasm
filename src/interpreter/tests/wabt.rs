@@ -23,7 +23,7 @@ fn make_function_i32(body: Opcodes) -> ProgramInstance {
 
 fn run_function_i32(program: &mut ProgramInstance, arg: i32) -> Result<i32, Error> {
 	program
-		.invoke_index("main", 0, vec![RuntimeValue::I32(arg)], &mut ())
+		.invoke_index("main", 0, &[RuntimeValue::I32(arg)], &mut ())
 		.and_then(|r| r.unwrap().try_into())
 }
 
@@ -463,11 +463,11 @@ fn return_void() {
 	let mut program = ProgramInstance::new();
 	let module = program.add_module("main", module, &mut ()).unwrap();
 
-	program.invoke_index("main", 0, vec![RuntimeValue::I32(0)], &mut ()).unwrap();
+	program.invoke_index("main", 0, &[RuntimeValue::I32(0)], &mut ()).unwrap();
 	let memory = module.memory_by_index(0).unwrap();
 	assert_eq!(memory.get(0, 4).unwrap(), vec![0, 0, 0, 0]);
 
-	program.invoke_index("main", 0, vec![RuntimeValue::I32(1)], &mut ()).unwrap();
+	program.invoke_index("main", 0, &[RuntimeValue::I32(1)], &mut ()).unwrap();
 	let memory = module.memory_by_index(0).unwrap();
 	assert_eq!(memory.get(0, 4).unwrap(), vec![1, 0, 0, 0]);
 }
@@ -521,7 +521,7 @@ fn call_1() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(10));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(10));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/call.txt#L23
@@ -568,7 +568,7 @@ fn call_2() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(3628800));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(3628800));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/call-zero-args.txt
@@ -613,7 +613,7 @@ fn call_zero_args() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(43));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(43));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callindirect.txt#L31
@@ -659,8 +659,8 @@ fn callindirect_1() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 2, vec![RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 2, vec![RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 2, &[RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 2, &[RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/callindirect.txt#L39
@@ -732,9 +732,9 @@ fn callindirect_2() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(14));
-	assert_eq!(program.invoke_index("main", 3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(6));
-	match program.invoke_index("main", 3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)], &mut ()) {
+	assert_eq!(program.invoke_index("main", 3, &[RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(14));
+	assert_eq!(program.invoke_index("main", 3, &[RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(6));
+	match program.invoke_index("main", 3, &[RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(2)], &mut ()) {
 		Err(Error::Function(msg)) => {
 			assert_eq!(
 				&msg,
@@ -743,7 +743,7 @@ fn callindirect_2() {
 		}
 		result => panic!("Unexpected result {:?}", result),
 	}
-	match program.invoke_index("main", 3, vec![RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)], &mut ()) {
+	match program.invoke_index("main", 3, &[RuntimeValue::I32(10), RuntimeValue::I32(4), RuntimeValue::I32(3)], &mut ()) {
 		Err(Error::Table(msg)) => {
 			assert_eq!(
 				&msg,
@@ -814,14 +814,14 @@ fn select() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(2));
-	assert_eq!(program.invoke_index("main", 0, vec![RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 1, vec![RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::I64(2));
-	assert_eq!(program.invoke_index("main", 1, vec![RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::I64(1));
-	assert_eq!(program.invoke_index("main", 2, vec![RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::F32(2f32));
-	assert_eq!(program.invoke_index("main", 2, vec![RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::F32(1f32));
-	assert_eq!(program.invoke_index("main", 3, vec![RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::F64(2f64));
-	assert_eq!(program.invoke_index("main", 3, vec![RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1f64));
+	assert_eq!(program.invoke_index("main", 0, &[RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(2));
+	assert_eq!(program.invoke_index("main", 0, &[RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 1, &[RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::I64(2));
+	assert_eq!(program.invoke_index("main", 1, &[RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::I64(1));
+	assert_eq!(program.invoke_index("main", 2, &[RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::F32(2f32));
+	assert_eq!(program.invoke_index("main", 2, &[RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::F32(1f32));
+	assert_eq!(program.invoke_index("main", 3, &[RuntimeValue::I32(0)], &mut ()).unwrap().unwrap(), RuntimeValue::F64(2f64));
+	assert_eq!(program.invoke_index("main", 3, &[RuntimeValue::I32(1)], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1f64));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/binary.txt#L3
@@ -967,21 +967,21 @@ fn binary_i32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(3));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(16));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(21));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-2)); // 4294967294
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(2147483646));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1)); // 4294967295
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 7, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 8, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(15));
-	assert_eq!(program.invoke_index("main", 9, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(14));
-	assert_eq!(program.invoke_index("main", 10, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-800)); // 4294966496
-	assert_eq!(program.invoke_index("main", 11, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(536870899));
-	assert_eq!(program.invoke_index("main", 12, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-13)); // 4294967283
-	assert_eq!(program.invoke_index("main", 13, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-793)); // 4294966503
-	assert_eq!(program.invoke_index("main", 14, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1610612749)); // 2684354547
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(3));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(16));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(21));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-2)); // 4294967294
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(2147483646));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1)); // 4294967295
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 7, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 8, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(15));
+	assert_eq!(program.invoke_index("main", 9, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(14));
+	assert_eq!(program.invoke_index("main", 10, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-800)); // 4294966496
+	assert_eq!(program.invoke_index("main", 11, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(536870899));
+	assert_eq!(program.invoke_index("main", 12, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-13)); // 4294967283
+	assert_eq!(program.invoke_index("main", 13, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-793)); // 4294966503
+	assert_eq!(program.invoke_index("main", 14, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1610612749)); // 2684354547
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/binary.txt#L65
@@ -1127,21 +1127,21 @@ fn binary_i64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(3));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(16));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(21));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-2)); // 18446744073709551614
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(9223372036854775806));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1)); // 18446744073709551615
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(1));
-	assert_eq!(program.invoke_index("main", 7, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(1));
-	assert_eq!(program.invoke_index("main", 8, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(15));
-	assert_eq!(program.invoke_index("main", 9, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(14));
-	assert_eq!(program.invoke_index("main", 10, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-800)); // 18446744073709550816
-	assert_eq!(program.invoke_index("main", 11, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(2305843009213693939));
-	assert_eq!(program.invoke_index("main", 12, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-13)); // 18446744073709551603
-	assert_eq!(program.invoke_index("main", 13, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-793)); // 18446744073709550823
-	assert_eq!(program.invoke_index("main", 14, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-6917529027641081869)); // 11529215046068469747
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(3));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(16));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(21));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-2)); // 18446744073709551614
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(9223372036854775806));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1)); // 18446744073709551615
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(1));
+	assert_eq!(program.invoke_index("main", 7, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(1));
+	assert_eq!(program.invoke_index("main", 8, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(15));
+	assert_eq!(program.invoke_index("main", 9, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(14));
+	assert_eq!(program.invoke_index("main", 10, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-800)); // 18446744073709550816
+	assert_eq!(program.invoke_index("main", 11, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(2305843009213693939));
+	assert_eq!(program.invoke_index("main", 12, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-13)); // 18446744073709551603
+	assert_eq!(program.invoke_index("main", 13, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-793)); // 18446744073709550823
+	assert_eq!(program.invoke_index("main", 14, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-6917529027641081869)); // 11529215046068469747
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/binary.txt#L3
@@ -1217,13 +1217,13 @@ fn binary_f32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(5.000000));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-9995.500000));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-8487.187500));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-500000000.000000));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(5.000000));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-9995.500000));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-8487.187500));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-500000000.000000));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/binary.txt#L157
@@ -1299,15 +1299,15 @@ fn binary_f64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1111111110.000000));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(123400000000000007812762268812638756607430593436581896388608.000000));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-15179717820000.000000));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1111111110.000000));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(123400000000000007812762268812638756607430593436581896388608.000000));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-15179717820000.000000));
 	// in wabt result is 99999999999999998083559617243737459057312001403031879309116481015410011220367858297629826861622
 	// but the actual (and correct) result is 1e150
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1e150));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1e150));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/cast.txt
@@ -1352,10 +1352,10 @@ fn cast() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(4.5));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1067450368)); // 3227516928
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(125.125000));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4758506566875873280));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(4.5));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1067450368)); // 3227516928
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(125.125000));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4758506566875873280));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/compare.txt#L3
@@ -1618,34 +1618,34 @@ fn compare_i32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 7, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 8, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 9, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 10, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 11, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 12, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 13, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 14, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 15, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 16, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 17, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 18, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 19, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 20, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 21, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 22, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 23, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 24, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 25, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 26, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 27, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 7, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 8, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 9, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 10, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 11, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 12, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 13, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 14, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 15, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 16, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 17, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 18, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 19, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 20, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 21, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 22, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 23, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 24, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 25, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 26, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 27, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/compare.txt#L123
@@ -1908,34 +1908,34 @@ fn compare_i64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 7, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 8, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 9, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 10, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 11, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 12, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 13, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 14, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 15, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 16, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 17, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 18, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 19, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 20, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 21, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 22, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 23, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 24, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 25, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 26, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 27, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 7, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 8, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 9, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 10, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 11, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 12, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 13, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 14, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 15, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 16, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 17, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 18, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 19, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 20, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 21, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 22, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 23, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 24, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 25, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 26, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 27, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/compare.txt#L246
@@ -2092,22 +2092,22 @@ fn compare_f32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 7, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 8, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 9, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 10, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 11, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 12, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 13, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 14, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 15, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 7, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 8, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 9, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 10, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 11, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 12, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 13, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 14, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 15, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/compare.txt#L317
@@ -2264,22 +2264,22 @@ fn compare_f64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 7, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 8, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 9, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 10, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 11, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 12, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 13, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 14, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 15, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 7, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 8, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 9, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 10, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 11, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 12, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 13, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 14, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 15, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/convert.txt#L3
@@ -2332,11 +2332,11 @@ fn convert_i32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1));				// 4294967295
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-100));			// 4294967196
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1294967296));	// 3000000000
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-100));			// 4294967196
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1294967296));	// 3000000000
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1));				// 4294967295
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-100));			// 4294967196
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1294967296));	// 3000000000
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-100));			// 4294967196
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1294967296));	// 3000000000
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/convert.txt#L21
@@ -2405,12 +2405,12 @@ fn convert_i64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4294967295));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1)); // 18446744073709551615
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4294967295));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1)); // 18446744073709551615
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/convert.txt#L50
@@ -2463,11 +2463,11 @@ fn convert_f32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-1.000000));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(4294967296.000000));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(12345679.000000));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-1.000000));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(4294967296.000000));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(12345679.000000));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(0.000000));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/convert.txt#L50
@@ -2520,11 +2520,11 @@ fn convert_f64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-1.000000));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(4294967295.000000));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(12345679.000000));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-1.000000));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(4294967295.000000));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(12345679.000000));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(0.000000));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/load.txt#L9
@@ -2580,11 +2580,11 @@ fn load_i32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(255));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(65535));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(255));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(65535));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/load.txt#L26
@@ -2656,13 +2656,13 @@ fn load_i64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(255));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(65535));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4294967295));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-1));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(255));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(65535));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4294967295));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/load.txt#L50
@@ -2686,7 +2686,7 @@ fn load_f32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(25.750000));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(25.750000));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/load.txt#L54
@@ -2710,7 +2710,7 @@ fn load_f64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1023.875000));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1023.875000));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/store.txt#L5
@@ -2767,9 +2767,9 @@ fn store_i32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-16909061));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-859059511));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-123456));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-16909061));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-859059511));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-123456));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/store.txt#L38
@@ -2837,10 +2837,10 @@ fn store_i64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4278058235));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(3435907785));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4294843840));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-4981613551475109875));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4278058235));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(3435907785));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(4294843840));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(-4981613551475109875));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/store.txt#L78
@@ -2865,7 +2865,7 @@ fn store_f32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1069547520));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1069547520));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/store.txt#L85
@@ -2890,7 +2890,7 @@ fn store_f64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1064352256));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(-1064352256));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L12
@@ -2941,11 +2941,11 @@ fn unary_i32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(24));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(7));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(24));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(7));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L29
@@ -2996,11 +2996,11 @@ fn unary_i64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(56));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(7));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I64(1));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(0));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(56));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(7));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I64(1));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L46
@@ -3095,15 +3095,15 @@ fn unary_f32() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-100.000000));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(100.000000));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(10.000000));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-0.000000));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-1.000000));
-	assert_eq!(program.invoke_index("main", 7, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-0.000000));
-	assert_eq!(program.invoke_index("main", 8, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(1.000000));
-	assert_eq!(program.invoke_index("main", 9, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F32(2.000000));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-100.000000));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(100.000000));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(10.000000));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-0.000000));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-1.000000));
+	assert_eq!(program.invoke_index("main", 7, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(-0.000000));
+	assert_eq!(program.invoke_index("main", 8, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(1.000000));
+	assert_eq!(program.invoke_index("main", 9, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F32(2.000000));
 }
 
 /// https://github.com/WebAssembly/wabt/blob/8e1f6031e9889ba770c7be4a9b084da5f14456a0/test/interp/unary.txt#L76
@@ -3198,13 +3198,13 @@ fn unary_f64() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-100.000000));
-	assert_eq!(program.invoke_index("main", 2, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(100.000000));
-	assert_eq!(program.invoke_index("main", 3, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
-	assert_eq!(program.invoke_index("main", 4, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(10.000000));
-	assert_eq!(program.invoke_index("main", 5, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-0.000000));
-	assert_eq!(program.invoke_index("main", 6, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-1.000000));
-	assert_eq!(program.invoke_index("main", 7, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-0.000000));
-	assert_eq!(program.invoke_index("main", 8, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1.000000));
-	assert_eq!(program.invoke_index("main", 9, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::F64(2.000000));
+	assert_eq!(program.invoke_index("main", 1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-100.000000));
+	assert_eq!(program.invoke_index("main", 2, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(100.000000));
+	assert_eq!(program.invoke_index("main", 3, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(1));
+	assert_eq!(program.invoke_index("main", 4, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(10.000000));
+	assert_eq!(program.invoke_index("main", 5, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-0.000000));
+	assert_eq!(program.invoke_index("main", 6, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-1.000000));
+	assert_eq!(program.invoke_index("main", 7, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(-0.000000));
+	assert_eq!(program.invoke_index("main", 8, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(1.000000));
+	assert_eq!(program.invoke_index("main", 9, &[], &mut ()).unwrap().unwrap(), RuntimeValue::F64(2.000000));
 }

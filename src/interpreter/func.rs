@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::fmt;
 use std::collections::HashMap;
+use std::borrow::Cow;
 use elements::{FunctionType, Opcodes, Local};
 use interpreter::{Error, ModuleInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
@@ -83,18 +84,18 @@ impl<St> FuncInstance<St> {
 
 	pub fn invoke(
 		func: Rc<FuncInstance<St>>,
-		args: Vec<RuntimeValue>,
+		args: Cow<[RuntimeValue]>,
 		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
-		enum InvokeKind<St> {
+		enum InvokeKind<'a, St> {
 			Internal(FunctionContext<St>),
-			Host(Rc<HostFunc<St>>, Vec<RuntimeValue>),
+			Host(Rc<HostFunc<St>>, &'a [RuntimeValue]),
 		}
 
 		let result = match *func {
 			FuncInstance::Internal { ref func_type, .. } => {
-				let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
-				let args = prepare_function_args(func_type, &mut args)?;
+				let mut stack = StackWithLimit::with_data(args.into_iter().cloned(), DEFAULT_VALUE_STACK_LIMIT);
+				let args = prepare_function_args(func_type, &mut stack)?;
 				let context = FunctionContext::new(
 					Rc::clone(&func),
 					DEFAULT_VALUE_STACK_LIMIT,
@@ -105,7 +106,7 @@ impl<St> FuncInstance<St> {
 				InvokeKind::Internal(context)
 			}
 			FuncInstance::Host { ref host_func, .. } => {
-				InvokeKind::Host(Rc::clone(host_func), args)
+				InvokeKind::Host(Rc::clone(host_func), &*args)
 			}
 		};
 
@@ -114,7 +115,7 @@ impl<St> FuncInstance<St> {
 				let mut interpreter = Interpreter::new(state);
 				interpreter.run_function(ctx)
 			}
-			InvokeKind::Host(host_func, args) => host_func(state, &args),
+			InvokeKind::Host(host_func, args) => host_func(state, args),
 		}
 	}
 }

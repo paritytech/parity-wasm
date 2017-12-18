@@ -22,7 +22,7 @@ fn main() {
      // - a module declaration
      // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
      // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
-    let main = ModuleInstance::instantiate(&module)
+    let main = ModuleInstance::new(&module)
         .run_start(&mut ())
         .expect("Failed to initialize module");
 
@@ -30,5 +30,5 @@ fn main() {
     let argument: i32 = args[2].parse().expect("Integer argument required");
 
     // "_call" export of function to be executed with an i32 argument and prints the result of execution
-    println!("Result: {:?}", main.invoke_export("_call", vec![parity_wasm::RuntimeValue::I32(argument)], &mut ()));
+    println!("Result: {:?}", main.invoke_export("_call", &[parity_wasm::RuntimeValue::I32(argument)], &mut ()));
 }

@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::fmt;
 use std::collections::HashMap;
+use std::borrow::Cow;
 use elements::{External, FunctionType, GlobalType, InitExpr, Internal, MemoryType, Module,
                Opcode, ResizableLimits, TableType, Type};
 use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
@@ -402,7 +403,7 @@ impl<St> ModuleInstance<St> {
 	pub fn invoke_index(
 		&self,
 		func_idx: u32,
-		args: Vec<RuntimeValue>,
+		args: &[RuntimeValue],
 		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
@@ -411,13 +412,13 @@ impl<St> ModuleInstance<St> {
 				func_idx
 			))
 		})?;
-		FuncInstance::invoke(func_instance, args, state)
+		FuncInstance::invoke(func_instance, Cow::Borrowed(args), state)
 	}
 
 	pub fn invoke_export(
 		&self,
 		func_name: &str,
-		args: Vec<RuntimeValue>,
+		args: &[RuntimeValue],
 		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
@@ -435,7 +436,7 @@ impl<St> ModuleInstance<St> {
 			}
 		};
 
-		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
+		FuncInstance::invoke(Rc::clone(&func_instance), Cow::Borrowed(args), state)
 	}
 }
 
@@ -476,7 +477,7 @@ impl<'a, St: 'a> InstantiationBuilder<'a, St> {
 			let start_func = instance
 				.func_by_index(start_fn_idx)
 				.expect("Due to validation start function should exists");
-			FuncInstance::invoke(start_func, vec![], state)?;
+			FuncInstance::invoke(start_func, Cow::Borrowed(&[]), state)?;
 		}
 		Ok(instance)
 	}

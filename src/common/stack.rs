@@ -21,7 +21,7 @@ pub struct StackWithLimit<T> where T: Clone {
 }
 
 impl<T> StackWithLimit<T> where T: Clone {
-	pub fn with_data(data: Vec<T>, limit: usize) -> Self {
+	pub fn with_data<D: IntoIterator<Item=T>>(data: D, limit: usize) -> Self {
 		StackWithLimit {
 			values: data.into_iter().collect(),
 			limit: limit

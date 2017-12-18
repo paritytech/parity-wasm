@@ -16,7 +16,7 @@ fn interpreter_inc_i32() {
         deserialize_file(WASM_FILE).expect("Failed to deserialize module from buffer");
     let i32_val = 42;
     // the functions expects a single i32 parameter
-    let args = vec![RuntimeValue::I32(i32_val)];
+    let args = &[RuntimeValue::I32(i32_val)];
     let exp_retval = Some(RuntimeValue::I32(i32_val + 1));
 
     let module_result = program.add_module("main", module, &mut ());
@@ -56,7 +56,7 @@ fn interpreter_accumulate_u8() {
     let _ = env_memory.set(offset, BUF);
 
     // Set up the function argument list and invoke the function
-    let args = vec![RuntimeValue::I32(BUF.len() as i32), RuntimeValue::I32(offset as i32)];
+    let args = &[RuntimeValue::I32(BUF.len() as i32), RuntimeValue::I32(offset as i32)];
     let retval = program
         .invoke_export("main", FUNCTION_NAME, args, &mut ())
         .expect("Failed to execute function");

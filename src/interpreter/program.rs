@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::collections::HashMap;
+use std::borrow::Cow;
 use elements::Module;
 use interpreter::Error;
 use interpreter::module::ModuleInstance;
@@ -72,7 +73,7 @@ impl<St> ProgramInstance<St> {
 		&mut self,
 		module_name: &str,
 		func_name: &str,
-		args: Vec<RuntimeValue>,
+		args: &[RuntimeValue],
 		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let module_instance = self.modules.get(module_name).ok_or_else(|| {
@@ -85,7 +86,7 @@ impl<St> ProgramInstance<St> {
 		&mut self,
 		module_name: &str,
 		func_idx: u32,
-		args: Vec<RuntimeValue>,
+		args: &[RuntimeValue],
 		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let module_instance = self.modules.get(module_name).cloned().ok_or_else(|| {
@@ -97,10 +98,10 @@ impl<St> ProgramInstance<St> {
 	pub fn invoke_func(
 		&mut self,
 		func_instance: Rc<FuncInstance<St>>,
-		args: Vec<RuntimeValue>,
+		args: &[RuntimeValue],
 		state: &St,
 	) -> Result<Option<RuntimeValue>, Error> {
-		FuncInstance::invoke(Rc::clone(&func_instance), args, state)
+		FuncInstance::invoke(Rc::clone(&func_instance), Cow::Borrowed(args), state)
 	}
 
 	pub fn resolver(&self, name: &str) -> Option<&ImportResolver<St>> {

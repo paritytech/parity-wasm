@@ -45,8 +45,8 @@ fn import_function() {
 		.assert_no_start()
 		.unwrap();
 
-	assert_eq!(external_module.invoke_index(0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(3));
-	assert_eq!(main_module.invoke_index(1, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(10));
+	assert_eq!(external_module.invoke_index(0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(3));
+	assert_eq!(main_module.invoke_index(1, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(10));
 }
 
 #[test]
@@ -99,8 +99,8 @@ fn global_get_set() {
 
 	let mut program = ProgramInstance::new();
 	program.add_module("main", module, &mut ()).unwrap();
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(50));
-	assert_eq!(program.invoke_index("main", 0, vec![], &mut ()).unwrap().unwrap(), RuntimeValue::I32(58));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(50));
+	assert_eq!(program.invoke_index("main", 0, &[], &mut ()).unwrap().unwrap(), RuntimeValue::I32(58));
 }
 
 // custom user error
@@ -192,19 +192,19 @@ fn native_env_function() {
 		program.add_module("main", module, &mut state).unwrap();
 		{
 			assert_eq!(
-				program.invoke_index("main", 2, vec![RuntimeValue::I32(7), RuntimeValue::I32(0)], &mut state)
+				program.invoke_index("main", 2, &[RuntimeValue::I32(7), RuntimeValue::I32(0)], &mut state)
 					.unwrap()
 					.unwrap(),
 				RuntimeValue::I32(7)
 			);
 			assert_eq!(
-				program.invoke_index("main", 2, vec![RuntimeValue::I32(50), RuntimeValue::I32(0)], &mut state)
+				program.invoke_index("main", 2, &[RuntimeValue::I32(50), RuntimeValue::I32(0)], &mut state)
 					.unwrap()
 					.unwrap(),
 				RuntimeValue::I32(57)
 			);
 			assert_eq!(
-				program.invoke_index("main", 3, vec![RuntimeValue::I32(15), RuntimeValue::I32(0)], &mut state)
+				program.invoke_index("main", 3, &[RuntimeValue::I32(15), RuntimeValue::I32(0)], &mut state)
 					.unwrap()
 					.unwrap(),
 				RuntimeValue::I32(42)
@@ -235,7 +235,7 @@ fn native_env_global() {
 				.build()
 			.build();
 		program.add_module("main", module, &State)?;
-		program.invoke_index("main", 0, vec![], &State)
+		program.invoke_index("main", 0, &[], &State)
 	};
 
 	// try to add module, exporting non-existant env' variable => error
@@ -281,7 +281,7 @@ fn native_custom_error() {
 	let user_error = match program.invoke_index(
 		"main",
 		0,
-		vec![RuntimeValue::I32(7), RuntimeValue::I32(0)],
+		&[RuntimeValue::I32(7), RuntimeValue::I32(0)],
 		&mut state
 	) {
 		Err(Error::User(user_error)) => user_error,
@@ -347,7 +347,7 @@ fn native_ref_state() {
 		instance
 			.invoke_index(
 				1,
-				vec![RuntimeValue::I32(7), RuntimeValue::I32(2)],
+				&[RuntimeValue::I32(7), RuntimeValue::I32(2)],
 				&mut host_state,
 			)
 			.expect("Invoke internal func successfully");

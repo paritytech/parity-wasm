@@ -105,7 +105,7 @@ impl<'a, St: 'a> Interpreter<'a, St> {
 						},
 						FuncInstance::Host { ref func_type, .. } => {
 							let args = prepare_function_args(func_type, &mut function_context.value_stack)?;
-							let return_val = FuncInstance::invoke(Rc::clone(&nested_func), args, self.state)?;
+							let return_val = FuncInstance::invoke(Rc::clone(&nested_func), args.into(), self.state)?;
 							if let Some(return_val) = return_val {
 								function_context.value_stack_mut().push(return_val)?;
 							}

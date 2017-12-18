@@ -146,7 +146,7 @@ fn instantiate<'a, 'b>(
 	env: &HostModule<Runtime<'a>>,
 	runtime: &'b Runtime<'a>,
 ) -> Result<Rc<ModuleInstance<Runtime<'a>>>, Error> {
-	let instance = ModuleInstance::instantiate(module)
+	let instance = ModuleInstance::new(module)
 		.with_import("env", &*env)
 		.run_start(runtime)?;
 
@@ -205,7 +205,7 @@ fn play<'a>(
 			player: turn_of,
 			game: game,
 		};
-		let _ = instance.invoke_export("mk_turn", vec![], &runtime)?;
+		let _ = instance.invoke_export("mk_turn", &[], &runtime)?;
 
 		match game.game_result() {
 			Some(game_result) => break game_result,

@@ -198,8 +198,14 @@ impl<St> ModuleInstance<St> {
 						match_limits(memory.limits(), mt.limits())?;
 						instance.push_memory(Rc::clone(memory));
 					}
-					(&External::Global(ref _gl), &ExternVal::Global(ref global)) => {
-						// TODO: check globals
+					(&External::Global(ref gl), &ExternVal::Global(ref global)) => {
+						if gl.content_type() != global.value_type() {
+							return Err(Error::Initialization(format!(
+								"Expect global with {:?} type, but provided global with {:?} type",
+								gl.content_type(),
+								global.value_type(),
+							)));
+						}
 						instance.push_global(Rc::clone(global))
 					}
 					(expected_import, actual_extern_val) => {

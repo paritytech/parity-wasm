@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use elements::ValueType;
 use interpreter::value::RuntimeValue;
 use interpreter::Error;
 
@@ -17,14 +18,21 @@ impl GlobalInstance {
 	}
 
 	pub fn set(&self, val: RuntimeValue) -> Result<(), Error> {
-		if !self.mutable {
-			return Err(Error::Validation("Can't set immutable global".into()));
-		}
+		assert!(self.mutable, "Attempt to change an immutable variable");
+		assert!(self.value_type() == val.value_type(), "Attempt to change variable type");
 		self.val.set(val);
 		Ok(())
 	}
 
 	pub fn get(&self) -> RuntimeValue {
 		self.val.get()
+	}
+
+	pub fn is_mutable(&self) -> bool {
+		self.mutable
+	}
+
+	pub fn value_type(&self) -> ValueType {
+		self.val.get().value_type()
 	}
 }

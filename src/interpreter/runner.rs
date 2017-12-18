@@ -1149,11 +1149,10 @@ fn effective_address(address: u32, offset: u32) -> Result<u32, Error> {
 }
 
 pub fn prepare_function_args(function_type: &FunctionType, caller_stack: &mut StackWithLimit<RuntimeValue>) -> Result<Vec<RuntimeValue>, Error> {
-	let mut args = function_type.params().iter().rev().map(|param_type| {
+	let mut args = function_type.params().iter().cloned().rev().map(|expected_type| {
 		let param_value = caller_stack.pop()?;
 		let actual_type = param_value.value_type();
-		let expected_type = (*param_type).into();
-		if actual_type != Some(expected_type) {
+		if actual_type != expected_type {
 			return Err(Error::Function(format!("invalid parameter type {:?} when expected {:?}", actual_type, expected_type)));
 		}
 

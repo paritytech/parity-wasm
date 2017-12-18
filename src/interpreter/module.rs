@@ -3,12 +3,12 @@ use std::cell::RefCell;
 use std::fmt;
 use std::collections::HashMap;
 use std::borrow::Cow;
-use elements::{External, FunctionType, GlobalType, InitExpr, Internal, MemoryType, Module,
-               Opcode, ResizableLimits, TableType, Type};
+use elements::{External, FunctionType, GlobalType, InitExpr, Internal, MemoryType, Module, Opcode,
+               ResizableLimits, TableType, Type};
 use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
 use interpreter::imports::{ImportResolver, Imports};
 use interpreter::global::GlobalInstance;
-use interpreter::func::{FuncInstance, FuncBody};
+use interpreter::func::{FuncBody, FuncInstance};
 use validation::validate_module;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
@@ -32,12 +32,16 @@ impl<St> Clone for ExternVal<St> {
 
 impl<St> fmt::Debug for ExternVal<St> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "ExternVal {{ {} }}", match *self {
-			ExternVal::Func(_) => "Func",
-			ExternVal::Table(_) => "Table",
-			ExternVal::Memory(_) => "Memory",
-			ExternVal::Global(_) => "Global",
-		})
+		write!(
+			f,
+			"ExternVal {{ {} }}",
+			match *self {
+				ExternVal::Func(_) => "Func",
+				ExternVal::Table(_) => "Table",
+				ExternVal::Memory(_) => "Memory",
+				ExternVal::Global(_) => "Global",
+			}
+		)
 	}
 }
 
@@ -244,11 +248,8 @@ impl<St> ModuleInstance<St> {
 					opcodes: body.code().clone(),
 					labels: labels,
 				};
-				let func_instance = FuncInstance::alloc_internal(
-					Rc::clone(instance),
-					func_type,
-					func_body
-				);
+				let func_instance =
+					FuncInstance::alloc_internal(Rc::clone(instance), func_type, func_body);
 				instance.push_func(func_instance);
 			}
 		}
@@ -625,7 +626,11 @@ fn match_limits(l1: &ResizableLimits, l2: &ResizableLimits) -> Result<(), Error>
 pub fn check_limits(limits: &ResizableLimits) -> Result<(), Error> {
 	if let Some(maximum) = limits.maximum() {
 		if maximum < limits.initial() {
-			return Err(Error::Validation(format!("maximum limit {} is lesser than minimum {}", maximum, limits.initial())));
+			return Err(Error::Validation(format!(
+				"maximum limit {} is lesser than minimum {}",
+				maximum,
+				limits.initial()
+			)));
 		}
 	}
 

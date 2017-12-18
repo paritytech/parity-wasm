@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use elements::{FunctionType, ValueType, GlobalType, MemoryType, TableType};
+use elements::{FunctionType, GlobalType, MemoryType, TableType, ValueType};
 use interpreter::module::{ExternVal, ModuleInstance};
 use interpreter::func::FuncInstance;
 use interpreter::global::GlobalInstance;
@@ -11,7 +11,8 @@ use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::Error;
 use interpreter::ImportResolver;
 
-pub type HostFunc<St> = Fn(&St, &[RuntimeValue]) -> Result<Option<RuntimeValue>, Error>;
+pub type HostFunc<St> = Fn(&St, &[RuntimeValue])
+	-> Result<Option<RuntimeValue>, Error>;
 
 pub struct HostModuleBuilder<St> {
 	exports: HashMap<String, ExternVal<St>>,
@@ -34,10 +35,12 @@ impl<St> HostModuleBuilder<St> {
 		f: Cl,
 	) {
 		let func_type = FunctionType::new(vec![], Ret::value_type());
-		let host_func = Rc::new(move |state: &St, _args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
-			let result = f(state)?.into_return_val();
-			Ok(result)
-		});
+		let host_func = Rc::new(
+			move |state: &St, _args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+				let result = f(state)?.into_return_val();
+				Ok(result)
+			},
+		);
 
 		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
 		self.insert_func(name, func);
@@ -54,11 +57,13 @@ impl<St> HostModuleBuilder<St> {
 		f: Cl,
 	) {
 		let func_type = FunctionType::new(vec![P1::value_type()], Ret::value_type());
-		let host_func = Rc::new(move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
-			let arg0 = P1::from_arg(&args[0]);
-			let result = f(state, arg0)?.into_return_val();
-			Ok(result)
-		});
+		let host_func = Rc::new(
+			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+				let arg0 = P1::from_arg(&args[0]);
+				let result = f(state, arg0)?.into_return_val();
+				Ok(result)
+			},
+		);
 
 		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
 		self.insert_func(name, func);
@@ -75,13 +80,16 @@ impl<St> HostModuleBuilder<St> {
 		name: N,
 		f: Cl,
 	) {
-		let func_type = FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type());
-		let host_func = Rc::new(move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
-			let p1 = P1::from_arg(&args[0]);
-			let p2 = P2::from_arg(&args[1]);
-			let result = f(state, p1, p2)?.into_return_val();
-			Ok(result)
-		});
+		let func_type =
+			FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type());
+		let host_func = Rc::new(
+			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+				let p1 = P1::from_arg(&args[0]);
+				let p2 = P2::from_arg(&args[1]);
+				let result = f(state, p1, p2)?.into_return_val();
+				Ok(result)
+			},
+		);
 
 		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
 		self.insert_func(name, func);
@@ -127,9 +135,7 @@ impl<St> HostModuleBuilder<St> {
 
 	pub fn build(self) -> HostModule<St> {
 		let internal_instance = Rc::new(ModuleInstance::with_exports(self.exports));
-		HostModule {
-			internal_instance
-		}
+		HostModule { internal_instance }
 	}
 }
 
@@ -157,7 +163,8 @@ impl<St> ImportResolver<St> for HostModule<St> {
 		field_name: &str,
 		global_type: &GlobalType,
 	) -> Result<Rc<GlobalInstance>, Error> {
-		self.internal_instance.resolve_global(field_name, global_type)
+		self.internal_instance
+			.resolve_global(field_name, global_type)
 	}
 
 	fn resolve_memory(
@@ -165,7 +172,8 @@ impl<St> ImportResolver<St> for HostModule<St> {
 		field_name: &str,
 		memory_type: &MemoryType,
 	) -> Result<Rc<MemoryInstance>, Error> {
-		self.internal_instance.resolve_memory(field_name, memory_type)
+		self.internal_instance
+			.resolve_memory(field_name, memory_type)
 	}
 
 	fn resolve_table(
@@ -177,7 +185,10 @@ impl<St> ImportResolver<St> for HostModule<St> {
 	}
 }
 
-pub trait FromArg where Self: Sized {
+pub trait FromArg
+where
+	Self: Sized,
+{
 	fn from_arg(arg: &RuntimeValue) -> Self;
 	fn value_type() -> ValueType;
 }

@@ -9,6 +9,7 @@ use interpreter::value::RuntimeValue;
 use interpreter::imports::{Imports, ImportResolver};
 
 /// Program instance. Program is a set of instantiated modules.
+#[deprecated]
 pub struct ProgramInstance<St=()> {
 	modules: HashMap<String, Rc<ModuleInstance<St>>>,
 	resolvers: HashMap<String, Box<ImportResolver<St>>>,

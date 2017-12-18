@@ -1,5 +1,7 @@
 //! WebAssembly interpreter module.
 
+#![allow(deprecated)]
+
 use std::any::TypeId;
 use validation;
 use common;

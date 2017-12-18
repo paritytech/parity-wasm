@@ -25,7 +25,7 @@ impl<St> HostModuleBuilder<St> {
 		}
 	}
 
-	pub fn with_func0<
+	pub fn insert_func0<
 		Cl: Fn(&St) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		N: Into<String>,
@@ -36,7 +36,8 @@ impl<St> HostModuleBuilder<St> {
 	) {
 		let func_type = FunctionType::new(vec![], Ret::value_type());
 		let host_func = Rc::new(
-			move |state: &St, _args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+				assert!(args.len() == 0);
 				let result = f(state)?.into_return_val();
 				Ok(result)
 			},
@@ -46,7 +47,7 @@ impl<St> HostModuleBuilder<St> {
 		self.insert_func(name, func);
 	}
 
-	pub fn with_func1<
+	pub fn insert_func1<
 		Cl: Fn(&St, P1) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
@@ -59,8 +60,12 @@ impl<St> HostModuleBuilder<St> {
 		let func_type = FunctionType::new(vec![P1::value_type()], Ret::value_type());
 		let host_func = Rc::new(
 			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
-				let arg0 = P1::from_arg(&args[0]);
-				let result = f(state, arg0)?.into_return_val();
+				assert!(args.len() == 1);
+				let mut args = args.into_iter();
+				let result = f(
+					state,
+					P1::from_arg(args.next().unwrap())
+				)?.into_return_val();
 				Ok(result)
 			},
 		);
@@ -69,7 +74,7 @@ impl<St> HostModuleBuilder<St> {
 		self.insert_func(name, func);
 	}
 
-	pub fn with_func2<
+	pub fn insert_func2<
 		Cl: Fn(&St, P1, P2) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
@@ -84,15 +89,136 @@ impl<St> HostModuleBuilder<St> {
 			FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type());
 		let host_func = Rc::new(
 			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
-				let p1 = P1::from_arg(&args[0]);
-				let p2 = P2::from_arg(&args[1]);
-				let result = f(state, p1, p2)?.into_return_val();
+				assert!(args.len() == 2);
+				let mut args = args.into_iter();
+				let result = f(
+					state,
+					P1::from_arg(args.next().unwrap()),
+					P2::from_arg(args.next().unwrap()),
+				)?.into_return_val();
 				Ok(result)
 			},
 		);
 
 		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
 		self.insert_func(name, func);
+	}
+
+	pub fn insert_func3<
+		Cl: Fn(&St, P1, P2, P3) -> Result<Ret, Error> + 'static,
+		Ret: IntoReturnVal + 'static,
+		P1: FromArg + 'static,
+		P2: FromArg + 'static,
+		P3: FromArg + 'static,
+		N: Into<String>,
+	>(
+		&mut self,
+		name: N,
+		f: Cl,
+	) {
+		let func_type = FunctionType::new(
+			vec![P1::value_type(), P2::value_type(), P3::value_type()],
+			Ret::value_type(),
+		);
+		let host_func = Rc::new(
+			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+				assert!(args.len() == 3);
+				let mut args = args.into_iter();
+				let result = f(
+					state,
+					P1::from_arg(args.next().unwrap()),
+					P2::from_arg(args.next().unwrap()),
+					P3::from_arg(args.next().unwrap()),
+				)?.into_return_val();
+				Ok(result)
+			},
+		);
+
+		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
+		self.insert_func(name, func);
+	}
+
+	pub fn insert_func4<
+		Cl: Fn(&St, P1, P2, P3, P4) -> Result<Ret, Error> + 'static,
+		Ret: IntoReturnVal + 'static,
+		P1: FromArg + 'static,
+		P2: FromArg + 'static,
+		P3: FromArg + 'static,
+		P4: FromArg + 'static,
+		N: Into<String>,
+	>(
+		&mut self,
+		name: N,
+		f: Cl,
+	) {
+		let func_type = FunctionType::new(
+			vec![
+				P1::value_type(),
+				P2::value_type(),
+				P3::value_type(),
+				P4::value_type(),
+			],
+			Ret::value_type(),
+		);
+		let host_func = Rc::new(
+			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+				assert!(args.len() == 4);
+				let mut args = args.into_iter();
+				let result = f(
+					state,
+					P1::from_arg(args.next().unwrap()),
+					P2::from_arg(args.next().unwrap()),
+					P3::from_arg(args.next().unwrap()),
+					P4::from_arg(args.next().unwrap()),
+				)?.into_return_val();
+				Ok(result)
+			},
+		);
+
+		let func = FuncInstance::alloc_host(Rc::new(func_type), host_func);
+		self.insert_func(name, func);
+	}
+
+	pub fn with_func0<
+		Cl: Fn(&St) -> Result<Ret, Error> + 'static,
+		Ret: IntoReturnVal + 'static,
+		N: Into<String>,
+	>(
+		mut self,
+		name: N,
+		f: Cl,
+	) -> Self {
+		self.insert_func0(name, f);
+		self
+	}
+
+	pub fn with_func1<
+		Cl: Fn(&St, P1) -> Result<Ret, Error> + 'static,
+		Ret: IntoReturnVal + 'static,
+		P1: FromArg + 'static,
+		N: Into<String>,
+	>(
+		mut self,
+		name: N,
+		f: Cl,
+	) -> Self {
+		self.insert_func1(name, f);
+		self
+	}
+
+	pub fn with_func2<
+		Cl: Fn(&St, P1, P2) -> Result<Ret, Error> + 'static,
+		Ret: IntoReturnVal + 'static,
+		P1: FromArg + 'static,
+		P2: FromArg + 'static,
+		N: Into<String>,
+	>(
+		mut self,
+		name: N,
+		f: Cl,
+	) -> Self {
+		self.insert_func2(name, f);
+		self
 	}
 
 	pub fn insert_func<N: Into<String>>(&mut self, name: N, func: Rc<FuncInstance<St>>) {

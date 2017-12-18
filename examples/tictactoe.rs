@@ -155,22 +155,22 @@ fn instantiate<'a, 'b>(
 }
 
 fn env_host_module<'a>() -> HostModule<Runtime<'a>> {
-	let mut builder = HostModuleBuilder::<Runtime>::new();
-	builder.with_func1(
-		"set",
-		|state: &Runtime, idx: i32| -> Result<(), InterpreterError> {
-			state.game.set(idx, state.player)?;
-			Ok(())
-		},
-	);
-	builder.with_func1(
-		"get",
-		|state: &Runtime, idx: i32| -> Result<i32, InterpreterError> {
-			let val: i32 = tictactoe::Player::into_i32(state.game.get(idx).unwrap());
-			Ok(val)
-		},
-	);
-	builder.build()
+	HostModuleBuilder::<Runtime>::new()
+		.with_func1(
+			"set",
+			|state: &Runtime, idx: i32| -> Result<(), InterpreterError> {
+				state.game.set(idx, state.player)?;
+				Ok(())
+			},
+		)
+		.with_func1(
+			"get",
+			|state: &Runtime, idx: i32| -> Result<i32, InterpreterError> {
+				let val: i32 = tictactoe::Player::into_i32(state.game.get(idx).unwrap());
+				Ok(val)
+			},
+		)
+		.build()
 }
 
 fn play<'a>(

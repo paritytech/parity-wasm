@@ -123,34 +123,34 @@ struct TestState {
 }
 
 fn build_env_module() -> HostModule<TestState> {
-	let mut builder = HostModuleBuilder::<TestState>::new();
-	builder.with_func2("add", |state: &TestState, arg: i32, unused: i32| {
-		let memory_value = state.memory.get(0, 1).unwrap()[0];
-		let fn_argument_unused = unused as u8;
-		let fn_argument = arg as u8;
-		assert_eq!(fn_argument_unused, 0);
+	HostModuleBuilder::<TestState>::new()
+		.with_func2("add", |state: &TestState, arg: i32, unused: i32| {
+			let memory_value = state.memory.get(0, 1).unwrap()[0];
+			let fn_argument_unused = unused as u8;
+			let fn_argument = arg as u8;
+			assert_eq!(fn_argument_unused, 0);
 
-		let sum = memory_value + fn_argument;
-		state.memory.set(0, &vec![sum]).unwrap();
-		state.values.borrow_mut().push(sum as i32);
-		Ok(sum as i32)
-	});
-	builder.with_func2("sub", |state: &TestState, arg: i32, unused: i32| {
-		let memory_value = state.memory.get(0, 1).unwrap()[0];
-		let fn_argument_unused = unused as u8;
-		let fn_argument = arg as u8;
-		assert_eq!(fn_argument_unused, 0);
+			let sum = memory_value + fn_argument;
+			state.memory.set(0, &vec![sum]).unwrap();
+			state.values.borrow_mut().push(sum as i32);
+			Ok(sum as i32)
+		})
+		.with_func2("sub", |state: &TestState, arg: i32, unused: i32| {
+			let memory_value = state.memory.get(0, 1).unwrap()[0];
+			let fn_argument_unused = unused as u8;
+			let fn_argument = arg as u8;
+			assert_eq!(fn_argument_unused, 0);
 
-		let diff = memory_value - fn_argument;
-		state.memory.set(0, &vec![diff]).unwrap();
-		state.values.borrow_mut().push(diff as i32);
-		Ok(diff as i32)
-	});
-	builder.with_func2("err", |_: &TestState, _unused1: i32, _unused2: i32| -> Result<i32, Error> {
-		Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
-	});
-	builder.insert_memory("memory", Rc::new(MemoryInstance::new(&MemoryType::new(256, None)).unwrap()));
-	builder.build()
+			let diff = memory_value - fn_argument;
+			state.memory.set(0, &vec![diff]).unwrap();
+			state.values.borrow_mut().push(diff as i32);
+			Ok(diff as i32)
+		})
+		.with_func2("err", |_: &TestState, _unused1: i32, _unused2: i32| -> Result<i32, Error> {
+			Err(Error::User(Box::new(UserErrorWithCode { error_code: 777 })))
+		})
+		.with_memory("memory", Rc::new(MemoryInstance::new(&MemoryType::new(256, None)).unwrap()))
+		.build()
 }
 
 #[test]
@@ -320,16 +320,16 @@ fn native_ref_state() {
 
 	{
 		let host_module = {
-			let mut host_module_builder = HostModuleBuilder::<HostState>::new();
-			host_module_builder.with_func1(
-				"inc",
-				|state: &HostState, val: i32| -> Result<(), Error> {
-					let mut ext_state = state.ext_state.borrow_mut();
-					**(&mut *ext_state) += val;
-					Ok(())
-				},
-			);
-			host_module_builder.build()
+			HostModuleBuilder::<HostState>::new()
+				.with_func1(
+					"inc",
+					|state: &HostState, val: i32| -> Result<(), Error> {
+						let mut ext_state = state.ext_state.borrow_mut();
+						**(&mut *ext_state) += val;
+						Ok(())
+					},
+				)
+				.build()
 		};
 
 		let mut host_state = HostState {

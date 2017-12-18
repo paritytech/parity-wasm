@@ -379,7 +379,7 @@ fn memory_import_limits_initial() {
 			.build();
 		match program.add_module("client", client_module, &mut ()).map(|_| ()) {
 			Ok(_) if !is_error => (),
-			Err(Error::Initialization(_)) if is_error => (),
+			Err(Error::Instatiation(_)) if is_error => (),
 			x @ _ => panic!("unexpected result for test_case {:?}: {:?}", test_case, x),
 		}
 	}
@@ -411,7 +411,7 @@ fn memory_import_limits_maximum() {
 
 		program.add_module("core", core_module, &mut ()).unwrap();
 		match program.add_module("client", client_module, &mut ()).map(|_| ()) {
-			Err(Error::Initialization(actual_err)) => match expected_err {
+			Err(Error::Instatiation(actual_err)) => match expected_err {
 				MaximumError::ValueMismatch
 					if actual_err == format!("trying to import with limits l1.max={:?} and l2.max={:?}", core_maximum, client_maximum) => (),
 				_ => panic!("unexpected validation error for test_case {:?}: {}", test_case, actual_err),
@@ -445,7 +445,7 @@ fn table_import_limits_initial() {
 			.build();
 		match program.add_module("client", client_module, &mut ()).map(|_| ()) {
 			Ok(_) if !is_error => (),
-			Err(Error::Initialization(ref actual_error))
+			Err(Error::Instatiation(ref actual_error))
 				if is_error && actual_error == &format!("trying to import with limits l1.initial=10 and l2.initial={}", import_initial) => (),
 			x @ _ => panic!("unexpected result for test_case {:?}: {:?}", test_case, x),
 		}
@@ -478,7 +478,7 @@ fn table_import_limits_maximum() {
 
 		program.add_module("core", core_module, &mut ()).unwrap();
 		match program.add_module("client", client_module, &mut ()).map(|_| ()) {
-			Err(Error::Initialization(actual_err)) => match expected_err {
+			Err(Error::Instatiation(actual_err)) => match expected_err {
 				MaximumError::ValueMismatch
 					if actual_err == format!("trying to import with limits l1.max={:?} and l2.max={:?}", core_maximum, client_maximum) => (),
 				_ => panic!("unexpected validation error for test_case {:?}: {}", test_case, actual_err),

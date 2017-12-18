@@ -17,7 +17,6 @@ script:
 - cargo build --release --verbose
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml
-- cargo test --manifest-path=pwasm-emscripten/Cargo.toml
 after_success: |-
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&

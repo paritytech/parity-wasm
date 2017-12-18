@@ -1,7 +1,9 @@
 use std::fmt;
 use std::collections::HashMap;
-use elements::{BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType, Module, Opcode,
-			   ResizableLimits, TableType, ValueType, InitExpr, Type};
+use elements::{
+	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType, Module, Opcode,
+	ResizableLimits, TableType, ValueType, InitExpr, Type
+};
 use common::stack;
 use self::context::ModuleContextBuilder;
 use self::func::Validator;

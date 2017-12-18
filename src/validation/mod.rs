@@ -1,9 +1,7 @@
 use std::fmt;
 use std::collections::HashMap;
-use elements::{
-	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType,
-	Module, Opcode, ResizableLimits, TableType, ValueType, InitExpr, Type
-};
+use elements::{BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType, Module, Opcode,
+			   ResizableLimits, TableType, ValueType, InitExpr, Type};
 use common::stack;
 use self::context::ModuleContextBuilder;
 use self::func::Validator;
@@ -65,7 +63,7 @@ pub fn validate_module(module: &Module) -> Result<AuxiliaryData, Error> {
 			External::Global(ref global) => {
 				context_builder.push_global(global.clone());
 				imported_globals.push(global.clone());
-			},
+			}
 		}
 	}
 
@@ -112,22 +110,25 @@ pub fn validate_module(module: &Module) -> Result<AuxiliaryData, Error> {
 	// validate every function body in user modules
 	if function_section_len != 0 {
 		// tests use invalid code
-		let function_section = module
-			.function_section()
-			.expect("function_section_len != 0; qed");
-		let code_section = module
-			.code_section()
-			.expect("function_section_len != 0; function_section_len == code_section_len; qed");
+		let function_section = module.function_section().expect(
+			"function_section_len != 0; qed",
+		);
+		let code_section = module.code_section().expect(
+			"function_section_len != 0; function_section_len == code_section_len; qed",
+		);
 		// check every function body
 		for (index, function) in function_section.entries().iter().enumerate() {
-			let function_body = code_section
-				.bodies()
-				.get(index as usize)
-				.ok_or(Error(format!("Missing body for function {}", index)))?;
-			let func_labels = Validator::validate_function(&context, function, function_body).map_err(|e| {
-				let Error(ref msg) = e;
-				Error(format!("Function #{} validation error: {}", index, msg))
-			})?;
+			let function_body = code_section.bodies().get(index as usize).ok_or(
+				Error(format!(
+					"Missing body for function {}",
+					index
+				)),
+			)?;
+			let func_labels = Validator::validate_function(&context, function, function_body)
+				.map_err(|e| {
+					let Error(ref msg) = e;
+					Error(format!("Function #{} validation error: {}", index, msg))
+				})?;
 			labels.insert(index, func_labels);
 		}
 	}
@@ -168,30 +169,39 @@ pub fn validate_module(module: &Module) -> Result<AuxiliaryData, Error> {
 			match *import.external() {
 				External::Function(function_type_index) => {
 					context.require_function(function_type_index)?;
-				},
+				}
 				External::Global(ref global_type) => {
 					if global_type.is_mutable() {
-						return Err(Error(format!("trying to import mutable global {}", import.field())));
+						return Err(Error(format!(
+							"trying to import mutable global {}",
+							import.field()
+						)));
 					}
-				},
+				}
 				External::Memory(ref memory_type) => {
 					memory_type.validate()?;
-				},
+				}
 				External::Table(ref table_type) => {
 					table_type.validate()?;
-				},
+				}
 			}
 		}
 	}
 
 	// there must be no greater than 1 table in tables index space
 	if context.tables().len() > 1 {
-		return Err(Error(format!("too many tables in index space: {}", context.tables().len())));
+		return Err(Error(format!(
+			"too many tables in index space: {}",
+			context.tables().len()
+		)));
 	}
 
 	// there must be no greater than 1 linear memory in memory index space
 	if context.memories().len() > 1 {
-		return Err(Error(format!("too many memory regions in index space: {}", context.memories().len())));
+		return Err(Error(format!(
+			"too many memory regions in index space: {}",
+			context.memories().len()
+		)));
 	}
 
 	// use data section to initialize linear memory regions
@@ -221,9 +231,7 @@ pub fn validate_module(module: &Module) -> Result<AuxiliaryData, Error> {
 		}
 	}
 
-	Ok(AuxiliaryData {
-		labels,
-	})
+	Ok(AuxiliaryData { labels })
 }
 
 impl ResizableLimits {
@@ -273,26 +281,30 @@ impl InitExpr {
 	fn expr_const_type(&self, globals: &[GlobalType]) -> Result<ValueType, Error> {
 		let code = self.code();
 		if code.len() != 2 {
-			return Err(Error("Init expression should always be with length 2".into()));
+			return Err(Error(
+				"Init expression should always be with length 2".into(),
+			));
 		}
 		let expr_ty: ValueType = match code[0] {
 			Opcode::I32Const(_) => ValueType::I32,
 			Opcode::I64Const(_) => ValueType::I64,
 			Opcode::F32Const(_) => ValueType::F32,
 			Opcode::F64Const(_) => ValueType::F64,
-			Opcode::GetGlobal(idx) => match globals.get(idx as usize) {
-				Some(target_global) => {
-					if target_global.is_mutable() {
-						return Err(Error(format!("Global {} is mutable", idx)));
+			Opcode::GetGlobal(idx) => {
+				match globals.get(idx as usize) {
+					Some(target_global) => {
+						if target_global.is_mutable() {
+							return Err(Error(format!("Global {} is mutable", idx)));
+						}
+						target_global.content_type()
 					}
-					target_global.content_type()
+					None => {
+						return Err(Error(
+							format!("Global {} doesn't exists or not yet defined", idx),
+						))
+					}
 				}
-				None => {
-					return Err(Error(
-						format!("Global {} doesn't exists or not yet defined", idx),
-					))
-				}
-			},
+			}
 			_ => return Err(Error("Non constant opcode in init expr".into())),
 		};
 		if code[1] != Opcode::End {

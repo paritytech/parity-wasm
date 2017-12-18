@@ -346,7 +346,7 @@ fn native_ref_state() {
 			.expect("Instantiate module successfully");
 		instance
 			.invoke_index(
-				1,
+				2,
 				&[RuntimeValue::I32(7), RuntimeValue::I32(2)],
 				&mut host_state,
 			)

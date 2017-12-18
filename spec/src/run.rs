@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::fs::File;
 use std::rc::Rc;
-use std::any::Any;
 
 use serde_json;
 use test;
@@ -36,7 +35,7 @@ struct SpecModule {
 
 impl SpecModule {
     fn new() -> Self {
-        let default_host_callback = Rc::new(|_: &mut (), args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, InterpreterError> {
+        let default_host_callback = Rc::new(|_: &(), args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, InterpreterError> {
             println!("called host: {:?}", args);
             Ok(None)
         });
@@ -177,7 +176,7 @@ fn run_action(program: &mut ProgramInstance, action: &test::Action)
             let module = module.trim_left_matches('$');
             let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
             let func = module.export_by_name(&jstring_to_rstring(field)).unwrap().as_func().unwrap();
-            program.invoke_func(func, runtime_values(args), &mut ())
+            program.invoke_func(func, &runtime_values(args), &mut ())
         },
         test::Action::Get { ref module, ref field, .. } => {
             let module = module.clone().unwrap_or("wasm_test".into());

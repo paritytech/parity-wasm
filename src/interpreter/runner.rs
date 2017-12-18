@@ -41,7 +41,6 @@ pub struct FunctionContext<St> {
 }
 
 /// Interpreter action to execute after executing instruction.
-#[derive(Debug)]
 pub enum InstructionOutcome<St> {
 	/// Continue with next instruction.
 	RunNextInstruction,
@@ -96,7 +95,6 @@ impl<'a, St: 'a> Interpreter<'a, St> {
 					}
 				},
 				RunResult::NestedCall(nested_func) => {
-					// TODO: check this
 					match *nested_func {
 						FuncInstance::Internal { .. } => {
 							let nested_context = function_context.nested(Rc::clone(&nested_func))?;

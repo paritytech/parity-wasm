@@ -30,5 +30,5 @@ fn main() {
     let argument: i32 = args[2].parse().expect("Integer argument required");
 
     // "_call" export of function to be executed with an i32 argument and prints the result of execution
-    println!("Result: {:?}", main.invoke_export("_call", &[parity_wasm::RuntimeValue::I32(argument)], &mut ()));
+    println!("Result: {:?}", main.invoke_export("_call", &[parity_wasm::RuntimeValue::I32(argument)], &mut HostState::default()));
 }

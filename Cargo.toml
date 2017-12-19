@@ -14,3 +14,4 @@ exclude = [ "res/*", "spec/*" ]
 [dependencies]
 log = "0.3"
 byteorder = "1.0"
+unsafe-any = "0.4.2"

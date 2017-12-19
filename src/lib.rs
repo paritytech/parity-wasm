@@ -5,6 +5,7 @@
 #[macro_use]
 extern crate log;
 extern crate byteorder;
+extern crate unsafe_any;
 
 pub mod elements;
 pub mod builder;

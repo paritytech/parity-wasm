@@ -146,6 +146,7 @@ mod host;
 mod imports;
 mod global;
 mod func;
+mod state;
 
 #[cfg(test)]
 mod tests;
@@ -159,3 +160,4 @@ pub use self::imports::{ImportResolver, Imports};
 pub use self::module::ModuleInstance;
 pub use self::global::GlobalInstance;
 pub use self::func::FuncInstance;
+pub use self::state::{HostState, StateKey};

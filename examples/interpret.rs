@@ -3,7 +3,7 @@
 extern crate parity_wasm;
 
 use std::env::args;
-use parity_wasm::interpreter::ModuleInstance;
+use parity_wasm::interpreter::{ModuleInstance, HostState};
 
 fn main() {
     let args: Vec<_> = args().collect();
@@ -23,7 +23,7 @@ fn main() {
      // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
      // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
     let main = ModuleInstance::new(&module)
-        .run_start(&mut ())
+        .run_start(&mut HostState::default())
         .expect("Failed to initialize module");
 
     // The argument should be parsable as a valid integer

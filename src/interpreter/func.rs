@@ -7,23 +7,24 @@ use interpreter::{Error, ModuleInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::HostFunc;
 use interpreter::value::RuntimeValue;
+use interpreter::state::HostState;
 use common::stack::StackWithLimit;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_VALUE_STACK_LIMIT};
 
 #[derive(Clone)]
-pub enum FuncInstance<St> {
+pub enum FuncInstance {
 	Internal {
 		func_type: Rc<FunctionType>,
-		module: Rc<ModuleInstance<St>>,
+		module: Rc<ModuleInstance>,
 		body: Rc<FuncBody>,
 	},
 	Host {
 		func_type: Rc<FunctionType>,
-		host_func: Rc<HostFunc<St>>,
+		host_func: Rc<HostFunc>,
 	},
 }
 
-impl<St: fmt::Debug> fmt::Debug for FuncInstance<St> {
+impl fmt::Debug for FuncInstance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			&FuncInstance::Internal {
@@ -45,9 +46,9 @@ impl<St: fmt::Debug> fmt::Debug for FuncInstance<St> {
 	}
 }
 
-impl<St> FuncInstance<St> {
+impl FuncInstance {
 	pub fn alloc_internal(
-		module: Rc<ModuleInstance<St>>,
+		module: Rc<ModuleInstance>,
 		func_type: Rc<FunctionType>,
 		body: FuncBody,
 	) -> Rc<Self> {
@@ -59,7 +60,7 @@ impl<St> FuncInstance<St> {
 		Rc::new(func)
 	}
 
-	pub fn alloc_host(func_type: Rc<FunctionType>, host_func: Rc<HostFunc<St>>) -> Rc<Self> {
+	pub fn alloc_host(func_type: Rc<FunctionType>, host_func: Rc<HostFunc>) -> Rc<Self> {
 		let func = FuncInstance::Host {
 			func_type,
 			host_func,
@@ -81,14 +82,14 @@ impl<St> FuncInstance<St> {
 		}
 	}
 
-	pub fn invoke(
-		func: Rc<FuncInstance<St>>,
+	pub fn invoke<'a, 'b: 'a>(
+		func: Rc<FuncInstance>,
 		args: Cow<[RuntimeValue]>,
-		state: &St,
+		state: &'a mut HostState<'b>,
 	) -> Result<Option<RuntimeValue>, Error> {
-		enum InvokeKind<'a, St> {
-			Internal(FunctionContext<St>),
-			Host(Rc<HostFunc<St>>, &'a [RuntimeValue]),
+		enum InvokeKind<'a> {
+			Internal(FunctionContext),
+			Host(Rc<HostFunc>, &'a [RuntimeValue]),
 		}
 
 		let result = match *func {

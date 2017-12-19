@@ -10,15 +10,16 @@ use interpreter::table::TableInstance;
 use interpreter::value::{RuntimeValue, TryInto};
 use interpreter::Error;
 use interpreter::ImportResolver;
+use interpreter::state::HostState;
 
-pub type HostFunc<St> = Fn(&St, &[RuntimeValue])
+pub type HostFunc = Fn(&mut HostState, &[RuntimeValue])
 	-> Result<Option<RuntimeValue>, Error>;
 
-pub struct HostModuleBuilder<St> {
-	exports: HashMap<String, ExternVal<St>>,
+pub struct HostModuleBuilder {
+	exports: HashMap<String, ExternVal>,
 }
 
-impl<St> HostModuleBuilder<St> {
+impl HostModuleBuilder {
 	pub fn new() -> Self {
 		HostModuleBuilder {
 			exports: HashMap::new(),
@@ -26,7 +27,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn insert_func0<
-		Cl: Fn(&St) -> Result<Ret, Error> + 'static,
+		Cl: Fn(&mut HostState) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		N: Into<String>,
 	>(
@@ -36,7 +37,7 @@ impl<St> HostModuleBuilder<St> {
 	) {
 		let func_type = FunctionType::new(vec![], Ret::value_type());
 		let host_func = Rc::new(
-			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			move |state: &mut HostState, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 				assert!(args.len() == 0);
 				let result = f(state)?.into_return_val();
 				Ok(result)
@@ -48,7 +49,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn insert_func1<
-		Cl: Fn(&St, P1) -> Result<Ret, Error> + 'static,
+		Cl: Fn(&mut HostState, P1) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
 		N: Into<String>,
@@ -59,7 +60,7 @@ impl<St> HostModuleBuilder<St> {
 	) {
 		let func_type = FunctionType::new(vec![P1::value_type()], Ret::value_type());
 		let host_func = Rc::new(
-			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			move |state: &mut HostState, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 				assert!(args.len() == 1);
 				let mut args = args.into_iter();
 				let result = f(
@@ -75,7 +76,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn insert_func2<
-		Cl: Fn(&St, P1, P2) -> Result<Ret, Error> + 'static,
+		Cl: Fn(&mut HostState, P1, P2) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
 		P2: FromArg + 'static,
@@ -88,7 +89,7 @@ impl<St> HostModuleBuilder<St> {
 		let func_type =
 			FunctionType::new(vec![P1::value_type(), P2::value_type()], Ret::value_type());
 		let host_func = Rc::new(
-			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			move |state: &mut HostState, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 				assert!(args.len() == 2);
 				let mut args = args.into_iter();
 				let result = f(
@@ -105,7 +106,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn insert_func3<
-		Cl: Fn(&St, P1, P2, P3) -> Result<Ret, Error> + 'static,
+		Cl: Fn(&mut HostState, P1, P2, P3) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
 		P2: FromArg + 'static,
@@ -121,7 +122,7 @@ impl<St> HostModuleBuilder<St> {
 			Ret::value_type(),
 		);
 		let host_func = Rc::new(
-			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			move |state: &mut HostState, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 				assert!(args.len() == 3);
 				let mut args = args.into_iter();
 				let result = f(
@@ -139,7 +140,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn insert_func4<
-		Cl: Fn(&St, P1, P2, P3, P4) -> Result<Ret, Error> + 'static,
+		Cl: Fn(&mut HostState, P1, P2, P3, P4) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
 		P2: FromArg + 'static,
@@ -161,7 +162,7 @@ impl<St> HostModuleBuilder<St> {
 			Ret::value_type(),
 		);
 		let host_func = Rc::new(
-			move |state: &St, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
+			move |state: &mut HostState, args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, Error> {
 				assert!(args.len() == 4);
 				let mut args = args.into_iter();
 				let result = f(
@@ -180,7 +181,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func0<
-		Cl: Fn(&St) -> Result<Ret, Error> + 'static,
+		Cl: Fn(&mut HostState) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		N: Into<String>,
 	>(
@@ -193,7 +194,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func1<
-		Cl: Fn(&St, P1) -> Result<Ret, Error> + 'static,
+		Cl: Fn(&mut HostState, P1) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
 		N: Into<String>,
@@ -207,7 +208,7 @@ impl<St> HostModuleBuilder<St> {
 	}
 
 	pub fn with_func2<
-		Cl: Fn(&St, P1, P2) -> Result<Ret, Error> + 'static,
+		Cl: Fn(&mut HostState, P1, P2) -> Result<Ret, Error> + 'static,
 		Ret: IntoReturnVal + 'static,
 		P1: FromArg + 'static,
 		P2: FromArg + 'static,
@@ -221,7 +222,7 @@ impl<St> HostModuleBuilder<St> {
 		self
 	}
 
-	pub fn insert_func<N: Into<String>>(&mut self, name: N, func: Rc<FuncInstance<St>>) {
+	pub fn insert_func<N: Into<String>>(&mut self, name: N, func: Rc<FuncInstance>) {
 		self.insert(name, ExternVal::Func(func));
 	}
 
@@ -233,7 +234,7 @@ impl<St> HostModuleBuilder<St> {
 		self.insert(name, ExternVal::Memory(memory));
 	}
 
-	pub fn insert_table<N: Into<String>>(&mut self, name: N, table: Rc<TableInstance<St>>) {
+	pub fn insert_table<N: Into<String>>(&mut self, name: N, table: Rc<TableInstance>) {
 		self.insert(name, ExternVal::Table(table));
 	}
 
@@ -247,40 +248,40 @@ impl<St> HostModuleBuilder<St> {
 		self
 	}
 
-	pub fn with_table<N: Into<String>>(mut self, name: N, table: Rc<TableInstance<St>>) -> Self {
+	pub fn with_table<N: Into<String>>(mut self, name: N, table: Rc<TableInstance>) -> Self {
 		self.insert_table(name, table);
 		self
 	}
 
-	fn insert<N: Into<String>>(&mut self, name: N, extern_val: ExternVal<St>) {
+	fn insert<N: Into<String>>(&mut self, name: N, extern_val: ExternVal) {
 		match self.exports.entry(name.into()) {
 			Entry::Vacant(v) => v.insert(extern_val),
 			Entry::Occupied(o) => panic!("Duplicate export name {}", o.key()),
 		};
 	}
 
-	pub fn build(self) -> HostModule<St> {
+	pub fn build(self) -> HostModule {
 		let internal_instance = Rc::new(ModuleInstance::with_exports(self.exports));
 		HostModule { internal_instance }
 	}
 }
 
-pub struct HostModule<St> {
-	internal_instance: Rc<ModuleInstance<St>>,
+pub struct HostModule {
+	internal_instance: Rc<ModuleInstance>,
 }
 
-impl<St> HostModule<St> {
-	pub fn export_by_name(&self, name: &str) -> Option<ExternVal<St>> {
+impl HostModule {
+	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
 		self.internal_instance.export_by_name(name)
 	}
 }
 
-impl<St> ImportResolver<St> for HostModule<St> {
+impl ImportResolver for HostModule {
 	fn resolve_func(
 		&self,
 		field_name: &str,
 		func_type: &FunctionType,
-	) -> Result<Rc<FuncInstance<St>>, Error> {
+	) -> Result<Rc<FuncInstance>, Error> {
 		self.internal_instance.resolve_func(field_name, func_type)
 	}
 
@@ -306,7 +307,7 @@ impl<St> ImportResolver<St> for HostModule<St> {
 		&self,
 		field_name: &str,
 		table_type: &TableType,
-	) -> Result<Rc<TableInstance<St>>, Error> {
+	) -> Result<Rc<TableInstance>, Error> {
 		self.internal_instance.resolve_table(field_name, table_type)
 	}
 }

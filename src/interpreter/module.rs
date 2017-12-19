@@ -9,17 +9,18 @@ use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
 use interpreter::imports::{ImportResolver, Imports};
 use interpreter::global::GlobalInstance;
 use interpreter::func::{FuncBody, FuncInstance};
+use interpreter::state::HostState;
 use validation::validate_module;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
-pub enum ExternVal<St> {
-	Func(Rc<FuncInstance<St>>),
-	Table(Rc<TableInstance<St>>),
+pub enum ExternVal {
+	Func(Rc<FuncInstance>),
+	Table(Rc<TableInstance>),
 	Memory(Rc<MemoryInstance>),
 	Global(Rc<GlobalInstance>),
 }
 
-impl<St> Clone for ExternVal<St> {
+impl Clone for ExternVal {
 	fn clone(&self) -> Self {
 		match *self {
 			ExternVal::Func(ref func) => ExternVal::Func(Rc::clone(func)),
@@ -30,7 +31,7 @@ impl<St> Clone for ExternVal<St> {
 	}
 }
 
-impl<St> fmt::Debug for ExternVal<St> {
+impl fmt::Debug for ExternVal {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(
 			f,
@@ -45,15 +46,15 @@ impl<St> fmt::Debug for ExternVal<St> {
 	}
 }
 
-impl<St> ExternVal<St> {
-	pub fn as_func(&self) -> Option<Rc<FuncInstance<St>>> {
+impl ExternVal {
+	pub fn as_func(&self) -> Option<Rc<FuncInstance>> {
 		match *self {
 			ExternVal::Func(ref func) => Some(Rc::clone(func)),
 			_ => None,
 		}
 	}
 
-	pub fn as_table(&self) -> Option<Rc<TableInstance<St>>> {
+	pub fn as_table(&self) -> Option<Rc<TableInstance>> {
 		match *self {
 			ExternVal::Table(ref table) => Some(Rc::clone(table)),
 			_ => None,
@@ -76,16 +77,16 @@ impl<St> ExternVal<St> {
 }
 
 #[derive(Debug)]
-pub struct ModuleInstance<St> {
+pub struct ModuleInstance {
 	types: RefCell<Vec<Rc<FunctionType>>>,
-	tables: RefCell<Vec<Rc<TableInstance<St>>>>,
-	funcs: RefCell<Vec<Rc<FuncInstance<St>>>>,
+	tables: RefCell<Vec<Rc<TableInstance>>>,
+	funcs: RefCell<Vec<Rc<FuncInstance>>>,
 	memories: RefCell<Vec<Rc<MemoryInstance>>>,
 	globals: RefCell<Vec<Rc<GlobalInstance>>>,
-	exports: RefCell<HashMap<String, ExternVal<St>>>,
+	exports: RefCell<HashMap<String, ExternVal>>,
 }
 
-impl<St> Default for ModuleInstance<St> {
+impl Default for ModuleInstance {
 	fn default() -> Self {
 		ModuleInstance {
 			types: RefCell::new(Vec::new()),
@@ -98,8 +99,8 @@ impl<St> Default for ModuleInstance<St> {
 	}
 }
 
-impl<St> ModuleInstance<St> {
-	pub fn with_exports(exports: HashMap<String, ExternVal<St>>) -> Self {
+impl ModuleInstance {
+	pub fn with_exports(exports: HashMap<String, ExternVal>) -> Self {
 		let mut instance = Self::default();
 		instance.exports = RefCell::new(exports);
 		instance
@@ -109,7 +110,7 @@ impl<St> ModuleInstance<St> {
 		self.memories.borrow().get(idx as usize).cloned()
 	}
 
-	pub fn table_by_index(&self, idx: u32) -> Option<Rc<TableInstance<St>>> {
+	pub fn table_by_index(&self, idx: u32) -> Option<Rc<TableInstance>> {
 		self.tables.borrow().get(idx as usize).cloned()
 	}
 
@@ -117,7 +118,7 @@ impl<St> ModuleInstance<St> {
 		self.globals.borrow().get(idx as usize).cloned()
 	}
 
-	pub fn func_by_index(&self, idx: u32) -> Option<Rc<FuncInstance<St>>> {
+	pub fn func_by_index(&self, idx: u32) -> Option<Rc<FuncInstance>> {
 		self.funcs.borrow().get(idx as usize).cloned()
 	}
 
@@ -125,11 +126,11 @@ impl<St> ModuleInstance<St> {
 		self.types.borrow().get(idx as usize).cloned()
 	}
 
-	pub fn export_by_name(&self, name: &str) -> Option<ExternVal<St>> {
+	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
 		self.exports.borrow().get(name).cloned()
 	}
 
-	fn push_func(&self, func: Rc<FuncInstance<St>>) {
+	fn push_func(&self, func: Rc<FuncInstance>) {
 		self.funcs.borrow_mut().push(func);
 	}
 
@@ -141,7 +142,7 @@ impl<St> ModuleInstance<St> {
 		self.memories.borrow_mut().push(memory)
 	}
 
-	fn push_table(&self, table: Rc<TableInstance<St>>) {
+	fn push_table(&self, table: Rc<TableInstance>) {
 		self.tables.borrow_mut().push(table)
 	}
 
@@ -149,14 +150,14 @@ impl<St> ModuleInstance<St> {
 		self.globals.borrow_mut().push(global)
 	}
 
-	fn insert_export<N: Into<String>>(&self, name: N, extern_val: ExternVal<St>) {
+	fn insert_export<N: Into<String>>(&self, name: N, extern_val: ExternVal) {
 		self.exports.borrow_mut().insert(name.into(), extern_val);
 	}
 
 	fn alloc_module(
 		module: &Module,
-		extern_vals: &[ExternVal<St>],
-		instance: &Rc<ModuleInstance<St>>,
+		extern_vals: &[ExternVal],
+		instance: &Rc<ModuleInstance>,
 	) -> Result<(), Error> {
 		let mut aux_data = validate_module(module)?;
 
@@ -280,7 +281,7 @@ impl<St> ModuleInstance<St> {
 		)
 		{
 			let field = export.field();
-			let extern_val: ExternVal<St> = match *export.internal() {
+			let extern_val: ExternVal = match *export.internal() {
 				Internal::Function(idx) => {
 					let func = instance.func_by_index(idx).expect(
 						"Due to validation func should exists",
@@ -314,8 +315,8 @@ impl<St> ModuleInstance<St> {
 
 	fn instantiate_with_externvals(
 		module: &Module,
-		extern_vals: &[ExternVal<St>],
-	) -> Result<Rc<ModuleInstance<St>>, Error> {
+		extern_vals: &[ExternVal],
+	) -> Result<Rc<ModuleInstance>, Error> {
 		let instance = Rc::new(ModuleInstance::default());
 
 		ModuleInstance::alloc_module(module, extern_vals, &instance)?;
@@ -358,8 +359,8 @@ impl<St> ModuleInstance<St> {
 
 	fn instantiate_with_imports(
 		module: &Module,
-		imports: &Imports<St>,
-	) -> Result<Rc<ModuleInstance<St>>, Error> {
+		imports: &Imports,
+	) -> Result<Rc<ModuleInstance>, Error> {
 		let mut extern_vals = Vec::new();
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
 			let module_name = import_entry.module();
@@ -398,15 +399,15 @@ impl<St> ModuleInstance<St> {
 		Self::instantiate_with_externvals(module, &extern_vals)
 	}
 
-	pub fn new<'a>(module: &'a Module) -> InstantiationBuilder<'a, St> {
+	pub fn new<'a>(module: &'a Module) -> InstantiationBuilder<'a> {
 		InstantiationBuilder::new(module)
 	}
 
-	pub fn invoke_index(
+	pub fn invoke_index<'a>(
 		&self,
 		func_idx: u32,
 		args: &[RuntimeValue],
-		state: &St,
+		state: &'a mut HostState<'a>,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
 			Error::Program(format!(
@@ -417,11 +418,11 @@ impl<St> ModuleInstance<St> {
 		FuncInstance::invoke(func_instance, Cow::Borrowed(args), state)
 	}
 
-	pub fn invoke_export(
+	pub fn invoke_export<'a>(
 		&self,
 		func_name: &str,
 		args: &[RuntimeValue],
-		state: &St,
+		state: &'a mut HostState<'a>,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
 			Error::Program(format!("Module doesn't have export {}", func_name))
@@ -442,12 +443,12 @@ impl<St> ModuleInstance<St> {
 	}
 }
 
-pub struct InstantiationBuilder<'a, St: 'a> {
+pub struct InstantiationBuilder<'a> {
 	module: &'a Module,
-	imports: Option<Imports<'a, St>>,
+	imports: Option<Imports<'a>>,
 }
 
-impl<'a, St: 'a> InstantiationBuilder<'a, St> {
+impl<'a> InstantiationBuilder<'a> {
 	fn new(module: &'a Module) -> Self {
 		InstantiationBuilder {
 			module,
@@ -455,7 +456,7 @@ impl<'a, St: 'a> InstantiationBuilder<'a, St> {
 		}
 	}
 
-	pub fn with_imports(mut self, imports: Imports<'a, St>) -> Self {
+	pub fn with_imports(mut self, imports: Imports<'a>) -> Self {
 		self.imports = Some(imports);
 		self
 	}
@@ -463,7 +464,7 @@ impl<'a, St: 'a> InstantiationBuilder<'a, St> {
 	pub fn with_import<N: Into<String>>(
 		mut self,
 		name: N,
-		import_resolver: &'a ImportResolver<St>,
+		import_resolver: &'a ImportResolver,
 	) -> Self {
 		self.imports
 			.get_or_insert_with(|| Imports::default())
@@ -471,7 +472,7 @@ impl<'a, St: 'a> InstantiationBuilder<'a, St> {
 		self
 	}
 
-	pub fn run_start(mut self, state: &St) -> Result<Rc<ModuleInstance<St>>, Error> {
+	pub fn run_start<'b>(mut self, state: &'b mut HostState<'b>) -> Result<Rc<ModuleInstance>, Error> {
 		let imports = self.imports.get_or_insert_with(|| Imports::default());
 		let instance = ModuleInstance::instantiate_with_imports(self.module, imports)?;
 
@@ -484,7 +485,7 @@ impl<'a, St: 'a> InstantiationBuilder<'a, St> {
 		Ok(instance)
 	}
 
-	pub fn assert_no_start(mut self) -> Result<Rc<ModuleInstance<St>>, Error> {
+	pub fn assert_no_start(mut self) -> Result<Rc<ModuleInstance>, Error> {
 		assert!(self.module.start_section().is_none());
 		let imports = self.imports.get_or_insert_with(|| Imports::default());
 		let instance = ModuleInstance::instantiate_with_imports(self.module, imports)?;
@@ -492,12 +493,12 @@ impl<'a, St: 'a> InstantiationBuilder<'a, St> {
 	}
 }
 
-impl<St> ImportResolver<St> for ModuleInstance<St> {
+impl ImportResolver for ModuleInstance {
 	fn resolve_func(
 		&self,
 		field_name: &str,
 		_func_type: &FunctionType,
-	) -> Result<Rc<FuncInstance<St>>, Error> {
+	) -> Result<Rc<FuncInstance>, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
 				Error::Validation(format!("Export {} not found", field_name))
@@ -542,7 +543,7 @@ impl<St> ImportResolver<St> for ModuleInstance<St> {
 		&self,
 		field_name: &str,
 		_table_type: &TableType,
-	) -> Result<Rc<TableInstance<St>>, Error> {
+	) -> Result<Rc<TableInstance>, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
 				Error::Validation(format!("Export {} not found", field_name))
@@ -558,7 +559,7 @@ fn alloc_func_type(func_type: FunctionType) -> Rc<FunctionType> {
 	Rc::new(func_type)
 }
 
-fn alloc_table<St>(table_type: &TableType) -> Result<Rc<TableInstance<St>>, Error> {
+fn alloc_table(table_type: &TableType) -> Result<Rc<TableInstance>, Error> {
 	let table = TableInstance::new(table_type)?;
 	Ok(Rc::new(table))
 }
@@ -573,7 +574,7 @@ fn alloc_global(global_type: GlobalType, val: RuntimeValue) -> Rc<GlobalInstance
 	Rc::new(global)
 }
 
-fn eval_init_expr<T>(init_expr: &InitExpr, module: &ModuleInstance<T>) -> RuntimeValue {
+fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance) -> RuntimeValue {
 	let code = init_expr.code();
 	debug_assert!(
 		code.len() == 2,

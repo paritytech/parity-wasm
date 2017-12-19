@@ -6,7 +6,7 @@ use std::rc::Rc;
 use parity_wasm::elements::Module;
 use parity_wasm::interpreter::{
 	Error as InterpreterError, HostModule, HostModuleBuilder,
-	ModuleInstance, UserError};
+	ModuleInstance, UserError, HostState, StateKey};
 
 #[derive(Debug)]
 pub enum Error {
@@ -142,32 +142,39 @@ struct Runtime<'a> {
 	game: &'a tictactoe::Game,
 }
 
+unsafe impl<'a> StateKey for Runtime<'a> {
+	type Static = Runtime<'static>;
+}
+
 fn instantiate<'a, 'b>(
 	module: &Module,
-	env: &HostModule<Runtime<'a>>,
-	runtime: &'b Runtime<'a>,
-) -> Result<Rc<ModuleInstance<Runtime<'a>>>, Error> {
+	env: &HostModule,
+) -> Result<Rc<ModuleInstance>, Error> {
 	let instance = ModuleInstance::new(module)
 		.with_import("env", &*env)
-		.run_start(runtime)?;
+		.run_start(&mut HostState::default())?;
 
 	Ok(instance)
 }
 
-fn env_host_module<'a>() -> HostModule<Runtime<'a>> {
-	HostModuleBuilder::<Runtime>::new()
+fn env_host_module<'a>() -> HostModule {
+	HostModuleBuilder::new()
 		.with_func1(
 			"set",
-			|state: &Runtime, idx: i32| -> Result<(), InterpreterError> {
-				state.game.set(idx, state.player)?;
-				Ok(())
+			|state: &mut HostState, idx: i32| -> Result<(), InterpreterError> {
+				state.with_state(|runtime: &mut Runtime| -> Result<(), InterpreterError> {
+					runtime.game.set(idx, runtime.player)?;
+					Ok(())
+				})
 			},
 		)
 		.with_func1(
 			"get",
-			|state: &Runtime, idx: i32| -> Result<i32, InterpreterError> {
-				let val: i32 = tictactoe::Player::into_i32(state.game.get(idx).unwrap());
-				Ok(val)
+			|state: &mut HostState, idx: i32| -> Result<i32, InterpreterError> {
+				state.with_state(|runtime: &mut Runtime| -> Result<i32, InterpreterError> {
+					let val: i32 = tictactoe::Player::into_i32(runtime.game.get(idx)?);
+					Ok(val)
+				})
 			},
 		)
 		.build()
@@ -176,24 +183,12 @@ fn env_host_module<'a>() -> HostModule<Runtime<'a>> {
 fn play<'a>(
 	x_module: &Module,
 	o_module: &Module,
-	host_module: &HostModule<Runtime<'a>>,
+	host_module: &HostModule,
 	game: &'a tictactoe::Game,
 ) -> Result<tictactoe::GameResult, Error> {
 	// Instantiate modules of X and O players.
-	let x_instance = {
-		let mut runtime = Runtime {
-			player: tictactoe::Player::X,
-			game: game,
-		};
-		instantiate(x_module, host_module, &runtime)?
-	};
-	let o_instance = {
-		let mut runtime = Runtime {
-			player: tictactoe::Player::O,
-			game: game,
-		};
-		instantiate(o_module, host_module, &runtime)?
-	};
+	let x_instance = instantiate(x_module, host_module)?;
+	let o_instance = instantiate(o_module, host_module)?;
 
 	let mut turn_of = tictactoe::Player::X;
 	let game_result = loop {
@@ -206,7 +201,9 @@ fn play<'a>(
 			player: turn_of,
 			game: game,
 		};
-		let _ = instance.invoke_export("mk_turn", &[], &runtime)?;
+		let mut host_state = HostState::new();
+		host_state.insert::<Runtime>(&mut runtime);
+		let _ = instance.invoke_export("mk_turn", &[], &mut host_state)?;
 
 		match game.game_result() {
 			Some(game_result) => break game_result,

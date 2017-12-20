@@ -6,7 +6,8 @@ use std::rc::Rc;
 use parity_wasm::elements::Module;
 use parity_wasm::interpreter::{
 	Error as InterpreterError, HostModule, HostModuleBuilder,
-	ModuleInstance, UserError, HostState, StateKey};
+	ModuleInstance, UserError, HostState, StateKey
+};
 
 #[derive(Debug)]
 pub enum Error {
@@ -30,7 +31,6 @@ impl From<InterpreterError> for Error {
 impl UserError for Error {}
 
 mod tictactoe {
-	use std::cell::RefCell;
 	use super::Error;
 
 	#[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -57,25 +57,24 @@ mod tictactoe {
 
 	#[derive(Debug)]
 	pub struct Game {
-		board: RefCell<[Option<Player>; 9]>,
+		board: [Option<Player>; 9],
 	}
 
 	impl Game {
 		pub fn new() -> Game {
 			Game {
-				board: RefCell::new([None; 9]),
+				board: [None; 9],
 			}
 		}
 
-		pub fn set(&self, idx: i32, player: Player) -> Result<(), Error> {
-			let mut board = self.board.borrow_mut();
+		pub fn set(&mut self, idx: i32, player: Player) -> Result<(), Error> {
 			if idx < 0 || idx > 9 {
 				return Err(Error::OutOfRange);
 			}
-			if board[idx as usize] != None {
+			if self.board[idx as usize] != None {
 				return Err(Error::AlreadyOccupied);
 			}
-			board[idx as usize] = Some(player);
+			self.board[idx as usize] = Some(player);
 			Ok(())
 		}
 
@@ -83,12 +82,10 @@ mod tictactoe {
 			if idx < 0 || idx > 9 {
 				return Err(Error::OutOfRange);
 			}
-			Ok(self.board.borrow()[idx as usize])
+			Ok(self.board[idx as usize])
 		}
 
 		pub fn game_result(&self) -> Option<GameResult> {
-			let board = self.board.borrow();
-
 			// 0, 1, 2
 			// 3, 4, 5
 			// 6, 7, 8
@@ -110,11 +107,11 @@ mod tictactoe {
 
 			// Returns Some(player) if all cells contain same Player.
 			let all_same = |i1: usize, i2: usize, i3: usize| -> Option<Player> {
-				if board[i1].is_none() {
+				if self.board[i1].is_none() {
 					return None;
 				}
-				if board[i1] == board[i2] && board[i2] == board[i3] {
-					return board[i1];
+				if self.board[i1] == self.board[i2] && self.board[i2] == self.board[i3] {
+					return self.board[i1];
 				}
 				None
 			};
@@ -126,7 +123,7 @@ mod tictactoe {
 			}
 
 			// Ok, there is no winner. Check if it's draw.
-			let all_occupied = board.iter().all(|&cell| cell.is_some());
+			let all_occupied = self.board.iter().all(|&cell| cell.is_some());
 			if all_occupied {
 				Some(GameResult::Draw)
 			} else {
@@ -139,14 +136,14 @@ mod tictactoe {
 
 struct Runtime<'a> {
 	player: tictactoe::Player,
-	game: &'a tictactoe::Game,
+	game: &'a mut tictactoe::Game,
 }
 
 unsafe impl<'a> StateKey for Runtime<'a> {
 	type Static = Runtime<'static>;
 }
 
-fn instantiate<'a, 'b>(
+fn instantiate(
 	module: &Module,
 	env: &HostModule,
 ) -> Result<Rc<ModuleInstance>, Error> {
@@ -157,12 +154,12 @@ fn instantiate<'a, 'b>(
 	Ok(instance)
 }
 
-fn env_host_module<'a>() -> HostModule {
+fn env_host_module() -> HostModule {
 	HostModuleBuilder::new()
 		.with_func1(
 			"set",
 			|state: &mut HostState, idx: i32| -> Result<(), InterpreterError> {
-				state.with_state(|runtime: &mut Runtime| -> Result<(), InterpreterError> {
+				state.with_mut(move |runtime: &mut Runtime| -> Result<(), InterpreterError> {
 					runtime.game.set(idx, runtime.player)?;
 					Ok(())
 				})
@@ -171,7 +168,7 @@ fn env_host_module<'a>() -> HostModule {
 		.with_func1(
 			"get",
 			|state: &mut HostState, idx: i32| -> Result<i32, InterpreterError> {
-				state.with_state(|runtime: &mut Runtime| -> Result<i32, InterpreterError> {
+				state.with(move |runtime: &Runtime| -> Result<i32, InterpreterError> {
 					let val: i32 = tictactoe::Player::into_i32(runtime.game.get(idx)?);
 					Ok(val)
 				})
@@ -184,7 +181,7 @@ fn play<'a>(
 	x_module: &Module,
 	o_module: &Module,
 	host_module: &HostModule,
-	game: &'a tictactoe::Game,
+	game: &'a mut tictactoe::Game,
 ) -> Result<tictactoe::GameResult, Error> {
 	// Instantiate modules of X and O players.
 	let x_instance = instantiate(x_module, host_module)?;
@@ -197,13 +194,17 @@ fn play<'a>(
 			tictactoe::Player::O => (&o_instance, tictactoe::Player::X),
 		};
 
-		let mut runtime = Runtime {
-			player: turn_of,
-			game: game,
-		};
-		let mut host_state = HostState::new();
-		host_state.insert::<Runtime>(&mut runtime);
-		let _ = instance.invoke_export("mk_turn", &[], &mut host_state)?;
+		{
+			let mut runtime = Runtime {
+				player: turn_of,
+				game: game,
+			};
+			{
+				let mut host_state = HostState::new();
+				host_state.insert::<Runtime>(&mut runtime);
+				let _ = instance.invoke_export("mk_turn", &[], &mut host_state)?;
+			}
+		}
 
 		match game.game_result() {
 			Some(game_result) => break game_result,
@@ -217,7 +218,7 @@ fn play<'a>(
 }
 
 fn main() {
-	let game = tictactoe::Game::new();
+	let mut game = tictactoe::Game::new();
 	let env_host_module = env_host_module();
 
 	let args: Vec<_> = env::args().collect();
@@ -228,6 +229,6 @@ fn main() {
 	let x_module = parity_wasm::deserialize_file(&args[1]).expect("X player module to load");
 	let o_module = parity_wasm::deserialize_file(&args[2]).expect("Y player module to load");
 
-	let result = play(&x_module, &o_module, &env_host_module, &game);
+	let result = play(&x_module, &o_module, &env_host_module, &mut game);
 	println!("result = {:?}, game = {:#?}", result, game);
 }

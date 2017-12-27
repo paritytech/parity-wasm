@@ -259,7 +259,7 @@ impl ImportEntry {
     pub fn module(&self) -> &str { &self.module_str }
 
     /// Module reference of the import entry (mutable).
-    pub fn module_mut(&mut self) -> &mut str {
+    pub fn module_mut(&mut self) -> &mut String {
         &mut self.module_str
     }
 
@@ -267,7 +267,7 @@ impl ImportEntry {
     pub fn field(&self) -> &str { &self.field_str }
 
     /// Field reference of the import entry (mutable)
-    pub fn field_mut(&mut self) -> &mut str {
+    pub fn field_mut(&mut self) -> &mut String {
         &mut self.field_str
     }
 

@@ -120,11 +120,11 @@ pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Err
     let mut contents = Vec::new();
     ::std::fs::File::open(p)?.read_to_end(&mut contents)?;
 
-    deserialize_buffer(contents)
+    deserialize_buffer(&contents)
 }
 
 /// Deserialize deserializable type from buffer.
-pub fn deserialize_buffer<T: Deserialize>(contents: Vec<u8>) -> Result<T, T::Error> {
+pub fn deserialize_buffer<T: Deserialize>(contents: &[u8]) -> Result<T, T::Error> {
     let mut reader = io::Cursor::new(contents);
     T::deserialize(&mut reader)
 }

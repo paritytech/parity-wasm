@@ -1,3 +1,4 @@
+use std::error;
 use std::fmt;
 use elements::{
 	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType,
@@ -22,6 +23,12 @@ pub struct Error(String);
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", self.0)
+	}
+}
+
+impl error::Error for Error {
+	fn description(&self) -> &str {
+		&self.0
 	}
 }
 

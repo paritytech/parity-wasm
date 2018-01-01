@@ -1,6 +1,8 @@
 //! WebAssembly interpreter module.
 
 use std::any::TypeId;
+use std::error;
+use std::fmt;
 use validation;
 use common;
 
@@ -90,8 +92,8 @@ impl Into<String> for Error {
 	}
 }
 
-impl ::std::fmt::Display for Error {
-	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			Error::Program(ref s) => write!(f, "Program: {}", s),
 			Error::Validation(ref s) => write!(f, "Validation: {}", s),
@@ -108,6 +110,28 @@ impl ::std::fmt::Display for Error {
 			Error::Native(ref s) => write!(f, "Native: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {}", s),
 			Error::User(ref e) => write!(f, "User: {}", e),
+		}
+	}
+}
+
+impl error::Error for Error {
+	fn description(&self) -> &str {
+		match *self {
+			Error::Program(ref s) => s,
+			Error::Validation(ref s) => s,
+			Error::Initialization(ref s) => s,
+			Error::Function(ref s) => s,
+			Error::Table(ref s) => s,
+			Error::Memory(ref s) => s,
+			Error::Variable(ref s) => s,
+			Error::Global(ref s) => s,
+			Error::Local(ref s) => s,
+			Error::Stack(ref s) => s,
+			Error::Interpreter(ref s) => s,
+			Error::Value(ref s) => s,
+			Error::Native(ref s) => s,
+			Error::Trap(ref s) => s,
+			Error::User(_) => "User error",
 		}
 	}
 }

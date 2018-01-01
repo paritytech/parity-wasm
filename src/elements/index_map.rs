@@ -128,6 +128,49 @@ impl<T> IndexMap<T> {
         // Note that this does the right thing because we use `&self`.
         self.into_iter()
     }
+
+    /// Custom deserialization routine.
+    ///
+    /// We will allocate an underlying array no larger than `max_entry_space` to
+    /// hold the data, so the maximum index must be less than `max_entry_space`.
+    /// This prevents mallicious *.wasm files from having a single entry with
+    /// the index `u32::MAX`, which would consume far too much memory.
+    ///
+    /// The `deserialize_value` function will be passed the index of the value
+    /// being deserialized, and must deserialize the value.
+    pub fn deserialize_with<R, F>(
+        max_entry_space: usize,
+        deserialize_value: &F,
+        rdr: &mut R,
+    ) -> Result<IndexMap<T>, Error>
+    where
+        R: Read,
+        F: Fn(u32, &mut R) -> Result<T, Error>,
+    {
+        let len: u32 = VarUint32::deserialize(rdr)?.into();
+        let mut map = IndexMap::with_capacity(len as usize);
+        let mut prev_idx = None;
+        for _ in 0..len {
+            let idx: u32 = VarUint32::deserialize(rdr)?.into();
+            if idx as usize >= max_entry_space {
+                return Err(Error::Other("index is larger than expected"));
+            }
+            match prev_idx {
+                Some(prev) if prev >= idx => {
+                    // Supposedly these names must be "sorted by index", so
+                    // let's try enforcing that and seeing what happens.
+                    return Err(Error::Other("indices are out of order"));
+                }
+                _ => {
+                    prev_idx = Some(idx);
+                }
+            }
+            let val = deserialize_value(idx, rdr)?;
+            map.insert(idx, val);
+        }
+        Ok(map)
+    }
+
 }
 
 impl<T: Clone> Clone for IndexMap<T> {
@@ -286,34 +329,22 @@ where
     }
 }
 
-impl<T: Deserialize> Deserialize for IndexMap<T>
+impl<T: Deserialize> IndexMap<T>
 where
     T: Deserialize,
     Error: From<<T as Deserialize>::Error>,
 {
-    type Error = Error;
-
-    fn deserialize<R: Read>(rdr: &mut R) -> Result<Self, Self::Error> {
-        // SECURITY: Implemented wasted space checking.
-        let len: u32 = VarUint32::deserialize(rdr)?.into();
-        let mut map = IndexMap::with_capacity(len as usize);
-        let mut prev_idx = None;
-        for _ in 0..len {
-            let idx: u32 = VarUint32::deserialize(rdr)?.into();
-            match prev_idx {
-                Some(prev) if prev >= idx => {
-                    // Supposedly these names must be "sorted by index", so
-                    // let's try enforcing that and seeing what happens.
-                    return Err(Error::Other("indices are out of order"));
-                }
-                _ => {
-                    prev_idx = Some(idx);
-                }
-            }
-            let val = T::deserialize(rdr)?;
-            map.insert(idx, val);
-        }
-        Ok(map)
+    /// Deserialize a map containing simple values that support `Deserialize`.
+    /// We will allocate an underlying array no larger than `max_entry_space` to
+    /// hold the data, so the maximum index must be less than `max_entry_space`.
+    pub fn deserialize<R: Read>(
+        max_entry_space: usize,
+        rdr: &mut R,
+    ) -> Result<Self, Error> {
+        let deserialize_value: fn(u32, &mut R) -> Result<T, Error> = |_idx, rdr| {
+            T::deserialize(rdr).map_err(Error::from)
+        };
+        Self::deserialize_with(max_entry_space, &deserialize_value, rdr)
     }
 }
 
@@ -513,7 +544,7 @@ mod tests {
             .expect("serialize failed");
 
         let mut input = io::Cursor::new(&output);
-        let deserialized = IndexMap::deserialize(&mut input).expect("deserialize failed");
+        let deserialized = IndexMap::deserialize(2, &mut input).expect("deserialize failed");
 
         assert_eq!(deserialized, map);
     }
@@ -527,7 +558,7 @@ mod tests {
         "val 0".to_string().serialize(&mut valid).unwrap();
         VarUint32::from(1u32).serialize(&mut valid).unwrap();
         "val 1".to_string().serialize(&mut valid).unwrap();
-        let map = IndexMap::<String>::deserialize(&mut io::Cursor::new(valid))
+        let map = IndexMap::<String>::deserialize(2, &mut io::Cursor::new(valid))
             .expect("unexpected error deserializing");
         assert_eq!(map.len(), 2);
 
@@ -538,7 +569,18 @@ mod tests {
         "val 1".to_string().serialize(&mut invalid).unwrap();
         VarUint32::from(0u32).serialize(&mut invalid).unwrap();
         "val 0".to_string().serialize(&mut invalid).unwrap();
-        let res = IndexMap::<String>::deserialize(&mut io::Cursor::new(invalid));
+        let res = IndexMap::<String>::deserialize(2, &mut io::Cursor::new(invalid));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn deserialize_enforces_max_idx() {
+        // Build an example with an out-of-bounds index by hand.
+        let mut invalid = vec![];
+        VarUint32::from(1u32).serialize(&mut invalid).unwrap();
+        VarUint32::from(5u32).serialize(&mut invalid).unwrap();
+        "val 5".to_string().serialize(&mut invalid).unwrap();
+        let res = IndexMap::<String>::deserialize(1, &mut io::Cursor::new(invalid));
         assert!(res.is_err());
     }
 }

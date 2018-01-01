@@ -84,6 +84,7 @@ impl<T> IndexMap<T> {
             existing
         };
         debug_assert!(self.entries.len() <= (::std::u32::MAX as usize) + 1);
+        #[cfg(debug_assertions)]
         debug_assert_eq!(self.len, self.slow_len());
         result
     }
@@ -97,12 +98,14 @@ impl<T> IndexMap<T> {
             }
             Some(&mut None) | None => None,
         };
+        #[cfg(debug_assertions)]
         debug_assert_eq!(self.len, self.slow_len());
         result
     }
 
     /// The number of items in this map.
     pub fn len(&self) -> usize {
+        #[cfg(debug_assertions)]
         debug_assert_eq!(self.len, self.slow_len());
         self.len
     }

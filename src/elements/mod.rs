@@ -106,9 +106,9 @@ impl fmt::Display for Error {
             Error::UnknownExternalKind(kind) => write!(f, "Unknown external kind {}", kind),
             Error::UnknownInternalKind(kind) => write!(f, "Unknown internal kind {}", kind),
             Error::UnknownOpcode(opcode) => write!(f, "Unknown opcode {}", opcode),
-            Error::InvalidVarUint1(val) => write!(f, "Not a unsigned 1-bit integer: {}", val),
+            Error::InvalidVarUint1(val) => write!(f, "Not an unsigned 1-bit integer: {}", val),
             Error::InvalidVarInt32 => write!(f, "Not a signed 32-bit integer"),
-            Error::InvalidVarInt64 => write!(f, "Not a signed 32-bit integer"),
+            Error::InvalidVarInt64 => write!(f, "Not a signed 64-bit integer"),
         }
     }
 }
@@ -128,9 +128,9 @@ impl error::Error for Error {
             Error::UnknownExternalKind(_) => "Unknown external kind",
             Error::UnknownInternalKind(_) => "Unknown internal kind",
             Error::UnknownOpcode(_) => "Unknown opcode",
-            Error::InvalidVarUint1(_) => "Not a unsigned 1-bit integer",
+            Error::InvalidVarUint1(_) => "Not an unsigned 1-bit integer",
             Error::InvalidVarInt32 => "Not a signed 32-bit integer",
-            Error::InvalidVarInt64 => "Not a signed 32-bit integer",
+            Error::InvalidVarInt64 => "Not a signed 64-bit integer",
         }
     }
 }

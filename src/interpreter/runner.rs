@@ -14,13 +14,13 @@ use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
 	ArithmeticOps, Integer, Float, LittleEndianConvert, TransmuteInto,
 };
+use interpreter::host::Externals;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX, BlockFrame, BlockFrameType};
 use common::stack::StackWithLimit;
-use interpreter::state::HostState;
 
 /// Function interpreter.
-pub struct Interpreter<'a, 'b: 'a> {
-	state: &'a mut HostState<'b>,
+pub struct Interpreter<'a, E: Externals + 'a> {
+	externals: &'a mut E,
 }
 
 /// Function execution context.
@@ -64,10 +64,10 @@ enum RunResult {
 	NestedCall(FuncRef),
 }
 
-impl<'a, 'b: 'a> Interpreter<'a, 'b> {
-	pub fn new(state: &'a mut HostState<'b>) -> Interpreter<'a, 'b> {
+impl<'a, E: Externals> Interpreter<'a, E> {
+	pub fn new(externals: &'a mut E) -> Interpreter<'a, E> {
 		Interpreter {
-			state: state,
+			externals,
 		}
 	}
 
@@ -105,7 +105,7 @@ impl<'a, 'b: 'a> Interpreter<'a, 'b> {
 						},
 						FuncInstance::Host { ref func_type, .. } => {
 							let args = prepare_function_args(func_type, &mut function_context.value_stack)?;
-							let return_val = FuncInstance::invoke(nested_func.clone(), args.into(), self.state)?;
+							let return_val = FuncInstance::invoke(nested_func.clone(), args.into(), self.externals)?;
 							if let Some(return_val) = return_val {
 								function_context.value_stack_mut().push(return_val)?;
 							}
@@ -439,20 +439,22 @@ impl<'a, 'b: 'a> Interpreter<'a, 'b> {
 			.expect("Due to validation table should exists");
 		let func_ref = table.get(table_func_idx)?;
 
-		let actual_function_type = func_ref.func_type();
-		let required_function_type = context
-			.module()
-			.type_by_index(type_idx)
-			.expect("Due to validation type should exists");
+		{
+			let actual_function_type = func_ref.func_type();
+			let required_function_type = context
+				.module()
+				.type_by_index(type_idx)
+				.expect("Due to validation type should exists");
 
-		if required_function_type != actual_function_type {
-			return Err(Error::Function(format!(
-				"expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-				required_function_type.params(),
-				required_function_type.return_type(),
-				actual_function_type.params(),
-				actual_function_type.return_type()
-			)));
+			if &*required_function_type != actual_function_type {
+				return Err(Error::Function(format!(
+					"expected function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
+					required_function_type.params(),
+					required_function_type.return_type(),
+					actual_function_type.params(),
+					actual_function_type.return_type()
+				)));
+			}
 		}
 
 		Ok(InstructionOutcome::ExecuteCall(func_ref))

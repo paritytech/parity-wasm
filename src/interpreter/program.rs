@@ -5,10 +5,9 @@ use elements::Module;
 use interpreter::Error;
 use interpreter::module::{ModuleInstance};
 use interpreter::func::{FuncInstance, FuncRef};
-use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
 use interpreter::imports::{Imports, ImportResolver};
-use interpreter::state::HostState;
+use interpreter::host::Externals;
 
 /// Program instance. Program is a set of instantiated modules.
 #[deprecated]
@@ -27,11 +26,11 @@ impl ProgramInstance {
 	}
 
 	/// Instantiate module with validation.
-	pub fn add_module<'a>(
+	pub fn add_module<'a, E: Externals>(
 		&mut self,
 		name: &str,
 		module: Module,
-		state: &'a mut HostState<'a>,
+		externals: &'a mut E,
 	) -> Result<Rc<ModuleInstance>, Error> {
 		let module_instance = {
 			let mut imports = Imports::new();
@@ -43,7 +42,7 @@ impl ProgramInstance {
 			}
 			ModuleInstance::new(&module)
 				.with_imports(imports)
-				.run_start(state)?
+				.run_start(externals)?
 		};
 		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
 
@@ -58,49 +57,41 @@ impl ProgramInstance {
 		self.resolvers.insert(name.to_owned(), import_resolver);
 	}
 
-	pub fn add_host_module(
-		&mut self,
-		name: &str,
-		host_module: HostModule,
-	) {
-		self.resolvers.insert(name.to_owned(), Box::new(host_module) as Box<ImportResolver>);
-	}
-
 	pub fn insert_loaded_module(&mut self, name: &str, module: Rc<ModuleInstance>) {
 		self.modules.insert(name.to_owned(), module);
 	}
 
-	pub fn invoke_export<'a>(
+	pub fn invoke_export<'a, E: Externals>(
 		&mut self,
 		module_name: &str,
 		func_name: &str,
 		args: &[RuntimeValue],
-		state: &'a mut HostState<'a>,
+		externals: &'a mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let module_instance = self.modules.get(module_name).ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
-		module_instance.invoke_export(func_name, args, state)
+		module_instance.invoke_export(func_name, args, externals)
 	}
 
-	pub fn invoke_index<'a>(
+	pub fn invoke_index<'a, E: Externals>(
 		&mut self,
 		module_name: &str,
 		func_idx: u32,
 		args: &[RuntimeValue],
-		state: &'a mut HostState<'a>,
+		externals: &'a mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let module_instance = self.modules.get(module_name).cloned().ok_or_else(|| {
 			Error::Program(format!("Module {} not found", module_name))
 		})?;
-		module_instance.invoke_index(func_idx, args, state)
+		module_instance.invoke_index(func_idx, args, externals)
 	}
 
-	pub fn invoke_func<'a>(
+	pub fn invoke_func<'a, E: Externals>(
 		&mut self,
 		func_instance: FuncRef,
 		args: &[RuntimeValue],
-		state: &'a mut HostState<'a>,
+		state: &'a mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		FuncInstance::invoke(func_instance.clone(), Cow::Borrowed(args), state)
 	}

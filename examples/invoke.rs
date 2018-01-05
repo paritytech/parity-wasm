@@ -4,7 +4,7 @@ use std::env::args;
 
 use parity_wasm::RuntimeValue;
 use parity_wasm::elements::{Internal, External, Type, FunctionType, ValueType};
-use parity_wasm::interpreter::{ModuleInstance, HostState};
+use parity_wasm::interpreter::{ModuleInstance, EmptyExternals};
 
 
 fn main() {
@@ -75,8 +75,8 @@ fn main() {
     // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
     // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
     let main = ModuleInstance::new(&module)
-        .run_start(&mut HostState::default())
+        .run_start(&mut EmptyExternals)
         .expect("Failed to initialize module");
 
-    println!("Result: {:?}", main.invoke_export(func_name, &args, &mut HostState::default()).expect(""));
+    println!("Result: {:?}", main.invoke_export(func_name, &args, &mut EmptyExternals).expect(""));
 }

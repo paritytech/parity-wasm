@@ -146,7 +146,6 @@ mod host;
 mod imports;
 mod global;
 mod func;
-mod state;
 
 #[cfg(test)]
 mod tests;
@@ -154,10 +153,9 @@ mod tests;
 pub use self::memory::{MemoryInstance, MemoryRef};
 pub use self::table::{TableInstance, TableRef};
 pub use self::program::ProgramInstance;
-pub use self::value::RuntimeValue;
-pub use self::host::{HostModule, HostModuleBuilder, HostFunc, IntoReturnVal, FromArg};
+pub use self::value::{RuntimeValue, TryInto};
+pub use self::host::{Externals, HostFuncIndex, EmptyExternals};
 pub use self::imports::{ImportResolver, Imports};
 pub use self::module::ModuleInstance;
 pub use self::global::{GlobalInstance, GlobalRef};
 pub use self::func::{FuncInstance, FuncRef};
-pub use self::state::{HostState, StateKey};

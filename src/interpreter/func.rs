@@ -4,10 +4,9 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::{FunctionType, Local, Opcodes};
 use interpreter::{Error, ModuleInstance};
+use interpreter::host::{Externals, HostFuncIndex};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
-use interpreter::host::HostFunc;
 use interpreter::value::RuntimeValue;
-use interpreter::state::HostState;
 use common::stack::StackWithLimit;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_VALUE_STACK_LIMIT};
 
@@ -29,8 +28,8 @@ pub enum FuncInstance {
 		body: Rc<FuncBody>,
 	},
 	Host {
-		func_type: Rc<FunctionType>,
-		host_func: Rc<HostFunc>,
+		func_type: FunctionType,
+		host_func: HostFuncIndex,
 	},
 }
 
@@ -57,7 +56,7 @@ impl fmt::Debug for FuncInstance {
 }
 
 impl FuncInstance {
-	pub fn alloc_internal(
+	pub(crate) fn alloc_internal(
 		module: Rc<ModuleInstance>,
 		func_type: Rc<FunctionType>,
 		body: FuncBody,
@@ -70,7 +69,7 @@ impl FuncInstance {
 		FuncRef(Rc::new(func))
 	}
 
-	pub fn alloc_host(func_type: Rc<FunctionType>, host_func: Rc<HostFunc>) -> FuncRef {
+	pub fn alloc_host(func_type: FunctionType, host_func: HostFuncIndex) -> FuncRef {
 		let func = FuncInstance::Host {
 			func_type,
 			host_func,
@@ -78,10 +77,10 @@ impl FuncInstance {
 		FuncRef(Rc::new(func))
 	}
 
-	pub fn func_type(&self) -> Rc<FunctionType> {
+	pub fn func_type(&self) -> &FunctionType {
 		match *self {
-			FuncInstance::Internal { ref func_type, .. } |
-			FuncInstance::Host { ref func_type, .. } => Rc::clone(func_type),
+			FuncInstance::Internal { ref func_type, .. } => func_type,
+			FuncInstance::Host { ref func_type, .. } => func_type,
 		}
 	}
 
@@ -92,14 +91,14 @@ impl FuncInstance {
 		}
 	}
 
-	pub fn invoke<'a, 'b: 'a>(
+	pub fn invoke<E: Externals>(
 		func: FuncRef,
 		args: Cow<[RuntimeValue]>,
-		state: &'a mut HostState<'b>,
+		externals: &mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		enum InvokeKind<'a> {
 			Internal(FunctionContext),
-			Host(Rc<HostFunc>, &'a [RuntimeValue]),
+			Host(HostFuncIndex, &'a [RuntimeValue]),
 		}
 
 		let result = match *func {
@@ -117,16 +116,16 @@ impl FuncInstance {
 				InvokeKind::Internal(context)
 			}
 			FuncInstance::Host { ref host_func, .. } => {
-				InvokeKind::Host(Rc::clone(host_func), &*args)
+				InvokeKind::Host(*host_func, &*args)
 			}
 		};
 
 		match result {
 			InvokeKind::Internal(ctx) => {
-				let mut interpreter = Interpreter::new(state);
+				let mut interpreter = Interpreter::new(externals);
 				interpreter.run_function(ctx)
 			}
-			InvokeKind::Host(host_func, args) => host_func(state, args),
+			InvokeKind::Host(host_func, args) => externals.invoke_index(host_func, args),
 		}
 	}
 }

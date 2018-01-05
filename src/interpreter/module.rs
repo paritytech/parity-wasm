@@ -10,8 +10,8 @@ use interpreter::imports::{ImportResolver, Imports};
 use interpreter::global::{GlobalInstance, GlobalRef};
 use interpreter::func::{FuncRef, FuncBody, FuncInstance};
 use interpreter::table::TableRef;
-use interpreter::state::HostState;
 use interpreter::memory::MemoryRef;
+use interpreter::host::Externals;
 use validation::validate_module;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
@@ -187,7 +187,7 @@ impl ModuleInstance {
 							"Due to validation function type should exists",
 						);
 						let actual_fn_type = func.func_type();
-						if expected_fn_type != actual_fn_type {
+						if &*expected_fn_type != actual_fn_type {
 							return Err(Error::Instantiation(format!(
 								"Expected function with type {:?}, but actual type is {:?} for entry {}",
 								expected_fn_type,
@@ -405,11 +405,11 @@ impl ModuleInstance {
 		InstantiationBuilder::new(module)
 	}
 
-	pub fn invoke_index<'a>(
+	pub fn invoke_index<E: Externals>(
 		&self,
 		func_idx: u32,
 		args: &[RuntimeValue],
-		state: &'a mut HostState<'a>,
+		state: &mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
 			Error::Program(format!(
@@ -420,11 +420,11 @@ impl ModuleInstance {
 		FuncInstance::invoke(func_instance, Cow::Borrowed(args), state)
 	}
 
-	pub fn invoke_export<'a>(
+	pub fn invoke_export<E: Externals>(
 		&self,
 		func_name: &str,
 		args: &[RuntimeValue],
-		state: &'a mut HostState<'a>,
+		state: &mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
 			Error::Program(format!("Module doesn't have export {}", func_name))
@@ -474,7 +474,7 @@ impl<'a> InstantiationBuilder<'a> {
 		self
 	}
 
-	pub fn run_start<'b>(mut self, state: &'b mut HostState<'b>) -> Result<Rc<ModuleInstance>, Error> {
+	pub fn run_start<'b, E: Externals>(mut self, state: &'b mut E) -> Result<Rc<ModuleInstance>, Error> {
 		let imports = self.imports.get_or_insert_with(|| Imports::default());
 		let instance = ModuleInstance::instantiate_with_imports(self.module, imports)?;
 

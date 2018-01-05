@@ -3,10 +3,11 @@ extern crate parity_wasm;
 use std::env;
 use std::fmt;
 use std::rc::Rc;
-use parity_wasm::elements::Module;
+use parity_wasm::elements::{Module, FunctionType, ValueType, TableType, GlobalType, MemoryType};
 use parity_wasm::interpreter::{
-	Error as InterpreterError, HostModule, HostModuleBuilder,
-	ModuleInstance, UserError, HostState, StateKey
+	Error as InterpreterError, ModuleInstance, UserError,
+	HostFuncIndex, Externals, RuntimeValue, GlobalInstance, TableInstance, MemoryInstance,
+	TableRef, MemoryRef, GlobalRef, FuncRef, TryInto, ImportResolver, FuncInstance,
 };
 
 #[derive(Debug)]
@@ -139,54 +140,123 @@ struct Runtime<'a> {
 	game: &'a mut tictactoe::Game,
 }
 
-unsafe impl<'a> StateKey for Runtime<'a> {
-	type Static = Runtime<'static>;
+const SET_FUNC_INDEX: HostFuncIndex = 0;
+const GET_FUNC_INDEX: HostFuncIndex = 1;
+
+impl<'a> Externals for Runtime<'a> {
+	fn invoke_index(
+		&mut self,
+		index: HostFuncIndex,
+		args: &[RuntimeValue],
+	) -> Result<Option<RuntimeValue>, InterpreterError> {
+		match index {
+			SET_FUNC_INDEX => {
+				let idx: i32 = args[0].try_into().unwrap();
+				self.game.set(idx, self.player)?;
+				Ok(None)
+			}
+			GET_FUNC_INDEX => {
+				let idx: i32 = args[0].try_into().unwrap();
+				let val: i32 = tictactoe::Player::into_i32(self.game.get(idx)?);
+				Ok(Some(val.into()))
+			}
+			_ => panic!("unknown function index")
+		}
+	}
+
+	fn check_signature(&self, index: HostFuncIndex, sig: &FunctionType) -> bool {
+		match index {
+			SET_FUNC_INDEX => {
+				sig.params() == &[ValueType::I32] && sig.return_type() == None
+			}
+			GET_FUNC_INDEX => {
+				sig.params() == &[ValueType::I32] && sig.return_type() == Some(ValueType::I32)
+			}
+			_ => panic!("unknown function index")
+		}
+	}
+
+	fn memory_by_index(&self, _index: usize) -> &MemoryInstance {
+		panic!("host module doesn't export any memories")
+	}
+
+	fn table_by_index(&self, _index: usize) -> &TableInstance {
+		panic!("host module doesn't export any tables")
+	}
+
+	fn global_by_index(&self, _index: usize) -> &GlobalInstance {
+		panic!("host module doesn't export any globals")
+	}
+}
+
+struct RuntimeImportResolver;
+
+impl<'a> ImportResolver for RuntimeImportResolver {
+	fn resolve_func(
+		&self,
+		field_name: &str,
+		_func_type: &FunctionType,
+	) -> Result<FuncRef, InterpreterError> {
+		let func_ref = match field_name {
+			"set" => {
+				FuncInstance::alloc_host(FunctionType::new(vec![ValueType::I32], None), SET_FUNC_INDEX)
+			},
+			"get" => FuncInstance::alloc_host(FunctionType::new(vec![ValueType::I32], Some(ValueType::I32)), GET_FUNC_INDEX),
+			_ => return Err(
+				InterpreterError::Function(
+					format!("host module doesn't export function with name {}", field_name)
+				)
+			)
+		};
+		Ok(func_ref)
+	}
+
+	fn resolve_global(
+		&self,
+		_field_name: &str,
+		_global_type: &GlobalType,
+	) -> Result<GlobalRef, InterpreterError> {
+		Err(
+			InterpreterError::Global("host module doesn't export any globals".to_owned())
+		)
+	}
+
+	fn resolve_memory(
+		&self,
+		_field_name: &str,
+		_memory_type: &MemoryType,
+	) -> Result<MemoryRef, InterpreterError> {
+		Err(
+			InterpreterError::Global("host module doesn't export any memories".to_owned())
+		)
+	}
+
+	fn resolve_table(
+		&self,
+		_field_name: &str,
+		_table_type: &TableType,
+	) -> Result<TableRef, InterpreterError> {
+		Err(
+			InterpreterError::Global("host module doesn't export any tables".to_owned())
+		)
+	}
 }
 
 fn instantiate(
 	module: &Module,
-	env: &HostModule,
 ) -> Result<Rc<ModuleInstance>, Error> {
 	let instance = ModuleInstance::new(module)
-		.with_import("env", &*env)
-		.run_start(&mut HostState::default())?;
+		.with_import("env", &RuntimeImportResolver)
+		.assert_no_start()?;
 
 	Ok(instance)
 }
 
-fn env_host_module() -> HostModule {
-	HostModuleBuilder::new()
-		.with_func1(
-			"set",
-			|state: &mut HostState, idx: i32| -> Result<(), InterpreterError> {
-				state.with_mut(move |runtime: &mut Runtime| -> Result<(), InterpreterError> {
-					runtime.game.set(idx, runtime.player)?;
-					Ok(())
-				})
-			},
-		)
-		.with_func1(
-			"get",
-			|state: &mut HostState, idx: i32| -> Result<i32, InterpreterError> {
-				state.with(move |runtime: &Runtime| -> Result<i32, InterpreterError> {
-					let val: i32 = tictactoe::Player::into_i32(runtime.game.get(idx)?);
-					Ok(val)
-				})
-			},
-		)
-		.build()
-}
-
-fn play<'a>(
-	x_module: &Module,
-	o_module: &Module,
-	host_module: &HostModule,
-	game: &'a mut tictactoe::Game,
+fn play(
+	x_instance: Rc<ModuleInstance>,
+	o_instance: Rc<ModuleInstance>,
+	game: &mut tictactoe::Game,
 ) -> Result<tictactoe::GameResult, Error> {
-	// Instantiate modules of X and O players.
-	let x_instance = instantiate(x_module, host_module)?;
-	let o_instance = instantiate(o_module, host_module)?;
-
 	let mut turn_of = tictactoe::Player::X;
 	let game_result = loop {
 		let (instance, next_turn_of) = match turn_of {
@@ -199,11 +269,7 @@ fn play<'a>(
 				player: turn_of,
 				game: game,
 			};
-			{
-				let mut host_state = HostState::new();
-				host_state.insert::<Runtime>(&mut runtime);
-				let _ = instance.invoke_export("mk_turn", &[], &mut host_state)?;
-			}
+			let _ = instance.invoke_export("mk_turn", &[], &mut runtime)?;
 		}
 
 		match game.game_result() {
@@ -219,7 +285,6 @@ fn play<'a>(
 
 fn main() {
 	let mut game = tictactoe::Game::new();
-	let env_host_module = env_host_module();
 
 	let args: Vec<_> = env::args().collect();
 	if args.len() < 3 {
@@ -229,6 +294,10 @@ fn main() {
 	let x_module = parity_wasm::deserialize_file(&args[1]).expect("X player module to load");
 	let o_module = parity_wasm::deserialize_file(&args[2]).expect("Y player module to load");
 
-	let result = play(&x_module, &o_module, &env_host_module, &mut game);
+	// Instantiate modules of X and O players.
+	let x_instance = instantiate(&x_module).unwrap();
+	let o_instance = instantiate(&o_module).unwrap();
+
+	let result = play(x_instance, o_instance, &mut game);
 	println!("result = {:?}, game = {:#?}", result, game);
 }

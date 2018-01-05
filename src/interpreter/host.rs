@@ -1,11 +1,12 @@
-use interpreter::module::GlobalRef;
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use elements::{FunctionType, GlobalType, MemoryType, TableType, ValueType};
-use interpreter::module::{ExternVal, ModuleInstance, FuncRef};
-use interpreter::module::MemoryRef;
-use interpreter::module::TableRef;
+use interpreter::module::{ExternVal, ModuleInstance};
+use interpreter::func::FuncRef;
+use interpreter::global::GlobalRef;
+use interpreter::memory::MemoryRef;
+use interpreter::table::TableRef;
 use interpreter::func::FuncInstance;
 use interpreter::global::GlobalInstance;
 use interpreter::memory::MemoryInstance;

@@ -151,13 +151,13 @@ mod state;
 #[cfg(test)]
 mod tests;
 
-pub use self::memory::MemoryInstance;
-pub use self::table::TableInstance;
+pub use self::memory::{MemoryInstance, MemoryRef};
+pub use self::table::{TableInstance, TableRef};
 pub use self::program::ProgramInstance;
 pub use self::value::RuntimeValue;
 pub use self::host::{HostModule, HostModuleBuilder, HostFunc, IntoReturnVal, FromArg};
 pub use self::imports::{ImportResolver, Imports};
-pub use self::module::{ModuleInstance, FuncRef, MemoryRef, GlobalRef, TableRef};
-pub use self::global::GlobalInstance;
-pub use self::func::FuncInstance;
+pub use self::module::ModuleInstance;
+pub use self::global::{GlobalInstance, GlobalRef};
+pub use self::func::{FuncInstance, FuncRef};
 pub use self::state::{HostState, StateKey};

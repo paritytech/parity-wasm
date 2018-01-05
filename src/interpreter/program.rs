@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::Module;
 use interpreter::Error;
-use interpreter::module::{ModuleInstance, FuncRef};
-use interpreter::func::FuncInstance;
+use interpreter::module::{ModuleInstance};
+use interpreter::func::{FuncInstance, FuncRef};
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
 use interpreter::imports::{Imports, ImportResolver};
@@ -102,7 +102,7 @@ impl ProgramInstance {
 		args: &[RuntimeValue],
 		state: &'a mut HostState<'a>,
 	) -> Result<Option<RuntimeValue>, Error> {
-		FuncInstance::invoke(Rc::clone(&func_instance), Cow::Borrowed(args), state)
+		FuncInstance::invoke(func_instance.clone(), Cow::Borrowed(args), state)
 	}
 
 	pub fn resolver(&self, name: &str) -> Option<&ImportResolver> {

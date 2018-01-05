@@ -2,6 +2,7 @@ use std::u32;
 use std::ops::Range;
 use std::cmp;
 use std::fmt;
+use std::rc::Rc;
 use std::cell::RefCell;
 use elements::{MemoryType, ResizableLimits};
 use interpreter::Error;
@@ -11,6 +12,16 @@ use interpreter::module::check_limits;
 pub const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
 /// Maximal number of pages.
 const LINEAR_MEMORY_MAX_PAGES: u32 = 65536;
+
+#[derive(Clone, Debug)]
+pub struct MemoryRef(Rc<MemoryInstance>);
+
+impl ::std::ops::Deref for MemoryRef {
+	type Target = MemoryInstance;
+	fn deref(&self) -> &MemoryInstance {
+		&self.0
+	}
+}
 
 /// Linear memory instance.
 pub struct MemoryInstance {
@@ -76,6 +87,11 @@ impl MemoryInstance {
 		};
 
 		Ok(memory)
+	}
+
+	pub fn alloc(mem_type: &MemoryType) -> Result<MemoryRef, Error> {
+		let memory = MemoryInstance::new(&mem_type)?;
+		Ok(MemoryRef(Rc::new(memory)))
 	}
 
 	/// Return linear memory limits.

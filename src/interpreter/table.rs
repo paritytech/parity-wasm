@@ -1,10 +1,21 @@
 use std::u32;
 use std::fmt;
 use std::cell::RefCell;
+use std::rc::Rc;
 use elements::{ResizableLimits, TableType};
 use interpreter::Error;
-use interpreter::module::FuncRef;
+use interpreter::func::FuncRef;
 use interpreter::module::check_limits;
+
+#[derive(Clone, Debug)]
+pub struct TableRef(Rc<TableInstance>);
+
+impl ::std::ops::Deref for TableRef {
+	type Target = TableInstance;
+	fn deref(&self) -> &TableInstance {
+		&self.0
+	}
+}
 
 /// Table instance.
 pub struct TableInstance {
@@ -24,8 +35,13 @@ impl fmt::Debug for TableInstance {
 }
 
 impl TableInstance {
-	/// New instance of the table
-	pub fn new(table_type: &TableType) -> Result<Self, Error> {
+
+	pub fn alloc(table_type: &TableType) -> Result<TableRef, Error> {
+		let table = TableInstance::new(table_type)?;
+		Ok(TableRef(Rc::new(table)))
+	}
+
+	pub fn new(table_type: &TableType) -> Result<TableInstance, Error> {
 		check_limits(table_type.limits())?;
 		Ok(TableInstance {
 			limits: table_type.limits().clone(),

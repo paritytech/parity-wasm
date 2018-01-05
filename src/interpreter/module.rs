@@ -7,16 +7,13 @@ use elements::{External, FunctionType, GlobalType, InitExpr, Internal, MemoryTyp
 			   ResizableLimits, TableType, Type};
 use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
 use interpreter::imports::{ImportResolver, Imports};
-use interpreter::global::GlobalInstance;
-use interpreter::func::{FuncBody, FuncInstance};
+use interpreter::global::{GlobalInstance, GlobalRef};
+use interpreter::func::{FuncRef, FuncBody, FuncInstance};
+use interpreter::table::TableRef;
 use interpreter::state::HostState;
+use interpreter::memory::MemoryRef;
 use validation::validate_module;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
-
-pub type FuncRef = Rc<FuncInstance>;
-pub type TableRef = Rc<TableInstance>;
-pub type MemoryRef = Rc<MemoryInstance>;
-pub type GlobalRef = Rc<GlobalInstance>;
 
 pub enum ExternVal {
 	Func(FuncRef),
@@ -28,10 +25,10 @@ pub enum ExternVal {
 impl Clone for ExternVal {
 	fn clone(&self) -> Self {
 		match *self {
-			ExternVal::Func(ref func) => ExternVal::Func(Rc::clone(func)),
-			ExternVal::Table(ref table) => ExternVal::Table(Rc::clone(table)),
-			ExternVal::Memory(ref memory) => ExternVal::Memory(Rc::clone(memory)),
-			ExternVal::Global(ref global) => ExternVal::Global(Rc::clone(global)),
+			ExternVal::Func(ref func) => ExternVal::Func(func.clone()),
+			ExternVal::Table(ref table) => ExternVal::Table(table.clone()),
+			ExternVal::Memory(ref memory) => ExternVal::Memory(memory.clone()),
+			ExternVal::Global(ref global) => ExternVal::Global(global.clone()),
 		}
 	}
 }
@@ -54,28 +51,28 @@ impl fmt::Debug for ExternVal {
 impl ExternVal {
 	pub fn as_func(&self) -> Option<FuncRef> {
 		match *self {
-			ExternVal::Func(ref func) => Some(Rc::clone(func)),
+			ExternVal::Func(ref func) => Some(func.clone()),
 			_ => None,
 		}
 	}
 
 	pub fn as_table(&self) -> Option<TableRef> {
 		match *self {
-			ExternVal::Table(ref table) => Some(Rc::clone(table)),
+			ExternVal::Table(ref table) => Some(table.clone()),
 			_ => None,
 		}
 	}
 
 	pub fn as_memory(&self) -> Option<MemoryRef> {
 		match *self {
-			ExternVal::Memory(ref memory) => Some(Rc::clone(memory)),
+			ExternVal::Memory(ref memory) => Some(memory.clone()),
 			_ => None,
 		}
 	}
 
 	pub fn as_global(&self) -> Option<GlobalRef> {
 		match *self {
-			ExternVal::Global(ref global) => Some(Rc::clone(global)),
+			ExternVal::Global(ref global) => Some(global.clone()),
 			_ => None,
 		}
 	}
@@ -198,15 +195,15 @@ impl ModuleInstance {
 								import.field(),
 							)));
 						}
-						instance.push_func(Rc::clone(func))
+						instance.push_func(func.clone())
 					}
 					(&External::Table(ref tt), &ExternVal::Table(ref table)) => {
 						match_limits(table.limits(), tt.limits())?;
-						instance.push_table(Rc::clone(table));
+						instance.push_table(table.clone());
 					}
 					(&External::Memory(ref mt), &ExternVal::Memory(ref memory)) => {
 						match_limits(memory.limits(), mt.limits())?;
-						instance.push_memory(Rc::clone(memory));
+						instance.push_memory(memory.clone());
 					}
 					(&External::Global(ref gl), &ExternVal::Global(ref global)) => {
 						if gl.content_type() != global.value_type() {
@@ -216,7 +213,7 @@ impl ModuleInstance {
 								global.value_type(),
 							)));
 						}
-						instance.push_global(Rc::clone(global))
+						instance.push_global(global.clone());
 					}
 					(expected_import, actual_extern_val) => {
 						return Err(Error::Instantiation(format!(
@@ -260,7 +257,7 @@ impl ModuleInstance {
 		}
 
 		for table_type in module.table_section().map(|ts| ts.entries()).unwrap_or(&[]) {
-			let table = alloc_table(table_type)?;
+			let table = TableInstance::alloc(table_type)?;
 			instance.push_table(table);
 		}
 
@@ -268,7 +265,7 @@ impl ModuleInstance {
 			&[],
 		)
 		{
-			let memory = alloc_memory(memory_type)?;
+			let memory = MemoryInstance::alloc(memory_type)?;
 			instance.push_memory(memory);
 		}
 
@@ -277,7 +274,7 @@ impl ModuleInstance {
 		)
 		{
 			let init_val = eval_init_expr(global_entry.init_expr(), &*instance);
-			let global = alloc_global(global_entry.global_type().clone(), init_val);
+			let global = GlobalInstance::alloc(global_entry.global_type(), init_val);
 			instance.push_global(global);
 		}
 
@@ -444,7 +441,7 @@ impl ModuleInstance {
 			}
 		};
 
-		FuncInstance::invoke(Rc::clone(&func_instance), Cow::Borrowed(args), state)
+		FuncInstance::invoke(func_instance.clone(), Cow::Borrowed(args), state)
 	}
 }
 
@@ -562,21 +559,6 @@ impl ImportResolver for ModuleInstance {
 
 fn alloc_func_type(func_type: FunctionType) -> Rc<FunctionType> {
 	Rc::new(func_type)
-}
-
-fn alloc_table(table_type: &TableType) -> Result<TableRef, Error> {
-	let table = TableInstance::new(table_type)?;
-	Ok(Rc::new(table))
-}
-
-fn alloc_memory(mem_type: &MemoryType) -> Result<MemoryRef, Error> {
-	let memory = MemoryInstance::new(&mem_type)?;
-	Ok(Rc::new(memory))
-}
-
-fn alloc_global(global_type: GlobalType, val: RuntimeValue) -> GlobalRef {
-	let global = GlobalInstance::new(val, global_type.is_mutable());
-	Rc::new(global)
 }
 
 fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance) -> RuntimeValue {

@@ -1,7 +1,18 @@
+use std::rc::Rc;
 use std::cell::Cell;
-use elements::ValueType;
+use elements::{ValueType, GlobalType};
 use interpreter::value::RuntimeValue;
 use interpreter::Error;
+
+#[derive(Clone, Debug)]
+pub struct GlobalRef(Rc<GlobalInstance>);
+
+impl ::std::ops::Deref for GlobalRef {
+	type Target = GlobalInstance;
+	fn deref(&self) -> &GlobalInstance {
+		&self.0
+	}
+}
 
 #[derive(Debug)]
 pub struct GlobalInstance {
@@ -15,6 +26,11 @@ impl GlobalInstance {
 			val: Cell::new(val),
 			mutable,
 		}
+	}
+
+	pub fn alloc(global_type: &GlobalType, val: RuntimeValue) -> GlobalRef {
+		let global = GlobalInstance::new(val, global_type.is_mutable());
+		GlobalRef(Rc::new(global))
 	}
 
 	pub fn set(&self, val: RuntimeValue) -> Result<(), Error> {

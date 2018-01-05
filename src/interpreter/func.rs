@@ -3,7 +3,6 @@ use std::fmt;
 use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::{FunctionType, Local, Opcodes};
-use interpreter::module::FuncRef;
 use interpreter::{Error, ModuleInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::HostFunc;
@@ -11,6 +10,16 @@ use interpreter::value::RuntimeValue;
 use interpreter::state::HostState;
 use common::stack::StackWithLimit;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_VALUE_STACK_LIMIT};
+
+#[derive(Clone, Debug)]
+pub struct FuncRef(Rc<FuncInstance>);
+
+impl ::std::ops::Deref for FuncRef {
+	type Target = FuncInstance;
+	fn deref(&self) -> &FuncInstance {
+		&self.0
+	}
+}
 
 #[derive(Clone)]
 pub enum FuncInstance {
@@ -52,21 +61,21 @@ impl FuncInstance {
 		module: Rc<ModuleInstance>,
 		func_type: Rc<FunctionType>,
 		body: FuncBody,
-	) -> Rc<Self> {
+	) -> FuncRef {
 		let func = FuncInstance::Internal {
 			func_type,
 			module: module,
 			body: Rc::new(body),
 		};
-		Rc::new(func)
+		FuncRef(Rc::new(func))
 	}
 
-	pub fn alloc_host(func_type: Rc<FunctionType>, host_func: Rc<HostFunc>) -> Rc<Self> {
+	pub fn alloc_host(func_type: Rc<FunctionType>, host_func: Rc<HostFunc>) -> FuncRef {
 		let func = FuncInstance::Host {
 			func_type,
 			host_func,
 		};
-		Rc::new(func)
+		FuncRef(Rc::new(func))
 	}
 
 	pub fn func_type(&self) -> Rc<FunctionType> {
@@ -99,7 +108,7 @@ impl FuncInstance {
 					StackWithLimit::with_data(args.into_iter().cloned(), DEFAULT_VALUE_STACK_LIMIT);
 				let args = prepare_function_args(func_type, &mut stack)?;
 				let context = FunctionContext::new(
-					Rc::clone(&func),
+					func.clone(),
 					DEFAULT_VALUE_STACK_LIMIT,
 					DEFAULT_FRAME_STACK_LIMIT,
 					func_type,

@@ -1,9 +1,9 @@
-use interpreter::module::GlobalRef;
 use std::collections::HashMap;
 use elements::{FunctionType, GlobalType, MemoryType, TableType};
-use interpreter::module::MemoryRef;
-use interpreter::module::FuncRef;
-use interpreter::module::TableRef;
+use interpreter::global::GlobalRef;
+use interpreter::memory::MemoryRef;
+use interpreter::func::FuncRef;
+use interpreter::table::TableRef;
 use interpreter::Error;
 
 pub struct Imports<'a> {

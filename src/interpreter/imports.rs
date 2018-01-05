@@ -1,10 +1,9 @@
-use std::rc::Rc;
+use interpreter::module::GlobalRef;
 use std::collections::HashMap;
 use elements::{FunctionType, GlobalType, MemoryType, TableType};
-use interpreter::func::FuncInstance;
-use interpreter::global::GlobalInstance;
-use interpreter::memory::MemoryInstance;
-use interpreter::table::TableInstance;
+use interpreter::module::MemoryRef;
+use interpreter::module::FuncRef;
+use interpreter::module::TableRef;
 use interpreter::Error;
 
 pub struct Imports<'a> {
@@ -45,23 +44,23 @@ pub trait ImportResolver {
 		&self,
 		field_name: &str,
 		func_type: &FunctionType,
-	) -> Result<Rc<FuncInstance>, Error>;
+	) -> Result<FuncRef, Error>;
 
 	fn resolve_global(
 		&self,
 		field_name: &str,
 		global_type: &GlobalType,
-	) -> Result<Rc<GlobalInstance>, Error>;
+	) -> Result<GlobalRef, Error>;
 
 	fn resolve_memory(
 		&self,
 		field_name: &str,
 		memory_type: &MemoryType,
-	) -> Result<Rc<MemoryInstance>, Error>;
+	) -> Result<MemoryRef, Error>;
 
 	fn resolve_table(
 		&self,
 		field_name: &str,
 		table_type: &TableType,
-	) -> Result<Rc<TableInstance>, Error>;
+	) -> Result<TableRef, Error>;
 }

@@ -118,7 +118,7 @@ impl ::std::fmt::Display for UserErrorWithCode {
 impl UserError for UserErrorWithCode {}
 
 struct TestState {
-	pub memory: Rc<MemoryInstance>,
+	pub memory: MemoryRef,
 	pub values: RefCell<Vec<i32>>,
 }
 

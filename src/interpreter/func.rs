@@ -3,6 +3,7 @@ use std::fmt;
 use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::{FunctionType, Local, Opcodes};
+use interpreter::module::FuncRef;
 use interpreter::{Error, ModuleInstance};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::host::HostFunc;
@@ -83,7 +84,7 @@ impl FuncInstance {
 	}
 
 	pub fn invoke<'a, 'b: 'a>(
-		func: Rc<FuncInstance>,
+		func: FuncRef,
 		args: Cow<[RuntimeValue]>,
 		state: &'a mut HostState<'b>,
 	) -> Result<Option<RuntimeValue>, Error> {

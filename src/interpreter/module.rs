@@ -13,11 +13,16 @@ use interpreter::state::HostState;
 use validation::validate_module;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
+pub type FuncRef = Rc<FuncInstance>;
+pub type TableRef = Rc<TableInstance>;
+pub type MemoryRef = Rc<MemoryInstance>;
+pub type GlobalRef = Rc<GlobalInstance>;
+
 pub enum ExternVal {
-	Func(Rc<FuncInstance>),
-	Table(Rc<TableInstance>),
-	Memory(Rc<MemoryInstance>),
-	Global(Rc<GlobalInstance>),
+	Func(FuncRef),
+	Table(TableRef),
+	Memory(MemoryRef),
+	Global(GlobalRef),
 }
 
 impl Clone for ExternVal {
@@ -47,28 +52,28 @@ impl fmt::Debug for ExternVal {
 }
 
 impl ExternVal {
-	pub fn as_func(&self) -> Option<Rc<FuncInstance>> {
+	pub fn as_func(&self) -> Option<FuncRef> {
 		match *self {
 			ExternVal::Func(ref func) => Some(Rc::clone(func)),
 			_ => None,
 		}
 	}
 
-	pub fn as_table(&self) -> Option<Rc<TableInstance>> {
+	pub fn as_table(&self) -> Option<TableRef> {
 		match *self {
 			ExternVal::Table(ref table) => Some(Rc::clone(table)),
 			_ => None,
 		}
 	}
 
-	pub fn as_memory(&self) -> Option<Rc<MemoryInstance>> {
+	pub fn as_memory(&self) -> Option<MemoryRef> {
 		match *self {
 			ExternVal::Memory(ref memory) => Some(Rc::clone(memory)),
 			_ => None,
 		}
 	}
 
-	pub fn as_global(&self) -> Option<Rc<GlobalInstance>> {
+	pub fn as_global(&self) -> Option<GlobalRef> {
 		match *self {
 			ExternVal::Global(ref global) => Some(Rc::clone(global)),
 			_ => None,
@@ -79,10 +84,10 @@ impl ExternVal {
 #[derive(Debug)]
 pub struct ModuleInstance {
 	types: RefCell<Vec<Rc<FunctionType>>>,
-	tables: RefCell<Vec<Rc<TableInstance>>>,
-	funcs: RefCell<Vec<Rc<FuncInstance>>>,
-	memories: RefCell<Vec<Rc<MemoryInstance>>>,
-	globals: RefCell<Vec<Rc<GlobalInstance>>>,
+	tables: RefCell<Vec<TableRef>>,
+	funcs: RefCell<Vec<FuncRef>>,
+	memories: RefCell<Vec<MemoryRef>>,
+	globals: RefCell<Vec<GlobalRef>>,
 	exports: RefCell<HashMap<String, ExternVal>>,
 }
 
@@ -106,19 +111,19 @@ impl ModuleInstance {
 		instance
 	}
 
-	pub fn memory_by_index(&self, idx: u32) -> Option<Rc<MemoryInstance>> {
+	pub fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
 		self.memories.borrow().get(idx as usize).cloned()
 	}
 
-	pub fn table_by_index(&self, idx: u32) -> Option<Rc<TableInstance>> {
+	pub fn table_by_index(&self, idx: u32) -> Option<TableRef> {
 		self.tables.borrow().get(idx as usize).cloned()
 	}
 
-	pub fn global_by_index(&self, idx: u32) -> Option<Rc<GlobalInstance>> {
+	pub fn global_by_index(&self, idx: u32) -> Option<GlobalRef> {
 		self.globals.borrow().get(idx as usize).cloned()
 	}
 
-	pub fn func_by_index(&self, idx: u32) -> Option<Rc<FuncInstance>> {
+	pub fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
 		self.funcs.borrow().get(idx as usize).cloned()
 	}
 
@@ -130,7 +135,7 @@ impl ModuleInstance {
 		self.exports.borrow().get(name).cloned()
 	}
 
-	fn push_func(&self, func: Rc<FuncInstance>) {
+	fn push_func(&self, func: FuncRef) {
 		self.funcs.borrow_mut().push(func);
 	}
 
@@ -138,15 +143,15 @@ impl ModuleInstance {
 		self.types.borrow_mut().push(func_type)
 	}
 
-	fn push_memory(&self, memory: Rc<MemoryInstance>) {
+	fn push_memory(&self, memory: MemoryRef) {
 		self.memories.borrow_mut().push(memory)
 	}
 
-	fn push_table(&self, table: Rc<TableInstance>) {
+	fn push_table(&self, table: TableRef) {
 		self.tables.borrow_mut().push(table)
 	}
 
-	fn push_global(&self, global: Rc<GlobalInstance>) {
+	fn push_global(&self, global: GlobalRef) {
 		self.globals.borrow_mut().push(global)
 	}
 
@@ -498,7 +503,7 @@ impl ImportResolver for ModuleInstance {
 		&self,
 		field_name: &str,
 		_func_type: &FunctionType,
-	) -> Result<Rc<FuncInstance>, Error> {
+	) -> Result<FuncRef, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
 				Error::Validation(format!("Export {} not found", field_name))
@@ -513,7 +518,7 @@ impl ImportResolver for ModuleInstance {
 		&self,
 		field_name: &str,
 		_global_type: &GlobalType,
-	) -> Result<Rc<GlobalInstance>, Error> {
+	) -> Result<GlobalRef, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
 				Error::Validation(format!("Export {} not found", field_name))
@@ -528,7 +533,7 @@ impl ImportResolver for ModuleInstance {
 		&self,
 		field_name: &str,
 		_memory_type: &MemoryType,
-	) -> Result<Rc<MemoryInstance>, Error> {
+	) -> Result<MemoryRef, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
 				Error::Validation(format!("Export {} not found", field_name))
@@ -543,7 +548,7 @@ impl ImportResolver for ModuleInstance {
 		&self,
 		field_name: &str,
 		_table_type: &TableType,
-	) -> Result<Rc<TableInstance>, Error> {
+	) -> Result<TableRef, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
 				Error::Validation(format!("Export {} not found", field_name))
@@ -559,17 +564,17 @@ fn alloc_func_type(func_type: FunctionType) -> Rc<FunctionType> {
 	Rc::new(func_type)
 }
 
-fn alloc_table(table_type: &TableType) -> Result<Rc<TableInstance>, Error> {
+fn alloc_table(table_type: &TableType) -> Result<TableRef, Error> {
 	let table = TableInstance::new(table_type)?;
 	Ok(Rc::new(table))
 }
 
-fn alloc_memory(mem_type: &MemoryType) -> Result<Rc<MemoryInstance>, Error> {
+fn alloc_memory(mem_type: &MemoryType) -> Result<MemoryRef, Error> {
 	let memory = MemoryInstance::new(&mem_type)?;
 	Ok(Rc::new(memory))
 }
 
-fn alloc_global(global_type: GlobalType, val: RuntimeValue) -> Rc<GlobalInstance> {
+fn alloc_global(global_type: GlobalType, val: RuntimeValue) -> GlobalRef {
 	let global = GlobalInstance::new(val, global_type.is_mutable());
 	Rc::new(global)
 }

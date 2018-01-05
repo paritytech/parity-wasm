@@ -1,18 +1,17 @@
 use std::u32;
 use std::fmt;
-use std::rc::Rc;
 use std::cell::RefCell;
 use elements::{ResizableLimits, TableType};
 use interpreter::Error;
+use interpreter::module::FuncRef;
 use interpreter::module::check_limits;
-use interpreter::func::FuncInstance;
 
 /// Table instance.
 pub struct TableInstance {
 	/// Table limits.
 	limits: ResizableLimits,
 	/// Table memory buffer.
-	buffer: RefCell<Vec<Option<Rc<FuncInstance>>>>,
+	buffer: RefCell<Vec<Option<FuncRef>>>,
 }
 
 impl fmt::Debug for TableInstance {
@@ -40,7 +39,7 @@ impl TableInstance {
 	}
 
 	/// Get the specific value in the table
-	pub fn get(&self, offset: u32) -> Result<Rc<FuncInstance>, Error> {
+	pub fn get(&self, offset: u32) -> Result<FuncRef, Error> {
 		let buffer = self.buffer.borrow();
 		let buffer_len = buffer.len();
 		let table_elem = buffer.get(offset as usize).cloned().ok_or(
@@ -57,7 +56,7 @@ impl TableInstance {
 	}
 
 	/// Set the table element to the specified function.
-	pub fn set(&self, offset: u32, value: Rc<FuncInstance>) -> Result<(), Error> {
+	pub fn set(&self, offset: u32, value: FuncRef) -> Result<(), Error> {
 		let mut buffer = self.buffer.borrow_mut();
 		let buffer_len = buffer.len();
 		let table_elem = buffer.get_mut(offset as usize).ok_or(Error::Table(format!(

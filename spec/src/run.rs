@@ -21,16 +21,17 @@ use parity_wasm::interpreter::{
     TableInstance,
     ModuleInstance,
     HostFunc,
+	MemoryRef,
 };
 
 struct SpecModule {
     default_host_callback: Rc<HostFunc<()>>,
     table: Rc<TableInstance<()>>,
-    memory: Rc<MemoryInstance>,
-    global_i32: Rc<GlobalInstance>,
-    global_i64: Rc<GlobalInstance>,
-    global_f32: Rc<GlobalInstance>,
-    global_f64: Rc<GlobalInstance>,
+    memory: MemoryRef,
+    global_i32: GlobalRef,
+    global_i64: GlobalRef,
+    global_f32: GlobalRef,
+    global_f64: GlobalRef,
 }
 
 impl SpecModule {
@@ -73,7 +74,7 @@ impl ImportResolver<()> for SpecModule {
         &self,
         field_name: &str,
         global_type: &GlobalType,
-    ) -> Result<Rc<GlobalInstance>, InterpreterError> {
+    ) -> Result<GlobalRef, InterpreterError> {
         if field_name == "global" {
             return match global_type.content_type() {
                 ValueType::I32 => {
@@ -98,7 +99,7 @@ impl ImportResolver<()> for SpecModule {
         &self,
         field_name: &str,
         _memory_type: &MemoryType,
-    ) -> Result<Rc<MemoryInstance>, InterpreterError> {
+    ) -> Result<MemoryRef, InterpreterError> {
         if field_name == "memory" {
             return Ok(Rc::clone(&self.memory));
         }

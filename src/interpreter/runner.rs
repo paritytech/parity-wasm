@@ -8,6 +8,7 @@ use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local, FunctionType};
 use interpreter::Error;
 use interpreter::module::ModuleInstance;
+use interpreter::module::FuncRef;
 use interpreter::func::FuncInstance;
 use interpreter::value::{
 	RuntimeValue, TryInto, WrapInto, TryTruncateInto, ExtendInto,
@@ -27,7 +28,7 @@ pub struct FunctionContext {
 	/// Is context initialized.
 	pub is_initialized: bool,
 	/// Internal function reference.
-	pub function: Rc<FuncInstance>,
+	pub function: FuncRef,
 	pub module: Rc<ModuleInstance>,
 	/// Function return type.
 	pub return_type: BlockType,
@@ -48,7 +49,7 @@ pub enum InstructionOutcome {
 	/// Branch to given frame.
 	Branch(usize),
 	/// Execute function call.
-	ExecuteCall(Rc<FuncInstance>),
+	ExecuteCall(FuncRef),
 	/// End current frame.
 	End,
 	/// Return from current function block.
@@ -60,7 +61,7 @@ enum RunResult {
 	/// Function has returned (optional) value.
 	Return(Option<RuntimeValue>),
 	/// Function is calling other function.
-	NestedCall(Rc<FuncInstance>),
+	NestedCall(FuncRef),
 }
 
 impl<'a, 'b: 'a> Interpreter<'a, 'b> {
@@ -998,7 +999,7 @@ impl<'a, 'b: 'a> Interpreter<'a, 'b> {
 }
 
 impl FunctionContext {
-	pub fn new<'store>(function: Rc<FuncInstance>, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
+	pub fn new<'store>(function: FuncRef, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
 		let module = match *function {
 			FuncInstance::Internal { ref module, .. } => Rc::clone(module),
 			FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
@@ -1015,7 +1016,7 @@ impl FunctionContext {
 		}
 	}
 
-	pub fn nested(&mut self, function: Rc<FuncInstance>) -> Result<Self, Error> {
+	pub fn nested(&mut self, function: FuncRef) -> Result<Self, Error> {
 		let (function_locals, module, function_return_type) = {
 			let module = match *function {
 				FuncInstance::Internal { ref module, .. } => Rc::clone(module),

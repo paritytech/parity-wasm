@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::Module;
 use interpreter::Error;
-use interpreter::module::ModuleInstance;
+use interpreter::module::{ModuleInstance, FuncRef};
 use interpreter::func::FuncInstance;
 use interpreter::host::HostModule;
 use interpreter::value::RuntimeValue;
@@ -98,7 +98,7 @@ impl ProgramInstance {
 
 	pub fn invoke_func<'a>(
 		&mut self,
-		func_instance: Rc<FuncInstance>,
+		func_instance: FuncRef,
 		args: &[RuntimeValue],
 		state: &'a mut HostState<'a>,
 	) -> Result<Option<RuntimeValue>, Error> {

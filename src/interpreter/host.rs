@@ -1,8 +1,11 @@
+use interpreter::module::GlobalRef;
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use elements::{FunctionType, GlobalType, MemoryType, TableType, ValueType};
-use interpreter::module::{ExternVal, ModuleInstance};
+use interpreter::module::{ExternVal, ModuleInstance, FuncRef};
+use interpreter::module::MemoryRef;
+use interpreter::module::TableRef;
 use interpreter::func::FuncInstance;
 use interpreter::global::GlobalInstance;
 use interpreter::memory::MemoryInstance;
@@ -222,33 +225,33 @@ impl HostModuleBuilder {
 		self
 	}
 
-	pub fn insert_func<N: Into<String>>(&mut self, name: N, func: Rc<FuncInstance>) {
+	pub fn insert_func<N: Into<String>>(&mut self, name: N, func: FuncRef) {
 		self.insert(name, ExternVal::Func(func));
 	}
 
-	pub fn insert_global<N: Into<String>>(&mut self, name: N, global: Rc<GlobalInstance>) {
+	pub fn insert_global<N: Into<String>>(&mut self, name: N, global: GlobalRef) {
 		self.insert(name, ExternVal::Global(global));
 	}
 
-	pub fn insert_memory<N: Into<String>>(&mut self, name: N, memory: Rc<MemoryInstance>) {
+	pub fn insert_memory<N: Into<String>>(&mut self, name: N, memory: MemoryRef) {
 		self.insert(name, ExternVal::Memory(memory));
 	}
 
-	pub fn insert_table<N: Into<String>>(&mut self, name: N, table: Rc<TableInstance>) {
+	pub fn insert_table<N: Into<String>>(&mut self, name: N, table: TableRef) {
 		self.insert(name, ExternVal::Table(table));
 	}
 
-	pub fn with_global<N: Into<String>>(mut self, name: N, global: Rc<GlobalInstance>) -> Self {
+	pub fn with_global<N: Into<String>>(mut self, name: N, global: GlobalRef) -> Self {
 		self.insert_global(name, global);
 		self
 	}
 
-	pub fn with_memory<N: Into<String>>(mut self, name: N, memory: Rc<MemoryInstance>) -> Self {
+	pub fn with_memory<N: Into<String>>(mut self, name: N, memory: MemoryRef) -> Self {
 		self.insert_memory(name, memory);
 		self
 	}
 
-	pub fn with_table<N: Into<String>>(mut self, name: N, table: Rc<TableInstance>) -> Self {
+	pub fn with_table<N: Into<String>>(mut self, name: N, table: TableRef) -> Self {
 		self.insert_table(name, table);
 		self
 	}
@@ -281,7 +284,7 @@ impl ImportResolver for HostModule {
 		&self,
 		field_name: &str,
 		func_type: &FunctionType,
-	) -> Result<Rc<FuncInstance>, Error> {
+	) -> Result<FuncRef, Error> {
 		self.internal_instance.resolve_func(field_name, func_type)
 	}
 
@@ -289,7 +292,7 @@ impl ImportResolver for HostModule {
 		&self,
 		field_name: &str,
 		global_type: &GlobalType,
-	) -> Result<Rc<GlobalInstance>, Error> {
+	) -> Result<GlobalRef, Error> {
 		self.internal_instance
 			.resolve_global(field_name, global_type)
 	}
@@ -298,7 +301,7 @@ impl ImportResolver for HostModule {
 		&self,
 		field_name: &str,
 		memory_type: &MemoryType,
-	) -> Result<Rc<MemoryInstance>, Error> {
+	) -> Result<MemoryRef, Error> {
 		self.internal_instance
 			.resolve_memory(field_name, memory_type)
 	}
@@ -307,7 +310,7 @@ impl ImportResolver for HostModule {
 		&self,
 		field_name: &str,
 		table_type: &TableType,
-	) -> Result<Rc<TableInstance>, Error> {
+	) -> Result<TableRef, Error> {
 		self.internal_instance.resolve_table(field_name, table_type)
 	}
 }
@@ -382,3 +385,20 @@ impl IntoReturnVal for () {
 		None
 	}
 }
+
+trait Externals {
+	fn invoke_index(
+		&mut self,
+		index: u32,
+		args: &[RuntimeValue],
+	) -> Result<Option<RuntimeValue>, Error>;
+
+	// TODO: or check signature?
+	fn signature(&self, index: usize) -> &FunctionType;
+
+	fn memory_by_index(&self, index: usize) -> &MemoryInstance;
+	fn table_by_index(&self, index: usize) -> &TableInstance;
+	fn global_by_index(&self, index: usize) -> &GlobalInstance;
+}
+
+

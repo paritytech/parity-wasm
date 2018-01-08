@@ -15,7 +15,15 @@ use interpreter::host::Externals;
 use validation::ValidatedModule;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
-pub type ModuleRef = Rc<ModuleInstance>;
+#[derive(Clone, Debug)]
+pub struct ModuleRef(Rc<ModuleInstance>);
+
+impl ::std::ops::Deref for ModuleRef {
+	type Target = ModuleInstance;
+	fn deref(&self) -> &ModuleInstance {
+		&self.0
+	}
+}
 
 pub enum ExternVal {
 	Func(FuncRef),
@@ -293,7 +301,7 @@ impl ModuleInstance {
 			}
 		}
 
-		Ok(module_ref)
+		Ok(ModuleRef(module_ref))
 	}
 
 	fn alloc_module(
@@ -332,7 +340,7 @@ impl ModuleInstance {
 					labels: labels,
 				};
 				let func_instance =
-					FuncInstance::alloc_internal(Rc::clone(&module_ref), func_type, func_body);
+					FuncInstance::alloc_internal(module_ref.clone(), func_type, func_body);
 				module_ref.push_func(func_instance);
 			}
 		}

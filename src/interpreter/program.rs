@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::Module;
@@ -46,7 +45,7 @@ impl ProgramInstance {
 				.with_imports(imports)
 				.run_start(externals)?
 		};
-		self.modules.insert(name.to_owned(), Rc::clone(&module_instance));
+		self.modules.insert(name.to_owned(), module_instance.clone());
 
 		Ok(module_instance)
 	}

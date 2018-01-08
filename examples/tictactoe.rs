@@ -2,7 +2,6 @@ extern crate parity_wasm;
 
 use std::env;
 use std::fmt;
-use std::rc::Rc;
 use parity_wasm::elements::{FunctionType, ValueType, TableType, GlobalType, MemoryType};
 use parity_wasm::interpreter::{
 	Error as InterpreterError, ModuleInstance, UserError, ModuleRef,

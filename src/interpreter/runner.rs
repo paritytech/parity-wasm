@@ -1,6 +1,5 @@
 use std::mem;
 use std::ops;
-use std::rc::Rc;
 use std::{u32, usize};
 use std::fmt::{self, Display};
 use std::iter::repeat;
@@ -1003,7 +1002,7 @@ impl<'a, E: Externals> Interpreter<'a, E> {
 impl FunctionContext {
 	pub fn new<'store>(function: FuncRef, value_stack_limit: usize, frame_stack_limit: usize, function_type: &FunctionType, args: Vec<RuntimeValue>) -> Self {
 		let module = match *function {
-			FuncInstance::Internal { ref module, .. } => Rc::clone(module),
+			FuncInstance::Internal { ref module, .. } => module.clone(),
 			FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 		};
 		FunctionContext {
@@ -1021,7 +1020,7 @@ impl FunctionContext {
 	pub fn nested(&mut self, function: FuncRef) -> Result<Self, Error> {
 		let (function_locals, module, function_return_type) = {
 			let module = match *function {
-				FuncInstance::Internal { ref module, .. } => Rc::clone(module),
+				FuncInstance::Internal { ref module, .. } => module.clone(),
 				FuncInstance::Host { .. } => panic!("Host functions can't be called as internally defined functions; Thus FunctionContext can be created only with internally defined functions; qed"),
 			};
 			let function_type = function.func_type();
@@ -1058,7 +1057,7 @@ impl FunctionContext {
 	}
 
 	pub fn module(&self) -> ModuleRef {
-		Rc::clone(&self.module)
+		self.module.clone()
 	}
 
 	pub fn set_local(&mut self, index: usize, value: RuntimeValue) -> Result<InstructionOutcome, Error> {

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::Module;
 use interpreter::Error;
-use interpreter::module::{ModuleInstance};
+use interpreter::module::{ModuleInstance, ModuleRef};
 use interpreter::func::{FuncInstance, FuncRef};
 use interpreter::value::RuntimeValue;
 use interpreter::imports::{Imports, ImportResolver};
@@ -13,7 +13,7 @@ use validation::validate_module;
 /// Program instance. Program is a set of instantiated modules.
 #[deprecated]
 pub struct ProgramInstance {
-	modules: HashMap<String, Rc<ModuleInstance>>,
+	modules: HashMap<String, ModuleRef>,
 	resolvers: HashMap<String, Box<ImportResolver>>,
 }
 
@@ -32,7 +32,7 @@ impl ProgramInstance {
 		name: &str,
 		module: Module,
 		externals: &'a mut E,
-	) -> Result<Rc<ModuleInstance>, Error> {
+	) -> Result<ModuleRef, Error> {
 		let module_instance = {
 			let mut imports = Imports::new();
 			for (module_name, module_instance) in self.modules.iter() {
@@ -59,7 +59,7 @@ impl ProgramInstance {
 		self.resolvers.insert(name.to_owned(), import_resolver);
 	}
 
-	pub fn insert_loaded_module(&mut self, name: &str, module: Rc<ModuleInstance>) {
+	pub fn insert_loaded_module(&mut self, name: &str, module: ModuleRef) {
 		self.modules.insert(name.to_owned(), module);
 	}
 
@@ -105,7 +105,7 @@ impl ProgramInstance {
 			.or_else(|| self.resolvers.get(name).map(|x| &**x))
 	}
 
-	pub fn module(&self, name: &str) -> Option<Rc<ModuleInstance>> {
+	pub fn module(&self, name: &str) -> Option<ModuleRef> {
 		self.modules.get(name).cloned()
 	}
 }

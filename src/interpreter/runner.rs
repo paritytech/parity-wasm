@@ -7,7 +7,7 @@ use std::iter::repeat;
 use std::collections::{HashMap, VecDeque};
 use elements::{Opcode, BlockType, Local, FunctionType};
 use interpreter::Error;
-use interpreter::module::ModuleInstance;
+use interpreter::module::ModuleRef;
 use interpreter::func::FuncRef;
 use interpreter::func::FuncInstance;
 use interpreter::value::{
@@ -29,7 +29,7 @@ pub struct FunctionContext {
 	pub is_initialized: bool,
 	/// Internal function reference.
 	pub function: FuncRef,
-	pub module: Rc<ModuleInstance>,
+	pub module: ModuleRef,
 	/// Function return type.
 	pub return_type: BlockType,
 	/// Local variables.
@@ -1057,7 +1057,7 @@ impl FunctionContext {
 		self.locals.extend(locals);
 	}
 
-	pub fn module(&self) -> Rc<ModuleInstance> {
+	pub fn module(&self) -> ModuleRef {
 		Rc::clone(&self.module)
 	}
 

@@ -3,10 +3,11 @@ use std::fmt;
 use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::{FunctionType, Local, Opcodes};
-use interpreter::{Error, ModuleInstance};
+use interpreter::Error;
 use interpreter::host::{Externals, HostFuncIndex};
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::value::RuntimeValue;
+use interpreter::module::ModuleRef;
 use common::stack::StackWithLimit;
 use common::{DEFAULT_FRAME_STACK_LIMIT, DEFAULT_VALUE_STACK_LIMIT};
 
@@ -24,7 +25,7 @@ impl ::std::ops::Deref for FuncRef {
 pub enum FuncInstance {
 	Internal {
 		func_type: Rc<FunctionType>,
-		module: Rc<ModuleInstance>,
+		module: ModuleRef,
 		body: Rc<FuncBody>,
 	},
 	Host {
@@ -57,7 +58,7 @@ impl fmt::Debug for FuncInstance {
 
 impl FuncInstance {
 	pub(crate) fn alloc_internal(
-		module: Rc<ModuleInstance>,
+		module: ModuleRef,
 		func_type: Rc<FunctionType>,
 		body: FuncBody,
 	) -> FuncRef {

@@ -15,6 +15,8 @@ use interpreter::host::Externals;
 use validation::ValidatedModule;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
+pub type ModuleRef = Rc<ModuleInstance>;
+
 pub enum ExternVal {
 	Func(FuncRef),
 	Table(TableRef),
@@ -159,7 +161,7 @@ impl ModuleInstance {
 	fn alloc_module_non_func_items(
 		validated_module: &ValidatedModule,
 		extern_vals: &[ExternVal],
-	) -> Result<Rc<ModuleInstance>, Error> {
+	) -> Result<ModuleRef, Error> {
 		let module = validated_module.module();
 
 		let mut module_ref = Rc::new(ModuleInstance::default());
@@ -297,7 +299,7 @@ impl ModuleInstance {
 	fn alloc_module(
 		validated_module: &ValidatedModule,
 		extern_vals: &[ExternVal]
-	) -> Result<Rc<ModuleInstance>, Error> {
+	) -> Result<ModuleRef, Error> {
 		// Step 1: Allocate all items except functions.
 		let module_ref = Self::alloc_module_non_func_items(validated_module, extern_vals)?;
 
@@ -341,7 +343,7 @@ impl ModuleInstance {
 	fn instantiate_with_externvals(
 		validated_module: &ValidatedModule,
 		extern_vals: &[ExternVal],
-	) -> Result<Rc<ModuleInstance>, Error> {
+	) -> Result<ModuleRef, Error> {
 		let module = validated_module.module();
 
 		let module_ref = ModuleInstance::alloc_module(validated_module, extern_vals)?;
@@ -385,7 +387,7 @@ impl ModuleInstance {
 	fn instantiate_with_imports(
 		validated_module: &ValidatedModule,
 		imports: &Imports,
-	) -> Result<Rc<ModuleInstance>, Error> {
+	) -> Result<ModuleRef, Error> {
 		let module = validated_module.module();
 
 		let mut extern_vals = Vec::new();
@@ -499,7 +501,7 @@ impl<'a> InstantiationBuilder<'a> {
 		self
 	}
 
-	pub fn run_start<'b, E: Externals>(mut self, state: &'b mut E) -> Result<Rc<ModuleInstance>, Error> {
+	pub fn run_start<'b, E: Externals>(mut self, state: &'b mut E) -> Result<ModuleRef, Error> {
 		let imports = self.imports.get_or_insert_with(|| Imports::default());
 		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, imports)?;
 
@@ -512,7 +514,7 @@ impl<'a> InstantiationBuilder<'a> {
 		Ok(instance)
 	}
 
-	pub fn assert_no_start(mut self) -> Result<Rc<ModuleInstance>, Error> {
+	pub fn assert_no_start(mut self) -> Result<ModuleRef, Error> {
 		assert!(self.validated_module.module().start_section().is_none());
 		let imports = self.imports.get_or_insert_with(|| Imports::default());
 		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, imports)?;

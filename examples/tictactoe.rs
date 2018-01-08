@@ -5,9 +5,9 @@ use std::fmt;
 use std::rc::Rc;
 use parity_wasm::elements::{FunctionType, ValueType, TableType, GlobalType, MemoryType};
 use parity_wasm::interpreter::{
-	Error as InterpreterError, ModuleInstance, UserError,
+	Error as InterpreterError, ModuleInstance, UserError, ModuleRef,
 	HostFuncIndex, Externals, RuntimeValue, GlobalInstance, TableInstance, MemoryInstance,
-	TableRef, MemoryRef, GlobalRef, FuncRef, TryInto, ImportResolver, FuncInstance
+	TableRef, MemoryRef, GlobalRef, FuncRef, TryInto, ImportResolver, FuncInstance,
 };
 use parity_wasm::elements::{Error as DeserializationError};
 use parity_wasm::ValidationError;
@@ -260,7 +260,7 @@ impl<'a> ImportResolver for RuntimeImportResolver {
 
 fn instantiate(
 	path: &str,
-) -> Result<Rc<ModuleInstance>, Error> {
+) -> Result<ModuleRef, Error> {
 	let module = parity_wasm::deserialize_file(path)?;
 	let validated_module = parity_wasm::validate_module(module)?;
 
@@ -272,8 +272,8 @@ fn instantiate(
 }
 
 fn play(
-	x_instance: Rc<ModuleInstance>,
-	o_instance: Rc<ModuleInstance>,
+	x_instance: ModuleRef,
+	o_instance: ModuleRef,
 	game: &mut tictactoe::Game,
 ) -> Result<tictactoe::GameResult, Error> {
 	let mut turn_of = tictactoe::Player::X;

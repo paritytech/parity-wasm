@@ -156,6 +156,6 @@ pub use self::program::ProgramInstance;
 pub use self::value::{RuntimeValue, TryInto};
 pub use self::host::{Externals, HostFuncIndex, EmptyExternals};
 pub use self::imports::{ImportResolver, Imports};
-pub use self::module::ModuleInstance;
+pub use self::module::{ModuleInstance, ModuleRef};
 pub use self::global::{GlobalInstance, GlobalRef};
 pub use self::func::{FuncInstance, FuncRef};

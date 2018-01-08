@@ -3,18 +3,22 @@ extern crate parity_wasm;
 use std::env;
 use std::fmt;
 use std::rc::Rc;
-use parity_wasm::elements::{Module, FunctionType, ValueType, TableType, GlobalType, MemoryType};
+use parity_wasm::elements::{FunctionType, ValueType, TableType, GlobalType, MemoryType};
 use parity_wasm::interpreter::{
 	Error as InterpreterError, ModuleInstance, UserError,
 	HostFuncIndex, Externals, RuntimeValue, GlobalInstance, TableInstance, MemoryInstance,
-	TableRef, MemoryRef, GlobalRef, FuncRef, TryInto, ImportResolver, FuncInstance,
+	TableRef, MemoryRef, GlobalRef, FuncRef, TryInto, ImportResolver, FuncInstance
 };
+use parity_wasm::elements::{Error as DeserializationError};
+use parity_wasm::ValidationError;
 
 #[derive(Debug)]
 pub enum Error {
 	OutOfRange,
 	AlreadyOccupied,
 	Interpreter(InterpreterError),
+	Deserialize(DeserializationError),
+	Validation(ValidationError),
 }
 
 impl fmt::Display for Error {
@@ -26,6 +30,18 @@ impl fmt::Display for Error {
 impl From<InterpreterError> for Error {
 	fn from(e: InterpreterError) -> Self {
 		Error::Interpreter(e)
+	}
+}
+
+impl From<DeserializationError> for Error {
+	fn from(e: DeserializationError) -> Error {
+		Error::Deserialize(e)
+	}
+}
+
+impl From<ValidationError> for Error {
+	fn from(e: ValidationError) -> Error {
+		Error::Validation(e)
 	}
 }
 
@@ -243,9 +259,12 @@ impl<'a> ImportResolver for RuntimeImportResolver {
 }
 
 fn instantiate(
-	module: &Module,
+	path: &str,
 ) -> Result<Rc<ModuleInstance>, Error> {
-	let instance = ModuleInstance::new(module)
+	let module = parity_wasm::deserialize_file(path)?;
+	let validated_module = parity_wasm::validate_module(module)?;
+
+	let instance = ModuleInstance::new(&validated_module)
 		.with_import("env", &RuntimeImportResolver)
 		.assert_no_start()?;
 
@@ -291,12 +310,10 @@ fn main() {
 		println!("Usage: {} <x player module> <y player module>", args[0]);
 		return;
 	}
-	let x_module = parity_wasm::deserialize_file(&args[1]).expect("X player module to load");
-	let o_module = parity_wasm::deserialize_file(&args[2]).expect("Y player module to load");
 
 	// Instantiate modules of X and O players.
-	let x_instance = instantiate(&x_module).unwrap();
-	let o_instance = instantiate(&o_module).unwrap();
+	let x_instance = instantiate(&args[1]).expect("X player module to load");
+	let o_instance = instantiate(&args[2]).expect("Y player module to load");
 
 	let result = play(x_instance, o_instance, &mut game);
 	println!("result = {:?}, game = {:#?}", result, game);

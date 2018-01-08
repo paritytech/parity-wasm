@@ -22,6 +22,8 @@ pub use elements::{
     peek_size,
 };
 
+pub use validation::{validate_module, ValidatedModule, Error as ValidationError};
+
 #[allow(deprecated)]
 pub use interpreter::{
     ProgramInstance,

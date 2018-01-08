@@ -29,11 +29,27 @@ impl From<stack::Error> for Error {
 	}
 }
 
-pub struct AuxiliaryData {
-	pub labels: HashMap<usize, HashMap<usize, usize>>,
+#[derive(Clone)]
+pub struct ValidatedModule {
+	labels: HashMap<usize, HashMap<usize, usize>>,
+	module: Module,
 }
 
-pub fn validate_module(module: &Module) -> Result<AuxiliaryData, Error> {
+impl<'a> ValidatedModule {
+	pub fn module(&self) -> &Module {
+		&self.module
+	}
+
+	pub fn into_module(self) -> Module {
+		self.module
+	}
+
+	pub(crate) fn labels(&self) -> &HashMap<usize, HashMap<usize, usize>> {
+		&self.labels
+	}
+}
+
+pub fn validate_module(module: Module) -> Result<ValidatedModule, Error> {
 	let mut context_builder = ModuleContextBuilder::new();
 	let mut imported_globals = Vec::new();
 	let mut labels = HashMap::new();
@@ -233,7 +249,10 @@ pub fn validate_module(module: &Module) -> Result<AuxiliaryData, Error> {
 		}
 	}
 
-	Ok(AuxiliaryData { labels })
+	Ok(ValidatedModule {
+		module,
+		labels
+	})
 }
 
 impl ResizableLimits {

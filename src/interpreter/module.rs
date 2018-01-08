@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::fmt;
 use std::collections::HashMap;
 use std::borrow::Cow;
-use elements::{External, FunctionType, GlobalType, InitExpr, Internal, MemoryType, Module, Opcode,
+use elements::{External, FunctionType, GlobalType, InitExpr, Internal, MemoryType, Opcode,
 			   ResizableLimits, TableType, Type};
 use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
 use interpreter::imports::{ImportResolver, Imports};
@@ -12,7 +12,7 @@ use interpreter::func::{FuncRef, FuncBody, FuncInstance};
 use interpreter::table::TableRef;
 use interpreter::memory::MemoryRef;
 use interpreter::host::Externals;
-use validation::validate_module;
+use validation::ValidatedModule;
 use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
 pub enum ExternVal {
@@ -157,11 +157,12 @@ impl ModuleInstance {
 	}
 
 	fn alloc_module(
-		module: &Module,
+		validated_module: &ValidatedModule,
 		extern_vals: &[ExternVal],
 		instance: &Rc<ModuleInstance>,
 	) -> Result<(), Error> {
-		let mut aux_data = validate_module(module)?;
+		let labels = validated_module.labels();
+		let module = validated_module.module();
 
 		for &Type::Function(ref ty) in module.type_section().map(|ts| ts.types()).unwrap_or(&[]) {
 			let type_id = alloc_func_type(ty.clone());
@@ -242,9 +243,9 @@ impl ModuleInstance {
 				let func_type = instance.type_by_index(ty.type_ref()).expect(
 					"Due to validation type should exists",
 				);
-				let labels = aux_data.labels.remove(&index).expect(
+				let labels = labels.get(&index).expect(
 					"At func validation time labels are collected; Collected labels are added by index; qed",
-				);
+				).clone();
 				let func_body = FuncBody {
 					locals: body.locals().to_vec(),
 					opcodes: body.code().clone(),
@@ -316,12 +317,13 @@ impl ModuleInstance {
 	}
 
 	fn instantiate_with_externvals(
-		module: &Module,
+		validated_module: &ValidatedModule,
 		extern_vals: &[ExternVal],
 	) -> Result<Rc<ModuleInstance>, Error> {
+		let module = validated_module.module();
 		let instance = Rc::new(ModuleInstance::default());
 
-		ModuleInstance::alloc_module(module, extern_vals, &instance)?;
+		ModuleInstance::alloc_module(validated_module, extern_vals, &instance)?;
 
 		for element_segment in module.elements_section().map(|es| es.entries()).unwrap_or(
 			&[],
@@ -360,9 +362,11 @@ impl ModuleInstance {
 	}
 
 	fn instantiate_with_imports(
-		module: &Module,
+		validated_module: &ValidatedModule,
 		imports: &Imports,
 	) -> Result<Rc<ModuleInstance>, Error> {
+		let module = validated_module.module();
+
 		let mut extern_vals = Vec::new();
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
 			let module_name = import_entry.module();
@@ -398,10 +402,10 @@ impl ModuleInstance {
 			extern_vals.push(extern_val);
 		}
 
-		Self::instantiate_with_externvals(module, &extern_vals)
+		Self::instantiate_with_externvals(validated_module, &extern_vals)
 	}
 
-	pub fn new<'a>(module: &'a Module) -> InstantiationBuilder<'a> {
+	pub fn new<'a>(module: &'a ValidatedModule) -> InstantiationBuilder<'a> {
 		InstantiationBuilder::new(module)
 	}
 
@@ -446,14 +450,14 @@ impl ModuleInstance {
 }
 
 pub struct InstantiationBuilder<'a> {
-	module: &'a Module,
+	validated_module: &'a ValidatedModule,
 	imports: Option<Imports<'a>>,
 }
 
 impl<'a> InstantiationBuilder<'a> {
-	fn new(module: &'a Module) -> Self {
+	fn new(validated_module: &'a ValidatedModule) -> Self {
 		InstantiationBuilder {
-			module,
+			validated_module,
 			imports: None,
 		}
 	}
@@ -476,9 +480,9 @@ impl<'a> InstantiationBuilder<'a> {
 
 	pub fn run_start<'b, E: Externals>(mut self, state: &'b mut E) -> Result<Rc<ModuleInstance>, Error> {
 		let imports = self.imports.get_or_insert_with(|| Imports::default());
-		let instance = ModuleInstance::instantiate_with_imports(self.module, imports)?;
+		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, imports)?;
 
-		if let Some(start_fn_idx) = self.module.start_section() {
+		if let Some(start_fn_idx) = self.validated_module.module().start_section() {
 			let start_func = instance.func_by_index(start_fn_idx).expect(
 				"Due to validation start function should exists",
 			);
@@ -488,9 +492,9 @@ impl<'a> InstantiationBuilder<'a> {
 	}
 
 	pub fn assert_no_start(mut self) -> Result<Rc<ModuleInstance>, Error> {
-		assert!(self.module.start_section().is_none());
+		assert!(self.validated_module.module().start_section().is_none());
 		let imports = self.imports.get_or_insert_with(|| Imports::default());
-		let instance = ModuleInstance::instantiate_with_imports(self.module, imports)?;
+		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, imports)?;
 		Ok(instance)
 	}
 }

@@ -8,6 +8,7 @@ use interpreter::func::{FuncInstance, FuncRef};
 use interpreter::value::RuntimeValue;
 use interpreter::imports::{Imports, ImportResolver};
 use interpreter::host::Externals;
+use validation::validate_module;
 
 /// Program instance. Program is a set of instantiated modules.
 #[deprecated]
@@ -40,7 +41,8 @@ impl ProgramInstance {
 			for (module_name, import_resolver) in self.resolvers.iter() {
 				imports.push_resolver(&**module_name, &**import_resolver);
 			}
-			ModuleInstance::new(&module)
+			let validate_module = validate_module(module)?;
+			ModuleInstance::new(&validate_module)
 				.with_imports(imports)
 				.run_start(externals)?
 		};

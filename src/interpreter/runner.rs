@@ -526,7 +526,7 @@ impl<'a, E: Externals> Interpreter<'a, E> {
 			.module()
 			.global_by_index(index)
 			.expect("Due to validation global should exists");
-		global.set(val)?;
+		global.set(val).expect("Due to validation set to a global should succeed");
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 

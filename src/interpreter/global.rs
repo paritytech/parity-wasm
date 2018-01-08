@@ -34,11 +34,12 @@ impl GlobalInstance {
 	}
 
 	pub fn set(&self, val: RuntimeValue) -> Result<(), Error> {
-		assert!(self.mutable, "Attempt to change an immutable variable");
-		assert!(
-			self.value_type() == val.value_type(),
-			"Attempt to change variable type"
-		);
+		if !self.mutable {
+			return Err(Error::Global("Attempt to change an immutable variable".into()));
+		}
+		if self.value_type() != val.value_type() {
+			return Err(Error::Global("Attempt to change variable type".into()));
+		}
 		self.val.set(val);
 		Ok(())
 	}

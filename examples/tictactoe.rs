@@ -7,6 +7,7 @@ use parity_wasm::interpreter::{
 	Error as InterpreterError, ModuleInstance, UserError, ModuleRef,
 	HostFuncIndex, Externals, RuntimeValue, GlobalInstance, TableInstance, MemoryInstance,
 	TableRef, MemoryRef, GlobalRef, FuncRef, TryInto, ImportResolver, FuncInstance,
+	HostGlobalIndex, HostMemoryIndex, HostTableIndex,
 };
 use parity_wasm::elements::{Error as DeserializationError};
 use parity_wasm::ValidationError;
@@ -191,15 +192,15 @@ impl<'a> Externals for Runtime<'a> {
 		}
 	}
 
-	fn memory_by_index(&self, _index: usize) -> &MemoryInstance {
+	fn memory_by_index(&self, _index: HostMemoryIndex) -> Option<&MemoryInstance> {
 		panic!("host module doesn't export any memories")
 	}
 
-	fn table_by_index(&self, _index: usize) -> &TableInstance {
+	fn table_by_index(&self, _index: HostTableIndex) -> Option<&TableInstance> {
 		panic!("host module doesn't export any tables")
 	}
 
-	fn global_by_index(&self, _index: usize) -> &GlobalInstance {
+	fn global_by_index(&self, _index: HostGlobalIndex) -> Option<&GlobalInstance> {
 		panic!("host module doesn't export any globals")
 	}
 }

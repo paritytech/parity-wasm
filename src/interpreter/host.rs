@@ -6,6 +6,9 @@ use interpreter::value::RuntimeValue;
 use interpreter::Error;
 
 pub type HostFuncIndex = u32;
+pub type HostMemoryIndex = u32;
+pub type HostTableIndex = u32;
+pub type HostGlobalIndex = u32;
 
 pub trait Externals {
 	fn invoke_index(
@@ -16,9 +19,9 @@ pub trait Externals {
 
 	fn check_signature(&self, index: HostFuncIndex, signature: &FunctionType) -> bool;
 
-	fn memory_by_index(&self, index: usize) -> &MemoryInstance;
-	fn table_by_index(&self, index: usize) -> &TableInstance;
-	fn global_by_index(&self, index: usize) -> &GlobalInstance;
+	fn memory_by_index(&self, index: HostMemoryIndex) -> Option<&MemoryInstance>;
+	fn table_by_index(&self, index: HostTableIndex) -> Option<&TableInstance>;
+	fn global_by_index(&self, index: HostGlobalIndex) -> Option<&GlobalInstance>;
 }
 
 pub struct EmptyExternals;
@@ -29,22 +32,22 @@ impl Externals for EmptyExternals {
 		_index: HostFuncIndex,
 		_args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
-		panic!("called invoke_index on EmptyExternals")
+		Err(Error::Trap("invoke index on empty externals".into()))
 	}
 
 	fn check_signature(&self, _index: HostFuncIndex, _signature: &FunctionType) -> bool {
-		panic!("called check_signature on EmptyExternals")
+		false
 	}
 
-	fn memory_by_index(&self, _index: usize) -> &MemoryInstance {
-		panic!("called memory_by_index on EmptyExternals")
+	fn memory_by_index(&self, _index: HostMemoryIndex) -> Option<&MemoryInstance> {
+		None
 	}
 
-	fn table_by_index(&self, _index: usize) -> &TableInstance {
-		panic!("called table_by_index on EmptyExternals")
+	fn table_by_index(&self, _index: HostTableIndex) -> Option<&TableInstance> {
+		None
 	}
 
-	fn global_by_index(&self, _index: usize) -> &GlobalInstance {
-		panic!("called global_by_index on EmptyExternals")
+	fn global_by_index(&self, _index: HostGlobalIndex) -> Option<&GlobalInstance> {
+		None
 	}
 }

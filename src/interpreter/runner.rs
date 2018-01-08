@@ -1164,3 +1164,29 @@ pub fn prepare_function_args(function_type: &FunctionType, caller_stack: &mut St
 	args.reverse();
 	Ok(args)
 }
+
+impl StackWithLimit<RuntimeValue> {
+	fn pop_as<T>(&mut self) -> Result<T, Error>
+	where
+		RuntimeValue: TryInto<T, Error>,
+	{
+		let value = self.pop()?;
+		TryInto::try_into(value)
+	}
+
+	fn pop_pair_as<T>(&mut self) -> Result<(T, T), Error>
+	where
+		RuntimeValue: TryInto<T, Error>,
+	{
+		let right = self.pop_as()?;
+		let left = self.pop_as()?;
+		Ok((left, right))
+	}
+
+	fn pop_triple(&mut self) -> Result<(RuntimeValue, RuntimeValue, RuntimeValue), Error> {
+		let right = self.pop()?;
+		let mid = self.pop()?;
+		let left = self.pop()?;
+		Ok((left, mid, right))
+	}
+}

@@ -139,7 +139,6 @@ mod memory;
 mod module;
 mod program;
 mod runner;
-mod stack;
 mod table;
 mod value;
 mod host;

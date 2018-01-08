@@ -85,7 +85,7 @@ impl FuncInstance {
 		}
 	}
 
-	pub fn body(&self) -> Option<Rc<FuncBody>> {
+	pub(crate) fn body(&self) -> Option<Rc<FuncBody>> {
 		match *self {
 			FuncInstance::Internal { ref body, .. } => Some(Rc::clone(body)),
 			FuncInstance::Host { .. } => None,

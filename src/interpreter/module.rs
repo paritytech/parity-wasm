@@ -112,12 +112,6 @@ impl Default for ModuleInstance {
 }
 
 impl ModuleInstance {
-	pub fn with_exports(exports: HashMap<String, ExternVal>) -> Self {
-		let mut instance = Self::default();
-		instance.exports = exports;
-		instance
-	}
-
 	pub fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
 		self.memories.get(idx as usize).cloned()
 	}
@@ -134,12 +128,12 @@ impl ModuleInstance {
 		self.funcs.borrow().get(idx as usize).cloned()
 	}
 
-	pub fn type_by_index(&self, idx: u32) -> Option<Rc<FunctionType>> {
-		self.types.get(idx as usize).cloned()
-	}
-
 	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
 		self.exports.get(name).cloned()
+	}
+
+	pub(crate) fn type_by_index(&self, idx: u32) -> Option<Rc<FunctionType>> {
+		self.types.get(idx as usize).cloned()
 	}
 
 	fn push_func(&self, func: FuncRef) {

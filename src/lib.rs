@@ -24,8 +24,6 @@ pub use elements::{
 
 pub use validation::{validate_module, ValidatedModule, Error as ValidationError};
 
-#[allow(deprecated)]
 pub use interpreter::{
-    ProgramInstance,
     RuntimeValue,
 };

@@ -441,7 +441,7 @@ impl ModuleInstance {
 		state: &mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
-			Error::Program(format!(
+			Error::Function(format!(
 				"Module doesn't contain function at index {}",
 				func_idx
 			))
@@ -456,13 +456,13 @@ impl ModuleInstance {
 		state: &mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
-			Error::Program(format!("Module doesn't have export {}", func_name))
+			Error::Function(format!("Module doesn't have export {}", func_name))
 		})?;
 
 		let func_instance = match extern_val {
 			ExternVal::Func(func_instance) => func_instance,
 			unexpected => {
-				return Err(Error::Program(format!(
+				return Err(Error::Function(format!(
 					"Export {} is not a function, but {:?}",
 					func_name,
 					unexpected

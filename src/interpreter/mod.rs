@@ -1,17 +1,11 @@
 //! WebAssembly interpreter module.
 
 // TODO(pepyakin): Fix these asap
-#![allow(deprecated)]
 #![allow(missing_docs)]
-
-use validation;
-use common;
 
 /// Internal interpreter error.
 #[derive(Debug)]
 pub enum Error {
-	/// Program-level error.
-	Program(String),
 	/// Validation error.
 	Validation(String),
 	/// Error while instantiating a module. Might occur when provided
@@ -46,7 +40,6 @@ pub enum Error {
 impl Into<String> for Error {
 	fn into(self) -> String {
 		match self {
-			Error::Program(s) => s,
 			Error::Validation(s) => s,
 			Error::Instantiation(s) => s,
 			Error::Function(s) => s,
@@ -68,7 +61,6 @@ impl Into<String> for Error {
 impl ::std::fmt::Display for Error {
 	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
 		match *self {
-			Error::Program(ref s) => write!(f, "Program: {}", s),
 			Error::Validation(ref s) => write!(f, "Validation: {}", s),
 			Error::Instantiation(ref s) => write!(f, "Instantiation: {}", s),
 			Error::Function(ref s) => write!(f, "Function: {}", s),
@@ -93,21 +85,20 @@ impl<U> From<U> for Error where U: host::HostError + Sized {
 	}
 }
 
-impl From<validation::Error> for Error {
-	fn from(e: validation::Error) -> Self {
+impl From<::validation::Error> for Error {
+	fn from(e: ::validation::Error) -> Self {
 		Error::Validation(e.to_string())
 	}
 }
 
-impl From<common::stack::Error> for Error {
-	fn from(e: common::stack::Error) -> Self {
+impl From<::common::stack::Error> for Error {
+	fn from(e: ::common::stack::Error) -> Self {
 		Error::Stack(e.to_string())
 	}
 }
 
 mod memory;
 mod module;
-mod program;
 mod runner;
 mod table;
 mod value;
@@ -121,10 +112,9 @@ mod tests;
 
 pub use self::memory::{MemoryInstance, MemoryRef};
 pub use self::table::{TableInstance, TableRef};
-pub use self::program::ProgramInstance;
 pub use self::value::{RuntimeValue, TryInto};
 pub use self::host::{Externals, HostFuncIndex, NopExternals, HostError};
 pub use self::imports::{ImportResolver, Imports};
-pub use self::module::{ModuleInstance, ModuleRef, ExternVal};
+pub use self::module::{ModuleInstance, ModuleRef, ExternVal, InstantiationBuilder};
 pub use self::global::{GlobalInstance, GlobalRef};
 pub use self::func::{FuncInstance, FuncRef};

@@ -35,7 +35,7 @@ pub struct ValidatedModule {
 	module: Module,
 }
 
-impl<'a> ValidatedModule {
+impl ValidatedModule {
 	pub fn module(&self) -> &Module {
 		&self.module
 	}
@@ -46,6 +46,13 @@ impl<'a> ValidatedModule {
 
 	pub(crate) fn labels(&self) -> &HashMap<usize, HashMap<usize, usize>> {
 		&self.labels
+	}
+}
+
+impl ::std::ops::Deref for ValidatedModule {
+	type Target = Module;
+	fn deref(&self) -> &Module {
+		&self.module
 	}
 }
 

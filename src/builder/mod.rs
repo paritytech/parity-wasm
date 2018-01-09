@@ -11,9 +11,12 @@ mod export;
 mod global;
 mod data;
 
+pub use self::code::{
+    signatures, signature, function, SignatureBuilder, SignaturesBuilder,
+    FunctionBuilder, TypeRefBuilder
+};
 pub use self::invoke::Identity;
 pub use self::module::{module, from_module, ModuleBuilder};
-pub use self::code::{signatures, signature, function, SignatureBuilder, FunctionBuilder};
 pub use self::memory::MemoryBuilder;
 pub use self::import::{import, ImportBuilder};
 pub use self::export::{export, ExportBuilder};

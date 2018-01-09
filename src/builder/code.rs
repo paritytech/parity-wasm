@@ -2,11 +2,13 @@ use elements;
 use super::invoke::{Invoke, Identity};
 use super::misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder};
 
+/// Signature template description
 pub enum Signature {
     TypeReference(u32),
     Inline(elements::FunctionType),
 }
 
+/// Signature builder
 pub struct SignatureBuilder<F=Identity> {
     callback: F,
     signature: elements::FunctionType,
@@ -19,44 +21,53 @@ impl SignatureBuilder {
 }
 
 impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
+    /// New builder with callback function specified
     pub fn with_callback(callback: F) -> Self {
-        SignatureBuilder { 
-            callback: callback, 
+        SignatureBuilder {
+            callback: callback,
             signature: elements::FunctionType::default(),
         }
     }
 
+    /// Add argument to signature builder
     pub fn with_param(mut self, value_type: elements::ValueType) -> Self {
         self.signature.params_mut().push(value_type);
         self
     }
 
+    /// Add multiple arguments to signature builder
     pub fn with_params(mut self, value_types: Vec<elements::ValueType>) -> Self {
         self.signature.params_mut().extend(value_types);
         self
     }
 
+    /// Override signature return type
     pub fn with_return_type(mut self, return_type: Option<elements::ValueType>) -> Self {
         *self.signature.return_type_mut() = return_type;
         self
     }
 
+    /// Start build new argument
     pub fn param(self) -> ValueTypeBuilder<Self> {
         ValueTypeBuilder::with_callback(self)
     }
 
+    /// Start build multiple arguments
     pub fn params(self) -> ValueTypesBuilder<Self> {
         ValueTypesBuilder::with_callback(self)
     }
 
+    /// Start building return type
     pub fn return_type(self) -> OptionalValueTypeBuilder<Self> {
         OptionalValueTypeBuilder::with_callback(self)
     }
 
+    /// Finish current builder
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.signature)
     }
 
+    /// Finish current builder returning intermediate `Signature` struct
     pub fn build_sig(self) -> Signature {
         Signature::Inline(self.signature)
     }
@@ -82,8 +93,8 @@ impl<F> Invoke<Option<elements::ValueType>> for SignatureBuilder<F>
     }
 }
 
-impl<F> Invoke<elements::ValueType> for SignatureBuilder<F> 
-    where F: Invoke<elements::FunctionType>  
+impl<F> Invoke<elements::ValueType> for SignatureBuilder<F>
+    where F: Invoke<elements::FunctionType>
 {
     type Result = Self;
 
@@ -92,27 +103,32 @@ impl<F> Invoke<elements::ValueType> for SignatureBuilder<F>
     }
 }
 
+/// Type (signature) reference builder (for function/import/indirect call)
 pub struct TypeRefBuilder<F=Identity> {
     callback: F,
     type_ref: u32,
 }
 
 impl<F> TypeRefBuilder<F> where F: Invoke<u32> {
+    /// New builder chained with specified callback
     pub fn with_callback(callback: F) -> Self {
-        TypeRefBuilder { 
-            callback: callback, 
+        TypeRefBuilder {
+            callback: callback,
             type_ref: 0
         }
     }
 
+    /// Set/override of type reference
     pub fn val(mut self, val: u32) -> Self {
         self.type_ref = val;
         self
     }
 
+    /// Finish current builder
     pub fn build(self) -> F::Result { self.callback.invoke(self.type_ref) }
 }
 
+/// Multiple signatures builder
 pub struct SignaturesBuilder<F=Identity> {
     callback: F,
     section: Vec<Signature>,
@@ -140,7 +156,7 @@ impl<F> SignaturesBuilder<F> {
 
     pub fn type_ref(self) -> TypeRefBuilder<Self> {
         TypeRefBuilder::with_callback(self)
-    }    
+    }
 }
 
 impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
@@ -154,7 +170,7 @@ impl<F> Invoke<elements::FunctionType> for SignaturesBuilder<F> {
 
 	fn invoke(self, signature: elements::FunctionType) -> Self {
 		self.with_signature(Signature::Inline(signature))
-    }    
+    }
 }
 
 impl<F> Invoke<u32> for SignaturesBuilder<F> {
@@ -162,7 +178,7 @@ impl<F> Invoke<u32> for SignaturesBuilder<F> {
 
 	fn invoke(self, type_ref: u32) -> Self {
 		self.with_signature(Signature::TypeReference(type_ref))
-    }    
+    }
 }
 
 impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionSection> {
@@ -290,7 +306,7 @@ impl<F> Invoke<elements::FunctionType> for FunctionBuilder<F> where F: Invoke<Fu
 
 	fn invoke(self, signature: elements::FunctionType) -> Self {
 		self.with_signature(Signature::Inline(signature))
-    }    
+    }
 }
 
 impl<F> Invoke<u32> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
@@ -298,7 +314,7 @@ impl<F> Invoke<u32> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
 
 	fn invoke(self, type_ref: u32) -> Self {
 		self.with_signature(Signature::TypeReference(type_ref))
-    }    
+    }
 }
 
 impl<F> Invoke<elements::FuncBody> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
@@ -344,7 +360,7 @@ mod tests {
                 .param().i32()
                 .return_type().i64()
                 .build()
-            .bind();      
+            .bind();
 
         assert_eq!(result.len(), 1);
     }

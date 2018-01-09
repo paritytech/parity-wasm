@@ -41,7 +41,7 @@ impl TableInstance {
 		Ok(TableRef(Rc::new(table)))
 	}
 
-	pub fn new(table_type: &TableType) -> Result<TableInstance, Error> {
+	fn new(table_type: &TableType) -> Result<TableInstance, Error> {
 		check_limits(table_type.limits())?;
 		Ok(TableInstance {
 			limits: table_type.limits().clone(),

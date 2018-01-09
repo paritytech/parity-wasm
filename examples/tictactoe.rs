@@ -191,18 +191,6 @@ impl<'a> Externals for Runtime<'a> {
 			_ => panic!("unknown function index")
 		}
 	}
-
-	fn memory_by_index(&self, _index: HostMemoryIndex) -> Option<&MemoryInstance> {
-		panic!("host module doesn't export any memories")
-	}
-
-	fn table_by_index(&self, _index: HostTableIndex) -> Option<&TableInstance> {
-		panic!("host module doesn't export any tables")
-	}
-
-	fn global_by_index(&self, _index: HostGlobalIndex) -> Option<&GlobalInstance> {
-		panic!("host module doesn't export any globals")
-	}
 }
 
 struct RuntimeImportResolver;

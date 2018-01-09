@@ -67,8 +67,14 @@ impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> 
 }
 
 impl MemoryInstance {
+
+	pub fn alloc(mem_type: &MemoryType) -> Result<MemoryRef, Error> {
+		let memory = MemoryInstance::new(&mem_type)?;
+		Ok(MemoryRef(Rc::new(memory)))
+	}
+
 	/// Create new linear memory instance.
-	pub fn new(memory_type: &MemoryType) -> Result<Self, Error> {
+	fn new(memory_type: &MemoryType) -> Result<Self, Error> {
 		check_limits(memory_type.limits())?;
 
 		let maximum_size = match memory_type.limits().maximum() {
@@ -87,11 +93,6 @@ impl MemoryInstance {
 		};
 
 		Ok(memory)
-	}
-
-	pub fn alloc(mem_type: &MemoryType) -> Result<MemoryRef, Error> {
-		let memory = MemoryInstance::new(&mem_type)?;
-		Ok(MemoryRef(Rc::new(memory)))
 	}
 
 	/// Return linear memory limits.

@@ -21,16 +21,17 @@ pub struct GlobalInstance {
 }
 
 impl GlobalInstance {
-	pub fn new(val: RuntimeValue, mutable: bool) -> GlobalInstance {
-		GlobalInstance {
-			val: Cell::new(val),
-			mutable,
-		}
-	}
 
 	pub fn alloc(global_type: &GlobalType, val: RuntimeValue) -> GlobalRef {
 		let global = GlobalInstance::new(val, global_type.is_mutable());
 		GlobalRef(Rc::new(global))
+	}
+
+	fn new(val: RuntimeValue, mutable: bool) -> GlobalInstance {
+		GlobalInstance {
+			val: Cell::new(val),
+			mutable,
+		}
 	}
 
 	pub fn set(&self, val: RuntimeValue) -> Result<(), Error> {

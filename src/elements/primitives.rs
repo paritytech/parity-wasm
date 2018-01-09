@@ -4,7 +4,7 @@ use super::{Error, Deserialize, Serialize};
 
 /// Unsigned variable-length integer, limited to 32 bits,
 /// represented by at most 5 bytes that may contain padding 0x80 bytes.
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VarUint32(u32);
 
 impl From<VarUint32> for usize {
@@ -74,7 +74,7 @@ impl Serialize for VarUint32 {
 
 /// Unsigned variable-length integer, limited to 64 bits,
 /// represented by at most 9 bytes that may contain padding 0x80 bytes.
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VarUint64(u64);
 
 impl From<VarUint64> for u64 {
@@ -130,7 +130,7 @@ impl From<u64> for VarUint64 {
 }
 
 /// 7-bit unsigned integer, encoded in LEB128 (always 1 byte length)
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VarUint7(u8);
 
 impl From<VarUint7> for u8 {
@@ -166,7 +166,7 @@ impl Serialize for VarUint7 {
 }
 
 /// 7-bit signed integer, encoded in LEB128 (always 1 byte length)
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VarInt7(i8);
 
 impl From<VarInt7> for i8 {
@@ -207,7 +207,7 @@ impl Serialize for VarInt7 {
 }
 
 /// 32-bit signed integer, encoded in LEB128 (can be 1-5 bytes length)
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VarInt32(i32);
 
 impl From<VarInt32> for i32 {
@@ -271,7 +271,7 @@ impl Serialize for VarInt32 {
 }
 
 /// 64-bit signed integer, encoded in LEB128 (can be 1-9 bytes length)
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VarInt64(i64);
 
 impl From<VarInt64> for i64 {
@@ -335,7 +335,7 @@ impl Serialize for VarInt64 {
 }
 
 /// 32-bit unsigned integer, encoded in little endian
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Uint32(u32);
 
 impl Deserialize for Uint32 {
@@ -371,7 +371,7 @@ impl From<u32> for Uint32 {
 }
 
 /// 64-bit unsigned integer, encoded in little endian
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Uint64(u64);
 
 impl Deserialize for Uint64 {
@@ -408,7 +408,7 @@ impl From<Uint64> for u64 {
 
 
 /// VarUint1, 1-bit value (0/1)
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VarUint1(bool);
 
 impl From<VarUint1> for bool {
@@ -476,6 +476,7 @@ impl Serialize for String {
 
 /// List for reading sequence of elements typed `T`, given
 /// they are preceded by length (serialized as VarUint32)
+#[derive(Debug, Clone)]
 pub struct CountedList<T: Deserialize>(Vec<T>);
 
 impl<T: Deserialize> CountedList<T> {
@@ -496,6 +497,7 @@ impl<T: Deserialize> Deserialize for CountedList<T> where T::Error: From<Error> 
 
 /// Helper struct to write payload which is preceded by
 /// it's own length in bytes.
+#[derive(Debug)]
 pub struct CountedWriter<'a, W: 'a + io::Write> {
     writer: &'a mut W,
     data: Vec<u8>,
@@ -541,6 +543,7 @@ impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
 
 /// Helper struct to write series of `T` preceded by the length of the sequence
 /// serialized as VarUint32
+#[derive(Debug, Clone)]
 pub struct CountedListWriter<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>>(pub usize, pub T);
 
 impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize for CountedListWriter<I, T> {

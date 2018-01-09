@@ -16,7 +16,7 @@ pub use self::code::{
     FunctionBuilder, TypeRefBuilder, FuncBodyBuilder, FunctionDefinition,
 };
 pub use self::data::DataSegmentBuilder;
-pub use self::export::{export, ExportBuilder};
+pub use self::export::{export, ExportBuilder, ExportInternalBuilder};
 pub use self::global::{global, GlobalBuilder};
 pub use self::import::{import, ImportBuilder};
 pub use self::invoke::Identity;

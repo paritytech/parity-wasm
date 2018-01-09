@@ -95,8 +95,16 @@ impl MemoryInstance {
 	}
 
 	/// Return linear memory limits.
-	pub fn limits(&self) -> &ResizableLimits {
+	pub(crate) fn limits(&self) -> &ResizableLimits {
 		&self.limits
+	}
+
+	pub fn initial_size(&self) -> u32 {
+		self.limits.initial()
+	}
+
+	pub fn maximum_size(&self) -> Option<u32> {
+		self.limits.maximum()
 	}
 
 	/// Return linear memory size (in pages).

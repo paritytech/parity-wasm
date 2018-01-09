@@ -253,11 +253,7 @@ impl<E: UserFunctionExecutor> ModuleInstanceInterface for NativeModuleInstance<E
 /// # Examples
 ///
 /// ```rust
-/// use parity_wasm::interpreter::{CallerContext, Error, ExecutionParams, ExportEntryType,
-///                                FunctionSignature, ItemIndex, ModuleInstance,
-///                                ModuleInstanceInterface, ProgramInstance, RuntimeValue,
-///                                UserDefinedElements, UserError, UserFunctionDescriptor,
-///                                UserFunctionExecutor};
+/// use parity_wasm::interpreter::{CallerContext, Error, RuntimeValue, UserFunctionExecutor};
 ///
 /// struct MyExecutor;
 ///
@@ -270,8 +266,8 @@ impl<E: UserFunctionExecutor> ModuleInstanceInterface for NativeModuleInstance<E
 ///         match name {
 ///             "add" => {
 ///                 // fn add(a: u32, b: u32) -> u32
-///                 let b = context.value_stack.pop_as::<u32>()? as u32;
-///                 let a = context.value_stack.pop_as::<u32>()? as u32;
+///                 let b = context.value_stack.pop_as::<u32>()?;
+///                 let a = context.value_stack.pop_as::<u32>()?;
 ///                 let sum = a + b;
 ///                 Ok(Some(RuntimeValue::I32(sum as i32)))
 ///             }

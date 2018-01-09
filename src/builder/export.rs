@@ -1,6 +1,7 @@
 use super::invoke::{Invoke, Identity};
 use elements;
 
+/// Export entry builder
 pub struct ExportBuilder<F=Identity> {
     callback: F,
     field: String,
@@ -15,6 +16,7 @@ impl ExportBuilder {
 
 impl<F> ExportBuilder<F> {
 
+    /// New export entry builder in the specified chained context
     pub fn with_callback(callback: F) -> Self {
         ExportBuilder {
             callback: callback,
@@ -23,22 +25,26 @@ impl<F> ExportBuilder<F> {
         }
     }
 
+    /// Set the field name of the export entry
     pub fn field(mut self, field: &str) -> Self {
         self.field = field.to_owned();
         self
     }
 
+    /// Specify the internal module mapping for this entry
     pub fn with_internal(mut self, external: elements::Internal) -> Self {
         self.binding = external;
         self
     }
 
+    /// Start the internal builder for this export entry
     pub fn internal(self) -> ExportInternalBuilder<Self> {
         ExportInternalBuilder::with_callback(self)
     }
 }
 
 impl<F> ExportBuilder<F> where F: Invoke<elements::ExportEntry> {
+    /// Finalize export entry builder spawning the resulting struct
     pub fn build(self) -> F::Result {
         self.callback.invoke(elements::ExportEntry::new(self.field, self.binding))
     }
@@ -51,12 +57,14 @@ impl<F> Invoke<elements::Internal> for ExportBuilder<F> {
     }
 }
 
+/// Internal mapping builder for export entry
 pub struct ExportInternalBuilder<F=Identity> {
     callback: F,
     binding: elements::Internal,
 }
 
 impl<F> ExportInternalBuilder<F> where F: Invoke<elements::Internal> {
+    /// New export entry internal mapping for the chained context
     pub fn with_callback(callback: F) -> Self {
         ExportInternalBuilder{
             callback: callback,
@@ -64,21 +72,25 @@ impl<F> ExportInternalBuilder<F> where F: Invoke<elements::Internal> {
         }
     }
 
+    /// Map to function by index
     pub fn func(mut self, index: u32) -> F::Result {
         self.binding = elements::Internal::Function(index);
         self.callback.invoke(self.binding)
     }
 
+    /// Map to memory
     pub fn memory(mut self, index: u32) -> F::Result {
         self.binding = elements::Internal::Memory(index);
         self.callback.invoke(self.binding)
     }
 
+    /// Map to table
     pub fn table(mut self, index: u32) -> F::Result {
         self.binding = elements::Internal::Table(index);
         self.callback.invoke(self.binding)
     }
 
+    /// Map to global
     pub fn global(mut self, index: u32) -> F::Result {
         self.binding = elements::Internal::Global(index);
         self.callback.invoke(self.binding)

@@ -4,38 +4,8 @@
 #![allow(deprecated)]
 #![allow(missing_docs)]
 
-use std::any::TypeId;
 use validation;
 use common;
-
-/// Custom user error.
-pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug {
-	#[doc(hidden)]
-	fn __private_get_type_id__(&self) -> TypeId {
-		TypeId::of::<Self>()
-	}
-}
-
-impl UserError {
-	/// Attempt to downcast this `UserError` to a concrete type by reference.
-	pub fn downcast_ref<T: UserError>(&self) -> Option<&T> {
-		if self.__private_get_type_id__() == TypeId::of::<T>() {
-			unsafe { Some(&*(self as *const UserError as *const T)) }
-		} else {
-			None
-		}
-	}
-
-	/// Attempt to downcast this `UserError` to a concrete type by mutable
-	/// reference.
-	pub fn downcast_mut<T: UserError>(&mut self) -> Option<&mut T> {
-		if self.__private_get_type_id__() == TypeId::of::<T>() {
-			unsafe { Some(&mut *(self as *mut UserError as *mut T)) }
-		} else {
-			None
-		}
-	}
-}
 
 /// Internal interpreter error.
 #[derive(Debug)]
@@ -70,7 +40,7 @@ pub enum Error {
 	/// Trap.
 	Trap(String),
 	/// Custom user error.
-	User(Box<UserError>),
+	User(Box<host::HostError>),
 }
 
 impl Into<String> for Error {
@@ -117,7 +87,7 @@ impl ::std::fmt::Display for Error {
 	}
 }
 
-impl<U> From<U> for Error where U: UserError + Sized {
+impl<U> From<U> for Error where U: host::HostError + Sized {
 	fn from(e: U) -> Self {
 		Error::User(Box::new(e))
 	}
@@ -153,8 +123,8 @@ pub use self::memory::{MemoryInstance, MemoryRef};
 pub use self::table::{TableInstance, TableRef};
 pub use self::program::ProgramInstance;
 pub use self::value::{RuntimeValue, TryInto};
-pub use self::host::{Externals, HostFuncIndex, EmptyExternals};
+pub use self::host::{Externals, HostFuncIndex, EmptyExternals, HostError};
 pub use self::imports::{ImportResolver, Imports};
-pub use self::module::{ModuleInstance, ModuleRef};
+pub use self::module::{ModuleInstance, ModuleRef, ExternVal};
 pub use self::global::{GlobalInstance, GlobalRef};
 pub use self::func::{FuncInstance, FuncRef};

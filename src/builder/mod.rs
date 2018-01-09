@@ -13,7 +13,7 @@ mod data;
 
 pub use self::code::{
     signatures, signature, function, SignatureBuilder, SignaturesBuilder,
-    FunctionBuilder, TypeRefBuilder
+    FunctionBuilder, TypeRefBuilder, FuncBodyBuilder, FunctionDefinition,
 };
 pub use self::invoke::Identity;
 pub use self::module::{module, from_module, ModuleBuilder};

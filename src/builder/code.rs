@@ -15,6 +15,7 @@ pub struct SignatureBuilder<F=Identity> {
 }
 
 impl SignatureBuilder {
+    /// New signature builder
     pub fn new() -> Self {
         SignatureBuilder::with_callback(Identity)
     }
@@ -142,6 +143,7 @@ impl SignaturesBuilder {
 }
 
 impl<F> SignaturesBuilder<F> {
+    /// New builder chained with specified callback
     pub fn with_callback(callback: F) -> Self {
         SignaturesBuilder {
             callback: callback,
@@ -149,17 +151,20 @@ impl<F> SignaturesBuilder<F> {
         }
     }
 
+    /// Push new signature into the builder output
     pub fn with_signature(mut self, signature: Signature) -> Self {
         self.section.push(signature);
         self
     }
 
+    /// Start building new signature with `TypeRefBuilder`
     pub fn type_ref(self) -> TypeRefBuilder<Self> {
         TypeRefBuilder::with_callback(self)
     }
 }
 
 impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
+    /// Start building new signature with dedicated builder
     pub fn signature(self) -> SignatureBuilder<Self> {
         SignatureBuilder::with_callback(self)
     }
@@ -182,6 +187,8 @@ impl<F> Invoke<u32> for SignaturesBuilder<F> {
 }
 
 impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionSection> {
+
+    /// Finalize builder spawning element
     pub fn build(self) -> F::Result {
         let mut result = elements::FunctionSection::default();
         for f in self.section.into_iter() {
@@ -195,20 +202,24 @@ impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionSection> {
     }
 }
 
+/// Signature bindings
 pub type SignatureBindings = Vec<Signature>;
 
 impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
+    /// Bind signature list
     pub fn bind(self) -> F::Result {
         self.callback.invoke(self.section)
     }
 }
 
+/// Function body (code) builder
 pub struct FuncBodyBuilder<F=Identity> {
     callback: F,
     body: elements::FuncBody,
 }
 
 impl<F> FuncBodyBuilder<F> {
+    /// New body (code) builder given the chain callback
     pub fn with_callback(callback: F) -> Self {
         FuncBodyBuilder {
             callback: callback,
@@ -218,26 +229,31 @@ impl<F> FuncBodyBuilder<F> {
 }
 
 impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
+    /// Set/override entirely with FuncBody struct
     pub fn with_func(mut self, func: elements::FuncBody) -> Self {
         self.body = func;
         self
     }
 
+    /// Extend function local list with new entries
     pub fn with_locals(mut self, locals: Vec<elements::Local>) -> Self {
         self.body.locals_mut().extend(locals);
         self
     }
 
+    /// Set code of the function
     pub fn with_opcodes(mut self, opcodes: elements::Opcodes) -> Self {
         *self.body.code_mut() = opcodes;
         self
     }
 
+    /// Finish current builder spawning resulting struct
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.body)
     }
 }
 
+/// Function definition (extended structure to specify function entirely, incl. signature, mainness and code)
 pub struct FunctionDefinition {
     pub is_main: bool,
     pub signature: Signature,
@@ -254,18 +270,21 @@ impl Default for FunctionDefinition {
     }
 }
 
+/// Function definition builder
 pub struct FunctionBuilder<F=Identity> {
     callback: F,
     func: FunctionDefinition,
 }
 
 impl FunctionBuilder {
+    /// New function builder
     pub fn new() -> Self {
         FunctionBuilder::with_callback(Identity)
     }
 }
 
 impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+    /// New function builder with chained callback
     pub fn with_callback(callback: F) -> Self {
         FunctionBuilder {
             callback: callback,
@@ -273,29 +292,35 @@ impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
         }
     }
 
+    /// Set that this function is main entry point
     pub fn main(mut self) -> Self {
         self.func.is_main = true;
         self
     }
 
+    /// Start signature builder of the function
     pub fn signature(self) -> SignatureBuilder<Self> {
         SignatureBuilder::with_callback(self)
     }
 
+    /// Override current signature entirely with new one from known struct
     pub fn with_signature(mut self, signature: Signature) -> Self {
         self.func.signature = signature;
         self
     }
 
+    /// Start code (body) builder
     pub fn body(self) -> FuncBodyBuilder<Self> {
         FuncBodyBuilder::with_callback(self)
     }
 
+    /// Set body (code) for this function
     pub fn with_body(mut self, body: elements::FuncBody) -> Self {
         self.func.code = body;
         self
     }
 
+    /// Finalize current builder spawning resulting struct in the callback
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.func)
     }

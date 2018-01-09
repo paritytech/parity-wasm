@@ -123,7 +123,7 @@ pub use self::memory::{MemoryInstance, MemoryRef};
 pub use self::table::{TableInstance, TableRef};
 pub use self::program::ProgramInstance;
 pub use self::value::{RuntimeValue, TryInto};
-pub use self::host::{Externals, HostFuncIndex, EmptyExternals, HostError};
+pub use self::host::{Externals, HostFuncIndex, NopExternals, HostError};
 pub use self::imports::{ImportResolver, Imports};
 pub use self::module::{ModuleInstance, ModuleRef, ExternVal};
 pub use self::global::{GlobalInstance, GlobalRef};

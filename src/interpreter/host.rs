@@ -44,15 +44,15 @@ pub trait Externals {
 	fn check_signature(&self, index: HostFuncIndex, signature: &FunctionType) -> bool;
 }
 
-pub struct EmptyExternals;
+pub struct NopExternals;
 
-impl Externals for EmptyExternals {
+impl Externals for NopExternals {
 	fn invoke_index(
 		&mut self,
 		_index: HostFuncIndex,
 		_args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
-		Err(Error::Trap("invoke index on empty externals".into()))
+		Err(Error::Trap("invoke index on no-op externals".into()))
 	}
 
 	fn check_signature(&self, _index: HostFuncIndex, _signature: &FunctionType) -> bool {

@@ -471,19 +471,19 @@ impl ModuleInstance {
 
 pub struct InstantiationBuilder<'a> {
 	validated_module: &'a ValidatedModule,
-	imports: Option<Imports<'a>>,
+	imports: Imports<'a>,
 }
 
 impl<'a> InstantiationBuilder<'a> {
 	fn new(validated_module: &'a ValidatedModule) -> Self {
 		InstantiationBuilder {
 			validated_module,
-			imports: None,
+			imports: Imports::default(),
 		}
 	}
 
 	pub fn with_imports(mut self, imports: Imports<'a>) -> Self {
-		self.imports = Some(imports);
+		self.imports = imports;
 		self
 	}
 
@@ -493,29 +493,38 @@ impl<'a> InstantiationBuilder<'a> {
 		import_resolver: &'a ImportResolver,
 	) -> Self {
 		self.imports
-			.get_or_insert_with(|| Imports::default())
 			.push_resolver(name, import_resolver);
 		self
 	}
 
-	pub fn run_start<'b, E: Externals>(mut self, state: &'b mut E) -> Result<ModuleRef, Error> {
-		let imports = self.imports.get_or_insert_with(|| Imports::default());
-		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, imports)?;
+	pub fn build(self) -> Result<NotStartedModuleRef<'a>, Error> {
+		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, &self.imports)?;
+		Ok(NotStartedModuleRef {
+			instance,
+			validated_module: self.validated_module,
+		})
+	}
+}
 
+pub struct NotStartedModuleRef<'a> {
+	validated_module: &'a ValidatedModule,
+	instance: ModuleRef,
+}
+
+impl<'a> NotStartedModuleRef<'a> {
+	pub fn run_start<'b, E: Externals>(self, state: &'b mut E) -> Result<ModuleRef, Error> {
 		if let Some(start_fn_idx) = self.validated_module.module().start_section() {
-			let start_func = instance.func_by_index(start_fn_idx).expect(
+			let start_func = self.instance.func_by_index(start_fn_idx).expect(
 				"Due to validation start function should exists",
 			);
 			FuncInstance::invoke(start_func, Cow::Borrowed(&[]), state)?;
 		}
-		Ok(instance)
+		Ok(self.instance)
 	}
 
-	pub fn assert_no_start(mut self) -> Result<ModuleRef, Error> {
+	pub fn assert_no_start(self) -> Result<ModuleRef, Error> {
 		assert!(self.validated_module.module().start_section().is_none());
-		let imports = self.imports.get_or_insert_with(|| Imports::default());
-		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, imports)?;
-		Ok(instance)
+		Ok(self.instance)
 	}
 }
 

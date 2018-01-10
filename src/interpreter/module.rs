@@ -244,7 +244,10 @@ impl ModuleInstance {
 				&[],
 			)
 			{
-				let memory = MemoryInstance::alloc(memory_type)?;
+				let memory = MemoryInstance::alloc(
+					memory_type.limits().initial(),
+					memory_type.limits().maximum()
+				)?;
 				instance.push_memory(memory);
 			}
 

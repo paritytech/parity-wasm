@@ -4,7 +4,7 @@ use std::cmp;
 use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
-use elements::{MemoryType, ResizableLimits};
+use elements::ResizableLimits;
 use interpreter::Error;
 use interpreter::module::check_limits;
 
@@ -68,26 +68,26 @@ impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> 
 
 impl MemoryInstance {
 
-	pub fn alloc(mem_type: &MemoryType) -> Result<MemoryRef, Error> {
-		let memory = MemoryInstance::new(&mem_type)?;
+	pub fn alloc(initial_pages: u32, maximum_pages: Option<u32>) -> Result<MemoryRef, Error> {
+		let memory = MemoryInstance::new(ResizableLimits::new(initial_pages, maximum_pages))?;
 		Ok(MemoryRef(Rc::new(memory)))
 	}
 
 	/// Create new linear memory instance.
-	fn new(memory_type: &MemoryType) -> Result<Self, Error> {
-		check_limits(memory_type.limits())?;
+	fn new(limits: ResizableLimits) -> Result<Self, Error> {
+		check_limits(&limits)?;
 
-		let maximum_size = match memory_type.limits().maximum() {
+		let maximum_size = match limits.maximum() {
 			Some(maximum_pages) if maximum_pages > LINEAR_MEMORY_MAX_PAGES =>
 				return Err(Error::Memory(format!("maximum memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES))),
 			Some(maximum_pages) => maximum_pages.saturating_mul(LINEAR_MEMORY_PAGE_SIZE),
 			None => u32::MAX,
 		};
-		let initial_size = calculate_memory_size(0, memory_type.limits().initial(), maximum_size)
+		let initial_size = calculate_memory_size(0, limits.initial(), maximum_size)
 			.ok_or(Error::Memory(format!("initial memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES)))?;
 
 		let memory = MemoryInstance {
-			limits: memory_type.limits().clone(),
+			limits: limits.clone(),
 			buffer: RefCell::new(vec![0; initial_size as usize]),
 			maximum_size: maximum_size,
 		};
@@ -100,11 +100,11 @@ impl MemoryInstance {
 		&self.limits
 	}
 
-	pub fn initial_size(&self) -> u32 {
+	pub fn initial_pages(&self) -> u32 {
 		self.limits.initial()
 	}
 
-	pub fn maximum_size(&self) -> Option<u32> {
+	pub fn maximum_pages(&self) -> Option<u32> {
 		self.limits.maximum()
 	}
 
@@ -240,10 +240,10 @@ mod tests {
 
 	use super::MemoryInstance;
 	use interpreter::Error;
-	use elements::MemoryType;
+	use elements::ResizableLimits;
 
 	fn create_memory(initial_content: &[u8]) -> MemoryInstance {
-		let mem = MemoryInstance::new(&MemoryType::new(1, Some(1)))
+		let mem = MemoryInstance::new(ResizableLimits::new(1, Some(1)))
 			.expect("MemoryInstance created successfuly");
 		mem.set(0, initial_content).expect("Successful initialize the memory");
 		mem
@@ -303,7 +303,7 @@ mod tests {
 
 	#[test]
 	fn get_into() {
-		let mem = MemoryInstance::new(&MemoryType::new(1, None)).expect("memory instance creation should not fail");
+		let mem = MemoryInstance::new(ResizableLimits::new(1, None)).expect("memory instance creation should not fail");
 		mem.set(6, &[13, 17, 129]).expect("memory set should not fail");
 
 		let mut data = [0u8; 2];

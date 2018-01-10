@@ -9,6 +9,7 @@ pub struct ExportBuilder<F=Identity> {
 }
 
 impl ExportBuilder {
+    /// New export builder
     pub fn new() -> Self {
         ExportBuilder::with_callback(Identity)
     }

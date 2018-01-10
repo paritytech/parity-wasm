@@ -2,9 +2,9 @@ extern crate parity_wasm;
 
 use std::env::args;
 
-use parity_wasm::RuntimeValue;
 use parity_wasm::elements::{Internal, External, Type, FunctionType, ValueType};
-use parity_wasm::interpreter::{ModuleInstance, EmptyExternals};
+use parity_wasm::interpreter::{RuntimeValue, ModuleInstance, NopExternals};
+use parity_wasm::validation::validate_module;
 
 
 fn main() {
@@ -69,7 +69,7 @@ fn main() {
         }).collect::<Vec<RuntimeValue>>()
     };
 
-	let validated_module = parity_wasm::validate_module(module).expect("Module to be valid");
+    let validated_module = validate_module(module).expect("Module to be valid");
 
     // Intialize deserialized module. It adds module into It expects 3 parameters:
     // - a name for the module
@@ -77,8 +77,10 @@ fn main() {
     // - "main" module doesn't import native module(s) this is why we don't need to provide external native modules here
     // This test shows how to implement native module https://github.com/NikVolf/parity-wasm/blob/master/src/interpreter/tests/basics.rs#L197
     let main = ModuleInstance::new(&validated_module)
-        .run_start(&mut EmptyExternals)
-        .expect("Failed to initialize module");
+        .build()
+        .expect("Failed to instantiate module")
+        .run_start(&mut NopExternals)
+        .expect("Failed to run start function in module");
 
-    println!("Result: {:?}", main.invoke_export(func_name, &args, &mut EmptyExternals).expect(""));
+    println!("Result: {:?}", main.invoke_export(func_name, &args, &mut NopExternals).expect(""));
 }

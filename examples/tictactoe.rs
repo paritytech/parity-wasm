@@ -4,13 +4,13 @@ use std::env;
 use std::fmt;
 use parity_wasm::elements::{FunctionType, ValueType, TableType, GlobalType, MemoryType};
 use parity_wasm::interpreter::{
-	Error as InterpreterError, ModuleInstance, UserError, ModuleRef,
-	HostFuncIndex, Externals, RuntimeValue, GlobalInstance, TableInstance, MemoryInstance,
-	TableRef, MemoryRef, GlobalRef, FuncRef, TryInto, ImportResolver, FuncInstance,
-	HostGlobalIndex, HostMemoryIndex, HostTableIndex,
+	Error as InterpreterError, ModuleInstance, ModuleRef,
+	Externals, RuntimeValue, TableRef, MemoryRef, GlobalRef,
+	FuncRef, TryInto, ImportResolver, FuncInstance, HostError
 };
+use parity_wasm::validation::validate_module;
 use parity_wasm::elements::{Error as DeserializationError};
-use parity_wasm::ValidationError;
+use parity_wasm::validation::{Error as ValidationError};
 
 #[derive(Debug)]
 pub enum Error {
@@ -45,7 +45,7 @@ impl From<ValidationError> for Error {
 	}
 }
 
-impl UserError for Error {}
+impl HostError for Error {}
 
 mod tictactoe {
 	use super::Error;
@@ -156,13 +156,13 @@ struct Runtime<'a> {
 	game: &'a mut tictactoe::Game,
 }
 
-const SET_FUNC_INDEX: HostFuncIndex = 0;
-const GET_FUNC_INDEX: HostFuncIndex = 1;
+const SET_FUNC_INDEX: usize = 0;
+const GET_FUNC_INDEX: usize = 1;
 
 impl<'a> Externals for Runtime<'a> {
 	fn invoke_index(
 		&mut self,
-		index: HostFuncIndex,
+		index: usize,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, InterpreterError> {
 		match index {
@@ -180,7 +180,7 @@ impl<'a> Externals for Runtime<'a> {
 		}
 	}
 
-	fn check_signature(&self, index: HostFuncIndex, sig: &FunctionType) -> bool {
+	fn check_signature(&self, index: usize, sig: &FunctionType) -> bool {
 		match index {
 			SET_FUNC_INDEX => {
 				sig.params() == &[ValueType::I32] && sig.return_type() == None
@@ -250,10 +250,11 @@ fn instantiate(
 	path: &str,
 ) -> Result<ModuleRef, Error> {
 	let module = parity_wasm::deserialize_file(path)?;
-	let validated_module = parity_wasm::validate_module(module)?;
+	let validated_module = validate_module(module)?;
 
 	let instance = ModuleInstance::new(&validated_module)
 		.with_import("env", &RuntimeImportResolver)
+		.build()?
 		.assert_no_start()?;
 
 	Ok(instance)

@@ -399,13 +399,10 @@ impl ModuleInstance {
 			})?;
 			let extern_val = match *import_entry.external() {
 				External::Function(fn_ty_idx) => {
-					// Module is not yet validated so we have to check type indexes.
 					let types = module.type_section().map(|s| s.types()).unwrap_or(&[]);
-					let &Type::Function(ref func_type) =
-						types.get(fn_ty_idx as usize).ok_or_else(|| {
-							Error::Validation(format!("Function type {} not found", fn_ty_idx))
-						})?;
-
+					let &Type::Function(ref func_type) = types
+						.get(fn_ty_idx as usize)
+						.expect("Due to validation functions should have valid types");
 					let func = resolver.resolve_func(field_name, func_type)?;
 					ExternVal::Func(func)
 				}

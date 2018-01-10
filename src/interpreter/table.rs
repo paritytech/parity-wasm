@@ -2,7 +2,7 @@ use std::u32;
 use std::fmt;
 use std::cell::RefCell;
 use std::rc::Rc;
-use elements::{ResizableLimits, TableType};
+use elements::ResizableLimits;
 use interpreter::Error;
 use interpreter::func::FuncRef;
 use interpreter::module::check_limits;
@@ -36,16 +36,16 @@ impl fmt::Debug for TableInstance {
 
 impl TableInstance {
 
-	pub fn alloc(table_type: &TableType) -> Result<TableRef, Error> {
-		let table = TableInstance::new(table_type)?;
+	pub fn alloc(initial_size: u32, maximum_size: Option<u32>) -> Result<TableRef, Error> {
+		let table = TableInstance::new(ResizableLimits::new(initial_size, maximum_size))?;
 		Ok(TableRef(Rc::new(table)))
 	}
 
-	fn new(table_type: &TableType) -> Result<TableInstance, Error> {
-		check_limits(table_type.limits())?;
+	fn new(limits: ResizableLimits) -> Result<TableInstance, Error> {
+		check_limits(&limits)?;
 		Ok(TableInstance {
-			limits: table_type.limits().clone(),
-			buffer: RefCell::new(vec![None; table_type.limits().initial() as usize]),
+			buffer: RefCell::new(vec![None; limits.initial() as usize]),
+			limits: limits,
 		})
 	}
 

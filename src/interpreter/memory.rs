@@ -87,7 +87,7 @@ impl MemoryInstance {
 			.ok_or(Error::Memory(format!("initial memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES)))?;
 
 		let memory = MemoryInstance {
-			limits: limits.clone(),
+			limits: limits,
 			buffer: RefCell::new(vec![0; initial_size as usize]),
 			maximum_size: maximum_size,
 		};

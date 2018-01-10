@@ -236,7 +236,10 @@ impl ModuleInstance {
 			}
 
 			for table_type in module.table_section().map(|ts| ts.entries()).unwrap_or(&[]) {
-				let table = TableInstance::alloc(table_type)?;
+				let table = TableInstance::alloc(
+					table_type.limits().initial(),
+					table_type.limits().maximum(),
+				)?;
 				instance.push_table(table);
 			}
 

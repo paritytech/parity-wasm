@@ -98,7 +98,7 @@ pub struct ModuleInstance {
 	exports: HashMap<String, ExternVal>,
 }
 
-impl Default for ModuleInstance {
+impl ModuleInstance {
 	fn default() -> Self {
 		ModuleInstance {
 			types: Vec::new(),
@@ -109,22 +109,20 @@ impl Default for ModuleInstance {
 			exports: HashMap::new(),
 		}
 	}
-}
 
-impl ModuleInstance {
-	pub(crate) fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
+	pub fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
 		self.memories.get(idx as usize).cloned()
 	}
 
-	pub(crate) fn table_by_index(&self, idx: u32) -> Option<TableRef> {
+	pub fn table_by_index(&self, idx: u32) -> Option<TableRef> {
 		self.tables.get(idx as usize).cloned()
 	}
 
-	pub(crate) fn global_by_index(&self, idx: u32) -> Option<GlobalRef> {
+	pub fn global_by_index(&self, idx: u32) -> Option<GlobalRef> {
 		self.globals.get(idx as usize).cloned()
 	}
 
-	pub(crate) fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
+	pub fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
 		self.funcs.borrow().get(idx as usize).cloned()
 	}
 

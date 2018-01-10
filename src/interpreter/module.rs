@@ -542,11 +542,11 @@ impl ImportResolver for ModuleInstance {
 	) -> Result<GlobalRef, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
-				Error::Validation(format!("Export {} not found", field_name))
+				Error::Instantiation(format!("Export {} not found", field_name))
 			})?
 			.as_global()
 			.ok_or_else(|| {
-				Error::Validation(format!("Export {} is not a global", field_name))
+				Error::Instantiation(format!("Export {} is not a global", field_name))
 			})?)
 	}
 
@@ -557,11 +557,11 @@ impl ImportResolver for ModuleInstance {
 	) -> Result<MemoryRef, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
-				Error::Validation(format!("Export {} not found", field_name))
+				Error::Instantiation(format!("Export {} not found", field_name))
 			})?
 			.as_memory()
 			.ok_or_else(|| {
-				Error::Validation(format!("Export {} is not a memory", field_name))
+				Error::Instantiation(format!("Export {} is not a memory", field_name))
 			})?)
 	}
 
@@ -572,11 +572,11 @@ impl ImportResolver for ModuleInstance {
 	) -> Result<TableRef, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
-				Error::Validation(format!("Export {} not found", field_name))
+				Error::Instantiation(format!("Export {} not found", field_name))
 			})?
 			.as_table()
 			.ok_or_else(|| {
-				Error::Validation(format!("Export {} is not a table", field_name))
+				Error::Instantiation(format!("Export {} is not a table", field_name))
 			})?)
 	}
 }
@@ -633,8 +633,8 @@ fn match_limits(l1: &ResizableLimits, l2: &ResizableLimits) -> Result<(), Error>
 pub fn check_limits(limits: &ResizableLimits) -> Result<(), Error> {
 	if let Some(maximum) = limits.maximum() {
 		if maximum < limits.initial() {
-			return Err(Error::Validation(format!(
-				"maximum limit {} is lesser than minimum {}",
+			return Err(Error::Instantiation(format!(
+				"maximum limit {} is less than minimum {}",
 				maximum,
 				limits.initial()
 			)));

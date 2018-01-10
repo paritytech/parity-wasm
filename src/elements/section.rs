@@ -24,7 +24,7 @@ use super::{
 use super::types::Type;
 
 /// Section in the WebAssembly module.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Section {
     /// Section is unparsed.
     Unparsed {
@@ -181,7 +181,7 @@ impl Serialize for Section {
 }
 
 /// Custom section
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CustomSection {
     name: String,
     payload: Vec<u8>,
@@ -241,7 +241,7 @@ impl Serialize for CustomSection {
 }
 
 /// Section with type declarations
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct TypeSection(Vec<Type>);
 
 impl TypeSection {
@@ -351,7 +351,7 @@ impl Serialize for ImportSection {
 }
 
 /// Section with function signatures definition.
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct FunctionSection(Vec<Func>);
 
 impl FunctionSection {
@@ -403,7 +403,7 @@ impl Serialize for FunctionSection {
 }
 
 /// Section with table definition (currently only one is allowed).
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct TableSection(Vec<TableType>);
 
 impl TableSection {
@@ -451,7 +451,7 @@ impl Serialize for TableSection {
 }
 
 /// Section with table definition (currently only one entry is allowed).
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct MemorySection(Vec<MemoryType>);
 
 impl MemorySection {
@@ -499,7 +499,7 @@ impl Serialize for MemorySection {
 }
 
 /// Globals definition section.
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct GlobalSection(Vec<GlobalEntry>);
 
 impl GlobalSection {
@@ -595,7 +595,7 @@ impl Serialize for ExportSection {
 }
 
 /// Section with function bodies of the module.
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct CodeSection(Vec<FuncBody>);
 
 impl CodeSection {
@@ -643,7 +643,7 @@ impl Serialize for CodeSection {
 }
 
 /// Element entries section.
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {
@@ -691,7 +691,7 @@ impl Serialize for ElementSection {
 }
 
 /// Data entries definitions.
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct DataSection(Vec<DataSegment>);
 
 impl DataSection {

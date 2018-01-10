@@ -50,7 +50,7 @@ pub trait Serialize {
 }
 
 /// Deserialization/serialization error
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     /// Unexpected end of input
     UnexpectedEof,

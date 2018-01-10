@@ -5,7 +5,7 @@ use super::{
 };
 
 /// Function signature (type reference)
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Func(u32);
 
 impl Func {
@@ -24,7 +24,7 @@ impl Func {
 }
 
 /// Local definition inside the function body.
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Local {
     count: u32,
     value_type: ValueType,

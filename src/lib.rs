@@ -10,7 +10,7 @@ extern crate unsafe_any;
 pub mod elements;
 pub mod builder;
 pub mod interpreter;
-mod validation;
+pub mod validation;
 mod common;
 
 pub use elements::{
@@ -20,10 +20,4 @@ pub use elements::{
     serialize,
     serialize_to_file,
     peek_size,
-};
-
-pub use validation::{validate_module, ValidatedModule, Error as ValidationError};
-
-pub use interpreter::{
-    RuntimeValue,
 };

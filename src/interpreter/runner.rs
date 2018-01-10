@@ -614,7 +614,9 @@ impl<'a, E: Externals> Interpreter<'a, E> {
 		let m = context.module()
 			.memory_by_index(DEFAULT_MEMORY_INDEX)
 			.expect("Due to validation memory should exists");
-		let m = m.grow(pages)?;
+		// Pushes -1 if allocation fails or previous memory size, if succeeds.
+		let m = m.grow(pages)
+			.unwrap_or(u32::MAX);
 		context
 			.value_stack_mut()
 			.push(RuntimeValue::I32(m as i32))?;

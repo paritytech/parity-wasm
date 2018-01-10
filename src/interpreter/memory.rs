@@ -142,12 +142,18 @@ impl MemoryInstance {
 	}
 
 	/// Increases the size of the linear memory by given number of pages.
-	/// Returns -1 if allocation fails or previous memory size, if succeeds.
+	/// Returns previous memory size (in pages) if succeeds.
 	pub fn grow(&self, pages: u32) -> Result<u32, Error> {
 		let mut buffer = self.buffer.borrow_mut();
 		let old_size = buffer.len() as u32;
 		match calculate_memory_size(old_size, pages, self.maximum_size) {
-			None => Ok(u32::MAX),
+			None => Err(Error::Memory(
+				format!(
+					"Trying to grow memory by {} pages when already have {}",
+					pages,
+					self.size()
+				)
+			)),
 			Some(new_size) => {
 				buffer.resize(new_size as usize, 0);
 				Ok(old_size / LINEAR_MEMORY_PAGE_SIZE)

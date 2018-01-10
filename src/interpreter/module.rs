@@ -511,6 +511,10 @@ pub struct NotStartedModuleRef<'a> {
 }
 
 impl<'a> NotStartedModuleRef<'a> {
+	pub fn not_started_instance(&self) -> &ModuleRef {
+		&self.instance
+	}
+
 	pub fn run_start<'b, E: Externals>(self, state: &'b mut E) -> Result<ModuleRef, Error> {
 		if let Some(start_fn_idx) = self.validated_module.module().start_section() {
 			let start_func = self.instance.func_by_index(start_fn_idx).expect(

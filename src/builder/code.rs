@@ -255,8 +255,11 @@ impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
 
 /// Function definition (extended structure to specify function entirely, incl. signature, mainness and code)
 pub struct FunctionDefinition {
+    /// Is this function is start function
     pub is_main: bool,
+    /// Signature description
     pub signature: Signature,
+    /// Body (code) of the function
     pub code: elements::FuncBody,
 }
 

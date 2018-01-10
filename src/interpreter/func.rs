@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::{FunctionType, Local, Opcodes};
 use interpreter::Error;
-use interpreter::host::{Externals, HostFuncIndex};
+use interpreter::host::Externals;
 use interpreter::runner::{prepare_function_args, FunctionContext, Interpreter};
 use interpreter::value::RuntimeValue;
 use interpreter::module::ModuleRef;
@@ -30,7 +30,7 @@ pub enum FuncInstance {
 	},
 	Host {
 		func_type: FunctionType,
-		host_func: HostFuncIndex,
+		host_func_index: usize,
 	},
 }
 
@@ -70,10 +70,10 @@ impl FuncInstance {
 		FuncRef(Rc::new(func))
 	}
 
-	pub fn alloc_host(func_type: FunctionType, host_func: HostFuncIndex) -> FuncRef {
+	pub fn alloc_host(func_type: FunctionType, host_func_index: usize) -> FuncRef {
 		let func = FuncInstance::Host {
 			func_type,
-			host_func,
+			host_func_index,
 		};
 		FuncRef(Rc::new(func))
 	}
@@ -99,7 +99,7 @@ impl FuncInstance {
 	) -> Result<Option<RuntimeValue>, Error> {
 		enum InvokeKind<'a> {
 			Internal(FunctionContext),
-			Host(HostFuncIndex, &'a [RuntimeValue]),
+			Host(usize, &'a [RuntimeValue]),
 		}
 
 		let result = match *func {
@@ -116,8 +116,8 @@ impl FuncInstance {
 				);
 				InvokeKind::Internal(context)
 			}
-			FuncInstance::Host { ref host_func, .. } => {
-				InvokeKind::Host(*host_func, &*args)
+			FuncInstance::Host { ref host_func_index, .. } => {
+				InvokeKind::Host(*host_func_index, &*args)
 			}
 		};
 

@@ -113,7 +113,7 @@ mod tests;
 pub use self::memory::{MemoryInstance, MemoryRef};
 pub use self::table::{TableInstance, TableRef};
 pub use self::value::{RuntimeValue, TryInto};
-pub use self::host::{Externals, HostFuncIndex, NopExternals, HostError};
+pub use self::host::{Externals, NopExternals, HostError};
 pub use self::imports::{ImportResolver, Imports};
 pub use self::module::{ModuleInstance, ModuleRef, ExternVal, InstantiationBuilder, NotStartedModuleRef};
 pub use self::global::{GlobalInstance, GlobalRef};

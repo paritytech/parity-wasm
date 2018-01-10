@@ -32,16 +32,14 @@ impl HostError {
 	}
 }
 
-pub type HostFuncIndex = u32;
-
 pub trait Externals {
 	fn invoke_index(
 		&mut self,
-		index: HostFuncIndex,
+		index: usize,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error>;
 
-	fn check_signature(&self, index: HostFuncIndex, signature: &FunctionType) -> bool;
+	fn check_signature(&self, index: usize, signature: &FunctionType) -> bool;
 }
 
 pub struct NopExternals;
@@ -49,13 +47,13 @@ pub struct NopExternals;
 impl Externals for NopExternals {
 	fn invoke_index(
 		&mut self,
-		_index: HostFuncIndex,
+		_index: usize,
 		_args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
 		Err(Error::Trap("invoke index on no-op externals".into()))
 	}
 
-	fn check_signature(&self, _index: HostFuncIndex, _signature: &FunctionType) -> bool {
+	fn check_signature(&self, _index: usize, _signature: &FunctionType) -> bool {
 		false
 	}
 }

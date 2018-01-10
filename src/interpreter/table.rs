@@ -106,7 +106,7 @@ impl TableInstance {
 	}
 
 	/// Set the table element to the specified function.
-	pub fn set(&self, offset: u32, value: FuncRef) -> Result<(), Error> {
+	pub fn set(&self, offset: u32, value: Option<FuncRef>) -> Result<(), Error> {
 		let mut buffer = self.buffer.borrow_mut();
 		let buffer_len = buffer.len();
 		let table_elem = buffer.get_mut(offset as usize).ok_or_else(||
@@ -116,7 +116,7 @@ impl TableInstance {
 				buffer_len
 			))
 		)?;
-		*table_elem = Some(value);
+		*table_elem = value;
 		Ok(())
 	}
 }

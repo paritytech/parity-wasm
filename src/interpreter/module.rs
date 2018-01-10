@@ -373,7 +373,7 @@ impl ModuleInstance {
 					"Due to validation funcs from element segments should exists",
 				);
 
-				table_inst.set(offset_val + j as u32, func)?;
+				table_inst.set(offset_val + j as u32, Some(func))?;
 			}
 		}
 

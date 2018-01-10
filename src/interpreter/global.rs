@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::cell::Cell;
-use elements::{ValueType, GlobalType};
+use elements::ValueType;
 use interpreter::value::RuntimeValue;
 use interpreter::Error;
 
@@ -22,8 +22,8 @@ pub struct GlobalInstance {
 
 impl GlobalInstance {
 
-	pub fn alloc(global_type: &GlobalType, val: RuntimeValue) -> GlobalRef {
-		let global = GlobalInstance::new(val, global_type.is_mutable());
+	pub fn alloc(val: RuntimeValue, mutable: bool) -> GlobalRef {
+		let global = GlobalInstance::new(val, mutable);
 		GlobalRef(Rc::new(global))
 	}
 

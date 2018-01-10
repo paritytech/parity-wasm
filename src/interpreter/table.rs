@@ -62,11 +62,37 @@ impl TableInstance {
 		self.limits.maximum()
 	}
 
+	pub fn current_size(&self) -> u32 {
+		self.buffer.borrow().len() as u32
+	}
+
+	pub fn grow(&self, by: u32) -> Result<(), Error> {
+		let mut buffer = self.buffer.borrow_mut();
+		let maximum_size = self.maximum_size().unwrap_or(u32::MAX);
+		let new_size = self.current_size().checked_add(by)
+			.and_then(|new_size| {
+				if maximum_size < new_size {
+					None
+				} else {
+					Some(new_size)
+				}
+			})
+			.ok_or_else(||
+				Error::Table(format!(
+					"Trying to grow table by {} items when there are already {} items",
+					by,
+					self.current_size(),
+				))
+			)?;
+		buffer.resize(new_size as usize, None);
+		Ok(())
+	}
+
 	/// Get the specific value in the table
 	pub fn get(&self, offset: u32) -> Result<FuncRef, Error> {
 		let buffer = self.buffer.borrow();
 		let buffer_len = buffer.len();
-		let table_elem = buffer.get(offset as usize).cloned().ok_or(
+		let table_elem = buffer.get(offset as usize).cloned().ok_or_else(||
 			Error::Table(format!(
 				"trying to read table item with index {} when there are only {} items",
 				offset,
@@ -83,11 +109,13 @@ impl TableInstance {
 	pub fn set(&self, offset: u32, value: FuncRef) -> Result<(), Error> {
 		let mut buffer = self.buffer.borrow_mut();
 		let buffer_len = buffer.len();
-		let table_elem = buffer.get_mut(offset as usize).ok_or(Error::Table(format!(
-			"trying to update table item with index {} when there are only {} items",
-			offset,
-			buffer_len
-		)))?;
+		let table_elem = buffer.get_mut(offset as usize).ok_or_else(||
+			Error::Table(format!(
+				"trying to update table item with index {} when there are only {} items",
+				offset,
+				buffer_len
+			))
+		)?;
 		*table_elem = Some(value);
 		Ok(())
 	}

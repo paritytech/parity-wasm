@@ -416,7 +416,7 @@ impl ModuleInstance {
 		&self,
 		func_idx: u32,
 		args: &[RuntimeValue],
-		state: &mut E,
+		externals: &mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
 			Error::Function(format!(
@@ -424,14 +424,14 @@ impl ModuleInstance {
 				func_idx
 			))
 		})?;
-		FuncInstance::invoke(func_instance, Cow::Borrowed(args), state)
+		FuncInstance::invoke(func_instance, Cow::Borrowed(args), externals)
 	}
 
 	pub fn invoke_export<E: Externals>(
 		&self,
 		func_name: &str,
 		args: &[RuntimeValue],
-		state: &mut E,
+		externals: &mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
 		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
 			Error::Function(format!("Module doesn't have export {}", func_name))
@@ -448,7 +448,7 @@ impl ModuleInstance {
 			}
 		};
 
-		FuncInstance::invoke(func_instance.clone(), Cow::Borrowed(args), state)
+		FuncInstance::invoke(func_instance.clone(), Cow::Borrowed(args), externals)
 	}
 }
 

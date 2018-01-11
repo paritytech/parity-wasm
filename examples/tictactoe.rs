@@ -6,7 +6,7 @@ use parity_wasm::elements::{FunctionType, ValueType, TableType, GlobalType, Memo
 use parity_wasm::interpreter::{
 	Error as InterpreterError, ModuleInstance, ModuleRef,
 	Externals, RuntimeValue, TableRef, MemoryRef, GlobalRef,
-	FuncRef, TryInto, ImportResolver, FuncInstance, HostError
+	FuncRef, TryInto, ModuleImportResolver, FuncInstance, HostError
 };
 use parity_wasm::validation::validate_module;
 use parity_wasm::elements::{Error as DeserializationError};
@@ -193,9 +193,9 @@ impl<'a> Externals for Runtime<'a> {
 	}
 }
 
-struct RuntimeImportResolver;
+struct RuntimeModuleImportResolver;
 
-impl<'a> ImportResolver for RuntimeImportResolver {
+impl<'a> ModuleImportResolver for RuntimeModuleImportResolver {
 	fn resolve_func(
 		&self,
 		field_name: &str,
@@ -253,7 +253,7 @@ fn instantiate(
 	let validated_module = validate_module(module)?;
 
 	let instance = ModuleInstance::new(&validated_module)
-		.with_import("env", &RuntimeImportResolver)
+		.with_import("env", &RuntimeModuleImportResolver)
 		.build()?
 		.assert_no_start()?;
 

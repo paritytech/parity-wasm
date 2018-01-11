@@ -7,40 +7,116 @@ use interpreter::table::TableRef;
 use interpreter::module::ModuleRef;
 use interpreter::Error;
 
-pub struct Imports<'a> {
-	modules: HashMap<String, &'a ImportResolver>,
+pub trait ImportResolver {
+	fn resolve_func(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		func_type: &FunctionType,
+	) -> Result<FuncRef, Error>;
+
+	fn resolve_global(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		global_type: &GlobalType,
+	) -> Result<GlobalRef, Error>;
+
+	fn resolve_memory(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		memory_type: &MemoryType,
+	) -> Result<MemoryRef, Error>;
+
+	fn resolve_table(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		table_type: &TableType,
+	) -> Result<TableRef, Error>;
 }
 
-impl<'a> Default for Imports<'a> {
+pub struct ImportsBuilder<'a> {
+	modules: HashMap<String, &'a ModuleImportResolver>,
+}
+
+impl<'a> Default for ImportsBuilder<'a> {
 	fn default() -> Self {
 		Self::new()
 	}
 }
 
-impl<'a> Imports<'a> {
-	pub fn new() -> Imports<'a> {
-		Imports { modules: HashMap::new() }
+impl<'a> ImportsBuilder<'a> {
+	pub fn new() -> ImportsBuilder<'a> {
+		ImportsBuilder { modules: HashMap::new() }
 	}
 
 	pub fn with_resolver<N: Into<String>>(
 		mut self,
 		name: N,
-		resolver: &'a ImportResolver,
+		resolver: &'a ModuleImportResolver,
 	) -> Self {
 		self.modules.insert(name.into(), resolver);
 		self
 	}
 
-	pub fn push_resolver<N: Into<String>>(&mut self, name: N, resolver: &'a ImportResolver) {
+	pub fn push_resolver<N: Into<String>>(&mut self, name: N, resolver: &'a ModuleImportResolver) {
 		self.modules.insert(name.into(), resolver);
 	}
 
-	pub fn resolver(&self, name: &str) -> Option<&ImportResolver> {
+	pub fn resolver(&self, name: &str) -> Option<&ModuleImportResolver> {
 		self.modules.get(name).cloned()
 	}
 }
 
-pub trait ImportResolver {
+impl<'a> ImportResolver for ImportsBuilder<'a> {
+	fn resolve_func(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		func_type: &FunctionType,
+	) -> Result<FuncRef, Error> {
+		self.resolver(module_name).ok_or_else(||
+			Error::Instantiation(format!("Module {} not found", module_name))
+		)?.resolve_func(field_name, func_type)
+	}
+
+	fn resolve_global(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		global_type: &GlobalType,
+	) -> Result<GlobalRef, Error> {
+		self.resolver(module_name).ok_or_else(||
+			Error::Instantiation(format!("Module {} not found", module_name))
+		)?.resolve_global(field_name, global_type)
+	}
+
+	fn resolve_memory(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		memory_type: &MemoryType,
+	) -> Result<MemoryRef, Error> {
+		self.resolver(module_name).ok_or_else(||
+			Error::Instantiation(format!("Module {} not found", module_name))
+		)?.resolve_memory(field_name, memory_type)
+	}
+
+	fn resolve_table(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		table_type: &TableType,
+	) -> Result<TableRef, Error> {
+		self.resolver(module_name).ok_or_else(||
+			Error::Instantiation(format!("Module {} not found", module_name))
+		)?.resolve_table(field_name, table_type)
+	}
+}
+
+pub trait ModuleImportResolver {
 	fn resolve_func(
 		&self,
 		field_name: &str,
@@ -66,7 +142,7 @@ pub trait ImportResolver {
 	) -> Result<TableRef, Error>;
 }
 
-impl ImportResolver for ModuleRef {
+impl ModuleImportResolver for ModuleRef {
 	fn resolve_func(
 		&self,
 		field_name: &str,

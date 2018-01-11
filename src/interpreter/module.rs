@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::{External, FunctionType, InitExpr, Internal, Opcode, ResizableLimits, Type};
 use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
-use interpreter::imports::{ImportResolver, Imports};
+use interpreter::imports::{ModuleImportResolver, ImportResolver, ImportsBuilder};
 use interpreter::global::{GlobalInstance, GlobalRef};
 use interpreter::func::{FuncRef, FuncBody, FuncInstance};
 use interpreter::table::TableRef;
@@ -109,19 +109,19 @@ impl ModuleInstance {
 		}
 	}
 
-	pub fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
+	pub(crate) fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
 		self.memories.get(idx as usize).cloned()
 	}
 
-	pub fn table_by_index(&self, idx: u32) -> Option<TableRef> {
+	pub(crate) fn table_by_index(&self, idx: u32) -> Option<TableRef> {
 		self.tables.get(idx as usize).cloned()
 	}
 
-	pub fn global_by_index(&self, idx: u32) -> Option<GlobalRef> {
+	pub(crate) fn global_by_index(&self, idx: u32) -> Option<GlobalRef> {
 		self.globals.get(idx as usize).cloned()
 	}
 
-	pub fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
+	pub(crate) fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
 		self.funcs.borrow().get(idx as usize).cloned()
 	}
 
@@ -392,9 +392,9 @@ impl ModuleInstance {
 		Ok(module_ref)
 	}
 
-	fn instantiate_with_imports(
+	fn instantiate_with_imports<I: ImportResolver>(
 		validated_module: &ValidatedModule,
-		imports: &Imports,
+		imports: I,
 	) -> Result<ModuleRef, Error> {
 		let module = validated_module.module();
 
@@ -402,28 +402,25 @@ impl ModuleInstance {
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
 			let module_name = import_entry.module();
 			let field_name = import_entry.field();
-			let resolver = imports.resolver(module_name).ok_or_else(|| {
-				Error::Instantiation(format!("Module {} not found", module_name))
-			})?;
 			let extern_val = match *import_entry.external() {
 				External::Function(fn_ty_idx) => {
 					let types = module.type_section().map(|s| s.types()).unwrap_or(&[]);
 					let &Type::Function(ref func_type) = types
 						.get(fn_ty_idx as usize)
 						.expect("Due to validation functions should have valid types");
-					let func = resolver.resolve_func(field_name, func_type)?;
+					let func = imports.resolve_func(module_name, field_name, func_type)?;
 					ExternVal::Func(func)
 				}
 				External::Table(ref table_type) => {
-					let table = resolver.resolve_table(field_name, table_type)?;
+					let table = imports.resolve_table(module_name, field_name, table_type)?;
 					ExternVal::Table(table)
 				}
 				External::Memory(ref memory_type) => {
-					let memory = resolver.resolve_memory(field_name, memory_type)?;
+					let memory = imports.resolve_memory(module_name, field_name, memory_type)?;
 					ExternVal::Memory(memory)
 				}
 				External::Global(ref global_type) => {
-					let global = resolver.resolve_global(field_name, global_type)?;
+					let global = imports.resolve_global(module_name, field_name, global_type)?;
 					ExternVal::Global(global)
 				}
 			};
@@ -479,18 +476,18 @@ impl ModuleInstance {
 
 pub struct InstantiationBuilder<'a> {
 	validated_module: &'a ValidatedModule,
-	imports: Imports<'a>,
+	imports: ImportsBuilder<'a>,
 }
 
 impl<'a> InstantiationBuilder<'a> {
 	fn new(validated_module: &'a ValidatedModule) -> Self {
 		InstantiationBuilder {
 			validated_module,
-			imports: Imports::default(),
+			imports: ImportsBuilder::default(),
 		}
 	}
 
-	pub fn with_imports(mut self, imports: Imports<'a>) -> Self {
+	pub fn with_imports(mut self, imports: ImportsBuilder<'a>) -> Self {
 		self.imports = imports;
 		self
 	}
@@ -498,15 +495,14 @@ impl<'a> InstantiationBuilder<'a> {
 	pub fn with_import<N: Into<String>>(
 		mut self,
 		name: N,
-		import_resolver: &'a ImportResolver,
+		import_resolver: &'a ModuleImportResolver,
 	) -> Self {
-		self.imports
-			.push_resolver(name, import_resolver);
+		self.imports.push_resolver(name, import_resolver);
 		self
 	}
 
 	pub fn build(self) -> Result<NotStartedModuleRef<'a>, Error> {
-		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, &self.imports)?;
+		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, self.imports)?;
 		Ok(NotStartedModuleRef {
 			instance,
 			validated_module: self.validated_module,

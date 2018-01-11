@@ -14,7 +14,7 @@ use parity_wasm::interpreter::{
     RuntimeValue,
     ProgramInstance,
     Error as InterpreterError,
-    ImportResolver,
+    ModuleImportResolver,
     FuncInstance,
     GlobalInstance,
     MemoryInstance,
@@ -53,7 +53,7 @@ impl SpecModule {
     }
 }
 
-impl ImportResolver<()> for SpecModule {
+impl ModuleImportResolver<()> for SpecModule {
     fn resolve_func(
         &self,
         field_name: &str,
@@ -123,7 +123,7 @@ impl ImportResolver<()> for SpecModule {
 fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut ProgramInstance) -> Rc<ModuleInstance<()>> {
     let module = try_deserialize(base_dir, path).expect(&format!("Wasm file {} failed to load", path));
 
-    program.add_import_resolver("spectest", Box::new(SpecModule::new()) as Box<ImportResolver<()>>);
+    program.add_import_resolver("spectest", Box::new(SpecModule::new()) as Box<ModuleImportResolver<()>>);
 
     let module_name = name.as_ref().map(|s| s.as_ref()).unwrap_or("wasm_test").trim_left_matches('$');
     let module_instance = program.add_module(module_name, module, &mut ()).expect(&format!("Failed adding {} module", module_name));

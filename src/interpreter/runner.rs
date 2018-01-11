@@ -1063,17 +1063,16 @@ impl FunctionContext {
 	}
 
 	pub fn set_local(&mut self, index: usize, value: RuntimeValue) -> Result<InstructionOutcome, Error> {
-		let l = self.locals.get_mut(index)
-			.ok_or(Error::Local(format!("expected to have local with index {}", index)))?;
+		let l = self.locals.get_mut(index).expect("Due to validation local should exists");
 
 		*l = value;
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
 	pub fn get_local(&mut self, index: usize) -> Result<RuntimeValue, Error> {
-		self.locals.get(index)
+		Ok(self.locals.get(index)
 			.cloned()
-			.ok_or(Error::Local(format!("expected to have local with index {}", index)))
+			.expect("Due to validation local should exists"))
 	}
 
 	pub fn value_stack(&self) -> &StackWithLimit<RuntimeValue> {

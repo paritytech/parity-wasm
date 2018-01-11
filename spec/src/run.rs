@@ -9,14 +9,39 @@ use std::collections::HashMap;
 use serde_json;
 use test;
 use parity_wasm;
-use parity_wasm::elements::{self, FunctionType, GlobalType, MemoryType, TableType, ValueType};
-use parity_wasm::validation::validate_module;
+use parity_wasm::elements::{self, FunctionType, GlobalType, MemoryType, TableType, ValueType, Error as DeserializationError};
+use parity_wasm::validation::{validate_module, Error as ValidationError};
 use parity_wasm::interpreter::{
     Error as InterpreterError, Externals, FuncInstance, FuncRef,
     GlobalInstance, GlobalRef, ImportResolver, ImportsBuilder,
     MemoryInstance, MemoryRef, ModuleImportResolver, ModuleInstance,
     ModuleRef, RuntimeValue, TableInstance, TableRef
 };
+
+#[derive(Debug)]
+enum Error {
+	Parsing(DeserializationError),
+	Validation(ValidationError),
+	Interpreter(InterpreterError),
+}
+
+impl From<DeserializationError> for Error {
+	fn from(e: DeserializationError) -> Error {
+		Error::Parsing(e)
+	}
+}
+
+impl From<ValidationError> for Error {
+	fn from(e: ValidationError) -> Error {
+		Error::Validation(e)
+	}
+}
+
+impl From<InterpreterError> for Error {
+	fn from(e: InterpreterError) -> Error {
+		Error::Interpreter(e)
+	}
+}
 
 struct SpecModule {
     table: TableRef,
@@ -244,19 +269,18 @@ fn load_module(
     instance
 }
 
-fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module, elements::Error> {
+fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module, Error> {
     let mut wasm_path = PathBuf::from(base_dir.clone());
     wasm_path.push(module_path);
-    parity_wasm::deserialize_file(&wasm_path)
+    Ok(parity_wasm::deserialize_file(&wasm_path)?)
 }
 
 fn try_load(
     base_dir: &str,
     module_path: &str,
     spec_driver: &mut SpecDriver,
-) -> Result<(), InterpreterError> {
-    let module = try_deserialize(base_dir, module_path)
-        .map_err(|e| InterpreterError::Validation(format!("{:?}", e)))?;
+) -> Result<(), Error> {
+    let module = try_deserialize(base_dir, module_path)?;
     let validated_module = validate_module(module)?;
     let instance = ModuleInstance::new(&validated_module, &ImportsBuilder::default())?;
     instance.run_start(spec_driver.spec_module())?;

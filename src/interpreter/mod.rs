@@ -6,8 +6,6 @@
 /// Internal interpreter error.
 #[derive(Debug)]
 pub enum Error {
-	/// Validation error.
-	Validation(String),
 	/// Error while instantiating a module. Might occur when provided
 	/// with incorrect exports (i.e. linkage failure).
 	Instantiation(String),
@@ -17,43 +15,30 @@ pub enum Error {
 	Table(String),
 	/// Memory-level error.
 	Memory(String),
-	/// Variable-level error.
-	Variable(String),
 	/// Global-level error.
 	Global(String),
-	/// Local-level error.
-	Local(String),
 	/// Stack-level error.
 	Stack(String),
 	/// Value-level error.
 	Value(String),
-	/// Interpreter (code) error.
-	Interpreter(String),
-	/// Native module error.
-	Native(String),
 	/// Trap.
 	Trap(String),
-	/// Custom user error.
-	User(Box<host::HostError>),
+	/// Custom embedder error.
+	HostTrap(Box<host::HostError>),
 }
 
 impl Into<String> for Error {
 	fn into(self) -> String {
 		match self {
-			Error::Validation(s) => s,
 			Error::Instantiation(s) => s,
 			Error::Function(s) => s,
 			Error::Table(s) => s,
 			Error::Memory(s) => s,
-			Error::Variable(s) => s,
 			Error::Global(s) => s,
-			Error::Local(s) => s,
 			Error::Stack(s) => s,
-			Error::Interpreter(s) => s,
 			Error::Value(s) => s,
-			Error::Native(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
-			Error::User(e) => format!("user: {}", e),
+			Error::HostTrap(e) => format!("user: {}", e),
 		}
 	}
 }
@@ -61,33 +46,22 @@ impl Into<String> for Error {
 impl ::std::fmt::Display for Error {
 	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
 		match *self {
-			Error::Validation(ref s) => write!(f, "Validation: {}", s),
 			Error::Instantiation(ref s) => write!(f, "Instantiation: {}", s),
 			Error::Function(ref s) => write!(f, "Function: {}", s),
 			Error::Table(ref s) => write!(f, "Table: {}", s),
 			Error::Memory(ref s) => write!(f, "Memory: {}", s),
-			Error::Variable(ref s) => write!(f, "Variable: {}", s),
 			Error::Global(ref s) => write!(f, "Global: {}", s),
-			Error::Local(ref s) => write!(f, "Local: {}", s),
 			Error::Stack(ref s) => write!(f, "Stack: {}", s),
-			Error::Interpreter(ref s) => write!(f, "Interpreter: {}", s),
 			Error::Value(ref s) => write!(f, "Value: {}", s),
-			Error::Native(ref s) => write!(f, "Native: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {}", s),
-			Error::User(ref e) => write!(f, "User: {}", e),
+			Error::HostTrap(ref e) => write!(f, "User: {}", e),
 		}
 	}
 }
 
 impl<U> From<U> for Error where U: host::HostError + Sized {
 	fn from(e: U) -> Self {
-		Error::User(Box::new(e))
-	}
-}
-
-impl From<::validation::Error> for Error {
-	fn from(e: ::validation::Error) -> Self {
-		Error::Validation(e.to_string())
+		Error::HostTrap(Box::new(e))
 	}
 }
 

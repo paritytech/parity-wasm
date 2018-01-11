@@ -150,11 +150,11 @@ impl ModuleImportResolver for ModuleRef {
 	) -> Result<FuncRef, Error> {
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
-				Error::Validation(format!("Export {} not found", field_name))
+				Error::Instantiation(format!("Export {} not found", field_name))
 			})?
 			.as_func()
 			.ok_or_else(|| {
-				Error::Validation(format!("Export {} is not a function", field_name))
+				Error::Instantiation(format!("Export {} is not a function", field_name))
 			})?)
 	}
 

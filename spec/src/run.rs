@@ -4,29 +4,34 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 use std::fs::File;
-use std::rc::Rc;
+use std::collections::HashMap;
 
 use serde_json;
 use test;
 use parity_wasm;
 use parity_wasm::elements::{self, ValueType, GlobalType, MemoryType, TableType, FunctionType};
+use parity_wasm::validation::validate_module;
 use parity_wasm::interpreter::{
     RuntimeValue,
-    ProgramInstance,
     Error as InterpreterError,
     ModuleImportResolver,
     FuncInstance,
     GlobalInstance,
     MemoryInstance,
     TableInstance,
-    ModuleInstance,
-    HostFunc,
 	MemoryRef,
+	TableRef,
+	ModuleRef,
+	GlobalRef,
+	FuncRef,
+	Externals,
+	ImportResolver,
+	ModuleInstance,
+	ImportsBuilder,
 };
 
 struct SpecModule {
-    default_host_callback: Rc<HostFunc<()>>,
-    table: Rc<TableInstance<()>>,
+    table: TableRef,
     memory: MemoryRef,
     global_i32: GlobalRef,
     global_i64: GlobalRef,
@@ -36,38 +41,61 @@ struct SpecModule {
 
 impl SpecModule {
     fn new() -> Self {
-        let default_host_callback = Rc::new(|_: &(), args: &[RuntimeValue]| -> Result<Option<RuntimeValue>, InterpreterError> {
-            println!("called host: {:?}", args);
-            Ok(None)
-        });
-
         SpecModule {
-            default_host_callback: default_host_callback,
-            table: Rc::new(TableInstance::new(&TableType::new(10, Some(20))).unwrap()),
-            memory: Rc::new(MemoryInstance::new(&MemoryType::new(1, Some(2))).unwrap()),
-            global_i32: Rc::new(GlobalInstance::new(RuntimeValue::I32(666), false)),
-            global_i64: Rc::new(GlobalInstance::new(RuntimeValue::I64(666), false)),
-            global_f32: Rc::new(GlobalInstance::new(RuntimeValue::F32(666.0), false)),
-            global_f64: Rc::new(GlobalInstance::new(RuntimeValue::F64(666.0), false)),
+            table: TableInstance::alloc(10, Some(20)).unwrap(),
+            memory: MemoryInstance::alloc(1, Some(2)).unwrap(),
+            global_i32: GlobalInstance::alloc(RuntimeValue::I32(666), false),
+            global_i64: GlobalInstance::alloc(RuntimeValue::I64(666), false),
+            global_f32: GlobalInstance::alloc(RuntimeValue::F32(666.0), false),
+            global_f64: GlobalInstance::alloc(RuntimeValue::F64(666.0), false),
         }
     }
 }
 
-impl ModuleImportResolver<()> for SpecModule {
+const PRINT_FUNC_INDEX: usize = 0;
+
+impl Externals for SpecModule {
+	fn invoke_index(
+		&mut self,
+		index: usize,
+		args: &[RuntimeValue],
+	) -> Result<Option<RuntimeValue>, InterpreterError> {
+		match index {
+			PRINT_FUNC_INDEX => {
+				println!("print: {:?}", args);
+				Ok(None)
+			},
+			_ => panic!("SpecModule doesn't provide function at index {}", index),
+		}
+	}
+
+	fn check_signature(&self, index: usize, signature: &FunctionType) -> bool {
+		match index {
+			PRINT_FUNC_INDEX => true,
+			_ => false,
+		}
+	}
+}
+
+impl ModuleImportResolver for SpecModule {
     fn resolve_func(
         &self,
         field_name: &str,
         func_type: &FunctionType,
-    ) -> Result<Rc<FuncInstance<()>>, InterpreterError> {
+    ) -> Result<FuncRef, InterpreterError> {
         if field_name == "print" {
+			if func_type.return_type().is_some() {
+				return Err(InterpreterError::Instantiation("Function `print` have unit return type".into()));
+			}
+
             let func = FuncInstance::alloc_host(
-                Rc::new(func_type.clone()),
-                Rc::clone(&self.default_host_callback)
+                func_type.clone(),
+                PRINT_FUNC_INDEX,
             );
             return Ok(func);
         }
 
-        Err(InterpreterError::Global(format!("Unknown host func import {}", field_name)))
+        Err(InterpreterError::Instantiation(format!("Unknown host func import {}", field_name)))
     }
 
     fn resolve_global(
@@ -77,22 +105,14 @@ impl ModuleImportResolver<()> for SpecModule {
     ) -> Result<GlobalRef, InterpreterError> {
         if field_name == "global" {
             return match global_type.content_type() {
-                ValueType::I32 => {
-                    Ok(Rc::clone(&self.global_i32))
-                }
-                ValueType::I64 => {
-                    Ok(Rc::clone(&self.global_i64))
-                }
-                ValueType::F32 => {
-                    Ok(Rc::clone(&self.global_f32))
-                }
-                ValueType::F64 => {
-                    Ok(Rc::clone(&self.global_f64))
-                }
+                ValueType::I32 => Ok(self.global_i32.clone()),
+                ValueType::I64 => Ok(self.global_i64.clone()),
+                ValueType::F32 => Ok(self.global_f32.clone()),
+                ValueType::F64 => Ok(self.global_f64.clone()),
             };
         }
 
-        Err(InterpreterError::Global(format!("Unknown host global import {}", field_name)))
+        Err(InterpreterError::Instantiation(format!("Unknown host global import {}", field_name)))
     }
 
     fn resolve_memory(
@@ -101,33 +121,122 @@ impl ModuleImportResolver<()> for SpecModule {
         _memory_type: &MemoryType,
     ) -> Result<MemoryRef, InterpreterError> {
         if field_name == "memory" {
-            return Ok(Rc::clone(&self.memory));
+            return Ok(self.memory.clone());
         }
 
-        Err(InterpreterError::Global(format!("Unknown host memory import {}", field_name)))
+        Err(InterpreterError::Instantiation(format!("Unknown host memory import {}", field_name)))
     }
 
     fn resolve_table(
         &self,
         field_name: &str,
         _table_type: &TableType,
-    ) -> Result<Rc<TableInstance<()>>, InterpreterError> {
+    ) -> Result<TableRef, InterpreterError> {
         if field_name == "table" {
-            return Ok(Rc::clone(&self.table));
+            return Ok(self.table.clone());
         }
 
-        Err(InterpreterError::Global(format!("Unknown host table import {}", field_name)))
+        Err(InterpreterError::Instantiation(format!("Unknown host table import {}", field_name)))
     }
 }
 
-fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut ProgramInstance) -> Rc<ModuleInstance<()>> {
+struct SpecDriver {
+	spec_module: SpecModule,
+	instances: HashMap<String, ModuleRef>,
+}
+
+impl SpecDriver {
+	fn new() -> SpecDriver {
+		SpecDriver {
+			spec_module: SpecModule::new(),
+			instances: HashMap::new(),
+		}
+	}
+
+	fn spec_module(&mut self) -> &mut SpecModule {
+		&mut self.spec_module
+	}
+
+	fn add_module(&mut self, name: String, module: ModuleRef) {
+		self.instances.insert(name, module);
+	}
+
+	fn module(&self, name: &str) -> Result<ModuleRef, InterpreterError> {
+		self.instances.get(name).cloned().ok_or_else(|| {
+			InterpreterError::Instantiation(
+				format!("Module not registered {}", name),
+			)
+		})
+	}
+}
+
+impl ImportResolver for SpecDriver {
+	fn resolve_func(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		func_type: &FunctionType,
+	) -> Result<FuncRef, InterpreterError> {
+		if module_name == "spectest" {
+			self.spec_module.resolve_func(field_name, func_type)
+		} else {
+			self.module(module_name)?.resolve_func(field_name, func_type)
+		}
+	}
+
+	fn resolve_global(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		global_type: &GlobalType,
+	) -> Result<GlobalRef, InterpreterError> {
+		if module_name == "spectest" {
+			self.spec_module.resolve_global(field_name, global_type)
+		} else {
+			self.module(module_name)?.resolve_global(field_name, global_type)
+		}
+	}
+
+	fn resolve_memory(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		memory_type: &MemoryType,
+	) -> Result<MemoryRef, InterpreterError> {
+		if module_name == "spectest" {
+			self.spec_module.resolve_memory(field_name, memory_type)
+		} else {
+			self.module(module_name)?.resolve_memory(field_name, memory_type)
+		}
+	}
+
+	fn resolve_table(
+		&self,
+		module_name: &str,
+		field_name: &str,
+		table_type: &TableType,
+	) -> Result<TableRef, InterpreterError> {
+		if module_name == "spectest" {
+			self.spec_module.resolve_table(field_name, table_type)
+		} else {
+			self.module(module_name)?.resolve_table(field_name, table_type)
+		}
+	}
+}
+
+fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut SpecDriver) -> ModuleRef {
     let module = try_deserialize(base_dir, path).expect(&format!("Wasm file {} failed to load", path));
+	let validated_module = validate_module(module).expect("Validation failed");
+	let instance = ModuleInstance::new(&validated_module, program)
+		.expect("Instantiation failed")
+		.run_start(program.spec_module())
+		.expect("Run start failed");
 
-    program.add_import_resolver("spectest", Box::new(SpecModule::new()) as Box<ModuleImportResolver<()>>);
-
+	// TODO: Fix it, actually modules doesn't have names until registered.
     let module_name = name.as_ref().map(|s| s.as_ref()).unwrap_or("wasm_test").trim_left_matches('$');
-    let module_instance = program.add_module(module_name, module, &mut ()).expect(&format!("Failed adding {} module", module_name));
-    module_instance
+    let module_instance = program.add_module(module_name.to_owned(), instance.clone());
+
+	instance
 }
 
 fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module, elements::Error> {
@@ -137,47 +246,48 @@ fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module
 }
 
 fn try_load(base_dir: &str, module_path: &str) -> Result<(), InterpreterError> {
-    let module = try_deserialize(base_dir, module_path).map_err(|e| parity_wasm::interpreter::Error::Program(format!("{:?}", e)))?;
-    let mut program = ProgramInstance::new();
-    program.add_module("try_load", module, &mut ()).map(|_| ())
+    let module = try_deserialize(base_dir, module_path)
+		.map_err(|e| InterpreterError::Validation(format!("{:?}", e)))?;
+	let validated_module = validate_module(module)?;
+	let instance = ModuleInstance::new(&validated_module, &ImportsBuilder::default())?;
+	Ok(())
 }
 
-fn runtime_value(test_val: &test::RuntimeValue) -> parity_wasm::RuntimeValue {
+fn runtime_value(test_val: &test::RuntimeValue) -> RuntimeValue {
     match test_val.value_type.as_ref() {
         "i32" => {
             let unsigned: u32 = test_val.value.parse().expect("Literal parse error");
-            parity_wasm::RuntimeValue::I32(unsigned as i32)
+            RuntimeValue::I32(unsigned as i32)
         },
         "i64" => {
             let unsigned: u64 = test_val.value.parse().expect("Literal parse error");
-            parity_wasm::RuntimeValue::I64(unsigned as i64)
+            RuntimeValue::I64(unsigned as i64)
         },
         "f32" => {
             let unsigned: u32 = test_val.value.parse().expect("Literal parse error");
-            parity_wasm::RuntimeValue::decode_f32(unsigned)
+            RuntimeValue::decode_f32(unsigned)
         },
         "f64" => {
             let unsigned: u64 = test_val.value.parse().expect("Literal parse error");
-            parity_wasm::RuntimeValue::decode_f64(unsigned)
+            RuntimeValue::decode_f64(unsigned)
         },
         _ => panic!("Unknwon runtime value type"),
     }
 }
 
-fn runtime_values(test_vals: &[test::RuntimeValue]) -> Vec<parity_wasm::RuntimeValue> {
-    test_vals.iter().map(runtime_value).collect::<Vec<parity_wasm::RuntimeValue>>()
+fn runtime_values(test_vals: &[test::RuntimeValue]) -> Vec<RuntimeValue> {
+    test_vals.iter().map(runtime_value).collect::<Vec<RuntimeValue>>()
 }
 
-fn run_action(program: &mut ProgramInstance, action: &test::Action)
-    -> Result<Option<parity_wasm::RuntimeValue>, InterpreterError>
+fn run_action(program: &mut SpecDriver, action: &test::Action)
+    -> Result<Option<RuntimeValue>, InterpreterError>
 {
     match *action {
         test::Action::Invoke { ref module, ref field, ref args } => {
             let module = module.clone().unwrap_or("wasm_test".into());
             let module = module.trim_left_matches('$');
             let module = program.module(&module).expect(&format!("Expected program to have loaded module {}", module));
-            let func = module.export_by_name(&jstring_to_rstring(field)).unwrap().as_func().unwrap();
-            program.invoke_func(func, &runtime_values(args), &mut ())
+			module.invoke_export(&jstring_to_rstring(field), &runtime_values(args), program.spec_module())
         },
         test::Action::Get { ref module, ref field, .. } => {
             let module = module.clone().unwrap_or("wasm_test".into());
@@ -252,7 +362,7 @@ pub fn spec(name: &str) {
         .expect(&format!("Failed to load json file {}", &fixture.json));
     let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
-    let mut program = ProgramInstance::new();
+	let mut program = SpecDriver::new();
     let mut last_module = None;
     for command in &spec.commands {
         println!("command {:?}", command);
@@ -265,7 +375,7 @@ pub fn spec(name: &str) {
                 match result {
                     Ok(result) => {
                         let spec_expected = runtime_values(expected);
-                        let actual_result = result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>();
+                        let actual_result = result.into_iter().collect::<Vec<RuntimeValue>>();
                         for (actual_result, spec_expected) in actual_result.iter().zip(spec_expected.iter()) {
                             assert_eq!(actual_result.value_type(), spec_expected.value_type());
                             // f32::NAN != f32::NAN
@@ -292,7 +402,7 @@ pub fn spec(name: &str) {
                 let result = run_action(&mut program, action);
                 match result {
                     Ok(result) => {
-                        for actual_result in result.into_iter().collect::<Vec<parity_wasm::RuntimeValue>>() {
+                        for actual_result in result.into_iter().collect::<Vec<RuntimeValue>>() {
                             match actual_result {
                                 RuntimeValue::F32(val) => if !val.is_nan() { panic!("Expected nan value, got {:?}", val) },
                                 RuntimeValue::F64(val) => if !val.is_nan() { panic!("Expected nan value, got {:?}", val) },
@@ -347,7 +457,7 @@ pub fn spec(name: &str) {
             &test::Command::Register { ref name, ref as_name, .. } => {
                 match name {
                     &Some(ref name) => assert_eq!(name.trim_left_matches('$'), as_name), // we have already registered this module without $ prefix
-                    &None => program.insert_loaded_module(as_name, last_module.take().expect("Last module must be set for this command")),
+                    &None => program.add_module(as_name.clone(), last_module.take().expect("Last module must be set for this command")),
                 }
             },
             &test::Command::Action { line, ref action } => {

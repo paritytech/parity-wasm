@@ -472,9 +472,9 @@ impl<'a> NotStartedModuleRef<'a> {
 		Ok(self.instance)
 	}
 
-	pub fn assert_no_start(self) -> Result<ModuleRef, Error> {
+	pub fn assert_no_start(self) -> ModuleRef {
 		assert!(self.validated_module.module().start_section().is_none());
-		Ok(self.instance)
+		self.instance
 	}
 }
 

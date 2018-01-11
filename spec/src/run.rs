@@ -69,7 +69,7 @@ impl Externals for SpecModule {
 		}
 	}
 
-	fn check_signature(&self, index: usize, signature: &FunctionType) -> bool {
+	fn check_signature(&self, index: usize, _signature: &FunctionType) -> bool {
 		match index {
 			PRINT_FUNC_INDEX => true,
 			_ => false,
@@ -224,17 +224,16 @@ impl ImportResolver for SpecDriver {
 	}
 }
 
-fn load_module(base_dir: &str, path: &str, name: &Option<String>, program: &mut SpecDriver) -> ModuleRef {
+fn load_module(base_dir: &str, path: &str, name: &Option<String>, spec_driver: &mut SpecDriver) -> ModuleRef {
     let module = try_deserialize(base_dir, path).expect(&format!("Wasm file {} failed to load", path));
 	let validated_module = validate_module(module).expect("Validation failed");
-	let instance = ModuleInstance::new(&validated_module, program)
+	let instance = ModuleInstance::new(&validated_module, spec_driver)
 		.expect("Instantiation failed")
-		.run_start(program.spec_module())
+		.run_start(spec_driver.spec_module())
 		.expect("Run start failed");
 
-	// TODO: Fix it, actually modules doesn't have names until registered.
     let module_name = name.as_ref().map(|s| s.as_ref()).unwrap_or("wasm_test").trim_left_matches('$');
-    let module_instance = program.add_module(module_name.to_owned(), instance.clone());
+    spec_driver.add_module(module_name.to_owned(), instance.clone());
 
 	instance
 }
@@ -245,11 +244,12 @@ fn try_deserialize(base_dir: &str, module_path: &str) -> Result<elements::Module
     parity_wasm::deserialize_file(&wasm_path)
 }
 
-fn try_load(base_dir: &str, module_path: &str) -> Result<(), InterpreterError> {
+fn try_load(base_dir: &str, module_path: &str, spec_driver: &mut SpecDriver) -> Result<(), InterpreterError> {
     let module = try_deserialize(base_dir, module_path)
 		.map_err(|e| InterpreterError::Validation(format!("{:?}", e)))?;
 	let validated_module = validate_module(module)?;
 	let instance = ModuleInstance::new(&validated_module, &ImportsBuilder::default())?;
+	instance.run_start(spec_driver.spec_module())?;
 	Ok(())
 }
 
@@ -362,16 +362,16 @@ pub fn spec(name: &str) {
         .expect(&format!("Failed to load json file {}", &fixture.json));
     let spec: test::Spec = serde_json::from_reader(&mut f).expect("Failed to deserialize JSON file");
 
-	let mut program = SpecDriver::new();
+	let mut spec_driver = SpecDriver::new();
     let mut last_module = None;
     for command in &spec.commands {
         println!("command {:?}", command);
         match command {
             &test::Command::Module { ref name, ref filename, .. } => {
-                last_module = Some(load_module(&outdir, &filename, &name, &mut program));
+                last_module = Some(load_module(&outdir, &filename, &name, &mut spec_driver));
             },
             &test::Command::AssertReturn { line, ref action, ref expected } => {
-                let result = run_action(&mut program, action);
+                let result = run_action(&mut spec_driver, action);
                 match result {
                     Ok(result) => {
                         let spec_expected = runtime_values(expected);
@@ -399,7 +399,7 @@ pub fn spec(name: &str) {
                 }
             },
             &test::Command::AssertReturnCanonicalNan { line, ref action } | &test::Command::AssertReturnArithmeticNan { line, ref action } => {
-                let result = run_action(&mut program, action);
+                let result = run_action(&mut spec_driver, action);
                 match result {
                     Ok(result) => {
                         for actual_result in result.into_iter().collect::<Vec<RuntimeValue>>() {
@@ -417,14 +417,14 @@ pub fn spec(name: &str) {
                 }
             },
             &test::Command::AssertExhaustion { line, ref action, .. } => {
-                let result = run_action(&mut program, action);
+                let result = run_action(&mut spec_driver, action);
                 match result {
                     Ok(result) => panic!("Expected exhaustion, got result: {:?}", result),
                     Err(e) => println!("assert_exhaustion at line {} - success ({:?})", line, e),
                 }
             },
             &test::Command::AssertTrap { line, ref action, .. } => {
-                let result = run_action(&mut program, action);
+                let result = run_action(&mut spec_driver, action);
                 match result {
                     Ok(result) => {
                         panic!("Expected action to result in a trap, got result: {:?}", result);
@@ -438,7 +438,7 @@ pub fn spec(name: &str) {
             | &test::Command::AssertMalformed { line, ref filename, .. }
             | &test::Command::AssertUnlinkable { line, ref filename, .. }
                 => {
-                let module_load = try_load(&outdir, filename);
+                let module_load = try_load(&outdir, filename, &mut spec_driver);
                 match module_load {
                     Ok(_) => {
                         panic!("Expected invalid module definition, got some module!")
@@ -449,7 +449,7 @@ pub fn spec(name: &str) {
                 }
             },
             &test::Command::AssertUninstantiable { line, ref filename, .. } => {
-                match try_load(&outdir, &filename) {
+                match try_load(&outdir, &filename, &mut spec_driver) {
                     Ok(_) => panic!("Expected error running start function at line {}", line),
                     Err(e) => println!("assert_uninstantiable - success ({:?})", e),
                 }
@@ -457,11 +457,11 @@ pub fn spec(name: &str) {
             &test::Command::Register { ref name, ref as_name, .. } => {
                 match name {
                     &Some(ref name) => assert_eq!(name.trim_left_matches('$'), as_name), // we have already registered this module without $ prefix
-                    &None => program.add_module(as_name.clone(), last_module.take().expect("Last module must be set for this command")),
+                    &None => spec_driver.add_module(as_name.clone(), last_module.take().expect("Last module must be set for this command")),
                 }
             },
             &test::Command::Action { line, ref action } => {
-                match run_action(&mut program, action) {
+                match run_action(&mut spec_driver, action) {
                     Ok(_) => { },
                     Err(e) => {
                         panic!("Failed to invoke action at line {}: {:?}", line, e)

@@ -151,7 +151,7 @@ impl MemoryInstance {
 				format!(
 					"Trying to grow memory by {} pages when already have {}",
 					pages,
-					self.size()
+					old_size / LINEAR_MEMORY_PAGE_SIZE,
 				)
 			)),
 			Some(new_size) => {

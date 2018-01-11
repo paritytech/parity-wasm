@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use elements::{External, FunctionType, InitExpr, Internal, Opcode, ResizableLimits, Type};
 use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
-use interpreter::imports::{ModuleImportResolver, ImportResolver, ImportsBuilder};
+use interpreter::imports::ImportResolver;
 use interpreter::global::{GlobalInstance, GlobalRef};
 use interpreter::func::{FuncRef, FuncBody, FuncInstance};
 use interpreter::table::TableRef;
@@ -392,10 +392,10 @@ impl ModuleInstance {
 		Ok(module_ref)
 	}
 
-	fn instantiate_with_imports<I: ImportResolver>(
+	pub fn new<I: ImportResolver>(
 		validated_module: &ValidatedModule,
 		imports: I,
-	) -> Result<ModuleRef, Error> {
+	) -> Result<NotStartedModuleRef, Error> {
 		let module = validated_module.module();
 
 		let mut extern_vals = Vec::new();
@@ -427,11 +427,11 @@ impl ModuleInstance {
 			extern_vals.push(extern_val);
 		}
 
-		Self::instantiate_with_externvals(validated_module, &extern_vals)
-	}
-
-	pub fn new<'a>(module: &'a ValidatedModule) -> InstantiationBuilder<'a> {
-		InstantiationBuilder::new(module)
+		let instance = Self::instantiate_with_externvals(validated_module, &extern_vals)?;
+		Ok(NotStartedModuleRef {
+			validated_module,
+			instance,
+		})
 	}
 
 	pub fn invoke_index<E: Externals>(
@@ -471,42 +471,6 @@ impl ModuleInstance {
 		};
 
 		FuncInstance::invoke(func_instance.clone(), Cow::Borrowed(args), state)
-	}
-}
-
-pub struct InstantiationBuilder<'a> {
-	validated_module: &'a ValidatedModule,
-	imports: ImportsBuilder<'a>,
-}
-
-impl<'a> InstantiationBuilder<'a> {
-	fn new(validated_module: &'a ValidatedModule) -> Self {
-		InstantiationBuilder {
-			validated_module,
-			imports: ImportsBuilder::default(),
-		}
-	}
-
-	pub fn with_imports(mut self, imports: ImportsBuilder<'a>) -> Self {
-		self.imports = imports;
-		self
-	}
-
-	pub fn with_import<N: Into<String>>(
-		mut self,
-		name: N,
-		import_resolver: &'a ModuleImportResolver,
-	) -> Self {
-		self.imports.push_resolver(name, import_resolver);
-		self
-	}
-
-	pub fn build(self) -> Result<NotStartedModuleRef<'a>, Error> {
-		let instance = ModuleInstance::instantiate_with_imports(self.validated_module, self.imports)?;
-		Ok(NotStartedModuleRef {
-			instance,
-			validated_module: self.validated_module,
-		})
 	}
 }
 

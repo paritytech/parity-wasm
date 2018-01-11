@@ -6,7 +6,8 @@ use parity_wasm::elements::{FunctionType, ValueType, TableType, GlobalType, Memo
 use parity_wasm::interpreter::{
 	Error as InterpreterError, ModuleInstance, ModuleRef,
 	Externals, RuntimeValue, TableRef, MemoryRef, GlobalRef,
-	FuncRef, TryInto, ModuleImportResolver, FuncInstance, HostError
+	FuncRef, TryInto, ModuleImportResolver, FuncInstance, HostError,
+	ImportsBuilder,
 };
 use parity_wasm::validation::validate_module;
 use parity_wasm::elements::{Error as DeserializationError};
@@ -246,16 +247,14 @@ impl<'a> ModuleImportResolver for RuntimeModuleImportResolver {
 	}
 }
 
-fn instantiate(
-	path: &str,
-) -> Result<ModuleRef, Error> {
+fn instantiate(path: &str) -> Result<ModuleRef, Error> {
 	let module = parity_wasm::deserialize_file(path)?;
 	let validated_module = validate_module(module)?;
 
-	let instance = ModuleInstance::new(&validated_module)
-		.with_import("env", &RuntimeModuleImportResolver)
-		.build()?
-		.assert_no_start()?;
+	let mut imports = ImportsBuilder::new();
+	imports.push_resolver("env", &RuntimeModuleImportResolver);
+
+	let instance = ModuleInstance::new(&validated_module, &imports)?.assert_no_start()?;
 
 	Ok(instance)
 }

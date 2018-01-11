@@ -392,10 +392,10 @@ impl ModuleInstance {
 		Ok(module_ref)
 	}
 
-	pub fn new<I: ImportResolver>(
-		validated_module: &ValidatedModule,
-		imports: I,
-	) -> Result<NotStartedModuleRef, Error> {
+	pub fn new<'m, I: ImportResolver>(
+		validated_module: &'m ValidatedModule,
+		imports: &I,
+	) -> Result<NotStartedModuleRef<'m>, Error> {
 		let module = validated_module.module();
 
 		let mut extern_vals = Vec::new();

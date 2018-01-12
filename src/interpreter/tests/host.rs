@@ -1,14 +1,11 @@
 
-use std::rc::Rc;
-use std::cell::RefCell;
-use builder::module;
 use elements::{
-	deserialize_buffer, ExportEntry, Internal, ImportEntry, External, GlobalEntry, GlobalType,
-	InitExpr, ValueType, Opcodes, Opcode, TableType, MemoryType, FunctionType,
+	deserialize_buffer, GlobalType,
+	ValueType, TableType, MemoryType, FunctionType,
 };
 use validation::{validate_module, ValidatedModule};
 use interpreter::{
-	Error, GlobalInstance, MemoryInstance, ModuleInstance, RuntimeValue,
+	Error, MemoryInstance, ModuleInstance, RuntimeValue,
 	HostError, MemoryRef, ImportsBuilder, Externals, TryInto, TableRef,
 	GlobalRef, FuncRef, FuncInstance, ModuleImportResolver, ModuleRef,
 };

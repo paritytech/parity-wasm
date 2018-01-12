@@ -24,7 +24,7 @@ pub enum Error {
 	/// Trap.
 	Trap(String),
 	/// Custom embedder error.
-	HostTrap(Box<host::HostError>),
+	Host(Box<host::HostError>),
 }
 
 impl Into<String> for Error {
@@ -38,7 +38,7 @@ impl Into<String> for Error {
 			Error::Stack(s) => s,
 			Error::Value(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
-			Error::HostTrap(e) => format!("user: {}", e),
+			Error::Host(e) => format!("user: {}", e),
 		}
 	}
 }
@@ -54,14 +54,14 @@ impl ::std::fmt::Display for Error {
 			Error::Stack(ref s) => write!(f, "Stack: {}", s),
 			Error::Value(ref s) => write!(f, "Value: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {}", s),
-			Error::HostTrap(ref e) => write!(f, "User: {}", e),
+			Error::Host(ref e) => write!(f, "User: {}", e),
 		}
 	}
 }
 
 impl<U> From<U> for Error where U: host::HostError + Sized {
 	fn from(e: U) -> Self {
-		Error::HostTrap(Box::new(e))
+		Error::Host(Box::new(e))
 	}
 }
 

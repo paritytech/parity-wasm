@@ -24,7 +24,7 @@ impl Env {
 }
 
 impl ModuleImportResolver for Env {
-	fn resolve_func(&self, field_name: &str, func_type: &FunctionType) -> Result<FuncRef, Error> {
+	fn resolve_func(&self, _field_name: &str, _func_type: &FunctionType) -> Result<FuncRef, Error> {
 		Err(Error::Instantiation(
 			"env module doesn't provide any functions".into(),
 		))
@@ -48,7 +48,7 @@ impl ModuleImportResolver for Env {
 	fn resolve_memory(
 		&self,
 		field_name: &str,
-		memory_type: &MemoryType,
+		_memory_type: &MemoryType,
 	) -> Result<MemoryRef, Error> {
 		match field_name {
 			"memory" => Ok(self.memory.clone()),
@@ -59,7 +59,7 @@ impl ModuleImportResolver for Env {
 		}
 	}
 
-	fn resolve_table(&self, field_name: &str, table_type: &TableType) -> Result<TableRef, Error> {
+	fn resolve_table(&self, field_name: &str, _table_type: &TableType) -> Result<TableRef, Error> {
 		match field_name {
 			"table" => Ok(self.table.clone()),
 			_ => Err(Error::Instantiation(

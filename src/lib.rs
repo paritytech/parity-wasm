@@ -5,7 +5,9 @@
 #[macro_use]
 extern crate log;
 extern crate byteorder;
-extern crate unsafe_any;
+
+#[cfg(test)]
+extern crate wabt;
 
 pub mod elements;
 pub mod builder;

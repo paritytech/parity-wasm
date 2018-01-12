@@ -10,14 +10,9 @@ use validation::{validate_module, ValidatedModule};
 use interpreter::{
 	Error, GlobalInstance, MemoryInstance, ModuleInstance, RuntimeValue,
 	HostError, MemoryRef, ImportsBuilder, Externals, TryInto, TableRef,
-	GlobalRef, FuncRef, FuncInstance, ModuleImportResolver,
+	GlobalRef, FuncRef, FuncInstance, ModuleImportResolver, ModuleRef,
 };
 use wabt::wat2wasm;
-
-const SUB_FUNC_INDEX: usize = 0;
-const ERR_FUNC_INDEX: usize = 1;
-const INC_MEM_FUNC_INDEX: usize = 2;
-const GET_MEM_FUNC_INDEX: usize = 3;
 
 #[derive(Debug, Clone, PartialEq)]
 struct HostErrorWithCode {
@@ -34,15 +29,49 @@ impl HostError for HostErrorWithCode {}
 
 struct TestHost {
 	memory: Option<MemoryRef>,
+	instance: Option<ModuleRef>,
 }
 
 impl TestHost {
 	fn new() -> TestHost {
 		TestHost {
 			memory: Some(MemoryInstance::alloc(1, Some(1)).unwrap()),
+			instance: None,
 		}
 	}
 }
+
+/// sub(a: i32, b: i32) -> i32
+///
+/// This function just substracts one integer from another,
+/// returning the subtraction result.
+const SUB_FUNC_INDEX: usize = 0;
+
+/// err(error_code: i32) -> !
+///
+/// This function traps upon a call.
+/// The trap have a special type - HostErrorWithCode.
+const ERR_FUNC_INDEX: usize = 1;
+
+/// inc_mem(ptr: *mut u8)
+///
+/// Increments value at the given address in memory. This function
+/// requires attached memory.
+const INC_MEM_FUNC_INDEX: usize = 2;
+
+/// get_mem(ptr: *mut u8) -> u8
+///
+/// Returns value at the given address in memory. This function
+/// requires attached memory.
+const GET_MEM_FUNC_INDEX: usize = 3;
+
+/// recurse<T>(val: T) -> T
+///
+/// If called, resolves exported function named 'recursive' from the attached
+/// module instance and then calls into it with the provided argument.
+/// Note that this function is polymorphic over type T.
+/// This function requires attached module instance.
+const RECURSE_FUNC_INDEX: usize = 4;
 
 impl Externals for TestHost {
 	fn invoke_index(
@@ -51,7 +80,6 @@ impl Externals for TestHost {
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
 		match index {
-			// sub(a: i32, b: i32) -> i32
 			SUB_FUNC_INDEX => {
 				let mut args = args.iter();
 				let a: i32 = args.next().unwrap().try_into().unwrap();
@@ -61,19 +89,18 @@ impl Externals for TestHost {
 
 				Ok(Some(result))
 			}
-			// err(error_code: i32) -> !
 			ERR_FUNC_INDEX => {
 				let mut args = args.iter();
 				let error_code: u32 = args.next().unwrap().try_into().unwrap();
 				let error = HostErrorWithCode { error_code };
 				Err(Error::Host(Box::new(error)))
 			}
-			// inc_mem(ptr: *mut u8)
 			INC_MEM_FUNC_INDEX => {
 				let mut args = args.iter();
 				let ptr: u32 = args.next().unwrap().try_into().unwrap();
 
-				let memory = self.memory.as_ref().unwrap();
+				let memory = self.memory.as_ref()
+					.expect("Function 'inc_mem' expects attached memory");
 				let mut buf = [0u8; 1];
 				memory.get_into(ptr, &mut buf).unwrap();
 				buf[0] += 1;
@@ -81,22 +108,49 @@ impl Externals for TestHost {
 
 				Ok(None)
 			}
-			// get_mem(ptr: *mut u8) -> u8
 			GET_MEM_FUNC_INDEX => {
 				let mut args = args.iter();
 				let ptr: u32 = args.next().unwrap().try_into().unwrap();
 
-				let memory = self.memory.as_ref().unwrap();
+				let memory = self.memory.as_ref()
+					.expect("Function 'get_mem' expects attached memory");
 				let mut buf = [0u8; 1];
 				memory.get_into(ptr, &mut buf).unwrap();
 
 				Ok(Some(RuntimeValue::I32(buf[0] as i32)))
+			}
+			RECURSE_FUNC_INDEX => {
+				let mut args = args.iter().cloned();
+				let val: RuntimeValue = args.next().unwrap();
+
+				let instance = self.instance
+					.as_ref()
+					.expect("Function 'recurse' expects attached module instance")
+					.clone();
+				let result = instance
+					.invoke_export("recursive", &[val.into()], self)
+					.expect("Failed to call 'recursive'")
+					.expect("expected to be Some");
+
+				if val.value_type() != result.value_type() {
+					return Err(Error::Host(Box::new(HostErrorWithCode { error_code: 123 })));
+				}
+				Ok(Some(result))
 			}
 			_ => panic!("SpecModule doesn't provide function at index {}", index),
 		}
 	}
 
 	fn check_signature(&self, index: usize, func_type: &FunctionType) -> bool {
+		if index == RECURSE_FUNC_INDEX {
+			// This function requires special handling because it is polymorphic.
+			if func_type.params().len() != 1 {
+				return false;
+			}
+			let param_type = func_type.params()[0];
+			return func_type.return_type() == Some(param_type);
+		}
+
 		let (params, ret_ty): (&[ValueType], Option<ValueType>) = match index {
 			SUB_FUNC_INDEX => (&[ValueType::I32, ValueType::I32], Some(ValueType::I32)),
 			ERR_FUNC_INDEX => (&[ValueType::I32], None),
@@ -116,6 +170,7 @@ impl ModuleImportResolver for TestHost {
 			"err" => ERR_FUNC_INDEX,
 			"inc_mem" => INC_MEM_FUNC_INDEX,
 			"get_mem" => GET_MEM_FUNC_INDEX,
+			"recurse" => RECURSE_FUNC_INDEX,
 			_ => {
 				return Err(Error::Instantiation(
 					format!("Export {} not found", field_name),
@@ -163,7 +218,7 @@ impl ModuleImportResolver for TestHost {
 
 fn parse_wat(source: &str) -> ValidatedModule {
 	let wasm_binary = wat2wasm(source).expect("Failed to parse wat source");
-	let module = deserialize_buffer(wasm_binary).expect("Failed to deserialize module");
+	let module = deserialize_buffer(&wasm_binary).expect("Failed to deserialize module");
 	let validated_module = validate_module(module).expect("Failed to validate module");
 	validated_module
 }
@@ -302,6 +357,7 @@ fn pull_internal_mem_from_module() {
 
 	let mut env = TestHost {
 		memory: None,
+		instance: None,
 	};
 
 	let instance = ModuleInstance::new(
@@ -322,5 +378,55 @@ fn pull_internal_mem_from_module() {
 	assert_eq!(
 		instance.invoke_export("test", &[], &mut env).unwrap(),
 		Some(RuntimeValue::I32(1))
+	);
+}
+
+#[test]
+fn recursion() {
+	let module = parse_wat(
+		r#"
+(module
+	;; Import 'recurse' function. Upon a call it will call back inside
+	;; this module, namely to function 'recursive' defined below.
+	(import "env" "recurse" (func $recurse (param i64) (result i64)))
+
+	;; Note that we import same function but with different type signature
+	;; this is possible since 'recurse' is a host function and it is defined
+	;; to be polymorphic.
+	(import "env" "recurse" (func (param f32) (result f32)))
+
+	(func (export "recursive") (param i64) (result i64)
+		;; return arg_0 + 42;
+		(i64.add
+			(get_local 0)
+			(i64.const 42)
+		)
+	)
+
+	(func (export "test") (result i64)
+		(call $recurse (i64.const 321))
+	)
+)
+"#,
+	);
+
+	let mut env = TestHost::new();
+
+	let instance = ModuleInstance::new(
+		&module,
+		&ImportsBuilder::default().with_resolver("env", &env),
+	).expect("Failed to instantiate module")
+		.assert_no_start();
+
+	// Put instance into the env, because $recurse function expects
+	// attached module instance.
+	env.instance = Some(instance.clone());
+
+	assert_eq!(
+		instance
+			.invoke_export("test", &[], &mut env)
+			.expect("Failed to invoke 'test' function"),
+		// 363 = 321 + 42
+		Some(RuntimeValue::I64(363))
 	);
 }

@@ -1,93 +1,47 @@
 //! WebAssembly interpreter module.
 
-use std::any::TypeId;
-use std::error;
+// TODO(pepyakin): Fix these asap
+#![allow(missing_docs)]
+
 use std::fmt;
-use validation;
-use common;
-
-/// Custom user error.
-pub trait UserError: 'static + ::std::fmt::Display + ::std::fmt::Debug {
-	#[doc(hidden)]
-	fn __private_get_type_id__(&self) -> TypeId {
-		TypeId::of::<Self>()
-	}
-}
-
-impl UserError {
-	/// Attempt to downcast this `UserError` to a concrete type by reference.
-	pub fn downcast_ref<T: UserError>(&self) -> Option<&T> {
-		if self.__private_get_type_id__() == TypeId::of::<T>() {
-			unsafe { Some(&*(self as *const UserError as *const T)) }
-		} else {
-			None
-		}
-	}
-
-	/// Attempt to downcast this `UserError` to a concrete type by mutable
-	/// reference.
-	pub fn downcast_mut<T: UserError>(&mut self) -> Option<&mut T> {
-		if self.__private_get_type_id__() == TypeId::of::<T>() {
-			unsafe { Some(&mut *(self as *mut UserError as *mut T)) }
-		} else {
-			None
-		}
-	}
-}
+use std::error;
 
 /// Internal interpreter error.
 #[derive(Debug)]
 pub enum Error {
-	/// Program-level error.
-	Program(String),
-	/// Validation error.
-	Validation(String),
-	/// Initialization error.
-	Initialization(String),
+	/// Error while instantiating a module. Might occur when provided
+	/// with incorrect exports (i.e. linkage failure).
+	Instantiation(String),
 	/// Function-level error.
 	Function(String),
 	/// Table-level error.
 	Table(String),
 	/// Memory-level error.
 	Memory(String),
-	/// Variable-level error.
-	Variable(String),
 	/// Global-level error.
 	Global(String),
-	/// Local-level error.
-	Local(String),
 	/// Stack-level error.
 	Stack(String),
 	/// Value-level error.
 	Value(String),
-	/// Interpreter (code) error.
-	Interpreter(String),
-	/// Native module error.
-	Native(String),
 	/// Trap.
 	Trap(String),
-	/// Custom user error.
-	User(Box<UserError>),
+	/// Custom embedder error.
+	Host(Box<host::HostError>),
 }
 
 impl Into<String> for Error {
 	fn into(self) -> String {
 		match self {
-			Error::Program(s) => s,
-			Error::Validation(s) => s,
-			Error::Initialization(s) => s,
+			Error::Instantiation(s) => s,
 			Error::Function(s) => s,
 			Error::Table(s) => s,
 			Error::Memory(s) => s,
-			Error::Variable(s) => s,
 			Error::Global(s) => s,
-			Error::Local(s) => s,
 			Error::Stack(s) => s,
-			Error::Interpreter(s) => s,
 			Error::Value(s) => s,
-			Error::Native(s) => s,
 			Error::Trap(s) => format!("trap: {}", s),
-			Error::User(e) => format!("user: {}", e),
+			Error::Host(e) => format!("user: {}", e),
 		}
 	}
 }
@@ -95,85 +49,67 @@ impl Into<String> for Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Error::Program(ref s) => write!(f, "Program: {}", s),
-			Error::Validation(ref s) => write!(f, "Validation: {}", s),
-			Error::Initialization(ref s) => write!(f, "Initialization: {}", s),
+			Error::Instantiation(ref s) => write!(f, "Instantiation: {}", s),
 			Error::Function(ref s) => write!(f, "Function: {}", s),
 			Error::Table(ref s) => write!(f, "Table: {}", s),
 			Error::Memory(ref s) => write!(f, "Memory: {}", s),
-			Error::Variable(ref s) => write!(f, "Variable: {}", s),
 			Error::Global(ref s) => write!(f, "Global: {}", s),
-			Error::Local(ref s) => write!(f, "Local: {}", s),
 			Error::Stack(ref s) => write!(f, "Stack: {}", s),
-			Error::Interpreter(ref s) => write!(f, "Interpreter: {}", s),
 			Error::Value(ref s) => write!(f, "Value: {}", s),
-			Error::Native(ref s) => write!(f, "Native: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {}", s),
-			Error::User(ref e) => write!(f, "User: {}", e),
+			Error::Host(ref e) => write!(f, "User: {}", e),
 		}
 	}
 }
+
+
 
 impl error::Error for Error {
 	fn description(&self) -> &str {
 		match *self {
-			Error::Program(ref s) => s,
-			Error::Validation(ref s) => s,
-			Error::Initialization(ref s) => s,
+			Error::Instantiation(ref s) => s,
 			Error::Function(ref s) => s,
 			Error::Table(ref s) => s,
 			Error::Memory(ref s) => s,
-			Error::Variable(ref s) => s,
 			Error::Global(ref s) => s,
-			Error::Local(ref s) => s,
 			Error::Stack(ref s) => s,
-			Error::Interpreter(ref s) => s,
 			Error::Value(ref s) => s,
-			Error::Native(ref s) => s,
 			Error::Trap(ref s) => s,
-			Error::User(_) => "User error",
+			Error::Host(_) => "Host error",
 		}
 	}
 }
 
-impl<U> From<U> for Error where U: UserError + Sized {
+impl<U> From<U> for Error where U: host::HostError + Sized {
 	fn from(e: U) -> Self {
-		Error::User(Box::new(e))
+		Error::Host(Box::new(e))
 	}
 }
 
-impl From<validation::Error> for Error {
-	fn from(e: validation::Error) -> Self {
-		Error::Validation(e.to_string())
-	}
-}
-
-impl From<common::stack::Error> for Error {
-	fn from(e: common::stack::Error) -> Self {
+impl From<::common::stack::Error> for Error {
+	fn from(e: ::common::stack::Error) -> Self {
 		Error::Stack(e.to_string())
 	}
 }
 
-mod validator;
-mod native;
-mod imports;
 mod memory;
 mod module;
-mod program;
 mod runner;
-mod stack;
 mod table;
 mod value;
-mod variable;
+mod host;
+mod imports;
+mod global;
+mod func;
 
 #[cfg(test)]
 mod tests;
 
-pub use self::memory::MemoryInstance;
-pub use self::module::{ModuleInstance, ModuleInstanceInterface,
-	ItemIndex, ExportEntryType, CallerContext, ExecutionParams, FunctionSignature};
-pub use self::table::TableInstance;
-pub use self::program::ProgramInstance;
-pub use self::value::RuntimeValue;
-pub use self::variable::{VariableInstance, VariableType, ExternalVariableValue};
-pub use self::native::{native_module, UserDefinedElements, UserFunctionExecutor, UserFunctionDescriptor};
+pub use self::memory::{MemoryInstance, MemoryRef};
+pub use self::table::{TableInstance, TableRef};
+pub use self::value::{RuntimeValue, TryInto};
+pub use self::host::{Externals, NopExternals, HostError};
+pub use self::imports::{ModuleImportResolver, ImportResolver, ImportsBuilder};
+pub use self::module::{ModuleInstance, ModuleRef, ExternVal, NotStartedModuleRef};
+pub use self::global::{GlobalInstance, GlobalRef};
+pub use self::func::{FuncInstance, FuncRef};

@@ -1,9 +1,10 @@
 use std::u32;
-use std::sync::Arc;
 use std::ops::Range;
 use std::cmp;
-use parking_lot::RwLock;
-use elements::{MemoryType, ResizableLimits};
+use std::fmt;
+use std::rc::Rc;
+use std::cell::RefCell;
+use elements::ResizableLimits;
 use interpreter::Error;
 use interpreter::module::check_limits;
 
@@ -12,14 +13,34 @@ pub const LINEAR_MEMORY_PAGE_SIZE: u32 = 65536;
 /// Maximal number of pages.
 const LINEAR_MEMORY_MAX_PAGES: u32 = 65536;
 
+#[derive(Clone, Debug)]
+pub struct MemoryRef(Rc<MemoryInstance>);
+
+impl ::std::ops::Deref for MemoryRef {
+	type Target = MemoryInstance;
+	fn deref(&self) -> &MemoryInstance {
+		&self.0
+	}
+}
+
 /// Linear memory instance.
 pub struct MemoryInstance {
 	/// Memofy limits.
 	limits: ResizableLimits,
 	/// Linear memory buffer.
-	buffer: RwLock<Vec<u8>>,
+	buffer: RefCell<Vec<u8>>,
 	/// Maximum buffer size.
 	maximum_size: u32,
+}
+
+impl fmt::Debug for MemoryInstance {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.debug_struct("MemoryInstance")
+			.field("limits", &self.limits)
+			.field("buffer.len", &self.buffer.borrow().len())
+			.field("maximum_size", &self.maximum_size)
+			.finish()
+	}
 }
 
 struct CheckedRegion<'a, B: 'a> where B: ::std::ops::Deref<Target=Vec<u8>> {
@@ -46,41 +67,55 @@ impl<'a, B: 'a> CheckedRegion<'a, B> where B: ::std::ops::Deref<Target=Vec<u8>> 
 }
 
 impl MemoryInstance {
-	/// Create new linear memory instance.
-	pub fn new(memory_type: &MemoryType) -> Result<Arc<Self>, Error> {
-		check_limits(memory_type.limits())?;
 
-		let maximum_size = match memory_type.limits().maximum() {
+	pub fn alloc(initial_pages: u32, maximum_pages: Option<u32>) -> Result<MemoryRef, Error> {
+		let memory = MemoryInstance::new(ResizableLimits::new(initial_pages, maximum_pages))?;
+		Ok(MemoryRef(Rc::new(memory)))
+	}
+
+	/// Create new linear memory instance.
+	fn new(limits: ResizableLimits) -> Result<Self, Error> {
+		check_limits(&limits)?;
+
+		let maximum_size = match limits.maximum() {
 			Some(maximum_pages) if maximum_pages > LINEAR_MEMORY_MAX_PAGES =>
 				return Err(Error::Memory(format!("maximum memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES))),
 			Some(maximum_pages) => maximum_pages.saturating_mul(LINEAR_MEMORY_PAGE_SIZE),
 			None => u32::MAX,
 		};
-		let initial_size = calculate_memory_size(0, memory_type.limits().initial(), maximum_size)
+		let initial_size = calculate_memory_size(0, limits.initial(), maximum_size)
 			.ok_or(Error::Memory(format!("initial memory size must be at most {} pages", LINEAR_MEMORY_MAX_PAGES)))?;
 
 		let memory = MemoryInstance {
-			limits: memory_type.limits().clone(),
-			buffer: RwLock::new(vec![0; initial_size as usize]),
+			limits: limits,
+			buffer: RefCell::new(vec![0; initial_size as usize]),
 			maximum_size: maximum_size,
 		};
 
-		Ok(Arc::new(memory))
+		Ok(memory)
 	}
 
 	/// Return linear memory limits.
-	pub fn limits(&self) -> &ResizableLimits {
+	pub(crate) fn limits(&self) -> &ResizableLimits {
 		&self.limits
+	}
+
+	pub fn initial_pages(&self) -> u32 {
+		self.limits.initial()
+	}
+
+	pub fn maximum_pages(&self) -> Option<u32> {
+		self.limits.maximum()
 	}
 
 	/// Return linear memory size (in pages).
 	pub fn size(&self) -> u32 {
-		self.buffer.read().len() as u32 / LINEAR_MEMORY_PAGE_SIZE
+		self.buffer.borrow().len() as u32 / LINEAR_MEMORY_PAGE_SIZE
 	}
 
 	/// Get data at given offset.
 	pub fn get(&self, offset: u32, size: usize) -> Result<Vec<u8>, Error> {
-		let buffer = self.buffer.read();
+		let buffer = self.buffer.borrow();
 		let region = self.checked_region(&buffer, offset as usize, size)?;
 
 		Ok(region.slice().to_vec())
@@ -88,7 +123,7 @@ impl MemoryInstance {
 
 	/// Write memory slice into another slice
 	pub fn get_into(&self, offset: u32, target: &mut [u8]) -> Result<(), Error> {
-		let buffer = self.buffer.read();
+		let buffer = self.buffer.borrow();
 		let region = self.checked_region(&buffer, offset as usize, target.len())?;
 
 		target.copy_from_slice(region.slice());
@@ -98,7 +133,7 @@ impl MemoryInstance {
 
 	/// Set data at given offset.
 	pub fn set(&self, offset: u32, value: &[u8]) -> Result<(), Error> {
-		let mut buffer = self.buffer.write();
+		let mut buffer = self.buffer.borrow_mut();
 		let range = self.checked_region(&buffer, offset as usize, value.len())?.range();
 
 		buffer[range].copy_from_slice(value);
@@ -107,12 +142,18 @@ impl MemoryInstance {
 	}
 
 	/// Increases the size of the linear memory by given number of pages.
-	/// Returns -1 if allocation fails or previous memory size, if succeeds.
+	/// Returns previous memory size (in pages) if succeeds.
 	pub fn grow(&self, pages: u32) -> Result<u32, Error> {
-		let mut buffer = self.buffer.write();
+		let mut buffer = self.buffer.borrow_mut();
 		let old_size = buffer.len() as u32;
 		match calculate_memory_size(old_size, pages, self.maximum_size) {
-			None => Ok(u32::MAX),
+			None => Err(Error::Memory(
+				format!(
+					"Trying to grow memory by {} pages when already have {}",
+					pages,
+					old_size / LINEAR_MEMORY_PAGE_SIZE,
+				)
+			)),
 			Some(new_size) => {
 				buffer.resize(new_size as usize, 0);
 				Ok(old_size / LINEAR_MEMORY_PAGE_SIZE)
@@ -139,7 +180,7 @@ impl MemoryInstance {
 
 	/// Copy memory region. Semantically equivalent to `memmove`.
 	pub fn copy(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error> {
-		let buffer = self.buffer.write();
+		let buffer = self.buffer.borrow_mut();
 
 		let read_region = self.checked_region(&buffer, src_offset, len)?;
 		let write_region = self.checked_region(&buffer, dst_offset, len)?;
@@ -156,7 +197,7 @@ impl MemoryInstance {
 	/// Copy memory region, non-overlapping version. Semantically equivalent to `memcpy`,
 	/// but returns Error if source overlaping with destination.
 	pub fn copy_nonoverlapping(&self, src_offset: usize, dst_offset: usize, len: usize) -> Result<(), Error> {
-		let buffer = self.buffer.write();
+		let buffer = self.buffer.borrow_mut();
 
 		let read_region = self.checked_region(&buffer, src_offset, len)?;
 		let write_region = self.checked_region(&buffer, dst_offset, len)?;
@@ -176,7 +217,7 @@ impl MemoryInstance {
 
 	/// Clear memory region with a specified value. Semantically equivalent to `memset`.
 	pub fn clear(&self, offset: usize, new_val: u8, len: usize) -> Result<(), Error> {
-		let mut buffer = self.buffer.write();
+		let mut buffer = self.buffer.borrow_mut();
 
 		let range = self.checked_region(&buffer, offset, len)?.range();
 		for val in &mut buffer[range] { *val = new_val }
@@ -205,11 +246,10 @@ mod tests {
 
 	use super::MemoryInstance;
 	use interpreter::Error;
-	use elements::MemoryType;
-	use std::sync::Arc;
+	use elements::ResizableLimits;
 
-	fn create_memory(initial_content: &[u8]) -> Arc<MemoryInstance> {
-		let mem = MemoryInstance::new(&MemoryType::new(1, Some(1)))
+	fn create_memory(initial_content: &[u8]) -> MemoryInstance {
+		let mem = MemoryInstance::new(ResizableLimits::new(1, Some(1)))
 			.expect("MemoryInstance created successfuly");
 		mem.set(0, initial_content).expect("Successful initialize the memory");
 		mem
@@ -269,7 +309,7 @@ mod tests {
 
 	#[test]
 	fn get_into() {
-		let mem = MemoryInstance::new(&MemoryType::new(1, None)).expect("memory instance creation should not fail");
+		let mem = MemoryInstance::new(ResizableLimits::new(1, None)).expect("memory instance creation should not fail");
 		mem.set(6, &[13, 17, 129]).expect("memory set should not fail");
 
 		let mut data = [0u8; 2];

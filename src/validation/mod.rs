@@ -1,17 +1,15 @@
 use std::error;
 use std::fmt;
+use std::collections::HashMap;
 use elements::{
-	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType,
-	Module, Opcode, ResizableLimits, TableType, ValueType, InitExpr
+	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType, Module, Opcode,
+	ResizableLimits, TableType, ValueType, InitExpr, Type
 };
 use common::stack;
-use self::context::ModuleContext;
+use self::context::ModuleContextBuilder;
 use self::func::Validator;
 
-pub use self::module::ValidatedModule;
-
 mod context;
-mod module;
 mod func;
 
 #[cfg(test)]
@@ -38,8 +36,95 @@ impl From<stack::Error> for Error {
 	}
 }
 
-pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
-	let context = prepare_context(module)?;
+#[derive(Clone)]
+pub struct ValidatedModule {
+	labels: HashMap<usize, HashMap<usize, usize>>,
+	module: Module,
+}
+
+impl ValidatedModule {
+	pub fn module(&self) -> &Module {
+		&self.module
+	}
+
+	pub fn into_module(self) -> Module {
+		self.module
+	}
+
+	pub(crate) fn labels(&self) -> &HashMap<usize, HashMap<usize, usize>> {
+		&self.labels
+	}
+}
+
+impl ::std::ops::Deref for ValidatedModule {
+	type Target = Module;
+	fn deref(&self) -> &Module {
+		&self.module
+	}
+}
+
+pub fn validate_module(module: Module) -> Result<ValidatedModule, Error> {
+	let mut context_builder = ModuleContextBuilder::new();
+	let mut imported_globals = Vec::new();
+	let mut labels = HashMap::new();
+
+	// Copy types from module as is.
+	context_builder.set_types(
+		module
+			.type_section()
+			.map(|ts| {
+				ts.types()
+					.into_iter()
+					.map(|&Type::Function(ref ty)| ty)
+					.cloned()
+					.collect()
+			})
+			.unwrap_or_default(),
+	);
+
+	// Fill elements with imported values.
+	for import_entry in module
+		.import_section()
+		.map(|i| i.entries())
+		.unwrap_or_default()
+	{
+		match *import_entry.external() {
+			External::Function(idx) => context_builder.push_func_type_index(idx),
+			External::Table(ref table) => context_builder.push_table(table.clone()),
+			External::Memory(ref memory) => context_builder.push_memory(memory.clone()),
+			External::Global(ref global) => {
+				context_builder.push_global(global.clone());
+				imported_globals.push(global.clone());
+			}
+		}
+	}
+
+	// Concatenate elements with defined in the module.
+	if let Some(function_section) = module.function_section() {
+		for func_entry in function_section.entries() {
+			context_builder.push_func_type_index(func_entry.type_ref())
+		}
+	}
+	if let Some(table_section) = module.table_section() {
+		for table_entry in table_section.entries() {
+			table_entry.validate()?;
+			context_builder.push_table(table_entry.clone());
+		}
+	}
+	if let Some(mem_section) = module.memory_section() {
+		for mem_entry in mem_section.entries() {
+			mem_entry.validate()?;
+			context_builder.push_memory(mem_entry.clone());
+		}
+	}
+	if let Some(global_section) = module.global_section() {
+		for global_entry in global_section.entries() {
+			global_entry.validate(&imported_globals)?;
+			context_builder.push_global(global_entry.global_type().clone());
+		}
+	}
+
+	let context = context_builder.build();
 
 	let function_section_len = module
 		.function_section()
@@ -57,28 +142,32 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 	// validate every function body in user modules
 	if function_section_len != 0 {
 		// tests use invalid code
-		let function_section = module
-			.function_section()
-			.expect("function_section_len != 0; qed");
-		let code_section = module
-			.code_section()
-			.expect("function_section_len != 0; function_section_len == code_section_len; qed");
+		let function_section = module.function_section().expect(
+			"function_section_len != 0; qed",
+		);
+		let code_section = module.code_section().expect(
+			"function_section_len != 0; function_section_len == code_section_len; qed",
+		);
 		// check every function body
 		for (index, function) in function_section.entries().iter().enumerate() {
-			let function_body = code_section
-				.bodies()
-				.get(index as usize)
-				.ok_or(Error(format!("Missing body for function {}", index)))?;
-			Validator::validate_function(&context, function, function_body).map_err(|e| {
-				let Error(ref msg) = e;
-				Error(format!("Function #{} validation error: {}", index, msg))
-			})?;
+			let function_body = code_section.bodies().get(index as usize).ok_or(
+				Error(format!(
+					"Missing body for function {}",
+					index
+				)),
+			)?;
+			let func_labels = Validator::validate_function(&context, function, function_body)
+				.map_err(|e| {
+					let Error(ref msg) = e;
+					Error(format!("Function #{} validation error: {}", index, msg))
+				})?;
+			labels.insert(index, func_labels);
 		}
 	}
 
 	// validate start section
-	if let Some(start_function) = module.start_section() {
-		let (params, return_ty) = context.require_function(start_function)?;
+	if let Some(start_fn_idx) = module.start_section() {
+		let (params, return_ty) = context.require_function(start_fn_idx)?;
 		if return_ty != BlockType::NoResult || params.len() != 0 {
 			return Err(Error(
 				"start function expected to have type [] -> []".into(),
@@ -112,30 +201,39 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 			match *import.external() {
 				External::Function(function_type_index) => {
 					context.require_function(function_type_index)?;
-				},
+				}
 				External::Global(ref global_type) => {
 					if global_type.is_mutable() {
-						return Err(Error(format!("trying to import mutable global {}", import.field())));
+						return Err(Error(format!(
+							"trying to import mutable global {}",
+							import.field()
+						)));
 					}
-				},
+				}
 				External::Memory(ref memory_type) => {
 					memory_type.validate()?;
-				},
+				}
 				External::Table(ref table_type) => {
 					table_type.validate()?;
-				},
+				}
 			}
 		}
 	}
 
 	// there must be no greater than 1 table in tables index space
 	if context.tables().len() > 1 {
-		return Err(Error(format!("too many tables in index space: {}", context.tables().len())));
+		return Err(Error(format!(
+			"too many tables in index space: {}",
+			context.tables().len()
+		)));
 	}
 
 	// there must be no greater than 1 linear memory in memory index space
 	if context.memories().len() > 1 {
-		return Err(Error(format!("too many memory regions in index space: {}", context.memories().len())));
+		return Err(Error(format!(
+			"too many memory regions in index space: {}",
+			context.memories().len()
+		)));
 	}
 
 	// use data section to initialize linear memory regions
@@ -165,87 +263,9 @@ pub fn validate_module(module: &Module) -> Result<ValidatedModule, Error> {
 		}
 	}
 
-	let ModuleContext {
-		types,
-		tables,
-		memories,
-		globals,
-		func_type_indexes,
-	} = context;
-
 	Ok(ValidatedModule {
-		types,
-		tables,
-		memories,
-		globals,
-		func_type_indexes,
-	})
-}
-
-fn prepare_context(module: &Module) -> Result<ModuleContext, Error> {
-	// Copy types from module as is.
-	let types = module
-		.type_section()
-		.map(|ts| ts.types().into_iter().cloned().collect())
-		.unwrap_or_default();
-
-	// Fill elements with imported values.
-	let mut func_type_indexes = Vec::new();
-	let mut tables = Vec::new();
-	let mut memories = Vec::new();
-	let mut globals = Vec::new();
-
-	for import_entry in module
-		.import_section()
-		.map(|i| i.entries())
-		.unwrap_or_default()
-	{
-		match *import_entry.external() {
-			External::Function(idx) => func_type_indexes.push(idx),
-			External::Table(ref table) => tables.push(table.clone()),
-			External::Memory(ref memory) => memories.push(memory.clone()),
-			External::Global(ref global) => globals.push(global.clone()),
-		}
-	}
-
-	// Concatenate elements with defined in the module.
-	if let Some(function_section) = module.function_section() {
-		for func_entry in function_section.entries() {
-			func_type_indexes.push(func_entry.type_ref());
-		}
-	}
-	if let Some(table_section) = module.table_section() {
-		for table_entry in table_section.entries() {
-			table_entry.validate()?;
-			tables.push(table_entry.clone());
-		}
-	}
-	if let Some(mem_section) = module.memory_section() {
-		for mem_entry in mem_section.entries() {
-			mem_entry.validate()?;
-			memories.push(mem_entry.clone());
-		}
-	}
-	if let Some(global_section) = module.global_section() {
-		// Validation of globals is defined over modified context C', which
-		// contains only imported globals. So we do globals validation
-		// in two passes, in first we validate globals and after all globals are validated
-		// add them in globals list.
-		for global_entry in global_section.entries() {
-			global_entry.validate(&globals)?;
-		}
-
-		for global_entry in global_section.entries() {
-			globals.push(global_entry.global_type().clone());
-		}
-	}
-
-	Ok(ModuleContext {
-		types,
-		tables,
-		memories,
-		globals,
-		func_type_indexes,
+		module,
+		labels
 	})
 }
 
@@ -296,26 +316,30 @@ impl InitExpr {
 	fn expr_const_type(&self, globals: &[GlobalType]) -> Result<ValueType, Error> {
 		let code = self.code();
 		if code.len() != 2 {
-			return Err(Error("Init expression should always be with length 2".into()));
+			return Err(Error(
+				"Init expression should always be with length 2".into(),
+			));
 		}
 		let expr_ty: ValueType = match code[0] {
 			Opcode::I32Const(_) => ValueType::I32,
 			Opcode::I64Const(_) => ValueType::I64,
 			Opcode::F32Const(_) => ValueType::F32,
 			Opcode::F64Const(_) => ValueType::F64,
-			Opcode::GetGlobal(idx) => match globals.get(idx as usize) {
-				Some(target_global) => {
-					if target_global.is_mutable() {
-						return Err(Error(format!("Global {} is mutable", idx)));
+			Opcode::GetGlobal(idx) => {
+				match globals.get(idx as usize) {
+					Some(target_global) => {
+						if target_global.is_mutable() {
+							return Err(Error(format!("Global {} is mutable", idx)));
+						}
+						target_global.content_type()
 					}
-					target_global.content_type()
+					None => {
+						return Err(Error(
+							format!("Global {} doesn't exists or not yet defined", idx),
+						))
+					}
 				}
-				None => {
-					return Err(Error(
-						format!("Global {} doesn't exists or not yet defined", idx),
-					))
-				}
-			},
+			}
 			_ => return Err(Error("Non constant opcode in init expr".into())),
 		};
 		if code[1] != Opcode::End {

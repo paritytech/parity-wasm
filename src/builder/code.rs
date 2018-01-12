@@ -2,73 +2,61 @@ use elements;
 use super::invoke::{Invoke, Identity};
 use super::misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder};
 
-/// Signature template description
 pub enum Signature {
     TypeReference(u32),
     Inline(elements::FunctionType),
 }
 
-/// Signature builder
 pub struct SignatureBuilder<F=Identity> {
     callback: F,
     signature: elements::FunctionType,
 }
 
 impl SignatureBuilder {
-    /// New signature builder
     pub fn new() -> Self {
         SignatureBuilder::with_callback(Identity)
     }
 }
 
 impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
-    /// New builder with callback function specified
     pub fn with_callback(callback: F) -> Self {
-        SignatureBuilder {
-            callback: callback,
+        SignatureBuilder { 
+            callback: callback, 
             signature: elements::FunctionType::default(),
         }
     }
 
-    /// Add argument to signature builder
     pub fn with_param(mut self, value_type: elements::ValueType) -> Self {
         self.signature.params_mut().push(value_type);
         self
     }
 
-    /// Add multiple arguments to signature builder
     pub fn with_params(mut self, value_types: Vec<elements::ValueType>) -> Self {
         self.signature.params_mut().extend(value_types);
         self
     }
 
-    /// Override signature return type
     pub fn with_return_type(mut self, return_type: Option<elements::ValueType>) -> Self {
         *self.signature.return_type_mut() = return_type;
         self
     }
 
-    /// Start build new argument
     pub fn param(self) -> ValueTypeBuilder<Self> {
         ValueTypeBuilder::with_callback(self)
     }
 
-    /// Start build multiple arguments
     pub fn params(self) -> ValueTypesBuilder<Self> {
         ValueTypesBuilder::with_callback(self)
     }
 
-    /// Start building return type
     pub fn return_type(self) -> OptionalValueTypeBuilder<Self> {
         OptionalValueTypeBuilder::with_callback(self)
     }
 
-    /// Finish current builder
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.signature)
     }
 
-    /// Finish current builder returning intermediate `Signature` struct
     pub fn build_sig(self) -> Signature {
         Signature::Inline(self.signature)
     }
@@ -94,8 +82,8 @@ impl<F> Invoke<Option<elements::ValueType>> for SignatureBuilder<F>
     }
 }
 
-impl<F> Invoke<elements::ValueType> for SignatureBuilder<F>
-    where F: Invoke<elements::FunctionType>
+impl<F> Invoke<elements::ValueType> for SignatureBuilder<F> 
+    where F: Invoke<elements::FunctionType>  
 {
     type Result = Self;
 
@@ -104,32 +92,27 @@ impl<F> Invoke<elements::ValueType> for SignatureBuilder<F>
     }
 }
 
-/// Type (signature) reference builder (for function/import/indirect call)
 pub struct TypeRefBuilder<F=Identity> {
     callback: F,
     type_ref: u32,
 }
 
 impl<F> TypeRefBuilder<F> where F: Invoke<u32> {
-    /// New builder chained with specified callback
     pub fn with_callback(callback: F) -> Self {
-        TypeRefBuilder {
-            callback: callback,
+        TypeRefBuilder { 
+            callback: callback, 
             type_ref: 0
         }
     }
 
-    /// Set/override of type reference
     pub fn val(mut self, val: u32) -> Self {
         self.type_ref = val;
         self
     }
 
-    /// Finish current builder
     pub fn build(self) -> F::Result { self.callback.invoke(self.type_ref) }
 }
 
-/// Multiple signatures builder
 pub struct SignaturesBuilder<F=Identity> {
     callback: F,
     section: Vec<Signature>,
@@ -143,7 +126,6 @@ impl SignaturesBuilder {
 }
 
 impl<F> SignaturesBuilder<F> {
-    /// New builder chained with specified callback
     pub fn with_callback(callback: F) -> Self {
         SignaturesBuilder {
             callback: callback,
@@ -151,20 +133,17 @@ impl<F> SignaturesBuilder<F> {
         }
     }
 
-    /// Push new signature into the builder output
     pub fn with_signature(mut self, signature: Signature) -> Self {
         self.section.push(signature);
         self
     }
 
-    /// Start building new signature with `TypeRefBuilder`
     pub fn type_ref(self) -> TypeRefBuilder<Self> {
         TypeRefBuilder::with_callback(self)
-    }
+    }    
 }
 
 impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
-    /// Start building new signature with dedicated builder
     pub fn signature(self) -> SignatureBuilder<Self> {
         SignatureBuilder::with_callback(self)
     }
@@ -175,7 +154,7 @@ impl<F> Invoke<elements::FunctionType> for SignaturesBuilder<F> {
 
 	fn invoke(self, signature: elements::FunctionType) -> Self {
 		self.with_signature(Signature::Inline(signature))
-    }
+    }    
 }
 
 impl<F> Invoke<u32> for SignaturesBuilder<F> {
@@ -183,12 +162,10 @@ impl<F> Invoke<u32> for SignaturesBuilder<F> {
 
 	fn invoke(self, type_ref: u32) -> Self {
 		self.with_signature(Signature::TypeReference(type_ref))
-    }
+    }    
 }
 
 impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionSection> {
-
-    /// Finalize builder spawning element
     pub fn build(self) -> F::Result {
         let mut result = elements::FunctionSection::default();
         for f in self.section.into_iter() {
@@ -202,24 +179,20 @@ impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionSection> {
     }
 }
 
-/// Signature bindings
 pub type SignatureBindings = Vec<Signature>;
 
 impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
-    /// Bind signature list
     pub fn bind(self) -> F::Result {
         self.callback.invoke(self.section)
     }
 }
 
-/// Function body (code) builder
 pub struct FuncBodyBuilder<F=Identity> {
     callback: F,
     body: elements::FuncBody,
 }
 
 impl<F> FuncBodyBuilder<F> {
-    /// New body (code) builder given the chain callback
     pub fn with_callback(callback: F) -> Self {
         FuncBodyBuilder {
             callback: callback,
@@ -229,37 +202,29 @@ impl<F> FuncBodyBuilder<F> {
 }
 
 impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
-    /// Set/override entirely with FuncBody struct
     pub fn with_func(mut self, func: elements::FuncBody) -> Self {
         self.body = func;
         self
     }
 
-    /// Extend function local list with new entries
     pub fn with_locals(mut self, locals: Vec<elements::Local>) -> Self {
         self.body.locals_mut().extend(locals);
         self
     }
 
-    /// Set code of the function
     pub fn with_opcodes(mut self, opcodes: elements::Opcodes) -> Self {
         *self.body.code_mut() = opcodes;
         self
     }
 
-    /// Finish current builder spawning resulting struct
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.body)
     }
 }
 
-/// Function definition (extended structure to specify function entirely, incl. signature, mainness and code)
 pub struct FunctionDefinition {
-    /// Is this function is start function
     pub is_main: bool,
-    /// Signature description
     pub signature: Signature,
-    /// Body (code) of the function
     pub code: elements::FuncBody,
 }
 
@@ -273,21 +238,18 @@ impl Default for FunctionDefinition {
     }
 }
 
-/// Function definition builder
 pub struct FunctionBuilder<F=Identity> {
     callback: F,
     func: FunctionDefinition,
 }
 
 impl FunctionBuilder {
-    /// New function builder
     pub fn new() -> Self {
         FunctionBuilder::with_callback(Identity)
     }
 }
 
 impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
-    /// New function builder with chained callback
     pub fn with_callback(callback: F) -> Self {
         FunctionBuilder {
             callback: callback,
@@ -295,35 +257,29 @@ impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
         }
     }
 
-    /// Set that this function is main entry point
     pub fn main(mut self) -> Self {
         self.func.is_main = true;
         self
     }
 
-    /// Start signature builder of the function
     pub fn signature(self) -> SignatureBuilder<Self> {
         SignatureBuilder::with_callback(self)
     }
 
-    /// Override current signature entirely with new one from known struct
     pub fn with_signature(mut self, signature: Signature) -> Self {
         self.func.signature = signature;
         self
     }
 
-    /// Start code (body) builder
     pub fn body(self) -> FuncBodyBuilder<Self> {
         FuncBodyBuilder::with_callback(self)
     }
 
-    /// Set body (code) for this function
     pub fn with_body(mut self, body: elements::FuncBody) -> Self {
         self.func.code = body;
         self
     }
 
-    /// Finalize current builder spawning resulting struct in the callback
     pub fn build(self) -> F::Result {
         self.callback.invoke(self.func)
     }
@@ -334,7 +290,7 @@ impl<F> Invoke<elements::FunctionType> for FunctionBuilder<F> where F: Invoke<Fu
 
 	fn invoke(self, signature: elements::FunctionType) -> Self {
 		self.with_signature(Signature::Inline(signature))
-    }
+    }    
 }
 
 impl<F> Invoke<u32> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
@@ -342,7 +298,7 @@ impl<F> Invoke<u32> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
 
 	fn invoke(self, type_ref: u32) -> Self {
 		self.with_signature(Signature::TypeReference(type_ref))
-    }
+    }    
 }
 
 impl<F> Invoke<elements::FuncBody> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
@@ -388,7 +344,7 @@ mod tests {
                 .param().i32()
                 .return_type().i64()
                 .build()
-            .bind();
+            .bind();      
 
         assert_eq!(result.len(), 1);
     }

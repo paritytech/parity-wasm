@@ -24,6 +24,14 @@ impl ::std::fmt::Display for HostErrorWithCode {
 
 impl HostError for HostErrorWithCode {}
 
+/// Host state for the test environment.
+///
+/// This struct can be used as an external function executor and
+/// as imports provider. This has a drawback: this struct
+/// should be provided upon an instantiation of the module.
+///
+/// However, this limitation can be lifted by implementing `Externals`
+/// and `ModuleImportResolver` traits for different structures.
 struct TestHost {
 	memory: Option<MemoryRef>,
 	instance: Option<ModuleRef>,

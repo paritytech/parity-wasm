@@ -33,7 +33,7 @@ impl ModuleImportResolver for Env {
 	fn resolve_global(
 		&self,
 		field_name: &str,
-		global_type: &GlobalType,
+		_global_type: &GlobalType,
 	) -> Result<GlobalRef, Error> {
 		match field_name {
 			"tableBase" => Ok(self.table_base.clone()),

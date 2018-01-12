@@ -1,13 +1,12 @@
 
 use elements::{
-	deserialize_buffer, GlobalType,
-	ValueType, TableType, MemoryType, FunctionType,
+	deserialize_buffer, ValueType, MemoryType, FunctionType,
 };
 use validation::{validate_module, ValidatedModule};
 use interpreter::{
 	Error, MemoryInstance, ModuleInstance, RuntimeValue,
-	HostError, MemoryRef, ImportsBuilder, Externals, TryInto, TableRef,
-	GlobalRef, FuncRef, FuncInstance, ModuleImportResolver, ModuleRef,
+	HostError, MemoryRef, ImportsBuilder, Externals, TryInto,
+	FuncRef, FuncInstance, ModuleImportResolver, ModuleRef,
 };
 use wabt::wat2wasm;
 
@@ -84,9 +83,9 @@ impl Externals for TestHost {
 		index: usize,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
+		let mut args = args.iter().cloned();
 		match index {
 			SUB_FUNC_INDEX => {
-				let mut args = args.iter();
 				let a: i32 = args.next().unwrap().try_into().unwrap();
 				let b: i32 = args.next().unwrap().try_into().unwrap();
 
@@ -95,13 +94,11 @@ impl Externals for TestHost {
 				Ok(Some(result))
 			}
 			ERR_FUNC_INDEX => {
-				let mut args = args.iter();
 				let error_code: u32 = args.next().unwrap().try_into().unwrap();
 				let error = HostErrorWithCode { error_code };
 				Err(Error::Host(Box::new(error)))
 			}
 			INC_MEM_FUNC_INDEX => {
-				let mut args = args.iter();
 				let ptr: u32 = args.next().unwrap().try_into().unwrap();
 
 				let memory = self.memory.as_ref()
@@ -114,7 +111,6 @@ impl Externals for TestHost {
 				Ok(None)
 			}
 			GET_MEM_FUNC_INDEX => {
-				let mut args = args.iter();
 				let ptr: u32 = args.next().unwrap().try_into().unwrap();
 
 				let memory = self.memory.as_ref()
@@ -125,7 +121,6 @@ impl Externals for TestHost {
 				Ok(Some(RuntimeValue::I32(buf[0] as i32)))
 			}
 			RECURSE_FUNC_INDEX => {
-				let mut args = args.iter().cloned();
 				let val: RuntimeValue = args.next().unwrap();
 
 				let instance = self.instance
@@ -142,7 +137,7 @@ impl Externals for TestHost {
 				}
 				Ok(Some(result))
 			}
-			_ => panic!("SpecModule doesn't provide function at index {}", index),
+			_ => panic!("env doesn't provide function at index {}", index),
 		}
 	}
 
@@ -194,27 +189,11 @@ impl ModuleImportResolver for TestHost {
 		Ok(FuncInstance::alloc_host(func_type.clone(), index))
 	}
 
-	fn resolve_global(
-		&self,
-		field_name: &str,
-		_global_type: &GlobalType,
-	) -> Result<GlobalRef, Error> {
-		Err(Error::Instantiation(
-			format!("Export {} not found", field_name),
-		))
-	}
-
 	fn resolve_memory(
 		&self,
 		field_name: &str,
 		_memory_type: &MemoryType,
 	) -> Result<MemoryRef, Error> {
-		Err(Error::Instantiation(
-			format!("Export {} not found", field_name),
-		))
-	}
-
-	fn resolve_table(&self, field_name: &str, _table_type: &TableType) -> Result<TableRef, Error> {
 		Err(Error::Instantiation(
 			format!("Export {} not found", field_name),
 		))
@@ -249,7 +228,7 @@ fn call_host_func() {
 
 	let instance = ModuleInstance::new(
 		&module,
-		&ImportsBuilder::default().with_resolver("env", &env),
+		&ImportsBuilder::new().with_resolver("env", &env),
 	).expect("Failed to instantiate module")
 		.assert_no_start();
 
@@ -281,7 +260,7 @@ fn host_err() {
 
 	let instance = ModuleInstance::new(
 		&module,
-		&ImportsBuilder::default().with_resolver("env", &env),
+		&ImportsBuilder::new().with_resolver("env", &env),
 	).expect("Failed to instantiate module")
 		.assert_no_start();
 
@@ -323,7 +302,7 @@ fn modify_mem_with_host_funcs() {
 
 	let instance = ModuleInstance::new(
 		&module,
-		&ImportsBuilder::default().with_resolver("env", &env),
+		&ImportsBuilder::new().with_resolver("env", &env),
 	).expect("Failed to instantiate module")
 		.assert_no_start();
 
@@ -341,7 +320,7 @@ fn modify_mem_with_host_funcs() {
 #[test]
 fn pull_internal_mem_from_module() {
 	let module = parse_wat(
-	r#"
+		r#"
 (module
 	(import "env" "inc_mem" (func $inc_mem (param i32)))
 	(import "env" "get_mem" (func $get_mem (param i32) (result i32)))
@@ -367,7 +346,7 @@ fn pull_internal_mem_from_module() {
 
 	let instance = ModuleInstance::new(
 		&module,
-		&ImportsBuilder::default().with_resolver("env", &env),
+		&ImportsBuilder::new().with_resolver("env", &env),
 	).expect("Failed to instantiate module")
 		.assert_no_start();
 
@@ -419,7 +398,7 @@ fn recursion() {
 
 	let instance = ModuleInstance::new(
 		&module,
-		&ImportsBuilder::default().with_resolver("env", &env),
+		&ImportsBuilder::new().with_resolver("env", &env),
 	).expect("Failed to instantiate module")
 		.assert_no_start();
 
@@ -434,4 +413,117 @@ fn recursion() {
 		// 363 = 321 + 42
 		Some(RuntimeValue::I64(363))
 	);
+}
+
+#[test]
+fn defer_providing_externals() {
+	const INC_FUNC_INDEX: usize = 0;
+
+	/// `HostImportResolver` will be passed at instantiation time.
+	///
+	/// Main purpose of this struct is to statsify imports of
+	/// the module being instantiated.
+	struct HostImportResolver {
+		mem: MemoryRef,
+	}
+
+	impl ModuleImportResolver for HostImportResolver {
+		fn resolve_func(&self, field_name: &str, func_type: &FunctionType) -> Result<FuncRef, Error> {
+			if field_name != "inc" {
+				return Err(Error::Instantiation(
+					format!("Export {} not found", field_name),
+				));
+			}
+			if func_type.params() != &[ValueType::I32] || func_type.return_type() != None {
+				return Err(Error::Instantiation(format!(
+					"Export `{}` doesnt match expected type {:?}",
+					field_name,
+					func_type
+				)));
+			}
+
+			Ok(FuncInstance::alloc_host(
+				func_type.clone(),
+				INC_FUNC_INDEX,
+			))
+		}
+
+		fn resolve_memory(&self, field_name: &str, _memory_type: &MemoryType) -> Result<MemoryRef, Error> {
+			if field_name == "mem" {
+				Ok(self.mem.clone())
+			} else {
+				Err(Error::Instantiation(
+					format!("Export {} not found", field_name),
+				))
+			}
+		}
+	}
+
+	/// This struct implements external functions that can be called
+	/// by wasm module.
+	struct HostExternals<'a> {
+		acc: &'a mut u32,
+	}
+
+	impl<'a> Externals for HostExternals<'a> {
+		fn invoke_index(
+			&mut self,
+			index: usize,
+			args: &[RuntimeValue],
+		) -> Result<Option<RuntimeValue>, Error> {
+			match index {
+				INC_FUNC_INDEX => {
+					let mut args = args.iter().cloned();
+					let a: u32 = args.next().unwrap().try_into().unwrap();
+					*self.acc += a;
+					Ok(None)
+				}
+				_ => panic!("env module doesn't provide function at index {}", index),
+			}
+		}
+
+		fn check_signature(&self, _index: usize, func_type: &FunctionType) -> bool {
+			func_type.params() == &[ValueType::I32]
+				&& func_type.return_type() == None
+		}
+	}
+
+	let module = parse_wat(
+		r#"
+(module
+	;; Just to require 'mem' from 'host'.
+	(import "host" "mem" (memory 1))
+	(import "host" "inc" (func $inc (param i32)))
+
+	(func (export "test")
+		(call $inc (i32.const 1))
+	)
+)
+"#,
+	);
+
+	// Create HostImportResolver with some initialized memory instance.
+	// This memory instance will be provided as 'mem' export.
+	let host_import_resolver = HostImportResolver {
+		mem: MemoryInstance::alloc(1, Some(1)).unwrap(),
+	};
+
+	// Instantiate module with `host_import_resolver` as import resolver for "host" module.
+	let instance = ModuleInstance::new(
+		&module,
+		&ImportsBuilder::new()
+			.with_resolver("host", &host_import_resolver),
+	).expect("Failed to instantiate module")
+		.assert_no_start();
+
+	let mut acc = 89;
+	{
+		let mut host_externals = HostExternals {
+			acc: &mut acc,
+		};
+
+		instance.invoke_export("test", &[], &mut host_externals).unwrap(); // acc += 1;
+		instance.invoke_export("test", &[], &mut host_externals).unwrap(); // acc += 1;
+	}
+	assert_eq!(acc, 91);
 }

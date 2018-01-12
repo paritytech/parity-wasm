@@ -120,26 +120,42 @@ pub trait ModuleImportResolver {
 	fn resolve_func(
 		&self,
 		field_name: &str,
-		func_type: &FunctionType,
-	) -> Result<FuncRef, Error>;
+		_func_type: &FunctionType,
+	) -> Result<FuncRef, Error> {
+		Err(Error::Instantiation(
+			format!("Export {} not found", field_name),
+		))
+	}
 
 	fn resolve_global(
 		&self,
 		field_name: &str,
-		global_type: &GlobalType,
-	) -> Result<GlobalRef, Error>;
+		_global_type: &GlobalType,
+	) -> Result<GlobalRef, Error> {
+		Err(Error::Instantiation(
+			format!("Export {} not found", field_name),
+		))
+	}
 
 	fn resolve_memory(
 		&self,
 		field_name: &str,
-		memory_type: &MemoryType,
-	) -> Result<MemoryRef, Error>;
+		_memory_type: &MemoryType,
+	) -> Result<MemoryRef, Error> {
+		Err(Error::Instantiation(
+			format!("Export {} not found", field_name),
+		))
+	}
 
 	fn resolve_table(
 		&self,
 		field_name: &str,
-		table_type: &TableType,
-	) -> Result<TableRef, Error>;
+		_table_type: &TableType,
+	) -> Result<TableRef, Error> {
+		Err(Error::Instantiation(
+			format!("Export {} not found", field_name),
+		))
+	}
 }
 
 impl ModuleImportResolver for ModuleRef {

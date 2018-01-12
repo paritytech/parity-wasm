@@ -29,6 +29,7 @@ impl HostError for HostErrorWithCode {}
 ///
 /// However, this limitation can be lifted by implementing `Externals`
 /// and `ModuleImportResolver` traits for different structures.
+/// See `defer_providing_externals` test for details.
 struct TestHost {
 	memory: Option<MemoryRef>,
 	instance: Option<ModuleRef>,

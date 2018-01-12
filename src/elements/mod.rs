@@ -1,5 +1,7 @@
 //! Elements of the WebAssembly binary format.
 
+use std::error;
+use std::fmt;
 use std::io;
 
 mod module;
@@ -87,6 +89,52 @@ pub enum Error {
     InvalidVarInt64,
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::UnexpectedEof => write!(f, "Unexpected end of input"),
+            Error::InvalidMagic => write!(f, "Invalid magic number at start of file"),
+            Error::UnsupportedVersion(v) => write!(f, "Unsupported wasm version {}", v),
+            Error::InconsistentLength { expected, actual } => {
+                write!(f, "Expected length {}, found {}", expected, actual)
+            }
+            Error::Other(msg) => write!(f, "{}", msg),
+            Error::HeapOther(ref msg) => write!(f, "{}", msg),
+            Error::UnknownValueType(ty) => write!(f, "Invalid or unknown value type {}", ty),
+            Error::UnknownTableElementType(ty) => write!(f, "Unknown table element type {}", ty),
+            Error::NonUtf8String => write!(f, "Non-UTF-8 string"),
+            Error::UnknownExternalKind(kind) => write!(f, "Unknown external kind {}", kind),
+            Error::UnknownInternalKind(kind) => write!(f, "Unknown internal kind {}", kind),
+            Error::UnknownOpcode(opcode) => write!(f, "Unknown opcode {}", opcode),
+            Error::InvalidVarUint1(val) => write!(f, "Not an unsigned 1-bit integer: {}", val),
+            Error::InvalidVarInt32 => write!(f, "Not a signed 32-bit integer"),
+            Error::InvalidVarInt64 => write!(f, "Not a signed 64-bit integer"),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::UnexpectedEof => "Unexpected end of input",
+            Error::InvalidMagic => "Invalid magic number at start of file",
+            Error::UnsupportedVersion(_) => "Unsupported wasm version",
+            Error::InconsistentLength { .. } => "Inconsistent length",
+            Error::Other(msg) => msg,
+            Error::HeapOther(ref msg) => &msg[..],
+            Error::UnknownValueType(_) => "Invalid or unknown value type",
+            Error::UnknownTableElementType(_) => "Unknown table element type",
+            Error::NonUtf8String => "Non-UTF-8 string",
+            Error::UnknownExternalKind(_) => "Unknown external kind",
+            Error::UnknownInternalKind(_) => "Unknown internal kind",
+            Error::UnknownOpcode(_) => "Unknown opcode",
+            Error::InvalidVarUint1(_) => "Not an unsigned 1-bit integer",
+            Error::InvalidVarInt32 => "Not a signed 32-bit integer",
+            Error::InvalidVarInt64 => "Not a signed 64-bit integer",
+        }
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::HeapOther(format!("I/O Error: {}", err))
@@ -120,11 +168,11 @@ pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Err
     let mut contents = Vec::new();
     ::std::fs::File::open(p)?.read_to_end(&mut contents)?;
 
-    deserialize_buffer(contents)
+    deserialize_buffer(&contents)
 }
 
 /// Deserialize deserializable type from buffer.
-pub fn deserialize_buffer<T: Deserialize>(contents: Vec<u8>) -> Result<T, T::Error> {
+pub fn deserialize_buffer<T: Deserialize>(contents: &[u8]) -> Result<T, T::Error> {
     let mut reader = io::Cursor::new(contents);
     T::deserialize(&mut reader)
 }

@@ -763,8 +763,8 @@ mod tests {
         assert!(found, "There should be import section in test5.wasm");
     }
 
-    fn functions_test_payload() -> Vec<u8> {
-        vec![
+    fn functions_test_payload() -> &'static [u8] {
+        &[
             // functions section id
             0x03u8,
             // functions section length
@@ -825,8 +825,8 @@ mod tests {
         }
     }
 
-    fn types_test_payload() -> Vec<u8> {
-        vec![
+    fn types_test_payload() -> &'static [u8] {
+        &[
             // section length
             148u8, 0x80, 0x80, 0x80, 0x0,
 
@@ -875,8 +875,8 @@ mod tests {
         assert_eq!(2, t1.params().len());
     }
 
-    fn export_payload() -> Vec<u8> {
-        vec![
+    fn export_payload() -> &'static [u8] {
+        &[
             // section id
             0x07,
             // section length
@@ -913,8 +913,8 @@ mod tests {
         }
     }
 
-    fn code_payload() -> Vec<u8> {
-        vec![
+    fn code_payload() -> &'static [u8] {
+        &[
             // sectionid
             0x0Au8,
             // section length, 32
@@ -957,8 +957,8 @@ mod tests {
         }
     }
 
-    fn data_payload() -> Vec<u8> {
-        vec![
+    fn data_payload() -> &'static [u8] {
+        &[
             0x0bu8,  // section id
             19,      // 19 bytes overall
             0x01,    // number of segments
@@ -1060,7 +1060,7 @@ mod tests {
 
     #[test]
     fn start_section() {
-        let section: Section = deserialize_buffer(vec![08u8, 01u8, 00u8]).expect("Start section to deserialize");
+        let section: Section = deserialize_buffer(&[08u8, 01u8, 00u8]).expect("Start section to deserialize");
         if let Section::Start(_) = section {
         } else {
             panic!("Payload should be a start section");

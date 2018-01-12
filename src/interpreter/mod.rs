@@ -3,6 +3,9 @@
 // TODO(pepyakin): Fix these asap
 #![allow(missing_docs)]
 
+use std::fmt;
+use std::error;
+
 /// Internal interpreter error.
 #[derive(Debug)]
 pub enum Error {
@@ -43,8 +46,8 @@ impl Into<String> for Error {
 	}
 }
 
-impl ::std::fmt::Display for Error {
-	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			Error::Instantiation(ref s) => write!(f, "Instantiation: {}", s),
 			Error::Function(ref s) => write!(f, "Function: {}", s),
@@ -55,6 +58,24 @@ impl ::std::fmt::Display for Error {
 			Error::Value(ref s) => write!(f, "Value: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {}", s),
 			Error::Host(ref e) => write!(f, "User: {}", e),
+		}
+	}
+}
+
+
+
+impl error::Error for Error {
+	fn description(&self) -> &str {
+		match *self {
+			Error::Instantiation(ref s) => s,
+			Error::Function(ref s) => s,
+			Error::Table(ref s) => s,
+			Error::Memory(ref s) => s,
+			Error::Global(ref s) => s,
+			Error::Stack(ref s) => s,
+			Error::Value(ref s) => s,
+			Error::Trap(ref s) => s,
+			Error::Host(_) => "Host error",
 		}
 	}
 }

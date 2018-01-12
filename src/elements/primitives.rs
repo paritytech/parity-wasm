@@ -571,7 +571,7 @@ mod tests {
     }
 
     fn varuint32_de_test(dt: Vec<u8>, expected: u32) {
-        let val: VarUint32 = super::super::deserialize_buffer(dt).expect("buf to be serialized");
+        let val: VarUint32 = super::super::deserialize_buffer(&dt).expect("buf to be serialized");
         assert_eq!(expected, val.into());
     }
 
@@ -588,7 +588,7 @@ mod tests {
     }
 
     fn varint32_de_test(dt: Vec<u8>, expected: i32) {
-        let val: VarInt32 = super::super::deserialize_buffer(dt).expect("buf to be serialized");
+        let val: VarInt32 = super::super::deserialize_buffer(&dt).expect("buf to be serialized");
         assert_eq!(expected, val.into());
     }
 
@@ -605,7 +605,7 @@ mod tests {
     }
 
     fn varuint64_de_test(dt: Vec<u8>, expected: u64) {
-        let val: VarUint64 = super::super::deserialize_buffer(dt).expect("buf to be serialized");
+        let val: VarUint64 = super::super::deserialize_buffer(&dt).expect("buf to be serialized");
         assert_eq!(expected, val.into());
     }
 
@@ -622,7 +622,7 @@ mod tests {
     }
 
     fn varint64_de_test(dt: Vec<u8>, expected: i64) {
-        let val: VarInt64 = super::super::deserialize_buffer(dt).expect("buf to be serialized");
+        let val: VarInt64 = super::super::deserialize_buffer(&dt).expect("buf to be serialized");
         assert_eq!(expected, val.into());
     }
 
@@ -726,7 +726,7 @@ mod tests {
 
     #[test]
     fn counted_list() {
-        let payload = vec![
+        let payload = [
             133u8, //(128+5), length is 5
                 0x80, 0x80, 0x80, 0x0, // padding
             0x01,
@@ -737,7 +737,7 @@ mod tests {
         ];
 
         let list: CountedList<VarInt7> =
-            deserialize_buffer(payload).expect("type_section be deserialized");
+            deserialize_buffer(&payload).expect("type_section be deserialized");
 
         let vars = list.into_inner();
         assert_eq!(5, vars.len());

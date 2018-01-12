@@ -1195,7 +1195,7 @@ impl Serialize for InitExpr {
 #[test]
 fn ifelse() {
     // see if-else.wast/if-else.wasm
-    let opcode = super::deserialize_buffer::<Opcodes>(vec![0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B])
+    let opcode = super::deserialize_buffer::<Opcodes>(&[0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B])
         .expect("valid hex of if instruction");
     let opcodes = opcode.elements();
     match &opcodes[0] {

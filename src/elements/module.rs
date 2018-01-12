@@ -266,7 +266,7 @@ mod integration_tests {
         let module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
         let buf = serialize(module).expect("serialization to succeed");
 
-        let module_new: Module = deserialize_buffer(buf).expect("deserialization to succeed");
+        let module_new: Module = deserialize_buffer(&buf).expect("deserialization to succeed");
         let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 
         assert_eq!(module_old.sections().len(), module_new.sections().len());
@@ -281,7 +281,7 @@ mod integration_tests {
 
         let buf = serialize(module).expect("serialization to succeed");
 
-        let module_new: Module = deserialize_buffer(buf).expect("deserialization to succeed");
+        let module_new: Module = deserialize_buffer(&buf).expect("deserialization to succeed");
         let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
         assert_eq!(
             module_old.type_section().expect("type section exists").types().len(),
@@ -299,7 +299,7 @@ mod integration_tests {
 
         let buf = serialize(module).expect("serialization to succeed");
 
-        let module_new: Module = deserialize_buffer(buf).expect("deserialization to succeed");
+        let module_new: Module = deserialize_buffer(&buf).expect("deserialization to succeed");
         let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
         assert_eq!(
             module_old.import_section().expect("import section exists").entries().len(),
@@ -317,7 +317,7 @@ mod integration_tests {
 
         let buf = serialize(module).expect("serialization to succeed");
 
-        let module_new: Module = deserialize_buffer(buf).expect("deserialization to succeed");
+        let module_new: Module = deserialize_buffer(&buf).expect("deserialization to succeed");
         let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
         assert_eq!(
             module_old.code_section().expect("code section exists").bodies().len(),

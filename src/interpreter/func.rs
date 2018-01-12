@@ -92,7 +92,7 @@ impl FuncInstance {
 		}
 	}
 
-	pub fn invoke<E: Externals>(
+	pub(crate) fn invoke<E: Externals>(
 		func: FuncRef,
 		args: Cow<[RuntimeValue]>,
 		externals: &mut E,

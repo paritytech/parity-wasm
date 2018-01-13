@@ -7,9 +7,9 @@ pub const DEFAULT_MEMORY_INDEX: u32 = 0;
 /// Index of default table.
 pub const DEFAULT_TABLE_INDEX: u32 = 0;
 /// Maximum number of entries in value stack.
-pub const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
+pub const DEFAULT_VALUE_STACK_LIMIT: usize = 8 * 16384;
 /// Maximum number of entries in frame stack.
-pub const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
+pub const DEFAULT_FRAME_STACK_LIMIT: usize = 8 * 1024;
 
 /// Control stack frame.
 #[derive(Debug, Clone)]

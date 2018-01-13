@@ -44,9 +44,8 @@ impl fmt::Debug for FuncInstance {
 			} => {
 				write!(
 					f,
-					"Internal {{ type={:?}, module={:?} }}",
-					func_type,
-					module
+					"Internal {{ type={:?}, module=... }}",
+					func_type
 				)
 			}
 			&FuncInstance::Host { ref func_type, .. } => {

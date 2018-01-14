@@ -266,7 +266,7 @@ pub enum Opcode {
     F64Max,
     F64Copysign,
 
-    I32WarpI64,
+    I32WrapI64,
     I32TruncSF32,
     I32TruncUF32,
     I32TruncSF64,
@@ -560,7 +560,7 @@ impl Deserialize for Opcode {
                 0xa5 => F64Max,
                 0xa6 => F64Copysign,
 
-                0xa7 => I32WarpI64,
+                0xa7 => I32WrapI64,
                 0xa8 => I32TruncSF32,
                 0xa9 => I32TruncUF32,
                 0xaa => I32TruncSF64,
@@ -877,7 +877,7 @@ impl Serialize for Opcode {
             F64Max => op!(writer, 0xa5),
             F64Copysign => op!(writer, 0xa6),
 
-            I32WarpI64 => op!(writer, 0xa7),
+            I32WrapI64 => op!(writer, 0xa7),
             I32TruncSF32 => op!(writer, 0xa8),
             I32TruncUF32 => op!(writer, 0xa9),
             I32TruncSF64 => op!(writer, 0xaa),
@@ -1134,7 +1134,7 @@ impl fmt::Display for Opcode {
             F64Max => write!(f, "f64.max"),
             F64Copysign => write!(f, "f64.copysign"),
 
-            I32WarpI64 => write!(f, "i32.wrap/i64"),
+            I32WrapI64 => write!(f, "i32.wrap/i64"),
             I32TruncSF32 => write!(f, "i32.trunc_s/f32"),
             I32TruncUF32 => write!(f, "i32.trunc_u/f32"),
             I32TruncSF64 => write!(f, "i32.trunc_s/f64"),

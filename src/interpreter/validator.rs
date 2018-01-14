@@ -283,7 +283,7 @@ impl Validator {
 			&Opcode::F64Max => Validator::validate_binop(context, ValueType::F64.into()),
 			&Opcode::F64Copysign => Validator::validate_binop(context, ValueType::F64.into()),
 
-			&Opcode::I32WarpI64 => Validator::validate_cvtop(context, ValueType::I64.into(), ValueType::I32.into()),
+			&Opcode::I32WrapI64 => Validator::validate_cvtop(context, ValueType::I64.into(), ValueType::I32.into()),
 			&Opcode::I32TruncSF32 => Validator::validate_cvtop(context, ValueType::F32.into(), ValueType::I32.into()),
 			&Opcode::I32TruncUF32 => Validator::validate_cvtop(context, ValueType::F32.into(), ValueType::I32.into()),
 			&Opcode::I32TruncSF64 => Validator::validate_cvtop(context, ValueType::F64.into(), ValueType::I32.into()),

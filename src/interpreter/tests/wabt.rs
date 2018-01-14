@@ -489,7 +489,7 @@ fn call_1() {
 
 	let body2 = Opcodes::new(vec![
 		Opcode::GetLocal(1),
-		Opcode::I32WarpI64,
+		Opcode::I32WrapI64,
 		Opcode::GetLocal(0),
 		Opcode::I32Add,
 		Opcode::GetLocal(2),
@@ -2293,7 +2293,7 @@ fn convert_i32() {
 			.signature().return_type().i32().build()
 			.body().with_opcodes(Opcodes::new(vec![
 				Opcode::I64Const(-1),
-				Opcode::I32WarpI64,
+				Opcode::I32WrapI64,
 				Opcode::End,
 			])).build()
 			.build()

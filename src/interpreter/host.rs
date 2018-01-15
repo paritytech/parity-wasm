@@ -1,5 +1,4 @@
 use std::any::TypeId;
-use elements::FunctionType;
 use interpreter::value::RuntimeValue;
 use interpreter::Error;
 
@@ -38,8 +37,6 @@ pub trait Externals {
 		index: usize,
 		args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error>;
-
-	fn check_signature(&self, index: usize, signature: &FunctionType) -> bool;
 }
 
 pub struct NopExternals;
@@ -51,9 +48,5 @@ impl Externals for NopExternals {
 		_args: &[RuntimeValue],
 	) -> Result<Option<RuntimeValue>, Error> {
 		Err(Error::Trap("invoke index on no-op externals".into()))
-	}
-
-	fn check_signature(&self, _index: usize, _signature: &FunctionType) -> bool {
-		false
 	}
 }

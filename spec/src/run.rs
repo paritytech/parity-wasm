@@ -81,13 +81,6 @@ impl Externals for SpecModule {
             _ => panic!("SpecModule doesn't provide function at index {}", index),
         }
     }
-
-    fn check_signature(&self, index: usize, _signature: &FunctionType) -> bool {
-        match index {
-            PRINT_FUNC_INDEX => true,
-            _ => false,
-        }
-    }
 }
 
 impl ModuleImportResolver for SpecModule {

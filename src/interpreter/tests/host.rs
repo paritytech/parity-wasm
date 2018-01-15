@@ -141,7 +141,9 @@ impl Externals for TestHost {
 			_ => panic!("env doesn't provide function at index {}", index),
 		}
 	}
+}
 
+impl TestHost {
 	fn check_signature(&self, index: usize, func_type: &FunctionType) -> bool {
 		if index == RECURSE_FUNC_INDEX {
 			// This function requires special handling because it is polymorphic.
@@ -476,10 +478,6 @@ fn defer_providing_externals() {
 				}
 				_ => panic!("env module doesn't provide function at index {}", index),
 			}
-		}
-
-		fn check_signature(&self, _index: usize, func_type: &FunctionType) -> bool {
-			func_type.params() == &[ValueType::I32] && func_type.return_type() == None
 		}
 	}
 

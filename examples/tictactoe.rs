@@ -180,18 +180,6 @@ impl<'a> Externals for Runtime<'a> {
 			_ => panic!("unknown function index")
 		}
 	}
-
-	fn check_signature(&self, index: usize, sig: &FunctionType) -> bool {
-		match index {
-			SET_FUNC_INDEX => {
-				sig.params() == &[ValueType::I32] && sig.return_type() == None
-			}
-			GET_FUNC_INDEX => {
-				sig.params() == &[ValueType::I32] && sig.return_type() == Some(ValueType::I32)
-			}
-			_ => panic!("unknown function index")
-		}
-	}
 }
 
 struct RuntimeModuleImportResolver;

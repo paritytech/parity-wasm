@@ -316,7 +316,7 @@ impl Interpreter {
 			&Opcode::F64Max => Interpreter::run_max::<f64>(context),
 			&Opcode::F64Copysign => Interpreter::run_copysign::<f64>(context),
 
-			&Opcode::I32WarpI64 => Interpreter::run_wrap::<i64, i32>(context),
+			&Opcode::I32WrapI64 => Interpreter::run_wrap::<i64, i32>(context),
 			&Opcode::I32TruncSF32 => Interpreter::run_trunc_to_int::<f32, i32, i32>(context),
 			&Opcode::I32TruncUF32 => Interpreter::run_trunc_to_int::<f32, u32, i32>(context),
 			&Opcode::I32TruncSF64 => Interpreter::run_trunc_to_int::<f64, i32, i32>(context),

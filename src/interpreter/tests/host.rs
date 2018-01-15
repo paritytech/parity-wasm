@@ -1,10 +1,10 @@
 
-use elements::{deserialize_buffer, FunctionType, MemoryType, ValueType};
+use elements::{deserialize_buffer, FunctionType, MemoryType, TableType, ValueType};
 use validation::{validate_module, ValidatedModule};
 use interpreter::{
 	Error, Externals, FuncInstance, FuncRef, HostError, ImportsBuilder,
-	MemoryInstance, MemoryRef, ModuleImportResolver, ModuleInstance, ModuleRef,
-	RuntimeValue, TryInto
+	MemoryInstance, MemoryRef, TableInstance, TableRef, ModuleImportResolver, ModuleInstance, ModuleRef,
+	RuntimeValue, TryInto,
 };
 use wabt::wat2wasm;
 
@@ -519,4 +519,231 @@ fn defer_providing_externals() {
 			.unwrap(); // acc += 1;
 	}
 	assert_eq!(acc, 91);
+}
+
+#[test]
+fn two_envs_one_externals() {
+	const PRIVILEGED_FUNC_INDEX: usize = 0;
+	const ORDINARY_FUNC_INDEX: usize = 1;
+
+	struct HostExternals;
+
+	impl Externals for HostExternals {
+		fn invoke_index(
+			&mut self,
+			index: usize,
+			_args: &[RuntimeValue],
+		) -> Result<Option<RuntimeValue>, Error> {
+			match index {
+				PRIVILEGED_FUNC_INDEX => {
+					println!("privileged!");
+					Ok(None)
+				}
+				ORDINARY_FUNC_INDEX => Ok(None),
+				_ => panic!("env module doesn't provide function at index {}", index),
+			}
+		}
+	}
+
+	struct PrivilegedResolver;
+	struct OrdinaryResolver;
+
+	impl ModuleImportResolver for PrivilegedResolver {
+		fn resolve_func(
+			&self,
+			field_name: &str,
+			func_type: &FunctionType,
+		) -> Result<FuncRef, Error> {
+			let index = match field_name {
+				"ordinary" => ORDINARY_FUNC_INDEX,
+				"privileged" => PRIVILEGED_FUNC_INDEX,
+				_ => {
+					return Err(Error::Instantiation(
+						format!("Export {} not found", field_name),
+					))
+				}
+			};
+
+			Ok(FuncInstance::alloc_host(func_type.clone(), index))
+		}
+	}
+
+	impl ModuleImportResolver for OrdinaryResolver {
+		fn resolve_func(
+			&self,
+			field_name: &str,
+			func_type: &FunctionType,
+		) -> Result<FuncRef, Error> {
+			let index = match field_name {
+				"ordinary" => ORDINARY_FUNC_INDEX,
+				"privileged" => {
+					return Err(Error::Instantiation(
+						"'priveleged' can be imported only in privileged context".into(),
+					))
+				}
+				_ => {
+					return Err(Error::Instantiation(
+						format!("Export {} not found", field_name),
+					))
+				}
+			};
+
+			Ok(FuncInstance::alloc_host(func_type.clone(), index))
+		}
+	}
+
+	let trusted_module = parse_wat(
+		r#"
+(module
+	;; Trusted module can import both ordinary and privileged functions.
+	(import "env" "ordinary" (func $ordinary))
+	(import "env" "privileged" (func $privileged))
+	(func (export "do_trusted_things")
+		(call $ordinary)
+		(call $privileged)
+	)
+)
+"#,
+	);
+
+	let untrusted_module = parse_wat(
+		r#"
+(module
+	;; Untrusted module can import only ordinary functions.
+	(import "env" "ordinary" (func $ordinary))
+	(import "trusted" "do_trusted_things" (func $do_trusted_things))
+	(func (export "test")
+		(call $ordinary)
+		(call $do_trusted_things)
+	)
+)
+"#,
+	);
+
+	let trusted_instance = ModuleInstance::new(
+		&trusted_module,
+		&ImportsBuilder::new().with_resolver("env", &PrivilegedResolver),
+	).expect("Failed to instantiate module")
+		.assert_no_start();
+
+	let untrusted_instance = ModuleInstance::new(
+		&untrusted_module,
+		&ImportsBuilder::new()
+			.with_resolver("env", &OrdinaryResolver)
+			.with_resolver("trusted", &trusted_instance),
+	).expect("Failed to instantiate module")
+		.assert_no_start();
+
+	untrusted_instance
+		.invoke_export("test", &[], &mut HostExternals)
+		.expect("Failed to invoke 'test' function");
+}
+
+#[test]
+fn dynamically_add_host_func() {
+	const ADD_FUNC_FUNC_INDEX: usize = 0;
+
+	struct HostExternals {
+		table: TableRef,
+		added_funcs: u32,
+	}
+
+	impl Externals for HostExternals {
+		fn invoke_index(
+			&mut self,
+			index: usize,
+			_args: &[RuntimeValue],
+		) -> Result<Option<RuntimeValue>, Error> {
+			match index {
+				ADD_FUNC_FUNC_INDEX => {
+					// Allocate indicies for the new function.
+					// host_func_index is in host index space, and first index is occupied by ADD_FUNC_FUNC_INDEX.
+					let table_index = self.added_funcs;
+					let host_func_index = table_index + 1;
+					self.added_funcs += 1;
+
+					let added_func = FuncInstance::alloc_host(
+						FunctionType::new(vec![], Some(ValueType::I32)),
+						host_func_index as usize,
+					);
+					self.table.set(table_index, Some(added_func))?;
+
+					Ok(Some(RuntimeValue::I32(table_index as i32)))
+				}
+				index if index as u32 <= self.added_funcs => {
+					Ok(Some(RuntimeValue::I32(index as i32)))
+				}
+				_ => panic!("'env' module doesn't provide function at index {}", index),
+			}
+		}
+	}
+
+	impl ModuleImportResolver for HostExternals {
+		fn resolve_func(
+			&self,
+			field_name: &str,
+			func_type: &FunctionType,
+		) -> Result<FuncRef, Error> {
+			let index = match field_name {
+				"add_func" => ADD_FUNC_FUNC_INDEX,
+				_ => {
+					return Err(Error::Instantiation(
+						format!("Export {} not found", field_name),
+					))
+				}
+			};
+			Ok(FuncInstance::alloc_host(func_type.clone(), index))
+		}
+
+		fn resolve_table(
+			&self,
+			field_name: &str,
+			_table_type: &TableType,
+		) -> Result<TableRef, Error> {
+			if field_name == "table" {
+				Ok(self.table.clone())
+			} else {
+				Err(Error::Instantiation(
+					format!("Export {} not found", field_name),
+				))
+			}
+		}
+	}
+
+	let mut host_externals = HostExternals {
+		table: TableInstance::alloc(10, None).unwrap(),
+		added_funcs: 0,
+	};
+
+	let module = parse_wat(
+		r#"
+(module
+	(type $t0 (func (result i32)))
+	(import "env" "add_func" (func $add_func (result i32)))
+	(import "env" "table" (table 10 anyfunc))
+	(func (export "test") (result i32)
+		;; Call add_func but discard the result
+		call $add_func
+		drop
+
+		;; Call add_func and then make an indirect call with the returned index
+		call $add_func
+		call_indirect (type $t0)
+	)
+)
+"#,
+	);
+
+	let instance = ModuleInstance::new(
+		&module,
+		&ImportsBuilder::new().with_resolver("env", &host_externals),
+	).expect("Failed to instantiate module")
+		.assert_no_start();
+
+	assert_eq!(
+		instance
+			.invoke_export("test", &[], &mut host_externals)
+			.expect("Failed to invoke 'test' function"),
+		Some(RuntimeValue::I32(2))
+	);
 }

@@ -21,7 +21,7 @@ script:
 - cargo run --release --example roundtrip ./res/cases/v1/clang.wasm /tmp/clang.wasm
 after_success: |-
   [ $TRAVIS_BRANCH = master ] &&
-  [ $TRAVIS_PULL_REQUEST = false ] &
+  [ $TRAVIS_PULL_REQUEST = false ] &&
   cargo doc \
   && echo '<meta http-equiv=refresh content=0;url=parity_wasm/index.html>' > target/doc/index.html && \
   sudo pip install ghp-import && \

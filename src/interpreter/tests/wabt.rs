@@ -632,7 +632,7 @@ fn callindirect_1() {
 
 	let body3 = Opcodes::new(vec![
 		Opcode::GetLocal(0),
-		Opcode::CallIndirect(0, false),
+		Opcode::CallIndirect(0, 0),
 		Opcode::End,
 	]);
 
@@ -691,7 +691,7 @@ fn callindirect_2() {
 		Opcode::GetLocal(0),
 		Opcode::GetLocal(1),
 		Opcode::GetLocal(2),
-		Opcode::CallIndirect(0, false),
+		Opcode::CallIndirect(0, 0),
 		Opcode::End,
 	]);
 

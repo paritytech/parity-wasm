@@ -206,6 +206,43 @@ impl Serialize for VarInt7 {
     }
 }
 
+/// 8-bit unsigned integer, NOT encoded in LEB128;
+/// it's just a single byte.
+#[derive(Debug, Copy, Clone)]
+pub struct Uint8(u8);
+
+impl From<Uint8> for u8 {
+    fn from(v: Uint8) -> u8 {
+        v.0
+    }
+}
+
+impl From<u8> for Uint8 {
+    fn from(v: u8) -> Self {
+        Uint8(v)
+    }
+}
+
+impl Deserialize for Uint8 {
+    type Error = Error;
+
+    fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+        let mut u8buf = [0u8; 1];
+        reader.read_exact(&mut u8buf)?;
+        Ok(Uint8(u8buf[0]))
+    }
+}
+
+impl Serialize for Uint8 {
+    type Error = Error;
+
+    fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+        writer.write_all(&[self.0])?;
+        Ok(())
+    }
+}
+
+
 /// 32-bit signed integer, encoded in LEB128 (can be 1-5 bytes length)
 #[derive(Debug, Copy, Clone)]
 pub struct VarInt32(i32);

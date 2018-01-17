@@ -1,7 +1,7 @@
 use std::{io, fmt};
 use super::{
-    Serialize, Deserialize, Error, VarUint7,
-    VarUint1, VarUint32, CountedList, BlockType,
+    Serialize, Deserialize, Error,
+    Uint8, VarUint32, CountedList, BlockType,
     Uint32, Uint64, CountedListWriter,
     VarInt32, VarInt64,
 };
@@ -117,7 +117,7 @@ pub enum Opcode {
     Return,
 
     Call(u32),
-    CallIndirect(u32, bool),
+    CallIndirect(u32, u8),
 
     Drop,
     Select,
@@ -154,8 +154,8 @@ pub enum Opcode {
     I64Store16(u32, u32),
     I64Store32(u32, u32),
 
-    CurrentMemory(bool),
-    GrowMemory(bool),
+    CurrentMemory(u8),
+    GrowMemory(u8),
 
     I32Const(i32),
     I64Const(i64),
@@ -319,7 +319,7 @@ impl Deserialize for Opcode {
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         use self::Opcode::*;
 
-        let val: u8 = VarUint7::deserialize(reader)?.into();
+        let val: u8 = Uint8::deserialize(reader)?.into();
 
         Ok(
             match val {
@@ -346,7 +346,7 @@ impl Deserialize for Opcode {
                 0x10 => Call(VarUint32::deserialize(reader)?.into()),
                 0x11 => CallIndirect(
                     VarUint32::deserialize(reader)?.into(),
-                    VarUint1::deserialize(reader)?.into()),
+                    Uint8::deserialize(reader)?.into()),
                 0x1a => Drop,
                 0x1b => Select,
 
@@ -449,8 +449,8 @@ impl Deserialize for Opcode {
                     VarUint32::deserialize(reader)?.into()),
 
 
-                0x3f => CurrentMemory(VarUint1::deserialize(reader)?.into()),
-                0x40 => GrowMemory(VarUint1::deserialize(reader)?.into()),
+                0x3f => CurrentMemory(Uint8::deserialize(reader)?.into()),
+                0x40 => GrowMemory(Uint8::deserialize(reader)?.into()),
 
                 0x41 => I32Const(VarInt32::deserialize(reader)?.into()),
                 0x42 => I64Const(VarInt64::deserialize(reader)?.into()),
@@ -644,7 +644,7 @@ impl Serialize for Opcode {
             }),
             CallIndirect(index, reserved) => op!(writer, 0x11, {
                 VarUint32::from(index).serialize(writer)?;
-                VarUint1::from(reserved).serialize(writer)?;
+                Uint8::from(reserved).serialize(writer)?;
             }),
             Drop => op!(writer, 0x1a),
             Select => op!(writer, 0x1b),
@@ -756,10 +756,10 @@ impl Serialize for Opcode {
                 VarUint32::from(offset).serialize(writer)?;
             }),
             CurrentMemory(flag) => op!(writer, 0x3f, {
-                VarUint1::from(flag).serialize(writer)?;
+                Uint8::from(flag).serialize(writer)?;
             }),
             GrowMemory(flag) => op!(writer, 0x40, {
-                VarUint1::from(flag).serialize(writer)?;
+                Uint8::from(flag).serialize(writer)?;
             }),
             I32Const(def) => op!(writer, 0x41, {
                 VarInt32::from(def).serialize(writer)?;

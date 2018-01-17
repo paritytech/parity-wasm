@@ -1,37 +1,102 @@
 use elements::deserialize_file;
-use elements::Module;
-use interpreter::ExecutionParams;
-use interpreter::value::RuntimeValue;
-use interpreter::module::{ModuleInstanceInterface, ItemIndex};
-use super::utils::program_with_default_env;
+use elements::{FunctionType, GlobalType, MemoryType, Module, TableType};
+use interpreter::{Error, FuncRef, GlobalInstance, GlobalRef, ImportsBuilder, MemoryInstance,
+                  MemoryRef, ModuleImportResolver, ModuleInstance, NopExternals, RuntimeValue,
+                  TableInstance, TableRef};
+use validation::validate_module;
+
+struct Env {
+	table_base: GlobalRef,
+	memory_base: GlobalRef,
+	memory: MemoryRef,
+	table: TableRef,
+}
+
+impl Env {
+	fn new() -> Env {
+		Env {
+			table_base: GlobalInstance::alloc(RuntimeValue::I32(0), false),
+			memory_base: GlobalInstance::alloc(RuntimeValue::I32(0), false),
+			memory: MemoryInstance::alloc(256, None).unwrap(),
+			table: TableInstance::alloc(64, None).unwrap(),
+		}
+	}
+}
+
+impl ModuleImportResolver for Env {
+	fn resolve_func(&self, _field_name: &str, _func_type: &FunctionType) -> Result<FuncRef, Error> {
+		Err(Error::Instantiation(
+			"env module doesn't provide any functions".into(),
+		))
+	}
+
+	fn resolve_global(
+		&self,
+		field_name: &str,
+		_global_type: &GlobalType,
+	) -> Result<GlobalRef, Error> {
+		match field_name {
+			"tableBase" => Ok(self.table_base.clone()),
+			"memoryBase" => Ok(self.memory_base.clone()),
+			_ => Err(Error::Instantiation(format!(
+				"env module doesn't provide global '{}'",
+				field_name
+			))),
+		}
+	}
+
+	fn resolve_memory(
+		&self,
+		field_name: &str,
+		_memory_type: &MemoryType,
+	) -> Result<MemoryRef, Error> {
+		match field_name {
+			"memory" => Ok(self.memory.clone()),
+			_ => Err(Error::Instantiation(format!(
+				"env module doesn't provide memory '{}'",
+				field_name
+			))),
+		}
+	}
+
+	fn resolve_table(&self, field_name: &str, _table_type: &TableType) -> Result<TableRef, Error> {
+		match field_name {
+			"table" => Ok(self.table.clone()),
+			_ => Err(Error::Instantiation(
+				format!("env module doesn't provide table '{}'", field_name),
+			)),
+		}
+	}
+}
 
 #[test]
 fn interpreter_inc_i32() {
-    // Name of function contained in WASM file (note the leading underline)
-    const FUNCTION_NAME: &'static str = "_inc_i32";
-    // The WASM file containing the module and function
-    const WASM_FILE: &str = &"res/cases/v1/inc_i32.wasm";
+	// Name of function contained in WASM file (note the leading underline)
+	const FUNCTION_NAME: &'static str = "_inc_i32";
+	// The WASM file containing the module and function
+	const WASM_FILE: &str = &"res/cases/v1/inc_i32.wasm";
 
-    let program = program_with_default_env();
+	let module: Module =
+		deserialize_file(WASM_FILE).expect("Failed to deserialize module from buffer");
+	let validated_module = validate_module(module).expect("Failed to validate module");
 
-    let module: Module =
-        deserialize_file(WASM_FILE).expect("Failed to deserialize module from buffer");
-    let i32_val = 42;
-    // the functions expects a single i32 parameter
-    let args = vec![RuntimeValue::I32(i32_val)];
-    let exp_retval = Some(RuntimeValue::I32(i32_val + 1));
-    let execution_params = ExecutionParams::from(args);
+	let env = Env::new();
 
-    let module_result = program
-        .add_module("main", module, None);
+	let instance = ModuleInstance::new(
+		&validated_module,
+		&ImportsBuilder::new().with_resolver("env", &env),
+	).expect("Failed to instantiate module")
+		.assert_no_start();
 
-    let module = module_result
-        .expect("Failed to initialize module");
+	let i32_val = 42;
+	// the functions expects a single i32 parameter
+	let args = &[RuntimeValue::I32(i32_val)];
+	let exp_retval = Some(RuntimeValue::I32(i32_val + 1));
 
-    let retval = module
-        .execute_export(FUNCTION_NAME, execution_params)
-        .expect("");
-    assert_eq!(exp_retval, retval);
+	let retval = instance
+		.invoke_export(FUNCTION_NAME, args, &mut NopExternals)
+		.expect("");
+	assert_eq!(exp_retval, retval);
 }
 
 #[test]
@@ -43,29 +108,29 @@ fn interpreter_accumulate_u8() {
     // The octet sequence being accumulated
     const BUF: &[u8] = &[9,8,7,6,5,4,3,2,1];
 
-    let program = program_with_default_env();
 
     // Load the module-structure from wasm-file and add to program
     let module: Module =
         deserialize_file(WASM_FILE).expect("Failed to deserialize module from buffer");
-    let module = program
-        .add_module("main", module, None)
-        .expect("Failed to initialize module");
+	let validated_module = validate_module(module).expect("Failed to validate module");
 
-    // => env module is created
-    let env_instance = program.module("env").unwrap();
-    // => linear memory is created
-    let env_memory = env_instance.memory(ItemIndex::Internal(0)).unwrap();
+	let env = Env::new();
+	let instance = ModuleInstance::new(
+		&validated_module,
+		&ImportsBuilder::new().with_resolver("env", &env),
+	).expect("Failed to instantiate module")
+		.assert_no_start();
+
+    let env_memory = env.memory.clone();
 
     // Place the octet-sequence at index 0 in linear memory
     let offset: u32 = 0;
     let _ = env_memory.set(offset, BUF);
 
     // Set up the function argument list and invoke the function
-    let args = vec![RuntimeValue::I32(BUF.len() as i32), RuntimeValue::I32(offset as i32)];
-    let execution_params = ExecutionParams::from(args);
-    let retval = module
-        .execute_export(FUNCTION_NAME, execution_params)
+    let args = &[RuntimeValue::I32(BUF.len() as i32), RuntimeValue::I32(offset as i32)];
+    let retval = instance
+        .invoke_export(FUNCTION_NAME, args, &mut NopExternals)
         .expect("Failed to execute function");
 
     // For verification, repeat accumulation using native code

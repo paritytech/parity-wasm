@@ -1,746 +1,542 @@
-use std::collections::HashMap;
-use std::iter::repeat;
-use std::sync::{Arc, Weak};
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::fmt;
-use elements::{Module, InitExpr, Opcode, Type, FunctionType, Internal, External, ResizableLimits, Local, ValueType, BlockType};
-use interpreter::Error;
-use interpreter::native::UserFunctionDescriptor;
-use interpreter::imports::ModuleImports;
-use interpreter::memory::MemoryInstance;
-use interpreter::program::ProgramInstanceEssence;
-use interpreter::runner::{Interpreter, FunctionContext, prepare_function_args};
-use interpreter::table::TableInstance;
-use interpreter::validator::{Validator, FunctionValidationContext};
-use interpreter::value::{RuntimeValue, TryInto};
-use interpreter::variable::{VariableInstance, VariableType};
-use common::stack::StackWithLimit;
+use std::collections::HashMap;
+use std::borrow::Cow;
+use elements::{External, FunctionType, InitExpr, Internal, Opcode, ResizableLimits, Type};
+use interpreter::{Error, MemoryInstance, RuntimeValue, TableInstance};
+use interpreter::imports::ImportResolver;
+use interpreter::global::{GlobalInstance, GlobalRef};
+use interpreter::func::{FuncRef, FuncBody, FuncInstance};
+use interpreter::table::TableRef;
+use interpreter::memory::MemoryRef;
+use interpreter::host::Externals;
+use validation::ValidatedModule;
+use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 
-/// Maximum number of entries in value stack.
-const DEFAULT_VALUE_STACK_LIMIT: usize = 16384;
-/// Maximum number of entries in frame stack.
-const DEFAULT_FRAME_STACK_LIMIT: usize = 1024;
+#[derive(Clone, Debug)]
+pub struct ModuleRef(Rc<ModuleInstance>);
 
-/// Execution context.
-#[derive(Clone)]
-pub struct ExecutionParams<'a> {
-	/// Arguments.
-	pub args: Vec<RuntimeValue>,
-	/// Execution-local external modules.
-	pub externals: HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
+impl ::std::ops::Deref for ModuleRef {
+	type Target = ModuleInstance;
+	fn deref(&self) -> &ModuleInstance {
+		&self.0
+	}
 }
 
-/// Export type.
-#[derive(Debug, Clone)]
-pub enum ExportEntryType<'a> {
-	/// Any type.
-	Any,
-	/// Type of function.
-	Function(FunctionSignature<'a>),
-	/// Type of global.
-	Global(VariableType),
+pub enum ExternVal {
+	Func(FuncRef),
+	Table(TableRef),
+	Memory(MemoryRef),
+	Global(GlobalRef),
 }
 
-/// Function signature.
-#[derive(Debug, Clone)]
-pub enum FunctionSignature<'a> {
-	/// Module function reference.
-	Module(&'a FunctionType),
-	/// Native user function refrence.
-	User(&'a UserFunctionDescriptor),
+impl Clone for ExternVal {
+	fn clone(&self) -> Self {
+		match *self {
+			ExternVal::Func(ref func) => ExternVal::Func(func.clone()),
+			ExternVal::Table(ref table) => ExternVal::Table(table.clone()),
+			ExternVal::Memory(ref memory) => ExternVal::Memory(memory.clone()),
+			ExternVal::Global(ref global) => ExternVal::Global(global.clone()),
+		}
+	}
 }
 
-/// Module instance API.
-pub trait ModuleInstanceInterface {
-	/// Execute function with the given index.
-	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
-	/// Execute function with the given export name.
-	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error>;
-	/// Get export entry.
-	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error>;
-	/// Get table reference.
-	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error>;
-	/// Get memory reference.
-	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error>;
-	/// Get global reference.
-	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error>;
-	/// Get function type for given function index.
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error>;
-	/// Get function type for given function index.
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error>;
-	/// Get function reference.
-	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error>;
-	/// Get function indirect reference.
-	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error>;
-	/// Get internal function for interpretation.
-	fn function_body<'a>(&'a self, internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error>;
-	/// Call function with given internal index.
-	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error>;
-}
-
-/// Item index in items index space.
-#[derive(Debug, Clone, Copy)]
-pub enum ItemIndex {
-	/// Index in index space.
-	IndexSpace(u32),
-	/// Internal item index (i.e. index of item in items section).
-	Internal(u32),
-	/// External module item index (i.e. index of item in the import section).
-	External(u32),
-}
-
-/// Module instance.
-pub struct ModuleInstance {
-	/// Module name.
-	name: String,
-	/// Module.
-	module: Module,
-	/// Function labels.
-	functions_labels: HashMap<u32, HashMap<usize, usize>>,
-	/// Module imports.
-	imports: ModuleImports,
-	/// Module exports.
-	exports: HashMap<String, Vec<Internal>>,
-	/// Tables.
-	tables: Vec<Arc<TableInstance>>,
-	/// Linear memory regions.
-	memory: Vec<Arc<MemoryInstance>>,
-	/// Globals.
-	globals: Vec<Arc<VariableInstance>>,
-}
-
-/// Caller context.
-pub struct CallerContext<'a> {
-	/// Value stack limit
-	pub value_stack_limit: usize,
-	/// Frame stack limit
-	pub frame_stack_limit: usize,
-	/// Stack of the input parameters
-	pub value_stack: &'a mut StackWithLimit<RuntimeValue>,
-	/// Execution-local external modules.
-	pub externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>,
-}
-
-/// Internal function reference.
-#[derive(Clone)]
-pub struct InternalFunctionReference<'a> {
-	/// Module reference.
-	pub module: Arc<ModuleInstanceInterface + 'a>,
-	/// Internal function index.
-	pub internal_index: u32,
-}
-
-impl<'a> fmt::Debug for InternalFunctionReference<'a> {
+impl fmt::Debug for ExternVal {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "InternalFunctionReference")
+		write!(
+			f,
+			"ExternVal {{ {} }}",
+			match *self {
+				ExternVal::Func(_) => "Func",
+				ExternVal::Table(_) => "Table",
+				ExternVal::Memory(_) => "Memory",
+				ExternVal::Global(_) => "Global",
+			}
+		)
 	}
 }
 
-/// Internal function ready for interpretation.
-pub struct InternalFunction<'a> {
-	/// Function locals.
-	pub locals: &'a [Local],
-	/// Function body.
-	pub body: &'a [Opcode],
-	/// Function labels.
-	pub labels: &'a HashMap<usize, usize>,
-}
-
-impl<'a> ExecutionParams<'a> {
-	/// Create new execution params with given externa; module override.
-	pub fn with_external(name: String, module: Arc<ModuleInstanceInterface + 'a>) -> Self {
-		let mut externals = HashMap::new();
-		externals.insert(name, module);
-		ExecutionParams {
-			args: Vec::new(),
-			externals: externals,
+impl ExternVal {
+	pub fn as_func(&self) -> Option<FuncRef> {
+		match *self {
+			ExternVal::Func(ref func) => Some(func.clone()),
+			_ => None,
 		}
 	}
 
-	/// Add argument.
-	pub fn add_argument(mut self, arg: RuntimeValue) -> Self {
-		self.args.push(arg);
-		self
+	pub fn as_table(&self) -> Option<TableRef> {
+		match *self {
+			ExternVal::Table(ref table) => Some(table.clone()),
+			_ => None,
+		}
 	}
-}
 
-impl<'a> Default for ExecutionParams<'a> {
-	fn default() -> Self {
-		ExecutionParams {
-			args: Vec::default(),
-			externals: HashMap::default(),
+	pub fn as_memory(&self) -> Option<MemoryRef> {
+		match *self {
+			ExternVal::Memory(ref memory) => Some(memory.clone()),
+			_ => None,
+		}
+	}
+
+	pub fn as_global(&self) -> Option<GlobalRef> {
+		match *self {
+			ExternVal::Global(ref global) => Some(global.clone()),
+			_ => None,
 		}
 	}
 }
 
-impl<'a> From<Vec<RuntimeValue>> for ExecutionParams<'a> {
-	fn from(args: Vec<RuntimeValue>) -> ExecutionParams<'a> {
-		ExecutionParams {
-			args: args,
-			externals: HashMap::new(),
-		}
-	}
+#[derive(Debug)]
+pub struct ModuleInstance {
+	types: RefCell<Vec<Rc<FunctionType>>>,
+	tables: RefCell<Vec<TableRef>>,
+	funcs: RefCell<Vec<FuncRef>>,
+	memories: RefCell<Vec<MemoryRef>>,
+	globals: RefCell<Vec<GlobalRef>>,
+	exports: RefCell<HashMap<String, ExternVal>>,
 }
 
 impl ModuleInstance {
-	/// Instantiate given module within program context.
-	pub fn new<'a>(program: Weak<ProgramInstanceEssence>, name: String, module: Module) -> Result<Self, Error> {
-		// load entries from import section
-		let imports = ModuleImports::new(program, module.import_section());
+	fn default() -> Self {
+		ModuleInstance {
+			funcs: RefCell::new(Vec::new()),
+			types: RefCell::new(Vec::new()),
+			tables: RefCell::new(Vec::new()),
+			memories: RefCell::new(Vec::new()),
+			globals: RefCell::new(Vec::new()),
+			exports: RefCell::new(HashMap::new()),
+		}
+	}
 
-		// instantiate linear memory regions, if any
-		let memory = match module.memory_section() {
-			Some(memory_section) => memory_section.entries()
-				.iter()
-				.map(MemoryInstance::new)
-				.collect::<Result<Vec<_>, _>>()?,
-			None => Vec::new(),
-		};
+	pub(crate) fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
+		self.memories.borrow_mut().get(idx as usize).cloned()
+	}
 
-		// instantiate tables, if any
-		let tables = match module.table_section() {
-			Some(table_section) => table_section.entries()
-				.iter()
-				.map(|tt| TableInstance::new(tt))
-				.collect::<Result<Vec<_>, _>>()?,
-			None => Vec::new(),
-		};
+	pub(crate) fn table_by_index(&self, idx: u32) -> Option<TableRef> {
+		self.tables.borrow_mut().get(idx as usize).cloned()
+	}
 
-		// instantiate globals, if any
-		let globals = match module.global_section() {
-			Some(global_section) => global_section.entries()
-				.iter()
-				.map(|g| {
-					get_initializer(g.init_expr(), &module, &imports, g.global_type().content_type().into())
-						.map_err(|e| Error::Initialization(e.into()))
-						.and_then(|v| VariableInstance::new_global(g.global_type(), v).map(Arc::new))
-				})
-				.collect::<Result<Vec<_>, _>>()?,
-			None => Vec::new(),
-		};
+	pub(crate) fn global_by_index(&self, idx: u32) -> Option<GlobalRef> {
+		self.globals.borrow_mut().get(idx as usize).cloned()
+	}
 
-		Ok(ModuleInstance {
-			name: name,
-			module: module,
-			imports: imports,
-			exports: HashMap::new(),
-			functions_labels: HashMap::new(),
-			memory: memory,
-			tables: tables,
-			globals: globals,
+	pub(crate) fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
+		self.funcs.borrow().get(idx as usize).cloned()
+	}
+
+	pub fn export_by_name(&self, name: &str) -> Option<ExternVal> {
+		self.exports.borrow().get(name).cloned()
+	}
+
+	pub(crate) fn type_by_index(&self, idx: u32) -> Option<Rc<FunctionType>> {
+		self.types.borrow().get(idx as usize).cloned()
+	}
+
+	fn push_func(&self, func: FuncRef) {
+		self.funcs.borrow_mut().push(func);
+	}
+
+	fn push_type(&self, func_type: Rc<FunctionType>) {
+		self.types.borrow_mut().push(func_type)
+	}
+
+	fn push_memory(&self, memory: MemoryRef) {
+		self.memories.borrow_mut().push(memory)
+	}
+
+	fn push_table(&self, table: TableRef) {
+		self.tables.borrow_mut().push(table)
+	}
+
+	fn push_global(&self, global: GlobalRef) {
+		self.globals.borrow_mut().push(global)
+	}
+
+	fn insert_export<N: Into<String>>(&self, name: N, extern_val: ExternVal) {
+		self.exports.borrow_mut().insert(name.into(), extern_val);
+	}
+
+	fn alloc_module(
+		validated_module: &ValidatedModule,
+		extern_vals: &[ExternVal]
+	) -> Result<ModuleRef, Error> {
+		let module = validated_module.module();
+		let instance = ModuleRef(Rc::new(ModuleInstance::default()));
+
+		for &Type::Function(ref ty) in module.type_section().map(|ts| ts.types()).unwrap_or(&[]) {
+			let type_id = alloc_func_type(ty.clone());
+			instance.push_type(type_id);
+		}
+
+		{
+			let imports = module.import_section().map(|is| is.entries()).unwrap_or(
+				&[],
+			);
+			if imports.len() != extern_vals.len() {
+				return Err(Error::Instantiation(format!(
+					"extern_vals length is not equal to import section entries"
+				)));
+			}
+
+			for (import, extern_val) in
+				Iterator::zip(imports.into_iter(), extern_vals.into_iter())
+			{
+				match (import.external(), extern_val) {
+					(&External::Function(fn_type_idx), &ExternVal::Func(ref func)) => {
+						let expected_fn_type = instance.type_by_index(fn_type_idx).expect(
+							"Due to validation function type should exists",
+						);
+						let actual_fn_type = func.func_type();
+						if &*expected_fn_type != actual_fn_type {
+							return Err(Error::Instantiation(format!(
+								"Expected function with type {:?}, but actual type is {:?} for entry {}",
+								expected_fn_type,
+								actual_fn_type,
+								import.field(),
+							)));
+						}
+						instance.push_func(func.clone())
+					}
+					(&External::Table(ref tt), &ExternVal::Table(ref table)) => {
+						match_limits(table.limits(), tt.limits())?;
+						instance.push_table(table.clone());
+					}
+					(&External::Memory(ref mt), &ExternVal::Memory(ref memory)) => {
+						match_limits(memory.limits(), mt.limits())?;
+						instance.push_memory(memory.clone());
+					}
+					(&External::Global(ref gl), &ExternVal::Global(ref global)) => {
+						if gl.content_type() != global.value_type() {
+							return Err(Error::Instantiation(format!(
+								"Expect global with {:?} type, but provided global with {:?} type",
+								gl.content_type(),
+								global.value_type(),
+							)));
+						}
+						instance.push_global(global.clone());
+					}
+					(expected_import, actual_extern_val) => {
+						return Err(Error::Instantiation(format!(
+							"Expected {:?} type, but provided {:?} extern_val",
+							expected_import,
+							actual_extern_val
+						)));
+					}
+				}
+			}
+		}
+
+		let labels = validated_module.labels();
+		{
+			let funcs = module.function_section().map(|fs| fs.entries()).unwrap_or(
+				&[],
+			);
+			let bodies = module.code_section().map(|cs| cs.bodies()).unwrap_or(&[]);
+			debug_assert!(
+				funcs.len() == bodies.len(),
+				"Due to validation func and body counts must match"
+			);
+
+			for (index, (ty, body)) in
+				Iterator::zip(funcs.into_iter(), bodies.into_iter()).enumerate()
+			{
+				let func_type = instance.type_by_index(ty.type_ref()).expect(
+					"Due to validation type should exists",
+				);
+				let labels = labels.get(&index).expect(
+					"At func validation time labels are collected; Collected labels are added by index; qed",
+				).clone();
+				let func_body = FuncBody {
+					locals: body.locals().to_vec(),
+					opcodes: body.code().clone(),
+					labels: labels,
+				};
+				let func_instance =
+					FuncInstance::alloc_internal(instance.clone(), func_type, func_body);
+				instance.push_func(func_instance);
+			}
+		}
+
+		for table_type in module.table_section().map(|ts| ts.entries()).unwrap_or(&[]) {
+			let table = TableInstance::alloc(
+				table_type.limits().initial(),
+				table_type.limits().maximum(),
+			)?;
+			instance.push_table(table);
+		}
+
+		for memory_type in module.memory_section().map(|ms| ms.entries()).unwrap_or(
+			&[],
+		)
+		{
+			let memory = MemoryInstance::alloc(
+				memory_type.limits().initial(),
+				memory_type.limits().maximum()
+			)?;
+			instance.push_memory(memory);
+		}
+
+		for global_entry in module.global_section().map(|gs| gs.entries()).unwrap_or(
+			&[],
+		)
+		{
+			let init_val = eval_init_expr(global_entry.init_expr(), &*instance);
+			let global = GlobalInstance::alloc(
+				init_val,
+				global_entry.global_type().is_mutable(),
+			);
+			instance.push_global(global);
+		}
+
+		for export in module.export_section().map(|es| es.entries()).unwrap_or(
+			&[],
+		)
+		{
+			let field = export.field();
+			let extern_val: ExternVal = match *export.internal() {
+				Internal::Function(idx) => {
+					let func = instance.func_by_index(idx).expect(
+						"Due to validation func should exists",
+					);
+					ExternVal::Func(func)
+				}
+				Internal::Global(idx) => {
+					let global = instance.global_by_index(idx).expect(
+						"Due to validation global should exists",
+					);
+					ExternVal::Global(global)
+				}
+				Internal::Memory(idx) => {
+					let memory = instance.memory_by_index(idx).expect(
+						"Due to validation memory should exists",
+					);
+					ExternVal::Memory(memory)
+				}
+				Internal::Table(idx) => {
+					let table = instance.table_by_index(idx).expect(
+						"Due to validation table should exists",
+					);
+					ExternVal::Table(table)
+				}
+			};
+			instance.insert_export(field, extern_val);
+		}
+
+		Ok(instance)
+	}
+
+	fn instantiate_with_externvals(
+		validated_module: &ValidatedModule,
+		extern_vals: &[ExternVal],
+	) -> Result<ModuleRef, Error> {
+		let module = validated_module.module();
+
+		let module_ref = ModuleInstance::alloc_module(validated_module, extern_vals)?;
+
+		for element_segment in module.elements_section().map(|es| es.entries()).unwrap_or(
+			&[],
+		)
+		{
+			let offset_val = match eval_init_expr(element_segment.offset(), &module_ref) {
+				RuntimeValue::I32(v) => v as u32,
+				_ => panic!("Due to validation elem segment offset should evaluate to i32"),
+			};
+
+			let table_inst = module_ref.table_by_index(DEFAULT_TABLE_INDEX).expect(
+				"Due to validation default table should exists",
+			);
+			for (j, func_idx) in element_segment.members().into_iter().enumerate() {
+				let func = module_ref.func_by_index(*func_idx).expect(
+					"Due to validation funcs from element segments should exists",
+				);
+
+				table_inst.set(offset_val + j as u32, Some(func))?;
+			}
+		}
+
+		for data_segment in module.data_section().map(|ds| ds.entries()).unwrap_or(&[]) {
+			let offset_val = match eval_init_expr(data_segment.offset(), &module_ref) {
+				RuntimeValue::I32(v) => v as u32,
+				_ => panic!("Due to validation data segment offset should evaluate to i32"),
+			};
+
+			let memory_inst = module_ref.memory_by_index(DEFAULT_MEMORY_INDEX).expect(
+				"Due to validation default memory should exists",
+			);
+			memory_inst.set(offset_val, data_segment.value())?;
+		}
+
+		Ok(module_ref)
+	}
+
+	pub fn new<'m, I: ImportResolver>(
+		validated_module: &'m ValidatedModule,
+		imports: &I,
+	) -> Result<NotStartedModuleRef<'m>, Error> {
+		let module = validated_module.module();
+
+		let mut extern_vals = Vec::new();
+		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
+			let module_name = import_entry.module();
+			let field_name = import_entry.field();
+			let extern_val = match *import_entry.external() {
+				External::Function(fn_ty_idx) => {
+					let types = module.type_section().map(|s| s.types()).unwrap_or(&[]);
+					let &Type::Function(ref func_type) = types
+						.get(fn_ty_idx as usize)
+						.expect("Due to validation functions should have valid types");
+					let func = imports.resolve_func(module_name, field_name, func_type)?;
+					ExternVal::Func(func)
+				}
+				External::Table(ref table_type) => {
+					let table = imports.resolve_table(module_name, field_name, table_type)?;
+					ExternVal::Table(table)
+				}
+				External::Memory(ref memory_type) => {
+					let memory = imports.resolve_memory(module_name, field_name, memory_type)?;
+					ExternVal::Memory(memory)
+				}
+				External::Global(ref global_type) => {
+					let global = imports.resolve_global(module_name, field_name, global_type)?;
+					ExternVal::Global(global)
+				}
+			};
+			extern_vals.push(extern_val);
+		}
+
+		let instance = Self::instantiate_with_externvals(validated_module, &extern_vals)?;
+		Ok(NotStartedModuleRef {
+			validated_module,
+			instance,
 		})
 	}
 
-	/// Run instantiation-time procedures (validation). Module is not completely validated until this call.
-	pub fn instantiate<'a>(&mut self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<(), Error> {
-		::validation::validate_module(&self.module)?;
+	pub fn invoke_index<E: Externals>(
+		&self,
+		func_idx: u32,
+		args: &[RuntimeValue],
+		externals: &mut E,
+	) -> Result<Option<RuntimeValue>, Error> {
+		let func_instance = self.func_by_index(func_idx).ok_or_else(|| {
+			Error::Function(format!(
+				"Module doesn't contain function at index {}",
+				func_idx
+			))
+		})?;
+		FuncInstance::invoke(func_instance, Cow::Borrowed(args), externals)
+	}
 
-		// validate start section
-		if let Some(start_function) = self.module.start_section() {
-			let func_type_index = self.require_function(ItemIndex::IndexSpace(start_function))?;
-			let func_type = self.function_type_by_index(func_type_index)?;
-			if func_type.return_type() != None || func_type.params().len() != 0 {
-				return Err(Error::Validation("start function expected to have type [] -> []".into()));
+	pub fn invoke_export<E: Externals>(
+		&self,
+		func_name: &str,
+		args: &[RuntimeValue],
+		externals: &mut E,
+	) -> Result<Option<RuntimeValue>, Error> {
+		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
+			Error::Function(format!("Module doesn't have export {}", func_name))
+		})?;
+
+		let func_instance = match extern_val {
+			ExternVal::Func(func_instance) => func_instance,
+			unexpected => {
+				return Err(Error::Function(format!(
+					"Export {} is not a function, but {:?}",
+					func_name,
+					unexpected
+				)));
 			}
-		}
-
-		// validate export section
-		if let Some(export_section) = self.module.export_section() {
-			for export in export_section.entries() {
-				match export.internal() {
-					&Internal::Function(function_index) => {
-						self.require_function(ItemIndex::IndexSpace(function_index)).map(|_| ())?;
-						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Function(function_index));
-					},
-					&Internal::Global(global_index) => {
-						self.global(ItemIndex::IndexSpace(global_index), None, externals)
-							.and_then(|g| if g.is_mutable() {
-								Err(Error::Validation(format!("trying to export mutable global {}", export.field())))
-							} else {
-								Ok(())
-							})?;
-						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Global(global_index));
-					},
-					&Internal::Memory(memory_index) => {
-						self.memory(ItemIndex::IndexSpace(memory_index)).map(|_| ())?;
-						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Memory(memory_index));
-					},
-					&Internal::Table(table_index) => {
-						self.table(ItemIndex::IndexSpace(table_index)).map(|_| ())?;
-						self.exports.entry(export.field().into()).or_insert_with(Default::default).push(Internal::Table(table_index));
-					},
-				}
-			}
-		}
-
-		// validate import section
-		if let Some(import_section) = self.module.import_section() {
-			for import in import_section.entries() {
-				match import.external() {
-					// for functions we need to check if function type matches in both modules
-					&External::Function(ref function_type_index) => {
-						// External::Function points to function type in type section in this module
-						let import_function_type = self.function_type_by_index(*function_type_index)?;
-
-						// get export entry in external module
-						let external_module = self.imports.module(externals, import.module())?;
-						let export_entry = external_module.export_entry(import.field(), &ExportEntryType::Function(import_function_type.clone()))?;
-
-						// export entry points to function in function index space
-						// and Internal::Function points to type in type section
-						match export_entry {
-							Internal::Function(function_index) => {
-								external_module.function_type(ItemIndex::IndexSpace(function_index))?
-							}
-							_ => {
-								return Err(Error::Validation(format!(
-									"Export with name {} from module {} is not a function",
-									import.field(),
-									import.module()
-								)))
-							}
-						};
-					},
-					&External::Global(ref global_type) => if global_type.is_mutable() {
-						return Err(Error::Validation(format!("trying to import mutable global {}", import.field())));
-					} else {
-						self.imports.global(externals, import, Some(global_type.content_type().into()))?;
-					},
-					&External::Memory(ref memory_type) => {
-						let import_limits = memory_type.limits();
-						check_limits(import_limits)?;
-
-						let memory = self.imports.memory(externals, import)?;
-						let memory_limits = memory.limits();
-
-						// a linear-memory import's minimum length is required to be at most the imported linear memory's minimum length.
-						if import_limits.initial() > memory_limits.initial() {
-							return Err(Error::Validation(format!("trying to import memory with initial={} and import.initial={}", memory_limits.initial(), import_limits.initial())));
-						}
-
-						// not working because of wabt tests:
-						// a linear-memory import is required to have a maximum length if the imported linear memory has a maximum length.
-
-						// if present, a linear-memory import's maximum length is required to be at least the imported linear memory's maximum length.
-						match (memory_limits.maximum(), import_limits.maximum()) {
-							(Some(ml), Some(il)) if il < ml =>
-								return Err(Error::Validation(format!("trying to import memory with maximum={} and import.maximum={}", ml, il))),
-							_ => (),
-						}
-					},
-					&External::Table(ref table_type) => {
-						let import_limits = table_type.limits();
-						check_limits(import_limits)?;
-
-						let table = self.imports.table(externals, import)?;
-						let table_limits = table.limits();
-
-						// a table import's minimum length is required to be at most the imported table's minimum length.
-						if import_limits.initial() > table_limits.initial() {
-							return Err(Error::Validation(format!("trying to import table with initial={} and import.initial={}", table_limits.initial(), import_limits.initial())));
-						}
-
-						// not working because of wabt tests:
-						// a table import is required to have a maximum length if the imported table has a maximum length.
-
-						// if present, a table import's maximum length is required to be at least the imported table's maximum length.
-						match (table_limits.maximum(), import_limits.maximum()) {
-							(Some(ml), Some(il)) if il < ml =>
-								return Err(Error::Validation(format!("trying to import table with maximum={} and import.maximum={}", ml, il))),
-							_ => (),
-						}
-					},
-				}
-			}
-		}
-
-		// there must be no greater than 1 table in tables index space
-		if self.imports.tables_len() + self.tables.len() > 1 {
-			return Err(Error::Validation(format!("too many tables in index space: {}", self.imports.tables_len() + self.tables.len())));
-		}
-
-		// there must be no greater than 1 memory region in memory regions index space
-		if self.imports.memory_regions_len() + self.memory.len() > 1 {
-			return Err(Error::Validation(format!("too many memory regions in index space: {}", self.imports.memory_regions_len() + self.memory.len())));
-		}
-
-		// for every function section entry there must be corresponding entry in code section and type && vice versa
-		let function_section_len = self.module.function_section().map(|s| s.entries().len()).unwrap_or(0);
-		let code_section_len = self.module.code_section().map(|s| s.bodies().len()).unwrap_or(0);
-		if function_section_len != code_section_len {
-			return Err(Error::Validation(format!("length of function section is {}, while len of code section is {}", function_section_len, code_section_len)));
-		}
-
-		// validate every function body in user modules
-		if function_section_len != 0 { // tests use invalid code
-			let function_section = self.module.function_section().expect("function_section_len != 0; qed");
-			let code_section = self.module.code_section().expect("function_section_len != 0; function_section_len == code_section_len; qed");
-			// check every function body
-			for (index, function) in function_section.entries().iter().enumerate() {
-				let function_labels = {
-					let function_type = self.function_type_by_index(function.type_ref())?;
-					let function_body = code_section.bodies().get(index as usize).ok_or(Error::Validation(format!("Missing body for function {}", index)))?;
-					let mut locals = function_type.params().to_vec();
-					locals.extend(function_body.locals().iter().flat_map(|l| repeat(l.value_type()).take(l.count() as usize)));
-
-					let mut context = FunctionValidationContext::new(
-						self,
-						externals,
-						&locals,
-						DEFAULT_VALUE_STACK_LIMIT,
-						DEFAULT_FRAME_STACK_LIMIT,
-						function_type.clone());
-
-					let block_type = function_type.return_type().map(BlockType::Value).unwrap_or(BlockType::NoResult);
-					Validator::validate_function(&mut context, block_type, function_body.code().elements())
-						.map_err(|e| {
-							if let Error::Validation(msg) = e {
-								Error::Validation(format!("Function #{} validation error: {}", index, msg))
-							} else {
-								e
-							}
-						})?;
-					context.function_labels()
-				};
-				self.functions_labels.insert(index as u32, function_labels);
-			}
-		}
-
-		// use data section to initialize linear memory regions
-		if let Some(data_section) = self.module.data_section() {
-			for (data_segment_index, data_segment) in data_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(data_segment.offset(), &self.module, &self.imports, VariableType::I32)?.try_into()?;
-				self.memory(ItemIndex::IndexSpace(data_segment.index()))
-					.map_err(|e| Error::Initialization(format!("DataSegment {} initializes non-existant MemoryInstance {}: {:?}", data_segment_index, data_segment.index(), e)))
-					.and_then(|m| m.set(offset, data_segment.value()))
-					.map_err(|e| Error::Initialization(e.into()))?;
-			}
-		}
-
-		// use element section to fill tables
-		if let Some(element_section) = self.module.elements_section() {
-			for (element_segment_index, element_segment) in element_section.entries().iter().enumerate() {
-				let offset: u32 = get_initializer(element_segment.offset(), &self.module, &self.imports, VariableType::I32)?.try_into()?;
-				for function_index in element_segment.members() {
-					self.require_function(ItemIndex::IndexSpace(*function_index))?;
-				}
-
-				self.table(ItemIndex::IndexSpace(element_segment.index()))
-					.map_err(|e| Error::Initialization(format!("ElementSegment {} initializes non-existant Table {}: {:?}", element_segment_index, element_segment.index(), e)))
-					.and_then(|m| m.set_raw(offset, self.name.clone(), element_segment.members()))
-					.map_err(|e| Error::Initialization(e.into()))?;
-			}
-		}
-
-		Ok(())
-	}
-
-	/// Run start function [if any].
-	pub fn run_start_function(&self) -> Result<(), Error> {
-		// execute start function (if any)
-		if let Some(start_function) = self.module.start_section() {
-			self.execute_index(start_function, ExecutionParams::default())?;
-		}
-		Ok(())
-	}
-
-	fn self_ref<'a>(&self, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<ModuleInstanceInterface + 'a>, Error> {
-		self.imports.module(externals, &self.name)
-	}
-
-	fn require_function(&self, index: ItemIndex) -> Result<u32, Error> {
-		match self.imports.parse_function_index(index) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
-			ItemIndex::Internal(index) => self.module.function_section()
-				.ok_or(Error::Function(format!("missing internal function {}", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Function(format!("missing internal function {}", index))))
-				.map(|f| f.type_ref()),
-			ItemIndex::External(index) => self.module.import_section()
-				.ok_or(Error::Function(format!("missing external function {}", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Function(format!("missing external function {}", index))))
-				.and_then(|import| match import.external() {
-					&External::Function(type_idx) => Ok(type_idx),
-					_ => Err(Error::Function(format!("external function {} is pointing to non-function import", index))),
-				}),
-		}
-	}
-}
-
-impl ModuleInstanceInterface for ModuleInstance {
-	fn execute_index(&self, index: u32, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		let ExecutionParams { args, externals } = params;
-		let mut args = StackWithLimit::with_data(args, DEFAULT_VALUE_STACK_LIMIT);
-		let function_reference = self.function_reference(ItemIndex::IndexSpace(index), Some(&externals))?;
-		let function_context = CallerContext::topmost(&mut args, &externals);
-		function_reference.module.call_internal_function(function_context, function_reference.internal_index)
-	}
-
-	fn execute_export(&self, name: &str, params: ExecutionParams) -> Result<Option<RuntimeValue>, Error> {
-		let index = self.exports.get(name)
-			.ok_or(Error::Function(format!("missing executable export with name {}", name)))
-			.and_then(|l| l.iter()
-				.find(|i| match i {
-					&&Internal::Function(_) => true,
-					_ => false,
-				})
-				.ok_or(Error::Function(format!("missing exported function with name {}", name)))
-				.map(|i| match i {
-					&Internal::Function(index) => index,
-					_ => unreachable!(), // checked couple of lines above
-				})
-			)?;
-		self.execute_index(index, params)
-	}
-
-	fn export_entry<'a>(&self, name: &str, required_type: &ExportEntryType) -> Result<Internal, Error> {
-		self.exports.get(name)
-			.ok_or(Error::Function(format!("missing export entry with name {}", name)))
-			.and_then(|l| l.iter()
-				.find(|i| match required_type {
-					&ExportEntryType::Any => true,
-					&ExportEntryType::Global(global_type) => match i {
-						&&Internal::Global(global_index) => self.global(ItemIndex::IndexSpace(global_index), Some(global_type), None).map(|_| true).unwrap_or(false),
-						_ => false,
-					},
-					&ExportEntryType::Function(ref required_type) => match i {
-						&&Internal::Function(function_index) =>
-							self.function_type(ItemIndex::IndexSpace(function_index))
-								.map(|ft| ft == *required_type)
-								.unwrap_or(false),
-						_ => false,
-					},
-				})
-				.map(|i| *i)
-				.ok_or(Error::Program(format!("unresolved export {}", name))))
-	}
-
-	fn table(&self, index: ItemIndex) -> Result<Arc<TableInstance>, Error> {
-		match self.imports.parse_table_index(index) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_table_index resolves IndexSpace option"),
-			ItemIndex::Internal(index) => self.tables.get(index as usize).cloned()
-				.ok_or(Error::Table(format!("trying to access table with local index {} when there are only {} local tables", index, self.tables.len()))),
-			ItemIndex::External(index) => self.module.import_section()
-				.ok_or(Error::Table(format!("trying to access external table with index {} in module without import section", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Table(format!("trying to access external table with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| self.imports.table(None, e)),
-		}
-	}
-
-	fn memory(&self, index: ItemIndex) -> Result<Arc<MemoryInstance>, Error> {
-		match self.imports.parse_memory_index(index) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_memory_index resolves IndexSpace option"),
-			ItemIndex::Internal(index) => self.memory.get(index as usize).cloned()
-				.ok_or(Error::Memory(format!("trying to access memory with local index {} when there are only {} memory regions", index, self.memory.len()))),
-			ItemIndex::External(index) => self.module.import_section()
-				.ok_or(Error::Memory(format!("trying to access external memory with index {} in module without import section", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Memory(format!("trying to access external memory with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| self.imports.memory(None, e)),
-		}
-	}
-
-	fn global<'a>(&self, index: ItemIndex, variable_type: Option<VariableType>, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<Arc<VariableInstance>, Error> {
-		match self.imports.parse_global_index(index) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_global_index resolves IndexSpace option"),
-			ItemIndex::Internal(index) => self.globals.get(index as usize).cloned()
-				.ok_or(Error::Global(format!("trying to access global with local index {} when there are only {} globals", index, self.globals.len()))),
-			ItemIndex::External(index) => self.module.import_section()
-				.ok_or(Error::Global(format!("trying to access external global with index {} in module without import section", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Global(format!("trying to access external global with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| self.imports.global(externals, e, variable_type)),
-		}
-	}
-
-	fn function_type(&self, function_index: ItemIndex) -> Result<FunctionSignature, Error> {
-		match self.imports.parse_function_index(function_index) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
-			ItemIndex::Internal(index) => self.require_function(ItemIndex::Internal(index))
-				.and_then(|ft| self.function_type_by_index(ft)),
-			ItemIndex::External(index) => self.module.import_section()
-				.ok_or(Error::Function(format!("trying to access external function with index {} in module without import section", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Function(format!("trying to access external function with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| match e.external() {
-					&External::Function(type_index) => self.function_type_by_index(type_index),
-					_ => Err(Error::Function(format!("exported function {} is not a function", index))),
-				}),
-		}
-	}
-
-	fn function_type_by_index(&self, type_index: u32) -> Result<FunctionSignature, Error> {
-		self.module.type_section()
-			.ok_or(Error::Validation(format!("type reference {} exists in module without type section", type_index)))
-			.and_then(|s| match s.types().get(type_index as usize) {
-				Some(&Type::Function(ref function_type)) => Ok(function_type),
-				_ => Err(Error::Validation(format!("missing function type with index {}", type_index))),
-			})
-			.map(FunctionSignature::Module)
-	}
-
-	fn function_reference<'a>(&self, index: ItemIndex, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
-		match self.imports.parse_function_index(index) {
-			ItemIndex::IndexSpace(_) => unreachable!("parse_function_index resolves IndexSpace option"),
-			ItemIndex::Internal(index) => Ok(InternalFunctionReference {
-				module: self.self_ref(externals)?,
-				internal_index: index,
-			}),
-			ItemIndex::External(index) => {
-				let import_entry = self.module.import_section()
-					.expect("parse_function_index has returned External(index); it is only returned when import section exists; qed")
-					.entries().get(index as usize)
-					.expect("parse_function_index has returned External(index); it is only returned when entry with index exists in import section exists; qed");
-				let required_function_type = self.function_type(ItemIndex::External(index))?;
-				let internal_function_index = self.imports.function(externals, import_entry, Some(required_function_type))?;
-				Ok(InternalFunctionReference {
-					module: self.imports.module(externals, import_entry.module())?,
-					internal_index: internal_function_index,
-				})
-			},
-		}
-	}
-
-	fn function_reference_indirect<'a>(&self, table_idx: u32, type_idx: u32, func_idx: u32, externals: Option<&'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>>) -> Result<InternalFunctionReference<'a>, Error> {
-		let table = self.table(ItemIndex::IndexSpace(table_idx))?;
-		let (module, index) = match table.get(func_idx)? {
-			RuntimeValue::AnyFunc(module, index) => (module.clone(), index),
-			_ => return Err(Error::Function(format!("trying to indirect call function {} via non-anyfunc table {:?}", func_idx, table_idx))),
 		};
 
-		let module = self.imports.module(externals, &module)?;
-		let required_function_type = self.function_type_by_index(type_idx)?;
-		let actual_function_type = module.function_type(ItemIndex::IndexSpace(index))?;
-		if required_function_type != actual_function_type {
-			return Err(Error::Function(format!("expected indirect function with signature ({:?}) -> {:?} when got with ({:?}) -> {:?}",
-				required_function_type.params(), required_function_type.return_type(),
-				actual_function_type.params(), actual_function_type.return_type())));
-		}
-
-		module.function_reference(ItemIndex::IndexSpace(index), externals)
-	}
-
-	fn function_body<'a>(&'a self, internal_index: u32) -> Result<Option<InternalFunction<'a>>, Error> {
-		let function_body = self.module
-			.code_section()
-			.ok_or(Error::Function(format!("trying to call function with index {} in module without code section", internal_index)))
-			.and_then(|s| s.bodies()
-				.get(internal_index as usize)
-				.ok_or(Error::Function(format!("trying to call function with index {} in module with {} functions codes", internal_index, s.bodies().len()))))?;
-		let function_labels = self.functions_labels.get(&internal_index)
-			.ok_or(Error::Function(format!("trying to call non-validated internal function {}", internal_index)))?;
-
-		Ok(Some(InternalFunction {
-			locals: function_body.locals(),
-			body: function_body.code().elements(),
-			labels: function_labels,
-		}))
-	}
-
-	fn call_internal_function(&self, outer: CallerContext, index: u32) -> Result<Option<RuntimeValue>, Error> {
-		let function_type = self.function_type(ItemIndex::Internal(index))?;
-		let args = prepare_function_args(&function_type, outer.value_stack)?;
-		let function_ref = InternalFunctionReference { module: self.self_ref(Some(outer.externals))?, internal_index: index };
-		let inner = FunctionContext::new(function_ref, outer.externals, outer.value_stack_limit, outer.frame_stack_limit, &function_type, args);
-		Interpreter::run_function(inner)
+		FuncInstance::invoke(func_instance.clone(), Cow::Borrowed(args), externals)
 	}
 }
 
-impl<'a> CallerContext<'a> {
-	/// Top most args
-	pub fn topmost(args: &'a mut StackWithLimit<RuntimeValue>, externals: &'a HashMap<String, Arc<ModuleInstanceInterface + 'a>>) -> Self {
-		CallerContext {
-			value_stack_limit: DEFAULT_VALUE_STACK_LIMIT,
-			frame_stack_limit: DEFAULT_FRAME_STACK_LIMIT,
-			value_stack: args,
-			externals: externals,
-		}
+pub struct NotStartedModuleRef<'a> {
+	validated_module: &'a ValidatedModule,
+	instance: ModuleRef,
+}
+
+impl<'a> NotStartedModuleRef<'a> {
+	pub fn not_started_instance(&self) -> &ModuleRef {
+		&self.instance
 	}
 
-	/// Nested context
-	pub fn nested(outer: &'a mut FunctionContext) -> Self {
-		CallerContext {
-			value_stack_limit: outer.value_stack().limit() - outer.value_stack().len(),
-			frame_stack_limit: outer.frame_stack().limit() - outer.frame_stack().len(),
-			value_stack: &mut outer.value_stack,
-			externals: &outer.externals,
+	pub fn run_start<'b, E: Externals>(self, state: &'b mut E) -> Result<ModuleRef, Error> {
+		if let Some(start_fn_idx) = self.validated_module.module().start_section() {
+			let start_func = self.instance.func_by_index(start_fn_idx).expect(
+				"Due to validation start function should exists",
+			);
+			FuncInstance::invoke(start_func, Cow::Borrowed(&[]), state)?;
 		}
+		Ok(self.instance)
+	}
+
+	pub fn assert_no_start(self) -> ModuleRef {
+		assert!(self.validated_module.module().start_section().is_none());
+		self.instance
 	}
 }
 
-pub fn check_limits(limits: &ResizableLimits) -> Result<(), Error> {
-	if let Some(maximum) = limits.maximum() {
-		if maximum < limits.initial() {
-			return Err(Error::Validation(format!("maximum limit {} is lesser than minimum {}", maximum, limits.initial())));
+fn alloc_func_type(func_type: FunctionType) -> Rc<FunctionType> {
+	Rc::new(func_type)
+}
+
+fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance) -> RuntimeValue {
+	let code = init_expr.code();
+	debug_assert!(
+		code.len() == 2,
+		"Due to validation `code`.len() should be 2"
+	);
+	match code[0] {
+		Opcode::I32Const(v) => v.into(),
+		Opcode::I64Const(v) => v.into(),
+		Opcode::F32Const(v) => RuntimeValue::decode_f32(v),
+		Opcode::F64Const(v) => RuntimeValue::decode_f64(v),
+		Opcode::GetGlobal(idx) => {
+			let global = module.global_by_index(idx).expect(
+				"Due to validation global should exists in module",
+			);
+			global.get()
+		}
+		_ => panic!("Due to validation init should be a const expr"),
+	}
+}
+
+fn match_limits(l1: &ResizableLimits, l2: &ResizableLimits) -> Result<(), Error> {
+	if l1.initial() < l2.initial() {
+		return Err(Error::Instantiation(format!(
+			"trying to import with limits l1.initial={} and l2.initial={}",
+			l1.initial(),
+			l2.initial()
+		)));
+	}
+
+	match (l1.maximum(), l2.maximum()) {
+		(_, None) => (),
+		(Some(m1), Some(m2)) if m1 <= m2 => (),
+		_ => {
+			return Err(Error::Instantiation(format!(
+				"trying to import with limits l1.max={:?} and l2.max={:?}",
+				l1.maximum(),
+				l2.maximum()
+			)))
 		}
 	}
 
 	Ok(())
 }
 
-fn get_initializer(expr: &InitExpr, module: &Module, imports: &ModuleImports, expected_type: VariableType) -> Result<RuntimeValue, Error> {
-	let first_opcode = match expr.code().len() {
-		1 => &expr.code()[0],
-		2 if expr.code().len() == 2 && expr.code()[1] == Opcode::End => &expr.code()[0],
-		_ => return Err(Error::Initialization(format!("expected 1-instruction len initializer. Got {:?}", expr.code()))),
-	};
-
-	match first_opcode {
-		&Opcode::GetGlobal(index) => {
-			let index = match imports.parse_global_index(ItemIndex::IndexSpace(index)) {
-				ItemIndex::External(index) => index,
-				_ => return Err(Error::Global(format!("trying to initialize with non-external global {}", index))),
-			};
-			module.import_section()
-				.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module without import section", index)))
-				.and_then(|s| s.entries().get(index as usize)
-					.ok_or(Error::Global(format!("trying to initialize with external global with index {} in module with {}-entries import section", index, s.entries().len()))))
-				.and_then(|e| imports.global(None, e, Some(expected_type)))
-				.map(|g| g.get())
-		},
-		&Opcode::I32Const(val) => Ok(RuntimeValue::I32(val)),
-		&Opcode::I64Const(val) => Ok(RuntimeValue::I64(val)),
-		&Opcode::F32Const(val) => Ok(RuntimeValue::decode_f32(val)),
-		&Opcode::F64Const(val) => Ok(RuntimeValue::decode_f64(val)),
-		_ => Err(Error::Initialization(format!("not-supported {:?} instruction in instantiation-time initializer", first_opcode))),
-	}
-}
-
-impl<'a> FunctionSignature<'a> {
-	/// Get return type of this function.
-	pub fn return_type(&self) -> Option<ValueType> {
-		match self {
-			&FunctionSignature::Module(ft) => ft.return_type(),
-			&FunctionSignature::User(fd) => fd.return_type(),
+pub fn check_limits(limits: &ResizableLimits) -> Result<(), Error> {
+	if let Some(maximum) = limits.maximum() {
+		if maximum < limits.initial() {
+			return Err(Error::Instantiation(format!(
+				"maximum limit {} is less than minimum {}",
+				maximum,
+				limits.initial()
+			)));
 		}
 	}
 
-	/// Get parameters of this function.
-	pub fn params(&self) -> &[ValueType] {
-		match self {
-			&FunctionSignature::Module(ft) => ft.params(),
-			&FunctionSignature::User(fd) => fd.params(),
-		}
-	}
-}
-
-impl<'a> PartialEq for FunctionSignature<'a> {
-	fn eq<'b>(&self, other: &FunctionSignature<'b>) -> bool {
-		match self {
-			&FunctionSignature::Module(ft1) => match other {
-				&FunctionSignature::Module(ft2) => ft1 == ft2,
-				&FunctionSignature::User(ft2) => ft1.params() == ft2.params() && ft1.return_type() == ft2.return_type(),
-			},
-			&FunctionSignature::User(ft1) => match other {
-				&FunctionSignature::User(ft2) => ft1 == ft2,
-				&FunctionSignature::Module(ft2) => ft1.params() == ft2.params() && ft1.return_type() == ft2.return_type(),
-			},
-		}
-	}
-}
-impl<'a> From<&'a FunctionType> for FunctionSignature<'a> {
-	fn from(other: &'a FunctionType) -> Self {
-		FunctionSignature::Module(other)
-	}
+	Ok(())
 }

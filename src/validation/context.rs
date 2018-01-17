@@ -1,5 +1,4 @@
-use elements::{MemoryType, TableType, GlobalType, Type};
-use elements::{BlockType, ValueType};
+use elements::{MemoryType, TableType, GlobalType, BlockType, ValueType, FunctionType};
 use validation::Error;
 
 #[derive(Default, Debug)]
@@ -7,7 +6,7 @@ pub struct ModuleContext {
 	pub memories: Vec<MemoryType>,
 	pub tables: Vec<TableType>,
 	pub globals: Vec<GlobalType>,
-	pub types: Vec<Type>,
+	pub types: Vec<FunctionType>,
 	pub func_type_indexes: Vec<u32>,
 }
 
@@ -24,7 +23,7 @@ impl ModuleContext {
 		&self.globals
 	}
 
-	pub fn types(&self) -> &[Type] {
+	pub fn types(&self) -> &[FunctionType] {
 		&self.types
 	}
 
@@ -53,7 +52,7 @@ impl ModuleContext {
 	}
 
 	pub fn require_function_type(&self, idx: u32) -> Result<(&[ValueType], BlockType), Error> {
-		let &Type::Function(ref ty) = self.types()
+		let ty = self.types()
 			.get(idx as usize)
 			.ok_or_else(|| Error(format!("Type at index {} doesn't exists", idx)))?;
 
@@ -78,5 +77,58 @@ impl ModuleContext {
 			}
 		}
 		Ok(global)
+	}
+}
+
+#[derive(Default)]
+pub struct ModuleContextBuilder {
+	memories: Vec<MemoryType>,
+	tables: Vec<TableType>,
+	globals: Vec<GlobalType>,
+	types: Vec<FunctionType>,
+	func_type_indexes: Vec<u32>,
+}
+
+impl ModuleContextBuilder {
+	pub fn new() -> ModuleContextBuilder {
+		ModuleContextBuilder::default()
+	}
+
+	pub fn push_memory(&mut self, memory: MemoryType) {
+		self.memories.push(memory);
+	}
+
+	pub fn push_table(&mut self, table: TableType) {
+		self.tables.push(table);
+	}
+
+	pub fn push_global(&mut self, global: GlobalType) {
+		self.globals.push(global);
+	}
+
+	pub fn set_types(&mut self, types: Vec<FunctionType>) {
+		self.types = types;
+	}
+
+	pub fn push_func_type_index(&mut self, func_type_index: u32) {
+		self.func_type_indexes.push(func_type_index);
+	}
+
+	pub fn build(self) -> ModuleContext {
+		let ModuleContextBuilder {
+			memories,
+			tables,
+			globals,
+			types,
+			func_type_indexes,
+		} = self;
+
+		ModuleContext {
+			memories,
+			tables,
+			globals,
+			types,
+			func_type_indexes,
+		}
 	}
 }

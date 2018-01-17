@@ -8,7 +8,7 @@ use elements::{
 #[test]
 fn empty_is_valid() {
 	let module = module().build();
-	assert!(validate_module(&module).is_ok());
+	assert!(validate_module(module).is_ok());
 }
 
 #[test]
@@ -30,7 +30,7 @@ fn limits() {
 				.with_max(max)
 				.build()
 			.build();
-		assert_eq!(validate_module(&m).is_ok(), is_valid);
+		assert_eq!(validate_module(m).is_ok(), is_valid);
 
 		// imported table
 		let m = module()
@@ -42,7 +42,7 @@ fn limits() {
 				)
 			)
 			.build();
-		assert_eq!(validate_module(&m).is_ok(), is_valid);
+		assert_eq!(validate_module(m).is_ok(), is_valid);
 
 		// defined memory
 		let m = module()
@@ -51,7 +51,7 @@ fn limits() {
 				.with_max(max)
 				.build()
 			.build();
-		assert_eq!(validate_module(&m).is_ok(), is_valid);
+		assert_eq!(validate_module(m).is_ok(), is_valid);
 
 		// imported table
 		let m = module()
@@ -63,7 +63,7 @@ fn limits() {
 				)
 			)
 			.build();
-		assert_eq!(validate_module(&m).is_ok(), is_valid);
+		assert_eq!(validate_module(m).is_ok(), is_valid);
 	}
 }
 
@@ -79,7 +79,7 @@ fn global_init_const() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_ok());
+	assert!(validate_module(m).is_ok());
 
 	// init expr type differs from declared global type
 	let m = module()
@@ -90,7 +90,7 @@ fn global_init_const() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn global_init_global() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_ok());
+	assert!(validate_module(m).is_ok());
 
 	// get_global can reference only previously defined globals
 	let m = module()
@@ -121,7 +121,7 @@ fn global_init_global() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 
 	// get_global can reference only const globals
 	let m = module()
@@ -139,7 +139,7 @@ fn global_init_global() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 
 	// get_global in init_expr can only refer to imported globals.
 	let m = module()
@@ -156,7 +156,7 @@ fn global_init_global() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn global_init_misc() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 
 	// empty init expr
 	let m = module()
@@ -181,7 +181,7 @@ fn global_init_misc() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 
 	// not an constant opcode used
 	let m = module()
@@ -192,7 +192,7 @@ fn global_init_misc() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 }
 
 #[test]
@@ -210,7 +210,7 @@ fn module_limits_validity() {
 			.with_min(10)
 			.build()
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 
 	// module cannot contain more than 1 table atm.
 	let m = module()
@@ -225,7 +225,7 @@ fn module_limits_validity() {
 			.with_min(10)
 			.build()
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 }
 
 #[test]
@@ -247,7 +247,7 @@ fn funcs() {
 			])).build()
 			.build()
 		.build();
-	assert!(validate_module(&m).is_ok());
+	assert!(validate_module(m).is_ok());
 }
 
 #[test]
@@ -262,7 +262,7 @@ fn globals() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_ok());
+	assert!(validate_module(m).is_ok());
 
 	// import mutable global is invalid.
 	let m = module()
@@ -274,7 +274,7 @@ fn globals() {
 			)
 		)
 		.build();
-	assert!(validate_module(&m).is_err());
+	assert!(validate_module(m).is_err());
 }
 
 #[test]
@@ -297,5 +297,5 @@ fn if_else_with_return_type_validation() {
 			])).build()
 			.build()
 		.build();
-	validate_module(&m).unwrap();
+	validate_module(m).unwrap();
 }

@@ -5,12 +5,14 @@
 #[macro_use]
 extern crate log;
 extern crate byteorder;
-extern crate parking_lot;
+
+#[cfg(test)]
+extern crate wabt;
 
 pub mod elements;
 pub mod builder;
 pub mod interpreter;
-mod validation;
+pub mod validation;
 mod common;
 
 pub use elements::{
@@ -20,11 +22,4 @@ pub use elements::{
     serialize,
     serialize_to_file,
     peek_size,
-};
-
-pub use interpreter::{
-    ProgramInstance,
-    ModuleInstance,
-    ModuleInstanceInterface,
-    RuntimeValue,
 };

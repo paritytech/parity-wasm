@@ -209,31 +209,31 @@ impl Serialize for VarInt7 {
 /// 8-bit unsigned integer, NOT encoded in LEB128;
 /// it's just a single byte.
 #[derive(Debug, Copy, Clone)]
-pub struct VarUint8(u8);
+pub struct Uint8(u8);
 
-impl From<VarUint8> for u8 {
-    fn from(v: VarUint8) -> u8 {
+impl From<Uint8> for u8 {
+    fn from(v: Uint8) -> u8 {
         v.0
     }
 }
 
-impl From<u8> for VarUint8 {
+impl From<u8> for Uint8 {
     fn from(v: u8) -> Self {
-        VarUint8(v)
+        Uint8(v)
     }
 }
 
-impl Deserialize for VarUint8 {
+impl Deserialize for Uint8 {
     type Error = Error;
 
     fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
         let mut u8buf = [0u8; 1];
         reader.read_exact(&mut u8buf)?;
-        Ok(VarUint8(u8buf[0]))
+        Ok(Uint8(u8buf[0]))
     }
 }
 
-impl Serialize for VarUint8 {
+impl Serialize for Uint8 {
     type Error = Error;
 
     fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {

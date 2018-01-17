@@ -1,7 +1,7 @@
 use std::{io, fmt};
 use super::{
     Serialize, Deserialize, Error, VarUint7,
-    VarUint32, CountedList, BlockType,
+    VarUint8, VarUint32, CountedList, BlockType,
     Uint32, Uint64, CountedListWriter,
     VarInt32, VarInt64,
 };
@@ -346,7 +346,7 @@ impl Deserialize for Opcode {
                 0x10 => Call(VarUint32::deserialize(reader)?.into()),
                 0x11 => CallIndirect(
                     VarUint32::deserialize(reader)?.into(),
-                    VarUint7::deserialize(reader)?.into()),
+                    VarUint8::deserialize(reader)?.into()),
                 0x1a => Drop,
                 0x1b => Select,
 
@@ -449,8 +449,8 @@ impl Deserialize for Opcode {
                     VarUint32::deserialize(reader)?.into()),
 
 
-                0x3f => CurrentMemory(VarUint7::deserialize(reader)?.into()),
-                0x40 => GrowMemory(VarUint7::deserialize(reader)?.into()),
+                0x3f => CurrentMemory(VarUint8::deserialize(reader)?.into()),
+                0x40 => GrowMemory(VarUint8::deserialize(reader)?.into()),
 
                 0x41 => I32Const(VarInt32::deserialize(reader)?.into()),
                 0x42 => I64Const(VarInt64::deserialize(reader)?.into()),

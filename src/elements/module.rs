@@ -10,7 +10,7 @@ use super::section::{
 const WASM_MAGIC_NUMBER: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
 
 /// WebAssembly module
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Module {
     magic: u32,
     version: u32,
@@ -20,7 +20,7 @@ pub struct Module {
 impl Default for Module {
     fn default() -> Self {
         Module {
-            magic: 0x6d736100,
+            magic: LittleEndian::read_u32(&WASM_MAGIC_NUMBER),
             version: 1,
             sections: Vec::with_capacity(16),
         }
@@ -191,6 +191,7 @@ impl Serialize for Module {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 struct PeekSection<'a> {
     cursor: usize,
     region: &'a [u8],
@@ -388,5 +389,14 @@ mod integration_tests {
         buf.extend_from_slice(&[0, 0, 0, 0, 0, 1, 5, 12, 17]);
 
         assert_eq!(peek_size(&buf), buf.len() - 9);
+    }
+
+    #[test]
+    fn module_default_round_trip() {
+        let module1 = Module::default();
+        let buf = serialize(module1).expect("Serialization should succeed");
+        
+        let module2: Module = deserialize_buffer(&buf).expect("Deserialization should succeed");
+        assert_eq!(Module::default().magic, module2.magic);
     }
 }

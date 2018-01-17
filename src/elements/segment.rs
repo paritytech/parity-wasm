@@ -68,7 +68,7 @@ impl Serialize for ElementSegment {
 }
 
 /// Data segment definition.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DataSegment {
     index: u32,
     offset: InitExpr,

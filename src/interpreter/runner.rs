@@ -319,7 +319,7 @@ impl<'a, E: Externals> Interpreter<'a, E> {
 			&Opcode::F64Max => self.run_max::<f64>(context),
 			&Opcode::F64Copysign => self.run_copysign::<f64>(context),
 
-			&Opcode::I32WarpI64 => self.run_wrap::<i64, i32>(context),
+			&Opcode::I32WrapI64 => self.run_wrap::<i64, i32>(context),
 			&Opcode::I32TruncSF32 => self.run_trunc_to_int::<f32, i32, i32>(context),
 			&Opcode::I32TruncUF32 => self.run_trunc_to_int::<f32, u32, i32>(context),
 			&Opcode::I32TruncSF64 => self.run_trunc_to_int::<f64, i32, i32>(context),

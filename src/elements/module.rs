@@ -144,6 +144,10 @@ impl Module {
         None
     }
 
+    /// Try to parse name section in place
+    /// Corresponding custom section with proper header will convert to name sections
+    /// If some of them will fail to be decoded, Err variant is returned with the list of
+    /// (index, Error) tuples of failed sections.
     pub fn parse_names(mut self) -> Result<Self, (Vec<(usize, Error)>, Self)> {
         let mut parse_errors = Vec::new();
 

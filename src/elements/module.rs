@@ -1,7 +1,7 @@
 use std::io;
 use byteorder::{LittleEndian, ByteOrder};
 
-use super::{Deserialize, Serialize, Error, Uint32};
+use super::{Deserialize, Serialize, Error, Uint32, External};
 use super::section::{
     Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionSection,
     GlobalSection, TableSection, ElementSection, DataSection, MemorySection
@@ -16,6 +16,15 @@ pub struct Module {
     magic: u32,
     version: u32,
     sections: Vec<Section>,
+}
+
+#[derive(Debug, Clone, Copy)]
+/// Type of the import entry to count
+pub enum ImportCountType {
+    /// Count functions
+    Function,
+    /// Count globals
+    Global,
 }
 
 impl Default for Module {
@@ -176,6 +185,30 @@ impl Module {
         } else {
             Ok(self)
         }
+    }
+
+    /// Count imports by provided type
+    pub fn import_count(&self, count_type: ImportCountType) -> usize {
+        self.import_section()
+            .map(|is|
+                is.entries().iter().filter(|import| match (count_type, *import.external()) {
+                    (ImportCountType::Function, External::Function(_)) => true,
+                    (ImportCountType::Global, External::Global(_)) => true,
+                    _ => false
+                }).count())
+            .unwrap_or(0)
+    }
+
+    /// Query functions space
+    pub fn functions_space(&self) -> usize {
+        self.import_count(ImportCountType::Function) +
+            self.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
+    }
+
+    /// Query globals space
+    pub fn globals_space(&self) -> usize {
+        self.import_count(ImportCountType::Global) +
+            self.global_section().map(|gs| gs.entries().len()).unwrap_or(0)
     }
 }
 

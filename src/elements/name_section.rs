@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use super::{Deserialize, Error, Module, Serialize, VarUint32, VarUint7};
+use super::{Deserialize, Error, Module, Serialize, VarUint32, VarUint7, Type};
 use super::index_map::IndexMap;
 
 const NAME_TYPE_MODULE: u8 = 0;
@@ -147,11 +147,7 @@ impl FunctionNameSection {
         module: &Module,
         rdr: &mut R,
     ) -> Result<FunctionNameSection, Error> {
-        let funcs = module.function_section().ok_or_else(|| {
-            Error::Other("cannot deserialize names without a function section")
-        })?;
-        let max_entry_space = funcs.entries().len();
-        let names = IndexMap::deserialize(max_entry_space, rdr)?;
+        let names = IndexMap::deserialize(module.functions_space(), rdr)?;
         Ok(FunctionNameSection { names })
     }
 }
@@ -193,13 +189,24 @@ impl LocalNameSection {
         })?;
         let max_entry_space = funcs.entries().len();
 
-        let code = module.code_section().ok_or_else(|| {
-            Error::Other("cannot deserialize local names without a code section")
-        })?;
-        let deserialize_locals = |idx: u32, rdr: &mut R| {
-            let max_local_entry_space = code.bodies()[idx as usize].locals().len();
-            IndexMap::deserialize(max_local_entry_space, rdr)
-        };
+        let max_signature_args = module
+            .type_section()
+            .map(|ts|
+                ts.types()
+                    .iter()
+                    .map(|x| { let Type::Function(ref func) = *x; func.params().len() })
+                    .max()
+                    .unwrap_or(0))
+            .unwrap_or(0);
+
+        let max_locals = module
+            .code_section()
+            .map(|cs| cs.bodies().iter().map(|f| f.locals().len()).max().unwrap_or(0))
+            .unwrap_or(0);
+
+        let max_space = max_signature_args + max_locals;
+
+        let deserialize_locals = |_: u32, rdr: &mut R| IndexMap::deserialize(max_space, rdr);
 
         let local_names = IndexMap::deserialize_with(
             max_entry_space,

@@ -17,7 +17,7 @@ mod segment;
 mod index_map;
 mod name_section;
 
-pub use self::module::{Module, peek_size};
+pub use self::module::{Module, peek_size, ImportCountType};
 pub use self::section::{
     Section, FunctionSection, CodeSection, MemorySection, DataSection,
     ImportSection, ExportSection, GlobalSection, TypeSection, ElementSection,

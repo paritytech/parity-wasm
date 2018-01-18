@@ -19,9 +19,11 @@ use super::{
     CountedWriter,
     CountedListWriter,
     External,
+    serialize,
 };
 
 use super::types::Type;
+use super::name_section::NameSection;
 
 /// Section in the WebAssembly module.
 #[derive(Debug, Clone)]
@@ -57,6 +59,8 @@ pub enum Section {
     Code(CodeSection),
     /// Data definition section
     Data(DataSection),
+    /// Name section
+    Name(NameSection),
 }
 
 impl Deserialize for Section {
@@ -175,6 +179,14 @@ impl Serialize for Section {
                 VarUint7::from(0x0b).serialize(writer)?;
                 data_section.serialize(writer)?;
             },
+            Section::Name(name_section) => {
+                VarUint7::from(0x00).serialize(writer)?;
+                let custom = CustomSection {
+                    name: "name".to_owned(),
+                    payload: serialize(name_section)?,
+                };
+                custom.serialize(writer)?;
+            }
         }
         Ok(())
     }

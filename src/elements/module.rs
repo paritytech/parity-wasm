@@ -6,6 +6,7 @@ use super::section::{
     Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionSection,
     GlobalSection, TableSection, ElementSection, DataSection, MemorySection
 };
+use super::name_section::NameSection;
 
 const WASM_MAGIC_NUMBER: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
 
@@ -141,6 +142,36 @@ impl Module {
             if let &Section::Start(sect) = section { return Some(sect); }
         }
         None
+    }
+
+    pub fn parse_names(mut self) -> Result<Self, (Vec<(usize, Error)>, Self)> {
+        let mut parse_errors = Vec::new();
+
+        for i in 0..self.sections.len() {
+            if let Some(name_section) = {
+                let section = self.sections.get(i).expect("cannot fail because i in range 0..len; qed");
+                if let Section::Custom(ref custom) = *section {
+                    if custom.name() == "name" {
+                        let mut rdr = io::Cursor::new(custom.payload());
+                        let name_section = match NameSection::deserialize(&self, &mut rdr) {
+                            Ok(ns) => ns,
+                            Err(e) => { parse_errors.push((i, e)); continue; }
+                        };
+                        Some(name_section)
+                    } else {
+                        None
+                    }
+                } else { None }
+            } {
+                *self.sections.get_mut(i).expect("cannot fail because i in range 0..len; qed") = Section::Name(name_section);
+            }
+        }
+
+        if parse_errors.len() > 0 {
+            Err((parse_errors, self))
+        } else {
+            Ok(self)
+        }
     }
 }
 
@@ -395,7 +426,7 @@ mod integration_tests {
     fn module_default_round_trip() {
         let module1 = Module::default();
         let buf = serialize(module1).expect("Serialization should succeed");
-        
+
         let module2: Module = deserialize_buffer(&buf).expect("Deserialization should succeed");
         assert_eq!(Module::default().magic, module2.magic);
     }

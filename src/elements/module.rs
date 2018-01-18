@@ -467,4 +467,40 @@ mod integration_tests {
         let module2: Module = deserialize_buffer(&buf).expect("Deserialization should succeed");
         assert_eq!(Module::default().magic, module2.magic);
     }
+
+    #[test]
+    fn names() {
+        use super::super::name_section::NameSection;
+
+        let module = deserialize_file("./res/cases/v1/with_names.wasm")
+            .expect("Should be deserialized")
+            .parse_names()
+            .expect("Names to be parsed");
+
+        let mut found_section = false;
+        for section in module.sections() {
+            match *section {
+                Section::Name(ref name_section) => {
+                    match *name_section {
+                        NameSection::Function(ref function_name_section) => {
+                            assert_eq!(
+                                function_name_section.names().get(0).expect("Should be entry #0"),
+                                "elog"
+                            );
+                            assert_eq!(
+                                function_name_section.names().get(11).expect("Should be entry #0"),
+                                "_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
+                            );
+
+                            found_section = true;
+                        },
+                        _ => {},
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        assert!(found_section, "Name section should be present in dedicated example");
+    }
 }

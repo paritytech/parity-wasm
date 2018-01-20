@@ -275,35 +275,4 @@ mod tests {
         };
         serialize_test(original.clone());
     }
-
-    #[test]
-    fn handles_real_wasm_file() {
-        let module = deserialize_file("./res/cases/v1/names.wasm").expect("Should be deserialized");
-
-        // Find the custom section containing function names.
-        //
-        // TODO: Add a real API for this.
-        let mut function_names_opt = None;
-        for s in module.sections() {
-            match *s {
-                Section::Custom(ref cs) if cs.name() == "name" => {
-                    let mut cursor = Cursor::new(cs.payload());
-                    let section = NameSection::deserialize(&module, &mut cursor)
-                        .expect("could not parse name section");
-                    if let NameSection::Function(function_names) = section {
-                        function_names_opt = Some(function_names);
-                    }
-                }
-                _ => {}
-            }
-        }
-        let function_names = function_names_opt.expect("no name section found");
-
-        assert_eq!(
-            function_names.names().get(0).expect("name 0 missing"),
-            "double"
-        );
-
-        // TODO: Find a test file with module and local names.
-    }
 }

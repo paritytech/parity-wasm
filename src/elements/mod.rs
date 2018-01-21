@@ -14,8 +14,10 @@ mod global_entry;
 mod ops;
 mod func;
 mod segment;
+mod index_map;
+mod name_section;
 
-pub use self::module::{Module, peek_size};
+pub use self::module::{Module, peek_size, ImportCountType};
 pub use self::section::{
     Section, FunctionSection, CodeSection, MemorySection, DataSection,
     ImportSection, ExportSection, GlobalSection, TypeSection, ElementSection,
@@ -32,6 +34,11 @@ pub use self::types::{Type, ValueType, BlockType, FunctionType, TableElementType
 pub use self::ops::{Opcode, Opcodes, InitExpr};
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
+pub use self::index_map::IndexMap;
+pub use self::name_section::{
+    NameMap, NameSection, ModuleNameSection, FunctionNameSection,
+    LocalNameSection,
+};
 
 /// Deserialization from serial i/o
 pub trait Deserialize : Sized {

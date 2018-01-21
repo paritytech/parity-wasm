@@ -1,11 +1,12 @@
 use std::io;
 use byteorder::{LittleEndian, ByteOrder};
 
-use super::{Deserialize, Serialize, Error, Uint32};
+use super::{Deserialize, Serialize, Error, Uint32, External};
 use super::section::{
     Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionSection,
     GlobalSection, TableSection, ElementSection, DataSection, MemorySection
 };
+use super::name_section::NameSection;
 
 const WASM_MAGIC_NUMBER: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
 
@@ -15,6 +16,15 @@ pub struct Module {
     magic: u32,
     version: u32,
     sections: Vec<Section>,
+}
+
+#[derive(Debug, Clone, Copy)]
+/// Type of the import entry to count
+pub enum ImportCountType {
+    /// Count functions
+    Function,
+    /// Count globals
+    Global,
 }
 
 impl Default for Module {
@@ -141,6 +151,64 @@ impl Module {
             if let &Section::Start(sect) = section { return Some(sect); }
         }
         None
+    }
+
+    /// Try to parse name section in place
+    /// Corresponding custom section with proper header will convert to name sections
+    /// If some of them will fail to be decoded, Err variant is returned with the list of
+    /// (index, Error) tuples of failed sections.
+    pub fn parse_names(mut self) -> Result<Self, (Vec<(usize, Error)>, Self)> {
+        let mut parse_errors = Vec::new();
+
+        for i in 0..self.sections.len() {
+            if let Some(name_section) = {
+                let section = self.sections.get(i).expect("cannot fail because i in range 0..len; qed");
+                if let Section::Custom(ref custom) = *section {
+                    if custom.name() == "name" {
+                        let mut rdr = io::Cursor::new(custom.payload());
+                        let name_section = match NameSection::deserialize(&self, &mut rdr) {
+                            Ok(ns) => ns,
+                            Err(e) => { parse_errors.push((i, e)); continue; }
+                        };
+                        Some(name_section)
+                    } else {
+                        None
+                    }
+                } else { None }
+            } {
+                *self.sections.get_mut(i).expect("cannot fail because i in range 0..len; qed") = Section::Name(name_section);
+            }
+        }
+
+        if parse_errors.len() > 0 {
+            Err((parse_errors, self))
+        } else {
+            Ok(self)
+        }
+    }
+
+    /// Count imports by provided type
+    pub fn import_count(&self, count_type: ImportCountType) -> usize {
+        self.import_section()
+            .map(|is|
+                is.entries().iter().filter(|import| match (count_type, *import.external()) {
+                    (ImportCountType::Function, External::Function(_)) => true,
+                    (ImportCountType::Global, External::Global(_)) => true,
+                    _ => false
+                }).count())
+            .unwrap_or(0)
+    }
+
+    /// Query functions space
+    pub fn functions_space(&self) -> usize {
+        self.import_count(ImportCountType::Function) +
+            self.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
+    }
+
+    /// Query globals space
+    pub fn globals_space(&self) -> usize {
+        self.import_count(ImportCountType::Global) +
+            self.global_section().map(|gs| gs.entries().len()).unwrap_or(0)
     }
 }
 
@@ -395,8 +463,44 @@ mod integration_tests {
     fn module_default_round_trip() {
         let module1 = Module::default();
         let buf = serialize(module1).expect("Serialization should succeed");
-        
+
         let module2: Module = deserialize_buffer(&buf).expect("Deserialization should succeed");
         assert_eq!(Module::default().magic, module2.magic);
+    }
+
+    #[test]
+    fn names() {
+        use super::super::name_section::NameSection;
+
+        let module = deserialize_file("./res/cases/v1/with_names.wasm")
+            .expect("Should be deserialized")
+            .parse_names()
+            .expect("Names to be parsed");
+
+        let mut found_section = false;
+        for section in module.sections() {
+            match *section {
+                Section::Name(ref name_section) => {
+                    match *name_section {
+                        NameSection::Function(ref function_name_section) => {
+                            assert_eq!(
+                                function_name_section.names().get(0).expect("Should be entry #0"),
+                                "elog"
+                            );
+                            assert_eq!(
+                                function_name_section.names().get(11).expect("Should be entry #0"),
+                                "_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
+                            );
+
+                            found_section = true;
+                        },
+                        _ => {},
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        assert!(found_section, "Name section should be present in dedicated example");
     }
 }

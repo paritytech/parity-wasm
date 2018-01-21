@@ -9,7 +9,18 @@ fn main() {
         return;
     }
 
-    let module = parity_wasm::deserialize_file(&args[1]).expect("Failed to load module");
+    let module = match parity_wasm::deserialize_file(&args[1])
+        .expect("Failed to load module")
+        .parse_names()
+    {
+        Ok(m) => m,
+        Err((errors, m)) => {
+            for (index, error) in errors.into_iter() {
+                println!("Custom section #{} parse error: {:?}", index, error);
+            }
+            m
+        }
+    };
 
     parity_wasm::serialize_to_file(&args[2], module).expect("Failed to write module");
 }

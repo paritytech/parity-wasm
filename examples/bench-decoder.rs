@@ -6,7 +6,7 @@ extern crate time;
 use std::fs;
 
 fn rate(file_name: &'static str, iterations: u64) {
-    let file_size = fs::metadata(file_name).expect(&format!("{} to exist", file_name)).len();
+	let file_size = fs::metadata(file_name).expect(&format!("{} to exist", file_name)).len();
 	let mut total_ms = 0;
 
 	for _ in 0..iterations {

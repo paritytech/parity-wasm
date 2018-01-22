@@ -402,7 +402,7 @@ impl Interpreter {
 		}
 	}
 
-	fn run_br_table<'a>(context: &mut FunctionContext, table: &Vec<u32>, default: u32) -> Result<InstructionOutcome<'a>, Error> {
+	fn run_br_table<'a>(context: &mut FunctionContext, table: &[u32], default: u32) -> Result<InstructionOutcome<'a>, Error> {
 		let index: u32 = context.value_stack_mut().pop_as()?;
 		Ok(InstructionOutcome::Branch(table.get(index as usize).cloned().unwrap_or(default) as usize))
 	}

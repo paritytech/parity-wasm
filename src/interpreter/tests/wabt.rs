@@ -392,7 +392,9 @@ fn brtable() {
 				Opcode::Block(BlockType::NoResult),			//     block1
 					Opcode::Block(BlockType::NoResult),		//       block0
 						Opcode::GetLocal(0),				//         [arg]
-						Opcode::BrTable(vec![0, 1, 2], 3),	//         br_table
+						Opcode::BrTable(
+							vec![0, 1, 2].into_boxed_slice(), 3),
+															//         br_table
 					Opcode::End,							//       end (block0)
 					Opcode::I32Const(0),					//       [0]
 					Opcode::Return,							//       return 0

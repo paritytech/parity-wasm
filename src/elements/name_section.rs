@@ -229,9 +229,7 @@ pub type NameMap = IndexMap<String>;
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
     use super::*;
-    use super::super::{deserialize_file, Section};
 
     // A helper funtion for the tests. Serialize a section, deserialize it,
     // and make sure it matches the original.

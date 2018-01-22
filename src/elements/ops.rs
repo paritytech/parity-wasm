@@ -113,7 +113,7 @@ pub enum Opcode {
     End,
     Br(u32),
     BrIf(u32),
-    BrTable(Vec<u32>, u32),
+    BrTable(Box<[u32]>, u32),
     Return,
 
     Call(u32),
@@ -340,7 +340,7 @@ impl Deserialize for Opcode {
                         .map(Into::into)
                         .collect();
 
-                    BrTable(t1, VarUint32::deserialize(reader)?.into())
+                    BrTable(t1.into_boxed_slice(), VarUint32::deserialize(reader)?.into())
                 },
                 0x0f => Return,
                 0x10 => Call(VarUint32::deserialize(reader)?.into()),
@@ -633,7 +633,7 @@ impl Serialize for Opcode {
             BrTable(table, default) => op!(writer, 0x0e, {
                 let list_writer = CountedListWriter::<VarUint32, _>(
                     table.len(),
-                    table.into_iter().map(Into::into),
+                    table.into_iter().map(|x| VarUint32::from(*x)),
                 );
                 list_writer.serialize(writer)?;
                 VarUint32::from(default).serialize(writer)?;

@@ -1,5 +1,3 @@
-#![feature(test)]
-
 extern crate parity_wasm;
 extern crate time;
 

@@ -1223,3 +1223,8 @@ fn display() {
     let opcode = Opcode::I64Store(0, 0);
     assert_eq!("i64.store", format!("{}", opcode));
 }
+
+#[test]
+fn size_off() {
+    assert!(::std::mem::size_of::<Opcode>() <= 24);
+}

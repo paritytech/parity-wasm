@@ -18,6 +18,7 @@ script:
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml
 - cargo test --manifest-path=pwasm-emscripten/Cargo.toml
+- cargo run --release --example roundtrip ./res/cases/v1/clang.wasm /tmp/clang.wasm
 after_success: |-
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&

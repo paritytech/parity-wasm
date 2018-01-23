@@ -15,4 +15,6 @@ exclude = [ "res/*", "spec/*" ]
 log = "0.3"
 byteorder = "1.0"
 parking_lot = "0.5"
-time = "*"
+
+[dev-dependencies]
+time = "0.1"

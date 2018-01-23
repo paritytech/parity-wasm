@@ -22,6 +22,7 @@ pub use elements::{
     peek_size,
 };
 
+#[allow(deprecated)]
 pub use interpreter::{
     ProgramInstance,
     ModuleInstance,

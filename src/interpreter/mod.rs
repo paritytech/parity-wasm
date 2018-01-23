@@ -1,5 +1,7 @@
 //! WebAssembly interpreter module.
 
+#![deprecated(since = "0.23", note = "Use wasmi crate to interpret wasm")]
+
 use std::any::TypeId;
 use std::error;
 use std::fmt;

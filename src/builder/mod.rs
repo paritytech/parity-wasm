@@ -12,8 +12,8 @@ mod global;
 mod data;
 
 pub use self::code::{
-    signatures, signature, function, SignatureBuilder, SignaturesBuilder,
-    FunctionBuilder, TypeRefBuilder, FuncBodyBuilder, FunctionDefinition,
+	signatures, signature, function, SignatureBuilder, SignaturesBuilder,
+	FunctionBuilder, TypeRefBuilder, FuncBodyBuilder, FunctionDefinition,
 };
 pub use self::data::DataSegmentBuilder;
 pub use self::export::{export, ExportBuilder, ExportInternalBuilder};

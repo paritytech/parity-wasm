@@ -14,18 +14,18 @@ mod validation;
 mod common;
 
 pub use elements::{
-    Error as SerializationError,
-    deserialize_buffer,
-    deserialize_file,
-    serialize,
-    serialize_to_file,
-    peek_size,
+	Error as SerializationError,
+	deserialize_buffer,
+	deserialize_file,
+	serialize,
+	serialize_to_file,
+	peek_size,
 };
 
 #[allow(deprecated)]
 pub use interpreter::{
-    ProgramInstance,
-    ModuleInstance,
-    ModuleInstanceInterface,
-    RuntimeValue,
+	ProgramInstance,
+	ModuleInstance,
+	ModuleInstanceInterface,
+	RuntimeValue,
 };

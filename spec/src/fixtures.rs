@@ -1,16 +1,16 @@
 macro_rules! run_test {
-    ($label: expr, $test_name: ident, fail) => (
-        #[test]
-        fn $test_name() {
-            ::run::failing_spec($label)
-        }
-    );
-    ($label: expr, $test_name: ident) => (
-        #[test]
-        fn $test_name() {
-            ::run::spec($label)
-        }
-    );
+	($label: expr, $test_name: ident, fail) => (
+		#[test]
+		fn $test_name() {
+			::run::failing_spec($label)
+		}
+	);
+	($label: expr, $test_name: ident) => (
+		#[test]
+		fn $test_name() {
+			::run::spec($label)
+		}
+	);
 }
 
 run_test!("address-offset-range.fail", wasm_address_offset_range_fail, fail);

@@ -7,7 +7,7 @@
 
 ## Rust WebAssembly format serializing/deserializing
 
-along with experimental interpreter
+along with (now deprecated) experimental interpreter
 
 ```rust
 
@@ -36,6 +36,10 @@ Decoder can be fuzzed with `cargo-fuzz` using `wasm-opt` (https://github.com/Web
 - install `cargo fuzz` subcommand with `cargo install cargo-fuzz`
 - set rustup to use a nightly toolchain, because `cargo fuzz` uses a rust compiler plugin: `rustup override set nightly`
 - run `cargo fuzz run deserialize`
+
+## Interpreter deprecated
+
+Interpreter here is in deprecated state, new one (`wasmi`) can be found in separate crate: https://github.com/pepyakin/wasmi.
 
 # License
 

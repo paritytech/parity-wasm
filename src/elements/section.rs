@@ -59,7 +59,8 @@ pub enum Section {
 	Code(CodeSection),
 	/// Data definition section
 	Data(DataSection),
-	/// Name section
+	/// Name section. 
+	/// Note that initially it is not parsed until `parse_names` is called explicitly. 
 	Name(NameSection),
 }
 

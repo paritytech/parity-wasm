@@ -59,9 +59,9 @@ pub enum Section {
 	Code(CodeSection),
 	/// Data definition section
 	Data(DataSection),
-	/// Name section. 
+	/// Name section.
 	///
-	/// Note that initially it is not parsed until `parse_names` is called explicitly. 
+	/// Note that initially it is not parsed until `parse_names` is called explicitly.
 	Name(NameSection),
 }
 
@@ -232,7 +232,14 @@ impl Deserialize for CustomSection {
 		let section_length: u32 = VarUint32::deserialize(reader)?.into();
 
 		let name = String::deserialize(reader)?;
-		let payload_left = section_length - (name.len() as u32 + name.len() as u32 / 128 + 1);
+		let total_naming = name.len() as u32 + name.len() as u32 / 128 + 1;
+		if total_naming > section_length {
+			return Err(Error::InconsistentMetadata)
+		} else if total_naming == section_length {
+			return Ok(CustomSection { name: name, payload: Vec::new() });
+		}
+
+		let payload_left = section_length - total_naming;
 		let mut payload = vec![0u8; payload_left as usize];
 		reader.read_exact(&mut payload[..])?;
 

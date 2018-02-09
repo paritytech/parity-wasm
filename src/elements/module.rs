@@ -512,4 +512,11 @@ mod integration_tests {
 
 		assert!(found_section, "Name section should be present in dedicated example");
 	}
+
+	#[test]
+	#[should_panic]
+	fn wrong_varuint1_case() {
+		let module = deserialize_file("./res/cases/v1/varuint1_1.wasm")
+			.expect("Maybe shouldn't be deserialized");
+	}
 }

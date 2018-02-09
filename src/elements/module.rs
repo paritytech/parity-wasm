@@ -516,7 +516,7 @@ mod integration_tests {
 	#[test]
 	#[should_panic]
 	fn wrong_varuint1_case() {
-		let module = deserialize_file("./res/cases/v1/varuint1_1.wasm")
+		let _module = deserialize_file("./res/cases/v1/varuint1_1.wasm")
 			.expect("Maybe shouldn't be deserialized");
 	}
 }

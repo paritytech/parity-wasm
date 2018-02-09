@@ -1,4 +1,5 @@
 // In this example we execute a contract funciton exported as "_call"
+#![allow(deprecated)]
 
 extern crate parity_wasm;
 

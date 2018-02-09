@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 extern crate parity_wasm;
 
 use std::env::args;

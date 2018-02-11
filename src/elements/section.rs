@@ -195,7 +195,7 @@ impl Serialize for Section {
 }
 
 /// Custom section
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct CustomSection {
 	name: String,
 	payload: Vec<u8>,

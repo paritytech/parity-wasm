@@ -398,11 +398,8 @@ impl Deserialize for FunctionSection {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		// todo: maybe use reader.take(section_length)
 		let _section_length = VarUint32::deserialize(reader)?;
-		let funcs: Vec<Func> = CountedList::<VarUint32>::deserialize(reader)?
-			.into_inner()
-			.into_iter()
-			.map(|f| Func::new(f.into()))
-			.collect();
+		let funcs: Vec<Func> = CountedList::<Func>::deserialize(reader)?
+			.into_inner();
 		Ok(FunctionSection(funcs))
 	}
 }

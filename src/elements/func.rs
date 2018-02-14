@@ -23,6 +23,22 @@ impl Func {
 	}
 }
 
+impl Serialize for Func {
+	type Error = Error;
+
+	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+		VarUint32::from(self.0).serialize(writer)
+	}
+}
+
+impl Deserialize for Func {
+	 type Error = Error;
+
+	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+		Ok(Func(VarUint32::deserialize(reader)?.into()))
+	}
+}
+
 /// Local definition inside the function body.
 #[derive(Debug, Copy, Clone)]
 pub struct Local {

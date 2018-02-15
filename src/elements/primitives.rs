@@ -2,23 +2,6 @@ use std::io;
 use byteorder::{LittleEndian, ByteOrder};
 use super::{Error, Deserialize, Serialize};
 
-macro_rules! buffered_read {
-	($buffer_size: expr, $length: expr, $reader: expr) => {
-		{
-			let mut vec_buf = Vec::new();
-			let mut total_read = 0;
-			let mut buf = [0u8; $buffer_size];
-			while total_read < $length {
-				let next_to_read = if $length - total_read > $buffer_size { $buffer_size } else { $length - total_read };
-				$reader.read_exact(&mut buf[0..next_to_read])?;
-				vec_buf.extend_from_slice(&buf[0..next_to_read]);
-				total_read += next_to_read;
-			}
-			vec_buf
-		}
-	}
-}
-
 /// Unsigned variable-length integer, limited to 32 bits,
 /// represented by at most 5 bytes that may contain padding 0x80 bytes.
 #[derive(Debug, Copy, Clone)]

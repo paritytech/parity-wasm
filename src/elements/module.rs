@@ -319,7 +319,7 @@ pub fn peek_size(source: &[u8]) -> usize {
 #[cfg(test)]
 mod integration_tests {
 
-	use super::super::{deserialize_file, serialize, deserialize_buffer, Section, Error};
+	use super::super::{deserialize_file, serialize, deserialize_buffer, Section};
 	use super::Module;
 
 	#[test]

@@ -252,20 +252,11 @@ impl Deserialize for CustomSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let section_length: u32 = VarUint32::deserialize(reader)?.into();
-
-		let name = String::deserialize(reader)?;
-		let total_naming = name.len() as u32 + name.len() as u32 / 128 + 1;
-		if total_naming > section_length {
-			return Err(Error::InconsistentMetadata)
-		} else if total_naming == section_length {
-			return Ok(CustomSection { name: name, payload: Vec::new() });
-		}
-
-		let payload_left = section_length as usize - total_naming as usize;
-		let payload = buffered_read!(16384, payload_left, reader);
-
+		let section_length: usize = u32::from(VarUint32::deserialize(reader)?) as usize;
+		let buf = buffered_read!(16384, section_length, reader);
+		let mut cursor = ::std::io::Cursor::new(&buf[..]);
+		let name = String::deserialize(&mut cursor)?;
+		let payload = buf[cursor.position() as usize..].to_vec();
 		Ok(CustomSection { name: name, payload: payload })
 	}
 }

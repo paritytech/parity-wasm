@@ -873,14 +873,14 @@ mod tests {
 	fn types_test_payload() -> &'static [u8] {
 		&[
 			// section length
-			148u8, 0x80, 0x80, 0x80, 0x0,
+			11,
 
 			// 2 functions
-			130u8, 0x80, 0x80, 0x80, 0x0,
+			2,
 			// func 1, form =1
 			0x01,
 			// param_count=1
-			129u8, 0x80, 0x80, 0x80, 0x0,
+			1,
 				// first param
 				0x7e, // i64
 			// no return params
@@ -889,7 +889,7 @@ mod tests {
 			// func 2, form=1
 			0x01,
 			// param_count=1
-			130u8, 0x80, 0x80, 0x80, 0x0,
+			2,
 				// first param
 				0x7e,
 				// second param
@@ -925,9 +925,9 @@ mod tests {
 			// section id
 			0x07,
 			// section length
-			148u8, 0x80, 0x80, 0x80, 0x0,
+			28,
 			// 6 entries
-			134u8, 0x80, 0x80, 0x80, 0x0,
+			6,
 			// func "A", index 6
 			// [name_len(1-5 bytes), name_bytes(name_len, internal_kind(1byte), internal_index(1-5 bytes)])
 			0x01, 0x41,  0x01, 0x86, 0x80, 0x00,
@@ -1005,10 +1005,11 @@ mod tests {
 	fn data_payload() -> &'static [u8] {
 		&[
 			0x0bu8,  // section id
-			19,      // 19 bytes overall
+			20,      // 19 bytes overall
 			0x01,    // number of segments
 			0x00,    // index
 			0x0b,    // just `end` op
+			0x10,
 			// 16x 0x00
 			0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00,

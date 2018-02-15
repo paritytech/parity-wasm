@@ -40,16 +40,10 @@ pub use self::name_section::{
 	LocalNameSection,
 };
 
-/// Generic buffer error for deserializing
-pub trait BufferError : Sized {
-	/// Return buffer error instance
-	fn buffer() -> Self;
-}
-
 /// Deserialization from serial i/o
 pub trait Deserialize : Sized {
 	/// Serialization error produced by deserialization routine.
-	type Error: BufferError;
+	type Error: From<io::Error>;
 	/// Deserialize type from serial i/o
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error>;
 }
@@ -57,7 +51,7 @@ pub trait Deserialize : Sized {
 /// Serialization to serial i/o
 pub trait Serialize {
 	/// Serialization error produced by serialization routine.
-	type Error;
+	type Error: From<io::Error>;
 	/// Serialize type to serial i/o
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error>;
 }
@@ -108,14 +102,6 @@ pub enum Error {
 	InconsistentMetadata,
 	/// Invalid section id
 	InvalidSectionId(u8),
-	/// There is still data left in the buffer
-	BufferUnderflow,
-}
-
-impl BufferError for Error {
-	fn buffer() -> Self {
-		Error::BufferUnderflow
-	}
 }
 
 impl fmt::Display for Error {
@@ -142,7 +128,6 @@ impl fmt::Display for Error {
 			Error::InvalidVarUint64 => write!(f, "Not an unsigned 64-bit integer"),
 			Error::InconsistentMetadata =>  write!(f, "Inconsistent metadata"),
 			Error::InvalidSectionId(ref id) =>  write!(f, "Invalid section id: {}", id),
-			Error::BufferUnderflow => write!(f, "Buffer underflow"),
 		}
 	}
 }
@@ -169,7 +154,6 @@ impl error::Error for Error {
 			Error::InvalidVarUint64 => "Not an unsigned 64-bit integer",
 			Error::InconsistentMetadata => "Inconsistent metadata",
 			Error::InvalidSectionId(_) =>  "Invalid section id",
-			Error::BufferUnderflow => "Buffer underflow",
 		}
 	}
 }
@@ -214,8 +198,9 @@ pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Err
 pub fn deserialize_buffer<T: Deserialize>(contents: &[u8]) -> Result<T, T::Error> {
 	let mut reader = io::Cursor::new(contents);
 	let result = T::deserialize(&mut reader)?;
+	println!("position: {}, content.len: {}", reader.position(), contents.len());
 	if reader.position() != contents.len() as u64 {
-		return Err(T::Error::buffer())
+		return Err(io::Error::from(io::ErrorKind::InvalidData).into())
 	}
 	Ok(result)
 }

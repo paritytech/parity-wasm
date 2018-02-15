@@ -100,6 +100,8 @@ pub enum Error {
 	InvalidVarUint64,
 	/// Inconsistent metadata
 	InconsistentMetadata,
+	/// Invalid section id
+	InvalidSectionId(u8),
 }
 
 impl fmt::Display for Error {
@@ -125,6 +127,7 @@ impl fmt::Display for Error {
 			Error::InvalidVarInt64 => write!(f, "Not a signed 64-bit integer"),
 			Error::InvalidVarUint64 => write!(f, "Not an unsigned 64-bit integer"),
 			Error::InconsistentMetadata =>  write!(f, "Inconsistent metadata"),
+			Error::InvalidSectionId(ref id) =>  write!(f, "Invalid section id: {}", id),
 		}
 	}
 }
@@ -150,6 +153,7 @@ impl error::Error for Error {
 			Error::InvalidVarInt64 => "Not a signed 64-bit integer",
 			Error::InvalidVarUint64 => "Not an unsigned 64-bit integer",
 			Error::InconsistentMetadata => "Inconsistent metadata",
+			Error::InvalidSectionId(_) =>  "Invalid section id",
 		}
 	}
 }

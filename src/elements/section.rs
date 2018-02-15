@@ -2,7 +2,6 @@ use std::io;
 use super::{
 	Serialize,
 	Deserialize,
-	Unparsed,
 	Error,
 	VarUint7,
 	VarUint32,
@@ -114,9 +113,9 @@ impl Deserialize for Section {
 				11 => {
 					Section::Data(DataSection::deserialize(reader)?)
 				},
-				_ => {
-					Section::Unparsed { id: id.into(), payload: Unparsed::deserialize(reader)?.into() }
-				}
+				invalid_id => {
+					return Err(Error::InvalidSectionId(invalid_id))
+				},
 			}
 		)
 	}

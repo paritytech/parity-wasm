@@ -42,7 +42,7 @@ impl Deserialize for VarUint32 {
 		loop {
 			reader.read_exact(&mut u8buf)?;
 			let b = u8buf[0] as u32;
-			res |= (b & 0x7f) << shift;
+			res |= (b & 0x7f).checked_shl(shift).ok_or(Error::InvalidVarUint32)?;
 			shift += 7;
 			if (b >> 7) == 0 {
 				break;
@@ -93,7 +93,7 @@ impl Deserialize for VarUint64 {
 		loop {
 			reader.read_exact(&mut u8buf)?;
 			let b = u8buf[0] as u64;
-			res |= (b & 0x7f) << shift;
+			res |= (b & 0x7f).checked_shl(shift).ok_or(Error::InvalidVarUint64)?;
 			shift += 7;
 			if (b >> 7) == 0 {
 				break;
@@ -271,7 +271,8 @@ impl Deserialize for VarInt32 {
 			reader.read_exact(&mut u8buf)?;
 			let b = u8buf[0];
 
-			res |= ((b & 0x7f) as i32) << shift;
+			res |= ((b & 0x7f) as i32).checked_shl(shift).ok_or(Error::InvalidVarInt32)?;
+
 			shift += 7;
 			if (b >> 7) == 0 {
 				if shift < 32 && b & 0b0100_0000 == 0b0100_0000 {
@@ -330,12 +331,14 @@ impl Deserialize for VarInt64 {
 		let mut res = 0i64;
 		let mut shift = 0;
 		let mut u8buf = [0u8; 1];
+
 		loop {
 			if shift > 63 { return Err(Error::InvalidVarInt64); }
 			reader.read_exact(&mut u8buf)?;
 			let b = u8buf[0];
 
-			res |= ((b & 0x7f) as i64) << shift;
+			res |= ((b & 0x7f) as i64).checked_shl(shift).ok_or(Error::InvalidVarInt64)?;
+
 			shift += 7;
 			if (b >> 7) == 0 {
 				if shift < 64 && b & 0b0100_0000 == 0b0100_0000 {
@@ -744,6 +747,42 @@ mod tests {
 		varint64_serde_test(
 			vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00],
 			9223372036854775807,
+		);
+	}
+
+	#[test]
+	fn varint64_too_long() {
+		assert!(
+			deserialize_buffer::<VarInt64>(
+				&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
+			).is_err()
+		);
+	}
+
+	#[test]
+	fn varint32_too_long() {
+		assert!(
+			deserialize_buffer::<VarInt32>(
+				&[0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
+			).is_err()
+		);
+	}
+
+	#[test]
+	fn varuint64_too_long() {
+		assert!(
+			deserialize_buffer::<VarUint64>(
+				&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
+			).is_err()
+		);
+	}
+
+	#[test]
+	fn varuint32_too_long() {
+		assert!(
+			deserialize_buffer::<VarUint32>(
+				&[0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
+			).is_err()
 		);
 	}
 

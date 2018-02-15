@@ -94,6 +94,10 @@ pub enum Error {
 	InvalidVarInt32,
 	/// Invalid VarInt64 value
 	InvalidVarInt64,
+	/// Invalid VarUint32 value
+	InvalidVarUint32,
+	/// Invalid VarUint64 value
+	InvalidVarUint64,
 	/// Inconsistent metadata
 	InconsistentMetadata,
 }
@@ -117,7 +121,9 @@ impl fmt::Display for Error {
 			Error::UnknownOpcode(opcode) => write!(f, "Unknown opcode {}", opcode),
 			Error::InvalidVarUint1(val) => write!(f, "Not an unsigned 1-bit integer: {}", val),
 			Error::InvalidVarInt32 => write!(f, "Not a signed 32-bit integer"),
+			Error::InvalidVarUint32 => write!(f, "Not an unsigned 32-bit integer"),
 			Error::InvalidVarInt64 => write!(f, "Not a signed 64-bit integer"),
+			Error::InvalidVarUint64 => write!(f, "Not an unsigned 64-bit integer"),
 			Error::InconsistentMetadata =>  write!(f, "Inconsistent metadata"),
 		}
 	}
@@ -140,7 +146,9 @@ impl error::Error for Error {
 			Error::UnknownOpcode(_) => "Unknown opcode",
 			Error::InvalidVarUint1(_) => "Not an unsigned 1-bit integer",
 			Error::InvalidVarInt32 => "Not a signed 32-bit integer",
+			Error::InvalidVarUint32 => "Not an unsigned 32-bit integer",
 			Error::InvalidVarInt64 => "Not a signed 64-bit integer",
+			Error::InvalidVarUint64 => "Not an unsigned 64-bit integer",
 			Error::InconsistentMetadata => "Inconsistent metadata",
 		}
 	}

@@ -844,7 +844,7 @@ mod tests {
 
 			// func 2, form=1
 			0x01,
-			// param_count=1
+			// param_count=2
 			2,
 				// first param
 				0x7e,
@@ -961,7 +961,7 @@ mod tests {
 	fn data_payload() -> &'static [u8] {
 		&[
 			0x0bu8,  // section id
-			20,      // 19 bytes overall
+			20,      // 20 bytes overall
 			0x01,    // number of segments
 			0x00,    // index
 			0x0b,    // just `end` op

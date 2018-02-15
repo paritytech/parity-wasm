@@ -108,16 +108,7 @@ impl Deserialize for DataSegment {
 		let index = VarUint32::deserialize(reader)?;
 		let offset = InitExpr::deserialize(reader)?;
 		let value_len = u32::from(VarUint32::deserialize(reader)?) as usize;
-
-		let mut value_buf = Vec::new();
-		let mut total_read = 0;
-		let mut buf = [0u8; 65536];
-		while total_read < value_len {
-			let next_to_read = if value_len - total_read > 65536 { 65536 } else { value_len - total_read };
-			reader.read_exact(&mut buf[0..next_to_read])?;
-			value_buf.extend_from_slice(&buf[0..next_to_read]);
-			total_read += next_to_read;
-		}
+		let value_buf = buffered_read!(65546, value_len, reader);
 
 		Ok(DataSegment {
 			index: index.into(),

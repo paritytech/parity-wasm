@@ -215,7 +215,6 @@ pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Err
 pub fn deserialize_buffer<T: Deserialize>(contents: &[u8]) -> Result<T, T::Error> {
 	let mut reader = io::Cursor::new(contents);
 	let result = T::deserialize(&mut reader)?;
-	println!("position: {}, content.len: {}", reader.position(), contents.len());
 	if reader.position() != contents.len() as u64 {
 		return Err(io::Error::from(io::ErrorKind::InvalidData).into())
 	}

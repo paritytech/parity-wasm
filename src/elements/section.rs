@@ -293,10 +293,13 @@ impl Deserialize for TypeSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let types: Vec<Type> = CountedList::deserialize(reader)?.into_inner();
-		Ok(TypeSection(types))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+		Ok(
+			TypeSection(CountedList::<Type>::deserialize(
+				&mut reader.by_ref().take(section_length)
+			)?.into_inner())
+		)
 	}
 }
 
@@ -355,10 +358,12 @@ impl Deserialize for ImportSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<ImportEntry> = CountedList::deserialize(reader)?.into_inner();
-		Ok(ImportSection(entries))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(ImportSection(
+			CountedList::<ImportEntry>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 
@@ -403,11 +408,12 @@ impl Deserialize for FunctionSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let funcs: Vec<Func> = CountedList::<Func>::deserialize(reader)?
-			.into_inner();
-		Ok(FunctionSection(funcs))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(FunctionSection(
+			CountedList::<Func>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 
@@ -452,10 +458,12 @@ impl Deserialize for TableSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<TableType> = CountedList::deserialize(reader)?.into_inner();
-		Ok(TableSection(entries))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(TableSection(
+			CountedList::<TableType>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 
@@ -500,10 +508,12 @@ impl Deserialize for MemorySection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<MemoryType> = CountedList::deserialize(reader)?.into_inner();
-		Ok(MemorySection(entries))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(MemorySection(
+			CountedList::<MemoryType>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 
@@ -548,10 +558,12 @@ impl Deserialize for GlobalSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<GlobalEntry> = CountedList::deserialize(reader)?.into_inner();
-		Ok(GlobalSection(entries))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(GlobalSection(
+			CountedList::<GlobalEntry>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 
@@ -596,10 +608,12 @@ impl Deserialize for ExportSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<ExportEntry> = CountedList::deserialize(reader)?.into_inner();
-		Ok(ExportSection(entries))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(ExportSection(
+			CountedList::<ExportEntry>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 
@@ -644,10 +658,12 @@ impl Deserialize for CodeSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<FuncBody> = CountedList::deserialize(reader)?.into_inner();
-		Ok(CodeSection(entries))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(CodeSection(
+			CountedList::<FuncBody>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 
@@ -692,10 +708,12 @@ impl Deserialize for ElementSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<ElementSegment> = CountedList::deserialize(reader)?.into_inner();
-		Ok(ElementSection(entries))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(ElementSection(
+			CountedList::<ElementSegment>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 
@@ -740,10 +758,12 @@ impl Deserialize for DataSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<DataSegment> = CountedList::deserialize(reader)?.into_inner();
-		Ok(DataSection(entries))
+		use std::io::Read;
+		let section_length = u32::from(VarUint32::deserialize(reader)?) as u64;
+
+		Ok(DataSection(
+			CountedList::<DataSegment>::deserialize(&mut reader.by_ref().take(section_length))?.into_inner()
+		))
 	}
 }
 

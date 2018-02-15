@@ -201,7 +201,14 @@ fn read_entries<R: io::Read, T: Deserialize<Error=::elements::Error>>(
 ) -> Result<Vec<T>, ::elements::Error>
 {
 	let inner_buffer = buffered_read!(ENTRIES_BUFFER_LENGTH, defined_length, reader);
-	Ok(CountedList::<T>::deserialize(&mut io::Cursor::new(inner_buffer))?.into_inner())
+	let buf_length = inner_buffer.len();
+	let mut cursor = io::Cursor::new(inner_buffer);
+	let result = Ok(CountedList::<T>::deserialize(&mut cursor)?.into_inner());
+	if cursor.position() != buf_length as u64 {
+		Err(io::Error::from(io::ErrorKind::InvalidData).into())
+	} else {
+		result
+	}
 }
 
 fn read_entries_with_len<R: io::Read, T: Deserialize<Error=::elements::Error>>(reader: &mut R)

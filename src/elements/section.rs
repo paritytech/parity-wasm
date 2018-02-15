@@ -238,9 +238,17 @@ impl Deserialize for CustomSection {
 			return Ok(CustomSection { name: name, payload: Vec::new() });
 		}
 
-		let payload_left = section_length - total_naming;
-		let mut payload = vec![0u8; payload_left as usize];
-		reader.read_exact(&mut payload[..])?;
+		let payload_left = section_length as usize - total_naming as usize;
+		let mut payload = Vec::new();
+
+		let mut total_read = 0;
+		let mut buf = [0u8; 65536];
+		while total_read < payload_left {
+			let next_to_read = if payload_left - total_read > 65536 { 65536 } else { payload_left - total_read };
+			reader.read_exact(&mut buf[0..next_to_read])?;
+			payload.extend_from_slice(&buf[0..next_to_read]);
+			total_read += next_to_read;
+		}
 
 		Ok(CustomSection { name: name, payload: payload })
 	}

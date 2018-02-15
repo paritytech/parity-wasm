@@ -2,6 +2,23 @@ use std::io;
 use byteorder::{LittleEndian, ByteOrder};
 use super::{Error, Deserialize, Serialize};
 
+macro_rules! buffered_read {
+	($buffer_size: expr, $length: expr, $reader: expr) => {
+		{
+			let mut vec_buf = Vec::new();
+			let mut total_read = 0;
+			let mut buf = [0u8; $buffer_size];
+			while total_read < $length {
+				let next_to_read = if $length - total_read > $buffer_size { $buffer_size } else { $length - total_read };
+				$reader.read_exact(&mut buf[0..next_to_read])?;
+				vec_buf.extend_from_slice(&buf[0..next_to_read]);
+				total_read += next_to_read;
+			}
+			vec_buf
+		}
+	}
+}
+
 /// Unsigned variable-length integer, limited to 32 bits,
 /// represented by at most 5 bytes that may contain padding 0x80 bytes.
 #[derive(Debug, Copy, Clone)]
@@ -494,18 +511,7 @@ impl Deserialize for String {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
 		if length > 0 {
-			let mut str_buf = Vec::new();
-
-			let mut total_read = 0;
-			let mut buf = [0u8; 65536];
-			while total_read < length {
-				let next_to_read = if length - total_read > 65536 { 65536 } else { length - total_read };
-				reader.read_exact(&mut buf[0..next_to_read])?;
-				str_buf.extend_from_slice(&buf[0..next_to_read]);
-				total_read += next_to_read;
-			}
-
-			String::from_utf8(str_buf).map_err(|_| Error::NonUtf8String)
+			String::from_utf8(buffered_read!(1024, length, reader)).map_err(|_| Error::NonUtf8String)
 		}
 		else {
 			Ok(String::new())
@@ -608,6 +614,7 @@ impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize f
 		Ok(())
 	}
 }
+
 
 #[cfg(test)]
 mod tests {

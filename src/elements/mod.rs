@@ -4,9 +4,9 @@ use std::error;
 use std::fmt;
 use std::io;
 
+mod primitives;
 mod module;
 mod section;
-mod primitives;
 mod types;
 mod import_entry;
 mod export_entry;

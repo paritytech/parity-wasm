@@ -65,7 +65,8 @@ pub trait Deserialize : Sized {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error>;
 }
 
-/// Serialization to serial i/o
+/// Serialization to serial i/o. Takes self by value to consume less memory
+/// (parity-wasm IR is being partially freed by filling the result buffer).
 pub trait Serialize {
 	/// Serialization error produced by serialization routine.
 	type Error: From<io::Error>;

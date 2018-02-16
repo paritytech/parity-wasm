@@ -195,6 +195,27 @@ impl Serialize for Section {
 	}
 }
 
+impl Section {
+	pub(crate) fn id(&self) -> u8 {
+		match *self {
+			Section::Custom(_) => 0x00,
+			Section::Unparsed { .. } => 0x00,
+			Section::Type(_) => 0x1,
+			Section::Import(_) => 0x2,
+			Section::Function(_) => 0x3,
+			Section::Table(_) => 0x4,
+			Section::Memory(_) => 0x5,
+			Section::Global(_) => 0x6,
+			Section::Export(_) => 0x7,
+			Section::Start(_) => 0x8,
+			Section::Element(_) => 0x9,
+			Section::Code(_) => 0x0a,
+			Section::Data(_) => 0x0b,
+			Section::Name(_) => 0x00,
+		}
+	}
+}
+
 fn read_entries<R: io::Read, T: Deserialize<Error=::elements::Error>>(
 	reader: &mut R,
 	defined_length: usize,

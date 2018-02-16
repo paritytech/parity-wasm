@@ -230,11 +230,24 @@ impl Deserialize for Module {
 			return Err(Error::UnsupportedVersion(version));
 		}
 
+		let mut last_section_id = 0;
+
 		loop {
 			match Section::deserialize(reader) {
 				Err(Error::UnexpectedEof) => { break; },
 				Err(e) => { return Err(e) },
-				Ok(section) => { sections.push(section); }
+				Ok(section) => {
+					println!("Section id: {}", section.id());
+					if section.id() != 0 {
+						if last_section_id > section.id() {
+							return Err(Error::SectionsOutOfOrder);
+						} else if last_section_id == section.id() {
+							return Err(Error::DuplicatedSections(last_section_id));
+						}
+					}
+					last_section_id = section.id();
+					sections.push(section);
+				}
 			}
 		}
 

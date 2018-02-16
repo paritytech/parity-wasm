@@ -119,6 +119,10 @@ pub enum Error {
 	InconsistentMetadata,
 	/// Invalid section id
 	InvalidSectionId(u8),
+	/// Sections are out of order
+	SectionsOutOfOrder,
+	/// Duplicated sections
+	DuplicatedSections(u8),
 }
 
 impl fmt::Display for Error {
@@ -145,6 +149,8 @@ impl fmt::Display for Error {
 			Error::InvalidVarUint64 => write!(f, "Not an unsigned 64-bit integer"),
 			Error::InconsistentMetadata =>  write!(f, "Inconsistent metadata"),
 			Error::InvalidSectionId(ref id) =>  write!(f, "Invalid section id: {}", id),
+			Error::SectionsOutOfOrder =>  write!(f, "Sections out of order"),
+			Error::DuplicatedSections(ref id) =>  write!(f, "Dupliated sections ({})", id),
 		}
 	}
 }
@@ -171,6 +177,8 @@ impl error::Error for Error {
 			Error::InvalidVarUint64 => "Not an unsigned 64-bit integer",
 			Error::InconsistentMetadata => "Inconsistent metadata",
 			Error::InvalidSectionId(_) =>  "Invalid section id",
+			Error::SectionsOutOfOrder =>  "Sections out of order",
+			Error::DuplicatedSections(_) =>  "Duplicated section",
 		}
 	}
 }

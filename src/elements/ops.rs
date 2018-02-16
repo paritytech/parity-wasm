@@ -344,9 +344,16 @@ impl Deserialize for Opcode {
 				},
 				0x0f => Return,
 				0x10 => Call(VarUint32::deserialize(reader)?.into()),
-				0x11 => CallIndirect(
-					VarUint32::deserialize(reader)?.into(),
-					Uint8::deserialize(reader)?.into()),
+				0x11 => {
+					let signature: u32 = VarUint32::deserialize(reader)?.into();
+					let table_ref: u8 = Uint8::deserialize(reader)?.into();
+					if table_ref != 0 { return Err(Error::InvalidTableReference(table_ref)); }
+
+					CallIndirect(
+						signature,
+						table_ref,
+					)
+				},
 				0x1a => Drop,
 				0x1b => Select,
 
@@ -449,8 +456,16 @@ impl Deserialize for Opcode {
 					VarUint32::deserialize(reader)?.into()),
 
 
-				0x3f => CurrentMemory(Uint8::deserialize(reader)?.into()),
-				0x40 => GrowMemory(Uint8::deserialize(reader)?.into()),
+				0x3f => {
+					let mem_ref: u8 = Uint8::deserialize(reader)?.into();
+					if mem_ref != 0 { return Err(Error::InvalidMemoryReference(mem_ref)); }
+					CurrentMemory(mem_ref)
+				},
+				0x40 => {
+					let mem_ref: u8 = Uint8::deserialize(reader)?.into();
+					if mem_ref != 0 { return Err(Error::InvalidMemoryReference(mem_ref)); }
+					GrowMemory(mem_ref)
+				}
 
 				0x41 => I32Const(VarInt32::deserialize(reader)?.into()),
 				0x42 => I64Const(VarInt64::deserialize(reader)?.into()),

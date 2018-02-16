@@ -123,6 +123,10 @@ pub enum Error {
 	SectionsOutOfOrder,
 	/// Duplicated sections
 	DuplicatedSections(u8),
+	/// Invalid memory reference (should be 0)
+	InvalidMemoryReference(u8),
+	/// Invalid table reference (should be 0)
+	InvalidTableReference(u8),
 }
 
 impl fmt::Display for Error {
@@ -151,6 +155,8 @@ impl fmt::Display for Error {
 			Error::InvalidSectionId(ref id) =>  write!(f, "Invalid section id: {}", id),
 			Error::SectionsOutOfOrder =>  write!(f, "Sections out of order"),
 			Error::DuplicatedSections(ref id) =>  write!(f, "Dupliated sections ({})", id),
+			Error::InvalidMemoryReference(ref mem_ref) =>  write!(f, "Invalid memory reference ({})", mem_ref),
+			Error::InvalidTableReference(ref table_ref) =>  write!(f, "Invalid table reference ({})", table_ref),
 		}
 	}
 }
@@ -179,6 +185,8 @@ impl error::Error for Error {
 			Error::InvalidSectionId(_) =>  "Invalid section id",
 			Error::SectionsOutOfOrder =>  "Sections out of order",
 			Error::DuplicatedSections(_) =>  "Duplicated section",
+			Error::InvalidMemoryReference(_) =>  "Invalid memory reference",
+			Error::InvalidTableReference(_) =>  "Invalid table reference",
 		}
 	}
 }

@@ -237,7 +237,6 @@ impl Deserialize for Module {
 				Err(Error::UnexpectedEof) => { break; },
 				Err(e) => { return Err(e) },
 				Ok(section) => {
-					println!("Section id: {}", section.id());
 					if section.id() != 0 {
 						if last_section_id > section.id() {
 							return Err(Error::SectionsOutOfOrder);

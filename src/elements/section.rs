@@ -855,7 +855,7 @@ mod tests {
 			// 2 functions
 			2,
 			// func 1, form =1
-			0x01,
+			0x60,
 			// param_count=1
 			1,
 				// first param
@@ -864,7 +864,7 @@ mod tests {
 			0x00,
 
 			// func 2, form=1
-			0x01,
+			0x60,
 			// param_count=2
 			2,
 				// first param

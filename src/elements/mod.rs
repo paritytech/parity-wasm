@@ -128,6 +128,8 @@ pub enum Error {
 	InvalidMemoryReference(u8),
 	/// Invalid table reference (should be 0)
 	InvalidTableReference(u8),
+	/// Unknown function form (should be 0x60)
+	UnknownFunctionForm(u8),
 }
 
 impl fmt::Display for Error {
@@ -158,6 +160,7 @@ impl fmt::Display for Error {
 			Error::DuplicatedSections(ref id) =>  write!(f, "Dupliated sections ({})", id),
 			Error::InvalidMemoryReference(ref mem_ref) =>  write!(f, "Invalid memory reference ({})", mem_ref),
 			Error::InvalidTableReference(ref table_ref) =>  write!(f, "Invalid table reference ({})", table_ref),
+			Error::UnknownFunctionForm(ref form) =>  write!(f, "Unknown function form ({})", form),
 		}
 	}
 }
@@ -188,6 +191,7 @@ impl error::Error for Error {
 			Error::DuplicatedSections(_) =>  "Duplicated section",
 			Error::InvalidMemoryReference(_) =>  "Invalid memory reference",
 			Error::InvalidTableReference(_) =>  "Invalid table reference",
+			Error::UnknownFunctionForm(_) =>  "Unknown function form",
 		}
 	}
 }

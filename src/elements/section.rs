@@ -103,8 +103,16 @@ impl Deserialize for Section {
 					Section::Export(ExportSection::deserialize(reader)?)
 				},
 				8 => {
-					let _section_length = VarUint32::deserialize(reader)?;
-					Section::Start(VarUint32::deserialize(reader)?.into())
+					let section_length = u32::from(VarUint32::deserialize(reader)?) as usize;
+					let inner_buffer = buffered_read!(256, section_length, reader);
+					let buf_length = inner_buffer.len();
+					let mut cursor = io::Cursor::new(inner_buffer);
+					let result = Section::Start(VarUint32::deserialize(&mut cursor)?.into());
+					if cursor.position() != buf_length as u64 {
+						return Err(io::Error::from(io::ErrorKind::InvalidData).into());
+					} else {
+						result
+					}
 				},
 				9 => {
 					Section::Element(ElementSection::deserialize(reader)?)

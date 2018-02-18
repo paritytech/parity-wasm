@@ -103,16 +103,10 @@ impl Deserialize for Section {
 					Section::Export(ExportSection::deserialize(reader)?)
 				},
 				8 => {
-					let section_length = u32::from(VarUint32::deserialize(reader)?) as usize;
-					let inner_buffer = buffered_read!(256, section_length, reader);
-					let buf_length = inner_buffer.len();
-					let mut cursor = io::Cursor::new(inner_buffer);
-					let result = Section::Start(VarUint32::deserialize(&mut cursor)?.into());
-					if cursor.position() != buf_length as u64 {
-						return Err(io::Error::from(io::ErrorKind::InvalidData).into());
-					} else {
-						result
-					}
+					let mut section_reader = SectionReader::new(reader)?;
+					let start_idx = VarUint32::deserialize(&mut section_reader)?;
+					section_reader.close()?;
+					Section::Start(start_idx.into())
 				},
 				9 => {
 					Section::Element(ElementSection::deserialize(reader)?)
@@ -240,7 +234,43 @@ fn read_entries<R: io::Read, T: Deserialize<Error=::elements::Error>>(
 	}
 }
 
-fn read_entries_with_len<R: io::Read, T: Deserialize<Error=::elements::Error>>(reader: &mut R)
+pub(crate) struct SectionReader {
+	cursor: io::Cursor<Vec<u8>>,
+	declared_length: usize,
+}
+
+impl SectionReader {
+	pub fn new<R: io::Read>(reader: &mut R) -> Result<Self, ::elements::Error> {
+		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
+		let inner_buffer = buffered_read!(ENTRIES_BUFFER_LENGTH, length, reader);
+		let buf_length = inner_buffer.len();
+		let cursor = io::Cursor::new(inner_buffer);
+
+		Ok(SectionReader {
+			cursor: cursor,
+			declared_length: buf_length,
+		})
+	}
+
+	pub fn close(self) -> Result<(), ::elements::Error> {
+		let cursor = self.cursor;
+		let buf_length = self.declared_length;
+
+		if cursor.position() != buf_length as u64 {
+			Err(io::Error::from(io::ErrorKind::InvalidData).into())
+		} else {
+			Ok(())
+		}
+	}
+}
+
+impl io::Read for SectionReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		self.cursor.read(buf)
+	}
+}
+
+pub (crate) fn read_entries_with_len<R: io::Read, T: Deserialize<Error=::elements::Error>>(reader: &mut R)
 	-> Result<Vec<T>, ::elements::Error>
 {
 	let length = u32::from(VarUint32::deserialize(reader)?) as usize;

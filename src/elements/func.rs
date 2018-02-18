@@ -3,6 +3,7 @@ use super::{
 	Deserialize, Error, ValueType, VarUint32, CountedList, Opcodes,
 	Serialize, CountedWriter, CountedListWriter,
 };
+use elements::section::SectionReader;
 
 /// Function signature (type reference)
 #[derive(Debug, Copy, Clone)]
@@ -116,9 +117,10 @@ impl Deserialize for FuncBody {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		// todo: maybe use reader.take(section_length)
-		let _body_size = VarUint32::deserialize(reader)?;
-		let locals: Vec<Local> = CountedList::deserialize(reader)?.into_inner();
-		let opcodes = Opcodes::deserialize(reader)?;
+		let mut body_reader = SectionReader::new(reader)?;
+		let locals: Vec<Local> = CountedList::<Local>::deserialize(&mut body_reader)?.into_inner();
+		let opcodes = Opcodes::deserialize(&mut body_reader)?;
+		body_reader.close()?;
 		Ok(FuncBody { locals: locals, opcodes: opcodes })
 	}
 }

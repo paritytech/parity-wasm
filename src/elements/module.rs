@@ -230,11 +230,23 @@ impl Deserialize for Module {
 			return Err(Error::UnsupportedVersion(version));
 		}
 
+		let mut last_section_id = 0;
+
 		loop {
 			match Section::deserialize(reader) {
 				Err(Error::UnexpectedEof) => { break; },
 				Err(e) => { return Err(e) },
-				Ok(section) => { sections.push(section); }
+				Ok(section) => {
+					if section.id() != 0 {
+						if last_section_id > section.id() {
+							return Err(Error::SectionsOutOfOrder);
+						} else if last_section_id == section.id() {
+							return Err(Error::DuplicatedSections(last_section_id));
+						}
+					}
+					last_section_id = section.id();
+					sections.push(section);
+				}
 			}
 		}
 
@@ -319,7 +331,7 @@ pub fn peek_size(source: &[u8]) -> usize {
 #[cfg(test)]
 mod integration_tests {
 
-	use super::super::{deserialize_file, serialize, deserialize_buffer, Section, Error};
+	use super::super::{deserialize_file, serialize, deserialize_buffer, Section};
 	use super::Module;
 
 	#[test]
@@ -466,15 +478,6 @@ mod integration_tests {
 
 		let module2: Module = deserialize_buffer(&buf).expect("Deserialization should succeed");
 		assert_eq!(Module::default().magic, module2.magic);
-	}
-
-	#[test]
-	fn inconsistent_meta() {
-		let result = deserialize_file("./res/cases/v1/payload_len.wasm");
-
-		// should be error, not panic
-		if let Err(Error::InconsistentMetadata) = result {}
-		else { panic!("Should return inconsistent metadata error"); }
 	}
 
 	#[test]

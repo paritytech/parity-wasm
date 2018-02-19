@@ -2,7 +2,6 @@ use std::io;
 use super::{
 	Serialize,
 	Deserialize,
-	Unparsed,
 	Error,
 	VarUint7,
 	VarUint32,
@@ -24,6 +23,8 @@ use super::{
 
 use super::types::Type;
 use super::name_section::NameSection;
+
+const ENTRIES_BUFFER_LENGTH: usize = 16384;
 
 /// Section in the WebAssembly module.
 #[derive(Debug, Clone)]
@@ -102,8 +103,10 @@ impl Deserialize for Section {
 					Section::Export(ExportSection::deserialize(reader)?)
 				},
 				8 => {
-					let _section_length = VarUint32::deserialize(reader)?;
-					Section::Start(VarUint32::deserialize(reader)?.into())
+					let mut section_reader = SectionReader::new(reader)?;
+					let start_idx = VarUint32::deserialize(&mut section_reader)?;
+					section_reader.close()?;
+					Section::Start(start_idx.into())
 				},
 				9 => {
 					Section::Element(ElementSection::deserialize(reader)?)
@@ -114,9 +117,9 @@ impl Deserialize for Section {
 				11 => {
 					Section::Data(DataSection::deserialize(reader)?)
 				},
-				_ => {
-					Section::Unparsed { id: id.into(), payload: Unparsed::deserialize(reader)?.into() }
-				}
+				invalid_id => {
+					return Err(Error::InvalidSectionId(invalid_id))
+				},
 			}
 		)
 	}
@@ -194,6 +197,72 @@ impl Serialize for Section {
 	}
 }
 
+impl Section {
+	pub(crate) fn id(&self) -> u8 {
+		match *self {
+			Section::Custom(_) => 0x00,
+			Section::Unparsed { .. } => 0x00,
+			Section::Type(_) => 0x1,
+			Section::Import(_) => 0x2,
+			Section::Function(_) => 0x3,
+			Section::Table(_) => 0x4,
+			Section::Memory(_) => 0x5,
+			Section::Global(_) => 0x6,
+			Section::Export(_) => 0x7,
+			Section::Start(_) => 0x8,
+			Section::Element(_) => 0x9,
+			Section::Code(_) => 0x0a,
+			Section::Data(_) => 0x0b,
+			Section::Name(_) => 0x00,
+		}
+	}
+}
+
+pub(crate) struct SectionReader {
+	cursor: io::Cursor<Vec<u8>>,
+	declared_length: usize,
+}
+
+impl SectionReader {
+	pub fn new<R: io::Read>(reader: &mut R) -> Result<Self, ::elements::Error> {
+		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
+		let inner_buffer = buffered_read!(ENTRIES_BUFFER_LENGTH, length, reader);
+		let buf_length = inner_buffer.len();
+		let cursor = io::Cursor::new(inner_buffer);
+
+		Ok(SectionReader {
+			cursor: cursor,
+			declared_length: buf_length,
+		})
+	}
+
+	pub fn close(self) -> Result<(), ::elements::Error> {
+		let cursor = self.cursor;
+		let buf_length = self.declared_length;
+
+		if cursor.position() != buf_length as u64 {
+			Err(io::Error::from(io::ErrorKind::InvalidData).into())
+		} else {
+			Ok(())
+		}
+	}
+}
+
+impl io::Read for SectionReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		self.cursor.read(buf)
+	}
+}
+
+fn read_entries<R: io::Read, T: Deserialize<Error=::elements::Error>>(reader: &mut R)
+	-> Result<Vec<T>, ::elements::Error>
+{
+	let mut section_reader = SectionReader::new(reader)?;
+	let result = CountedList::<T>::deserialize(&mut section_reader)?.into_inner();
+	section_reader.close()?;
+	Ok(result)
+}
+
 /// Custom section
 #[derive(Debug, Default, Clone)]
 pub struct CustomSection {
@@ -228,21 +297,11 @@ impl Deserialize for CustomSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let section_length: u32 = VarUint32::deserialize(reader)?.into();
-
-		let name = String::deserialize(reader)?;
-		let total_naming = name.len() as u32 + name.len() as u32 / 128 + 1;
-		if total_naming > section_length {
-			return Err(Error::InconsistentMetadata)
-		} else if total_naming == section_length {
-			return Ok(CustomSection { name: name, payload: Vec::new() });
-		}
-
-		let payload_left = section_length - total_naming;
-		let mut payload = vec![0u8; payload_left as usize];
-		reader.read_exact(&mut payload[..])?;
-
+		let section_length: usize = u32::from(VarUint32::deserialize(reader)?) as usize;
+		let buf = buffered_read!(16384, section_length, reader);
+		let mut cursor = ::std::io::Cursor::new(&buf[..]);
+		let name = String::deserialize(&mut cursor)?;
+		let payload = buf[cursor.position() as usize..].to_vec();
 		Ok(CustomSection { name: name, payload: payload })
 	}
 }
@@ -286,10 +345,7 @@ impl Deserialize for TypeSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let types: Vec<Type> = CountedList::deserialize(reader)?.into_inner();
-		Ok(TypeSection(types))
+		Ok(TypeSection(read_entries(reader)?))
 	}
 }
 
@@ -348,10 +404,7 @@ impl Deserialize for ImportSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<ImportEntry> = CountedList::deserialize(reader)?.into_inner();
-		Ok(ImportSection(entries))
+		Ok(ImportSection(read_entries(reader)?))
 	}
 }
 
@@ -396,11 +449,7 @@ impl Deserialize for FunctionSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let funcs: Vec<Func> = CountedList::<Func>::deserialize(reader)?
-			.into_inner();
-		Ok(FunctionSection(funcs))
+		Ok(FunctionSection(read_entries(reader)?))
 	}
 }
 
@@ -445,10 +494,7 @@ impl Deserialize for TableSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<TableType> = CountedList::deserialize(reader)?.into_inner();
-		Ok(TableSection(entries))
+		Ok(TableSection(read_entries(reader)?))
 	}
 }
 
@@ -493,10 +539,7 @@ impl Deserialize for MemorySection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<MemoryType> = CountedList::deserialize(reader)?.into_inner();
-		Ok(MemorySection(entries))
+		Ok(MemorySection(read_entries(reader)?))
 	}
 }
 
@@ -541,10 +584,7 @@ impl Deserialize for GlobalSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<GlobalEntry> = CountedList::deserialize(reader)?.into_inner();
-		Ok(GlobalSection(entries))
+		Ok(GlobalSection(read_entries(reader)?))
 	}
 }
 
@@ -589,10 +629,7 @@ impl Deserialize for ExportSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<ExportEntry> = CountedList::deserialize(reader)?.into_inner();
-		Ok(ExportSection(entries))
+		Ok(ExportSection(read_entries(reader)?))
 	}
 }
 
@@ -637,10 +674,7 @@ impl Deserialize for CodeSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<FuncBody> = CountedList::deserialize(reader)?.into_inner();
-		Ok(CodeSection(entries))
+		Ok(CodeSection(read_entries(reader)?))
 	}
 }
 
@@ -685,10 +719,7 @@ impl Deserialize for ElementSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<ElementSegment> = CountedList::deserialize(reader)?.into_inner();
-		Ok(ElementSection(entries))
+		Ok(ElementSection(read_entries(reader)?))
 	}
 }
 
@@ -733,10 +764,7 @@ impl Deserialize for DataSection {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
-		let _section_length = VarUint32::deserialize(reader)?;
-		let entries: Vec<DataSegment> = CountedList::deserialize(reader)?.into_inner();
-		Ok(DataSection(entries))
+		Ok(DataSection(read_entries(reader)?))
 	}
 }
 
@@ -846,23 +874,23 @@ mod tests {
 	fn types_test_payload() -> &'static [u8] {
 		&[
 			// section length
-			148u8, 0x80, 0x80, 0x80, 0x0,
+			11,
 
 			// 2 functions
-			130u8, 0x80, 0x80, 0x80, 0x0,
+			2,
 			// func 1, form =1
-			0x01,
+			0x60,
 			// param_count=1
-			129u8, 0x80, 0x80, 0x80, 0x0,
+			1,
 				// first param
 				0x7e, // i64
 			// no return params
 			0x00,
 
 			// func 2, form=1
-			0x01,
-			// param_count=1
-			130u8, 0x80, 0x80, 0x80, 0x0,
+			0x60,
+			// param_count=2
+			2,
 				// first param
 				0x7e,
 				// second param
@@ -898,9 +926,9 @@ mod tests {
 			// section id
 			0x07,
 			// section length
-			148u8, 0x80, 0x80, 0x80, 0x0,
+			28,
 			// 6 entries
-			134u8, 0x80, 0x80, 0x80, 0x0,
+			6,
 			// func "A", index 6
 			// [name_len(1-5 bytes), name_bytes(name_len, internal_kind(1byte), internal_index(1-5 bytes)])
 			0x01, 0x41,  0x01, 0x86, 0x80, 0x00,
@@ -978,10 +1006,11 @@ mod tests {
 	fn data_payload() -> &'static [u8] {
 		&[
 			0x0bu8,  // section id
-			19,      // 19 bytes overall
+			20,      // 20 bytes overall
 			0x01,    // number of segments
 			0x00,    // index
 			0x0b,    // just `end` op
+			0x10,
 			// 16x 0x00
 			0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00,

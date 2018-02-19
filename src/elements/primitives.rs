@@ -492,11 +492,9 @@ impl Deserialize for String {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		let length = VarUint32::deserialize(reader)?.into();
+		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
 		if length > 0 {
-			let mut buf = vec![0u8; length];
-			reader.read_exact(&mut buf)?;
-			String::from_utf8(buf).map_err(|_| Error::NonUtf8String)
+			String::from_utf8(buffered_read!(1024, length, reader)).map_err(|_| Error::NonUtf8String)
 		}
 		else {
 			Ok(String::new())
@@ -599,6 +597,7 @@ impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize f
 		Ok(())
 	}
 }
+
 
 #[cfg(test)]
 mod tests {

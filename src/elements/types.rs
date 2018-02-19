@@ -171,6 +171,10 @@ impl Deserialize for FunctionType {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let form: u8 = VarUint7::deserialize(reader)?.into();
 
+		if form != 0x60 {
+			return Err(Error::UnknownFunctionForm(form));
+		}
+
 		let params: Vec<ValueType> = CountedList::deserialize(reader)?.into_inner();
 
 		let has_return_type = VarUint1::deserialize(reader)?;

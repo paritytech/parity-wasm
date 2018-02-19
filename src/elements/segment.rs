@@ -107,10 +107,8 @@ impl Deserialize for DataSegment {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let index = VarUint32::deserialize(reader)?;
 		let offset = InitExpr::deserialize(reader)?;
-		let value_len = VarUint32::deserialize(reader)?;
-
-		let mut value_buf = vec![0u8; value_len.into()];
-		reader.read_exact(&mut value_buf[..])?;
+		let value_len = u32::from(VarUint32::deserialize(reader)?) as usize;
+		let value_buf = buffered_read!(65536, value_len, reader);
 
 		Ok(DataSegment {
 			index: index.into(),

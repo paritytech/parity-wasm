@@ -4,9 +4,26 @@ use std::error;
 use std::fmt;
 use std::io;
 
+macro_rules! buffered_read {
+	($buffer_size: expr, $length: expr, $reader: expr) => {
+		{
+			let mut vec_buf = Vec::new();
+			let mut total_read = 0;
+			let mut buf = [0u8; $buffer_size];
+			while total_read < $length {
+				let next_to_read = if $length - total_read > $buffer_size { $buffer_size } else { $length - total_read };
+				$reader.read_exact(&mut buf[0..next_to_read])?;
+				vec_buf.extend_from_slice(&buf[0..next_to_read]);
+				total_read += next_to_read;
+			}
+			vec_buf
+		}
+	}
+}
+
+mod primitives;
 mod module;
 mod section;
-mod primitives;
 mod types;
 mod import_entry;
 mod export_entry;
@@ -43,15 +60,16 @@ pub use self::name_section::{
 /// Deserialization from serial i/o
 pub trait Deserialize : Sized {
 	/// Serialization error produced by deserialization routine.
-	type Error;
+	type Error: From<io::Error>;
 	/// Deserialize type from serial i/o
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error>;
 }
 
-/// Serialization to serial i/o
+/// Serialization to serial i/o. Takes self by value to consume less memory
+/// (parity-wasm IR is being partially freed by filling the result buffer).
 pub trait Serialize {
 	/// Serialization error produced by serialization routine.
-	type Error;
+	type Error: From<io::Error>;
 	/// Serialize type to serial i/o
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error>;
 }
@@ -100,6 +118,18 @@ pub enum Error {
 	InvalidVarUint64,
 	/// Inconsistent metadata
 	InconsistentMetadata,
+	/// Invalid section id
+	InvalidSectionId(u8),
+	/// Sections are out of order
+	SectionsOutOfOrder,
+	/// Duplicated sections
+	DuplicatedSections(u8),
+	/// Invalid memory reference (should be 0)
+	InvalidMemoryReference(u8),
+	/// Invalid table reference (should be 0)
+	InvalidTableReference(u8),
+	/// Unknown function form (should be 0x60)
+	UnknownFunctionForm(u8),
 }
 
 impl fmt::Display for Error {
@@ -125,6 +155,12 @@ impl fmt::Display for Error {
 			Error::InvalidVarInt64 => write!(f, "Not a signed 64-bit integer"),
 			Error::InvalidVarUint64 => write!(f, "Not an unsigned 64-bit integer"),
 			Error::InconsistentMetadata =>  write!(f, "Inconsistent metadata"),
+			Error::InvalidSectionId(ref id) =>  write!(f, "Invalid section id: {}", id),
+			Error::SectionsOutOfOrder =>  write!(f, "Sections out of order"),
+			Error::DuplicatedSections(ref id) =>  write!(f, "Dupliated sections ({})", id),
+			Error::InvalidMemoryReference(ref mem_ref) =>  write!(f, "Invalid memory reference ({})", mem_ref),
+			Error::InvalidTableReference(ref table_ref) =>  write!(f, "Invalid table reference ({})", table_ref),
+			Error::UnknownFunctionForm(ref form) =>  write!(f, "Unknown function form ({})", form),
 		}
 	}
 }
@@ -150,6 +186,12 @@ impl error::Error for Error {
 			Error::InvalidVarInt64 => "Not a signed 64-bit integer",
 			Error::InvalidVarUint64 => "Not an unsigned 64-bit integer",
 			Error::InconsistentMetadata => "Inconsistent metadata",
+			Error::InvalidSectionId(_) =>  "Invalid section id",
+			Error::SectionsOutOfOrder =>  "Sections out of order",
+			Error::DuplicatedSections(_) =>  "Duplicated section",
+			Error::InvalidMemoryReference(_) =>  "Invalid memory reference",
+			Error::InvalidTableReference(_) =>  "Invalid table reference",
+			Error::UnknownFunctionForm(_) =>  "Unknown function form",
 		}
 	}
 }
@@ -193,7 +235,11 @@ pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Err
 /// Deserialize deserializable type from buffer.
 pub fn deserialize_buffer<T: Deserialize>(contents: &[u8]) -> Result<T, T::Error> {
 	let mut reader = io::Cursor::new(contents);
-	T::deserialize(&mut reader)
+	let result = T::deserialize(&mut reader)?;
+	if reader.position() != contents.len() as u64 {
+		return Err(io::Error::from(io::ErrorKind::InvalidData).into())
+	}
+	Ok(result)
 }
 
 /// Create buffer with serialized value.

@@ -250,11 +250,19 @@ impl Deserialize for Module {
 			}
 		}
 
-		Ok(Module {
+		let module = Module {
 			magic: LittleEndian::read_u32(&magic),
 			version: version,
 			sections: sections,
-		})
+		};
+
+		if module.code_section().map(|cs| cs.bodies().len()).unwrap_or(0) !=
+			module.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
+		{
+			return Err(Error::InconsistentCode);
+		}
+
+		Ok(module)
 	}
 }
 
@@ -393,7 +401,8 @@ mod integration_tests {
 	fn serde_code() {
 		let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		module.sections_mut().retain(|x| {
-			if let &Section::Code(_) = x { true } else { false }
+			if let &Section::Code(_) = x { return true }
+			if let &Section::Function(_) = x { true } else { false }
 		});
 
 		let buf = serialize(module).expect("serialization to succeed");

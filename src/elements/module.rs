@@ -401,7 +401,8 @@ mod integration_tests {
 	fn serde_code() {
 		let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		module.sections_mut().retain(|x| {
-			if let &Section::Code(_) = x { true } else { false }
+			if let &Section::Code(_) = x { return true }
+			if let &Section::Function(_) = x { true } else { false }
 		});
 
 		let buf = serialize(module).expect("serialization to succeed");

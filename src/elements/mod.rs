@@ -132,7 +132,7 @@ pub enum Error {
 	UnknownFunctionForm(u8),
 	/// Invalid varint7 (should be in -64..63 range)
 	InvalidVarInt7(u8),
-	/// Amount of code and signatures does not match
+	/// Number of function body entries and signatures does not match
 	InconsistentCode,
 }
 
@@ -166,7 +166,7 @@ impl fmt::Display for Error {
 			Error::InvalidMemoryReference(ref mem_ref) =>  write!(f, "Invalid memory reference ({})", mem_ref),
 			Error::InvalidTableReference(ref table_ref) =>  write!(f, "Invalid table reference ({})", table_ref),
 			Error::UnknownFunctionForm(ref form) =>  write!(f, "Unknown function form ({})", form),
-			Error::InconsistentCode =>  write!(f, "Amount of code and signatures does not match"),
+			Error::InconsistentCode =>  write!(f, "Number of function body entries and signatures does not match"),
 		}
 	}
 }
@@ -199,7 +199,7 @@ impl error::Error for Error {
 			Error::InvalidMemoryReference(_) =>  "Invalid memory reference",
 			Error::InvalidTableReference(_) =>  "Invalid table reference",
 			Error::UnknownFunctionForm(_) =>  "Unknown function form",
-			Error::InconsistentCode =>  "Amount of code and signatures does not match",
+			Error::InconsistentCode =>  "Number of function body entries and signatures does not match",
 		}
 	}
 }

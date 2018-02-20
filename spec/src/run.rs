@@ -7,12 +7,19 @@ pub fn spec(path: &str) {
 		match kind {
 			CommandKind::AssertMalformed { module, .. } =>
 			{
-				let module_load = deserialize_buffer::<Module>(
+				match deserialize_buffer::<Module>(
 					&module.into_vec().expect("Invalid filename provided")
-				);
-				match module_load {
+				) {
 					Ok(_) => panic!("Expected invalid module definition, got some module!"),
 					Err(e) => println!("assert_invalid at line {} - success ({:?})", line, e),
+				}
+			}
+			CommandKind::Module { module, .. } => {
+				match deserialize_buffer::<Module>(
+					&module.into_vec().expect("Invalid filename provided")
+				) {
+					Ok(_) => println!("module at line {} - parsed ok", line),
+					Err(e) => panic!("Valid module reported error ({:?})", e),
 				}
 			}
 			_ => {

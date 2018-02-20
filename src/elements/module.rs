@@ -250,11 +250,19 @@ impl Deserialize for Module {
 			}
 		}
 
-		Ok(Module {
+		let module = Module {
 			magic: LittleEndian::read_u32(&magic),
 			version: version,
 			sections: sections,
-		})
+		};
+
+		if module.code_section().map(|cs| cs.bodies().len()).unwrap_or(0) !=
+			module.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
+		{
+			return Err(Error::InconsistentCode);
+		}
+
+		Ok(module)
 	}
 }
 

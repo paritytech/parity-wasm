@@ -610,6 +610,7 @@ mod tests {
 
 	use super::super::{deserialize_buffer, Serialize};
 	use super::{CountedList, VarInt7, VarUint32, VarInt32, VarInt64, VarUint64};
+	use elements::Error;
 
 	fn varuint32_ser_test(val: u32, expected: Vec<u8>) {
 		let mut buf = Vec::new();
@@ -800,9 +801,11 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic]
 	fn varint7_invalid() {
-		deserialize_buffer::<VarInt7>(&[240]).expect("fail");
+		match deserialize_buffer::<VarInt7>(&[240]) {
+			Err(Error::InvalidVarInt7(_)) => {},
+			_ => panic!("Should be invalid varint7 error!")
+		}
 	}
 
 	#[test]
@@ -811,11 +814,13 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic]
-	fn varint32_too_long_nulled() {
-		deserialize_buffer::<VarUint32>(
+	fn varuint32_too_long_nulled() {
+		match deserialize_buffer::<VarUint32>(
 			&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x78]
-		).expect("failed deserialize");
+		) {
+			Err(Error::InvalidVarUint32) => {},
+			_ => panic!("Should be invalid varuint32"),
+		}
 	}
 
 	#[test]

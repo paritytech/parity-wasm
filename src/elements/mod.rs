@@ -130,6 +130,8 @@ pub enum Error {
 	InvalidTableReference(u8),
 	/// Unknown function form (should be 0x60)
 	UnknownFunctionForm(u8),
+	/// Invalid varint7 (should be in -64..63 range)
+	InvalidVarInt7(u8),
 }
 
 impl fmt::Display for Error {
@@ -150,6 +152,7 @@ impl fmt::Display for Error {
 			Error::UnknownInternalKind(kind) => write!(f, "Unknown internal kind {}", kind),
 			Error::UnknownOpcode(opcode) => write!(f, "Unknown opcode {}", opcode),
 			Error::InvalidVarUint1(val) => write!(f, "Not an unsigned 1-bit integer: {}", val),
+			Error::InvalidVarInt7(val) => write!(f, "Not a signed 7-bit integer: {}", val),
 			Error::InvalidVarInt32 => write!(f, "Not a signed 32-bit integer"),
 			Error::InvalidVarUint32 => write!(f, "Not an unsigned 32-bit integer"),
 			Error::InvalidVarInt64 => write!(f, "Not a signed 64-bit integer"),
@@ -182,6 +185,7 @@ impl error::Error for Error {
 			Error::UnknownOpcode(_) => "Unknown opcode",
 			Error::InvalidVarUint1(_) => "Not an unsigned 1-bit integer",
 			Error::InvalidVarInt32 => "Not a signed 32-bit integer",
+			Error::InvalidVarInt7(_) => "Not a signed 7-bit integer",
 			Error::InvalidVarUint32 => "Not an unsigned 32-bit integer",
 			Error::InvalidVarInt64 => "Not a signed 64-bit integer",
 			Error::InvalidVarUint64 => "Not an unsigned 64-bit integer",

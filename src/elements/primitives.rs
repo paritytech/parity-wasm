@@ -187,9 +187,15 @@ impl Deserialize for VarInt7 {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut u8buf = [0u8; 1];
 		reader.read_exact(&mut u8buf)?;
+
+		// check if number is not continued!
+		if u8buf[0] & 0b1000_0000 != 0 {
+			return Err(Error::InvalidVarInt7(u8buf[0]));
+		}
+
 		// expand sign
 		if u8buf[0] & 0b0100_0000 == 0b0100_0000 { u8buf[0] |= 0b1000_0000 }
-		// todo check range
+
 		Ok(VarInt7(u8buf[0] as i8))
 	}
 }
@@ -604,6 +610,7 @@ mod tests {
 
 	use super::super::{deserialize_buffer, Serialize};
 	use super::{CountedList, VarInt7, VarUint32, VarInt32, VarInt64, VarUint64};
+	use elements::Error;
 
 	fn varuint32_ser_test(val: u32, expected: Vec<u8>) {
 		let mut buf = Vec::new();
@@ -791,6 +798,29 @@ mod tests {
 			vec![0x80, 0x80, 0x80, 0x80, 0x78],
 			-2147483648,
 		);
+	}
+
+	#[test]
+	fn varint7_invalid() {
+		match deserialize_buffer::<VarInt7>(&[240]) {
+			Err(Error::InvalidVarInt7(_)) => {},
+			_ => panic!("Should be invalid varint7 error!")
+		}
+	}
+
+	#[test]
+	fn varint7_neg() {
+		assert_eq!(-0x10i8, deserialize_buffer::<VarInt7>(&[0x70]).expect("fail").into());
+	}
+
+	#[test]
+	fn varuint32_too_long_nulled() {
+		match deserialize_buffer::<VarUint32>(
+			&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x78]
+		) {
+			Err(Error::InvalidVarUint32) => {},
+			_ => panic!("Should be invalid varuint32"),
+		}
 	}
 
 	#[test]

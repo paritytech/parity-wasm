@@ -243,8 +243,8 @@ impl Deserialize for Module {
 						} else if last_section_id == section.id() {
 							return Err(Error::DuplicatedSections(last_section_id));
 						}
+						last_section_id = section.id();
 					}
-					last_section_id = section.id();
 					sections.push(section);
 				}
 			}

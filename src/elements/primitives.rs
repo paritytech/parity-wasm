@@ -801,6 +801,17 @@ mod tests {
 
 	#[test]
 	#[should_panic]
+	fn varint7_invalid() {
+		deserialize_buffer::<VarInt7>(&[240]).expect("fail");
+	}
+
+	#[test]
+	fn varint7_neg() {
+		assert_eq!(-0x10i8, deserialize_buffer::<VarInt7>(&[0x70]).expect("fail").into());
+	}
+
+	#[test]
+	#[should_panic]
 	fn varint32_too_long_nulled() {
 		deserialize_buffer::<VarUint32>(
 			&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x78]

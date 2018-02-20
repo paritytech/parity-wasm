@@ -187,9 +187,15 @@ impl Deserialize for VarInt7 {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut u8buf = [0u8; 1];
 		reader.read_exact(&mut u8buf)?;
+
+		// check if number is not continued!
+		if u8buf[0] & 0b1000_0000 != 0 {
+			return Err(Error::InvalidVarInt7(u8buf[0]));
+		}
+
 		// expand sign
 		if u8buf[0] & 0b0100_0000 == 0b0100_0000 { u8buf[0] |= 0b1000_0000 }
-		// todo check range
+
 		Ok(VarInt7(u8buf[0] as i8))
 	}
 }
@@ -791,6 +797,14 @@ mod tests {
 			vec![0x80, 0x80, 0x80, 0x80, 0x78],
 			-2147483648,
 		);
+	}
+
+	#[test]
+	#[should_panic]
+	fn varint32_too_long_nulled() {
+		deserialize_buffer::<VarUint32>(
+			&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x78]
+		).expect("failed deserialize");
 	}
 
 	#[test]

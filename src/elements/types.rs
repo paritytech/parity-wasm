@@ -241,7 +241,7 @@ impl Serialize for TableElementType {
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		let val: VarInt7 = match self {
-			TableElementType::AnyFunc => 0x70,
+			TableElementType::AnyFunc => -0x10,
 		}.into();
 		val.serialize(writer)?;
 		Ok(())

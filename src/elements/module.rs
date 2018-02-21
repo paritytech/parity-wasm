@@ -25,6 +25,10 @@ pub enum ImportCountType {
 	Function,
 	/// Count globals
 	Global,
+	/// Count tables
+	Table,
+	/// Count memories
+	Memory,
 }
 
 impl Default for Module {
@@ -194,6 +198,8 @@ impl Module {
 				is.entries().iter().filter(|import| match (count_type, *import.external()) {
 					(ImportCountType::Function, External::Function(_)) => true,
 					(ImportCountType::Global, External::Global(_)) => true,
+					(ImportCountType::Table, External::Table(_)) => true,
+					(ImportCountType::Memory, External::Memory(_)) => true,
 					_ => false
 				}).count())
 			.unwrap_or(0)
@@ -209,6 +215,18 @@ impl Module {
 	pub fn globals_space(&self) -> usize {
 		self.import_count(ImportCountType::Global) +
 			self.global_section().map(|gs| gs.entries().len()).unwrap_or(0)
+	}
+
+	/// Query table space
+	pub fn table_space(&self) -> usize {
+		self.import_count(ImportCountType::Table) +
+			self.table_section().map(|ts| ts.entries().len()).unwrap_or(0)
+	}
+
+	/// Query memory space
+	pub fn memory_space(&self) -> usize {
+		self.import_count(ImportCountType::Memory) +
+			self.memory_section().map(|ms| ms.entries().len()).unwrap_or(0)
 	}
 }
 

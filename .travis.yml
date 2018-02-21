@@ -2,7 +2,6 @@ dist: trusty
 sudo: required
 language:
 - rust
-- cpp
 addons:
   apt:
     sources:
@@ -17,7 +16,6 @@ script:
 - cargo build --release --verbose
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml
-- cargo test --manifest-path=pwasm-emscripten/Cargo.toml
 - cargo run --example bench-decoder --release
 after_success: |-
   [ $TRAVIS_BRANCH = master ] &&

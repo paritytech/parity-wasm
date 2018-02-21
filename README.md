@@ -1,13 +1,13 @@
 # parity-wasm
 
+Low-level WebAssembly format library.
+
 [![Build Status](https://travis-ci.org/paritytech/parity-wasm.svg?branch=master)](https://travis-ci.org/paritytech/parity-wasm)
 [![crates.io link](https://img.shields.io/crates/v/parity-wasm.svg)](https://crates.io/crates/parity-wasm)
 
 [Documentation](https://paritytech.github.io/parity-wasm/parity_wasm/)
 
 ## Rust WebAssembly format serializing/deserializing
-
-along with (now deprecated) experimental interpreter
 
 ```rust
 
@@ -23,9 +23,10 @@ println!("Function count in wasm file: {}", code_section.bodies().len());
 
 ## Wabt Test suite
 
-Interpreter and decoder supports full wabt testsuite (https://github.com/WebAssembly/testsuite), To run testsuite:
+`parity-wasm` supports full wabt testsuite (https://github.com/WebAssembly/testsuite), running asserts that invloves deserialization.
 
-- make sure you have all prerequisites to build `wabt` (since parity-wasm builds it internally using `cmake`, see https://github.com/WebAssembly/wabt)
+To run testsuite:
+- make sure you have all prerequisites to build `wabt` (since parity-wasm builds it internally using `wabt-rs`, see https://github.com/WebAssembly/wabt)
 - checkout with submodules (`git submodule update --init --recursive`)
 - run `cargo test --release --manifest-path=spec/Cargo.toml`
 
@@ -36,10 +37,6 @@ Decoder can be fuzzed with `cargo-fuzz` using `wasm-opt` (https://github.com/Web
 - install `cargo fuzz` subcommand with `cargo install cargo-fuzz`
 - set rustup to use a nightly toolchain, because `cargo fuzz` uses a rust compiler plugin: `rustup override set nightly`
 - run `cargo fuzz run deserialize`
-
-## Interpreter deprecated
-
-Interpreter here is in deprecated state, new one (`wasmi`) can be found in separate crate: https://github.com/pepyakin/wasmi.
 
 # License
 

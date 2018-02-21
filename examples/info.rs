@@ -33,6 +33,12 @@ fn main() {
 			Section::Global(ref globals_section) => {
 				println!("  Globals: {}", globals_section.entries().len());
 			},
+			Section::Table(ref table_section) => {
+				println!("  Tables: {}", table_section.entries().len());
+			},
+			Section::Memory(ref memory_section) => {
+				println!("  Memories: {}", memory_section.entries().len());
+			},
 			Section::Data(ref data_section) if data_section.entries().len() > 0 => {
 				let data = &data_section.entries()[0];
 				println!("  Data size: {}", data.value().len());

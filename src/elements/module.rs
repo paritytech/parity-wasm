@@ -549,4 +549,11 @@ mod integration_tests {
 		let _module = deserialize_file("./res/cases/v1/varuint1_1.wasm")
 			.expect("Maybe shouldn't be deserialized");
 	}
+
+
+	#[test]
+	fn memory_space() {
+		let module = deserialize_file("./res/cases/v1/two-mems.wasm").expect("failed to deserialize");
+		assert_eq!(module.memory_space(), 2);
+	}
 }

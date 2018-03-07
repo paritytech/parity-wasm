@@ -23,6 +23,7 @@ use super::{
 
 use super::types::Type;
 use super::name_section::NameSection;
+use super::reloc_section::RelocSection;
 
 const ENTRIES_BUFFER_LENGTH: usize = 16384;
 
@@ -64,6 +65,10 @@ pub enum Section {
 	///
 	/// Note that initially it is not parsed until `parse_names` is called explicitly.
 	Name(NameSection),
+	/// Relocation section.
+	///
+	/// Note that initially it is not parsed until `parse_reloc` is called explicitly.
+	Reloc(RelocSection),
 }
 
 impl Deserialize for Section {
@@ -191,7 +196,11 @@ impl Serialize for Section {
 					payload: serialize(name_section)?,
 				};
 				custom.serialize(writer)?;
-			}
+			},
+			Section::Reloc(reloc_section) => {
+				VarUint7::from(0x00).serialize(writer)?;
+				reloc_section.serialize(writer)?;
+			},
 		}
 		Ok(())
 	}
@@ -214,6 +223,7 @@ impl Section {
 			Section::Code(_) => 0x0a,
 			Section::Data(_) => 0x0b,
 			Section::Name(_) => 0x00,
+			Section::Reloc(_) => 0x00,
 		}
 	}
 }

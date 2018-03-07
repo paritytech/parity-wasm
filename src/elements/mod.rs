@@ -33,6 +33,7 @@ mod func;
 mod segment;
 mod index_map;
 mod name_section;
+mod reloc_section;
 
 pub use self::module::{Module, peek_size, ImportCountType};
 pub use self::section::{

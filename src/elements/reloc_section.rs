@@ -70,6 +70,7 @@ impl RelocSection {
 }
 
 impl RelocSection {
+	/// Deserialize a reloc section.
 	pub fn deserialize<R: Read>(
 		name: String,
 		rdr: &mut R,

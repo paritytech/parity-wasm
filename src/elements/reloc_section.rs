@@ -132,46 +132,73 @@ pub enum RelocationEntry {
 
 	/// Function table index.
 	TableIndexSleb {
+		/// Offset of the value to rewrite.
 		offset: u32,
+
+		/// Index of the function symbol in the symbol table.
 		index: u32,
 	},
 
 	/// Function table index.
 	TableIndexI32 {
+		/// Offset of the value to rewrite.
 		offset: u32,
+
+		/// Index of the function symbol in the symbol table.
 		index: u32,
 	},
 
 	/// Linear memory index.
 	MemoryAddressLeb {
+		/// Offset of the value to rewrite.
 		offset: u32,
+
+		/// Index of the data symbol in the symbol table.
 		index: u32,
+
+		/// Addend to add to the address.
 		addend: i32,
 	},
 
 	/// Linear memory index.
 	MemoryAddressSleb {
+		/// Offset of the value to rewrite.
 		offset: u32,
+
+		/// Index of the data symbol in the symbol table.
 		index: u32,
+
+		/// Addend to add to the address.
 		addend: i32,
 	},
 
 	/// Linear memory index.
 	MemoryAddressI32 {
+		/// Offset of the value to rewrite.
 		offset: u32,
+
+		/// Index of the data symbol in the symbol table.
 		index: u32,
+
+		/// Addend to add to the address.
 		addend: i32,
 	},
 
 	/// Type table index.
 	TypeIndexLeb {
+		/// Offset of the value to rewrite.
 		offset: u32,
+
+		/// Index of the type used.
 		index: u32,
 	},
 
 	/// Global index.
 	GlobalIndexLeb {
+		/// Offset of the value to rewrite.
 		offset: u32,
+
+		/// Index of the global symbol in the symbol table.
 		index: u32,
 	},
 }

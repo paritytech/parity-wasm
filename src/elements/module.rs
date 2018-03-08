@@ -208,6 +208,10 @@ impl Module {
 							Ok(reloc_section) => reloc_section,
 							Err(e) => { parse_errors.push((i, e)); continue; }
 						};
+						if rdr.position() != custom.payload().len() as u64 {
+							parse_errors.push((i, io::Error::from(io::ErrorKind::InvalidData).into()));
+							continue;
+						}
 						Some(Section::Reloc(reloc_section))
 					}
 					else {

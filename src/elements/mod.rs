@@ -57,6 +57,9 @@ pub use self::name_section::{
 	NameMap, NameSection, ModuleNameSection, FunctionNameSection,
 	LocalNameSection,
 };
+pub use self::reloc_section::{
+	RelocSection, RelocationEntry,
+};
 
 /// Deserialization from serial i/o
 pub trait Deserialize : Sized {

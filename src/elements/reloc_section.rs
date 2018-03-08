@@ -28,6 +28,48 @@ pub struct RelocSection {
 }
 
 impl RelocSection {
+	/// Name of this section.
+	pub fn name(&self) -> &str {
+		&self.name
+	}
+
+	/// Name of this section (mutable).
+	pub fn name_mut(&mut self) -> &mut String {
+		&mut self.name
+	}
+
+	/// ID of the section containing the relocations described in this section.
+	pub fn section_id(&self) -> u32 {
+		self.section_id
+	}
+
+	/// ID of the section containing the relocations described in this section (mutable).
+	pub fn section_id_mut(&mut self) -> &mut u32 {
+		&mut self.section_id
+	}
+
+	/// Name of the section containing the relocations described in this section.
+	pub fn relocation_section_name(&self) -> Option<&str> {
+		self.relocation_section_name.as_ref().map(String::as_str)
+	}
+
+	/// Name of the section containing the relocations described in this section (mutable).
+	pub fn relocation_section_name_mut(&mut self) -> &mut Option<String> {
+		&mut self.relocation_section_name
+	}
+
+	/// List of relocation entries.
+	pub fn entries(&self) -> &[RelocationEntry] {
+		&self.entries
+	}
+
+	/// List of relocation entries (mutable).
+	pub fn entries_mut(&mut self) -> &mut Vec<RelocationEntry> {
+		&mut self.entries
+	}
+}
+
+impl RelocSection {
 	pub fn deserialize<R: Read>(
 		name: String,
 		rdr: &mut R,
@@ -77,7 +119,7 @@ impl Serialize for RelocSection {
 }
 
 /// Relocation entry.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RelocationEntry {
 	/// Function index.
 	FunctionIndexLeb {
@@ -245,5 +287,32 @@ impl Serialize for RelocationEntry {
 		}
 
 		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::super::{Section, deserialize_file};
+	use super::RelocationEntry;
+
+	#[test]
+	fn reloc_section() {
+		let module =
+			deserialize_file("./res/cases/v1/relocatable.wasm").expect("Module should be deserialized")
+			.parse_reloc().expect("Reloc section should be deserialized");
+		let mut found = false;
+		for section in module.sections() {
+			match *section {
+				Section::Reloc(ref reloc_section) => {
+					assert_eq!(vec![
+						RelocationEntry::MemoryAddressSleb { offset: 4, index: 0, addend: 0 },
+						RelocationEntry::FunctionIndexLeb { offset: 12, index: 0 },
+					], reloc_section.entries());
+					found = true
+				},
+				_ => { }
+			}
+		}
+		assert!(found, "There should be a reloc section in relocatable.wasm");
 	}
 }

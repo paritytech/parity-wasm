@@ -287,6 +287,14 @@ impl Deserialize for VarInt32 {
 			if (b >> 7) == 0 {
 				if shift < 32 && b & 0b0100_0000 == 0b0100_0000 {
 					res |= (1i32 << shift).wrapping_neg();
+				} else if shift >= 32 && b & 0b0100_0000 == 0b0100_0000 {
+					if (!(b | 0b1000_0000)).leading_zeros() < 4 {
+						return Err(Error::InvalidVarInt32);
+					}
+				} else if shift >= 32 && b & 0b0100_0000 == 0 {
+					if b.leading_zeros() < 4 {
+						return Err(Error::InvalidVarInt32);
+					}
 				}
 				break;
 			}
@@ -756,6 +764,24 @@ mod tests {
 			vec![0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f],
 			-9223372036854775808,
 		);
+	}
+
+	#[test]
+	fn varint64_bad_extended() {
+		let res = deserialize_buffer::<VarInt64>(&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x6f][..]);
+		assert!(res.is_err());
+	}
+
+	#[test]
+	fn varint32_bad_extended() {
+		let res = deserialize_buffer::<VarInt32>(&[0x80, 0x80, 0x80, 0x80, 0x6f][..]);
+		assert!(res.is_err());
+	}
+
+	#[test]
+	fn varint32_bad_extended2() {
+		let res = deserialize_buffer::<VarInt32>(&[0x80, 0x80, 0x80, 0x80, 0x41][..]);
+		assert!(res.is_err());
 	}
 
 	#[test]

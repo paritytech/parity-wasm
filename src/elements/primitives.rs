@@ -47,6 +47,9 @@ impl Deserialize for VarUint32 {
 			res |= (b & 0x7f).checked_shl(shift).ok_or(Error::InvalidVarUint32)?;
 			shift += 7;
 			if (b >> 7) == 0 {
+				if shift >= 32 && (b as u8).leading_zeros() < 4 {
+					return Err(Error::InvalidVarInt32);
+				}
 				break;
 			}
 		}
@@ -100,6 +103,9 @@ impl Deserialize for VarUint64 {
 			res |= (b & 0x7f).checked_shl(shift).ok_or(Error::InvalidVarUint64)?;
 			shift += 7;
 			if (b >> 7) == 0 {
+				if shift >= 64 && (b as u8).leading_zeros() < 7 {
+					return Err(Error::InvalidVarInt64);
+				}
 				break;
 			}
 		}
@@ -288,11 +294,11 @@ impl Deserialize for VarInt32 {
 				if shift < 32 && b & 0b0100_0000 == 0b0100_0000 {
 					res |= (1i32 << shift).wrapping_neg();
 				} else if shift >= 32 && b & 0b0100_0000 == 0b0100_0000 {
-					if (!(b | 0b1000_0000)).leading_zeros() < 4 {
+					if (!(b | 0b1000_0000)).leading_zeros() < 5 {
 						return Err(Error::InvalidVarInt32);
 					}
 				} else if shift >= 32 && b & 0b0100_0000 == 0 {
-					if b.leading_zeros() < 4 {
+					if b.leading_zeros() < 5 {
 						return Err(Error::InvalidVarInt32);
 					}
 				}
@@ -824,6 +830,24 @@ mod tests {
 		assert!(
 			deserialize_buffer::<VarUint32>(
 				&[0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
+			).is_err()
+		);
+	}
+
+	#[test]
+	fn varuint32_too_long_trailing() {
+		assert!(
+			deserialize_buffer::<VarUint32>(
+				&[0xff, 0xff, 0xff, 0xff, 0x7f][..],
+			).is_err()
+		);
+	}
+
+	#[test]
+	fn varuint64_too_long_trailing() {
+		assert!(
+			deserialize_buffer::<VarUint64>(
+				&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x04][..],
 			).is_err()
 		);
 	}

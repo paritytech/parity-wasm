@@ -70,7 +70,7 @@ impl Module {
 		&mut self.sections
 	}
 
-	/// Code section, if any.
+	/// Code section reference, if any.
 	pub fn code_section(&self) -> Option<&CodeSection> {
 		for section in self.sections() {
 			if let &Section::Code(ref code_section) = section { return Some(code_section); }
@@ -78,7 +78,15 @@ impl Module {
 		None
 	}
 
-	/// Types section, if any.
+	/// Code section mutable reference, if any.
+	pub fn code_section_mut(&mut self) -> Option<&mut CodeSection> {
+		for section in self.sections_mut() {
+			if let Section::Code(ref mut code_section) = *section { return Some(code_section); }
+		}
+		None
+	}
+
+	/// Types section reference, if any.
 	pub fn type_section(&self) -> Option<&TypeSection> {
 		for section in self.sections() {
 			if let &Section::Type(ref type_section) = section { return Some(type_section); }
@@ -86,7 +94,15 @@ impl Module {
 		None
 	}
 
-	/// Imports section, if any.
+	/// Types section mutable reference, if any.
+	pub fn type_section_mut(&mut self) -> Option<&mut TypeSection> {
+		for section in self.sections_mut() {
+			if let Section::Type(ref mut type_section) = *section { return Some(type_section); }
+		}
+		None
+	}
+
+	/// Imports section reference, if any.
 	pub fn import_section(&self) -> Option<&ImportSection> {
 		for section in self.sections() {
 			if let &Section::Import(ref import_section) = section { return Some(import_section); }
@@ -94,7 +110,15 @@ impl Module {
 		None
 	}
 
-	/// Globals section, if any.
+	/// Imports section mutable reference, if any.
+	pub fn import_section_mut(&mut self) -> Option<&mut ImportSection> {
+		for section in self.sections_mut() {
+			if let Section::Import(ref mut import_section) = *section { return Some(import_section); }
+		}
+		None
+	}
+
+	/// Globals section reference, if any.
 	pub fn global_section(&self) -> Option<&GlobalSection> {
 		for section in self.sections() {
 			if let &Section::Global(ref section) = section { return Some(section); }
@@ -102,7 +126,16 @@ impl Module {
 		None
 	}
 
-	/// Exports section, if any.
+		/// Globals section mutable reference, if any.
+	pub fn global_section_mut(&mut self) -> Option<&mut GlobalSection> {
+		for section in self.sections_mut() {
+			if let Section::Global(ref mut section) = *section { return Some(section); }
+		}
+		None
+	}
+
+
+	/// Exports section reference, if any.
 	pub fn export_section(&self) -> Option<&ExportSection> {
 		for section in self.sections() {
 			if let &Section::Export(ref export_section) = section { return Some(export_section); }
@@ -110,7 +143,15 @@ impl Module {
 		None
 	}
 
-	/// Table section, if any.
+	/// Exports section mutable reference, if any.
+	pub fn export_section_mut(&mut self) -> Option<&mut ExportSection> {
+		for section in self.sections_mut() {
+			if let Section::Export(ref mut export_section) = *section { return Some(export_section); }
+		}
+		None
+	}
+
+	/// Table section reference, if any.
 	pub fn table_section(&self) -> Option<&TableSection> {
 		for section in self.sections() {
 			if let &Section::Table(ref section) = section { return Some(section); }
@@ -118,7 +159,15 @@ impl Module {
 		None
 	}
 
-	/// Data section, if any.
+	/// Table section mutable reference, if any.
+	pub fn table_section_mut(&mut self) -> Option<&mut TableSection> {
+		for section in self.sections_mut() {
+			if let Section::Table(ref mut section) = *section { return Some(section); }
+		}
+		None
+	}
+
+	/// Data section reference, if any.
 	pub fn data_section(&self) -> Option<&DataSection> {
 		for section in self.sections() {
 			if let &Section::Data(ref section) = section { return Some(section); }
@@ -126,7 +175,15 @@ impl Module {
 		None
 	}
 
-	/// Element section, if any.
+	/// Data section mutable reference, if any.
+	pub fn data_section_mut(&mut self) -> Option<&mut DataSection> {
+		for section in self.sections_mut() {
+			if let Section::Data(ref mut section) = *section { return Some(section); }
+		}
+		None
+	}
+
+	/// Element section reference, if any.
 	pub fn elements_section(&self) -> Option<&ElementSection> {
 		for section in self.sections() {
 			if let &Section::Element(ref section) = section { return Some(section); }
@@ -134,7 +191,15 @@ impl Module {
 		None
 	}
 
-	/// Memory section, if any.
+	/// Element section mutable reference, if any.
+	pub fn elements_section_mut(&mut self) -> Option<&mut ElementSection> {
+		for section in self.sections_mut() {
+			if let Section::Element(ref mut section) = *section { return Some(section); }
+		}
+		None
+	}
+
+	/// Memory section reference, if any.
 	pub fn memory_section(&self) -> Option<&MemorySection> {
 		for section in self.sections() {
 			if let &Section::Memory(ref section) = section { return Some(section); }
@@ -142,10 +207,26 @@ impl Module {
 		None
 	}
 
-	/// Functions signatures section, if any.
+	/// Memory section mutable reference, if any.
+	pub fn memory_section_mut(&mut self) -> Option<&mut MemorySection> {
+		for section in self.sections_mut() {
+			if let Section::Memory(ref mut section) = *section { return Some(section); }
+		}
+		None
+	}
+
+	/// Functions signatures section reference, if any.
 	pub fn function_section(&self) -> Option<&FunctionSection> {
 		for section in self.sections() {
 			if let &Section::Function(ref sect) = section { return Some(sect); }
+		}
+		None
+	}
+
+	/// Functions signatures section mutable reference, if any.
+	pub fn function_section_mut(&mut self) -> Option<&mut FunctionSection> {
+		for section in self.sections_mut() {
+			if let Section::Function(ref mut sect) = *section { return Some(sect); }
 		}
 		None
 	}

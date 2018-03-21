@@ -342,7 +342,10 @@ pub fn peek_size(source: &[u8]) -> usize {
 
 		if section_id <= 11 && section_len > 0 {
 			let next_cursor = cursor + new_cursor + section_len as usize;
-			if next_cursor >= source.len() {
+			if next_cursor > source.len() {
+				break;
+			} else if next_cursor == source.len() {
+				cursor = next_cursor;
 				break;
 			}
 			cursor = next_cursor;
@@ -496,6 +499,16 @@ mod integration_tests {
 		buf.extend_from_slice(&[0, 0, 0, 0, 0, 1, 5, 12, 17]);
 
 		assert_eq!(peek_size(&buf), buf.len() - 9);
+	}
+
+	#[test]
+	fn peek_3() {
+		use super::peek_size;
+
+		let module = deserialize_file("./res/cases/v1/peek_sample.wasm").expect("Should be deserialized");
+		let buf = serialize(module).expect("serialization to succeed");
+
+		assert_eq!(peek_size(&buf), buf.len());
 	}
 
 	#[test]

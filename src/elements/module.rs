@@ -7,6 +7,7 @@ use super::section::{
 	GlobalSection, TableSection, ElementSection, DataSection, MemorySection
 };
 use super::name_section::NameSection;
+use super::reloc_section::RelocSection;
 
 const WASM_MAGIC_NUMBER: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
 
@@ -181,6 +182,47 @@ impl Module {
 				} else { None }
 			} {
 				*self.sections.get_mut(i).expect("cannot fail because i in range 0..len; qed") = Section::Name(name_section);
+			}
+		}
+
+		if parse_errors.len() > 0 {
+			Err((parse_errors, self))
+		} else {
+			Ok(self)
+		}
+	}
+
+	/// Try to parse reloc section in place
+	/// Corresponding custom section with proper header will convert to reloc sections
+	/// If some of them will fail to be decoded, Err variant is returned with the list of
+	/// (index, Error) tuples of failed sections.
+	pub fn parse_reloc(mut self) -> Result<Self, (Vec<(usize, Error)>, Self)> {
+		let mut parse_errors = Vec::new();
+
+		for (i, section) in self.sections.iter_mut().enumerate() {
+			if let Some(relocation_section) = {
+				if let Section::Custom(ref custom) = *section {
+					if custom.name().starts_with("reloc.") {
+						let mut rdr = io::Cursor::new(custom.payload());
+						let reloc_section = match RelocSection::deserialize(custom.name().to_owned(), &mut rdr) {
+							Ok(reloc_section) => reloc_section,
+							Err(e) => { parse_errors.push((i, e)); continue; }
+						};
+						if rdr.position() != custom.payload().len() as u64 {
+							parse_errors.push((i, io::Error::from(io::ErrorKind::InvalidData).into()));
+							continue;
+						}
+						Some(Section::Reloc(reloc_section))
+					}
+					else {
+						None
+					}
+				}
+				else {
+					None
+				}
+			} {
+				*section = relocation_section;
 			}
 		}
 

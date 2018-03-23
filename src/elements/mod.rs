@@ -33,6 +33,7 @@ mod func;
 mod segment;
 mod index_map;
 mod name_section;
+mod reloc_section;
 
 pub use self::module::{Module, peek_size, ImportCountType};
 pub use self::section::{
@@ -55,6 +56,9 @@ pub use self::index_map::IndexMap;
 pub use self::name_section::{
 	NameMap, NameSection, ModuleNameSection, FunctionNameSection,
 	LocalNameSection,
+};
+pub use self::reloc_section::{
+	RelocSection, RelocationEntry,
 };
 
 /// Deserialization from serial i/o

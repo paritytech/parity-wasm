@@ -1,7 +1,7 @@
 use std::{io, fmt};
 use super::{
 	Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList,
-	CountedListWriter
+	CountedListWriter, VarUint32,
 };
 
 /// Type definition in types section. Currently can be only of the function type.
@@ -177,11 +177,14 @@ impl Deserialize for FunctionType {
 
 		let params: Vec<ValueType> = CountedList::deserialize(reader)?.into_inner();
 
-		let has_return_type = VarUint1::deserialize(reader)?;
-		let return_type = if has_return_type.into() {
+		let return_types: u32 = VarUint32::deserialize(reader)?.into();
+
+		let return_type = if return_types == 1 {
 			Some(ValueType::deserialize(reader)?)
-		} else {
+		} else if return_types == 0 {
 			None
+		} else {
+			return Err(Error::Other("Return types length should be 0 or 1"));
 		};
 
 		Ok(FunctionType {

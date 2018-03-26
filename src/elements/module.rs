@@ -239,6 +239,26 @@ impl Module {
 		None
 	}
 
+	/// Functions signatures section reference, if any.
+	/// NOTE: name section is not parsed by default so `names_section` could return None even if name section exists.
+	/// Call `parse_names` to parse name section
+	pub fn names_section(&self) -> Option<&NameSection> {
+		for section in self.sections() {
+			if let Section::Name(ref sect) = *section { return Some(sect); }
+		}
+		None
+	}
+
+	/// Functions signatures section mutable reference, if any.
+	/// NOTE: name section is not parsed by default so `names_section` could return None even if name section exists.
+	/// Call `parse_names` to parse name section
+	pub fn names_section_mut(&mut self) -> Option<&mut NameSection> {
+		for section in self.sections_mut() {
+			if let Section::Name(ref mut sect) = *section { return Some(sect); }
+		}
+		None
+	}
+
 	/// Try to parse name section in place
 	/// Corresponding custom section with proper header will convert to name sections
 	/// If some of them will fail to be decoded, Err variant is returned with the list of

@@ -68,9 +68,8 @@ pub enum Section {
 	/// Relocation section.
 	///
 	/// Note that initially it is not parsed until `parse_reloc` is called explicitly.
-	/// Also note that currently there are serialization (but not de-serialization) 
-	///   issues with this section
-	///   (see https://github.com/paritytech/parity-wasm/issues/198)
+	/// Also note that currently there are serialization (but not de-serialization)
+	///   issues with this section (#198)
 	Reloc(RelocSection),
 }
 

@@ -5,7 +5,7 @@ use super::{
 };
 
 /// Global definition struct
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct GlobalType {
 	content_type: ValueType,
 	is_mutable: bool,
@@ -51,7 +51,7 @@ impl Serialize for GlobalType {
 }
 
 /// Table entry
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct TableType {
 	elem_type: TableElementType,
 	limits: ResizableLimits,
@@ -96,7 +96,7 @@ impl Serialize for TableType {
 }
 
 /// Memory limits
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ResizableLimits {
 	initial: u32,
 	maximum: Option<u32>,
@@ -150,7 +150,7 @@ impl Serialize for ResizableLimits {
 }
 
 /// Memory entry.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct MemoryType(ResizableLimits);
 
 impl MemoryType {
@@ -181,7 +181,7 @@ impl Serialize for MemoryType {
 }
 
 /// External to local binding.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum External {
 	/// Binds to function with index.
 	Function(u32),
@@ -238,7 +238,7 @@ impl Serialize for External {
 }
 
 /// Import entry.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImportEntry {
 	module_str: String,
 	field_str: String,

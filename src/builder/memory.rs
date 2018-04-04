@@ -2,7 +2,7 @@ use elements;
 use super::invoke::{Invoke, Identity};
 
 /// Memory definition struct
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct MemoryDefinition {
 	/// Minimum memory size
 	pub min: u32,
@@ -13,7 +13,7 @@ pub struct MemoryDefinition {
 }
 
 /// Memory static region entry definition
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct MemoryDataDefinition {
 	/// Segment initialization expression for offset
 	pub offset: elements::InitExpr,

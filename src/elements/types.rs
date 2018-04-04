@@ -5,7 +5,7 @@ use super::{
 };
 
 /// Type definition in types section. Currently can be only of the function type.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
 	/// Function type.
 	Function(FunctionType),
@@ -30,7 +30,7 @@ impl Serialize for Type {
 }
 
 /// Value type.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ValueType {
 	/// 32-bit signed integer
 	I32,
@@ -85,7 +85,7 @@ impl fmt::Display for ValueType {
 }
 
 /// Block type which is basically `ValueType` + NoResult (to define blocks that have no return type)
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BlockType {
 	/// Value-type specified block type
 	Value(ValueType),
@@ -220,7 +220,7 @@ impl Serialize for FunctionType {
 }
 
 /// Table element type.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TableElementType {
 	/// A reference to a function with any signature.
 	AnyFunc,

@@ -4,7 +4,7 @@ use super::{Error, Deserialize, Serialize};
 
 /// Unsigned variable-length integer, limited to 32 bits,
 /// represented by at most 5 bytes that may contain padding 0x80 bytes.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VarUint32(u32);
 
 impl From<VarUint32> for usize {
@@ -79,7 +79,7 @@ impl Serialize for VarUint32 {
 
 /// Unsigned variable-length integer, limited to 64 bits,
 /// represented by at most 9 bytes that may contain padding 0x80 bytes.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VarUint64(u64);
 
 impl From<VarUint64> for u64 {
@@ -140,7 +140,7 @@ impl From<u64> for VarUint64 {
 }
 
 /// 7-bit unsigned integer, encoded in LEB128 (always 1 byte length)
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VarUint7(u8);
 
 impl From<VarUint7> for u8 {
@@ -176,7 +176,7 @@ impl Serialize for VarUint7 {
 }
 
 /// 7-bit signed integer, encoded in LEB128 (always 1 byte length)
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VarInt7(i8);
 
 impl From<VarInt7> for i8 {
@@ -224,7 +224,7 @@ impl Serialize for VarInt7 {
 
 /// 8-bit unsigned integer, NOT encoded in LEB128;
 /// it's just a single byte.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Uint8(u8);
 
 impl From<Uint8> for u8 {
@@ -260,7 +260,7 @@ impl Serialize for Uint8 {
 
 
 /// 32-bit signed integer, encoded in LEB128 (can be 1-5 bytes length)
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VarInt32(i32);
 
 impl From<VarInt32> for i32 {
@@ -333,7 +333,7 @@ impl Serialize for VarInt32 {
 }
 
 /// 64-bit signed integer, encoded in LEB128 (can be 1-9 bytes length)
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VarInt64(i64);
 
 impl From<VarInt64> for i64 {
@@ -405,7 +405,7 @@ impl Serialize for VarInt64 {
 }
 
 /// 32-bit unsigned integer, encoded in little endian
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Uint32(u32);
 
 impl Deserialize for Uint32 {
@@ -441,7 +441,7 @@ impl From<u32> for Uint32 {
 }
 
 /// 64-bit unsigned integer, encoded in little endian
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Uint64(u64);
 
 impl Deserialize for Uint64 {
@@ -478,7 +478,7 @@ impl From<Uint64> for u64 {
 
 
 /// VarUint1, 1-bit value (0/1)
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VarUint1(bool);
 
 impl From<VarUint1> for bool {

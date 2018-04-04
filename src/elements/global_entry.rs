@@ -2,7 +2,7 @@ use std::io;
 use super::{Deserialize, Serialize, Error, GlobalType, InitExpr};
 
 /// Global entry in the module.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GlobalEntry {
 	global_type: GlobalType,
 	init_expr: InitExpr,

@@ -7,7 +7,7 @@ use super::{
 };
 
 /// Collection of opcodes (usually inside a block section).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Opcodes(Vec<Opcode>);
 
 impl Opcodes {
@@ -54,7 +54,7 @@ impl Deserialize for Opcodes {
 }
 
 /// Initialization expression.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InitExpr(Vec<Opcode>);
 
 impl InitExpr {

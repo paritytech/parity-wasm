@@ -2,7 +2,7 @@ use elements;
 use super::invoke::{Invoke, Identity};
 
 /// Table definition
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TableDefinition {
 	/// Minimum length
 	pub min: u32,
@@ -13,7 +13,7 @@ pub struct TableDefinition {
 }
 
 /// Table elements entry definition
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TableEntryDefinition {
 	/// Offset initialization expression
 	pub offset: elements::InitExpr,

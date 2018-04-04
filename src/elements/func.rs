@@ -6,7 +6,7 @@ use super::{
 use elements::section::SectionReader;
 
 /// Function signature (type reference)
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Func(u32);
 
 impl Func {
@@ -41,7 +41,7 @@ impl Deserialize for Func {
 }
 
 /// Local definition inside the function body.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Local {
 	count: u32,
 	value_type: ValueType,
@@ -81,7 +81,7 @@ impl Serialize for Local {
 }
 
 /// Function body definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FuncBody {
 	locals: Vec<Local>,
 	opcodes: Opcodes,

@@ -12,14 +12,14 @@ use super::reloc_section::RelocSection;
 const WASM_MAGIC_NUMBER: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
 
 /// WebAssembly module
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Module {
 	magic: u32,
 	version: u32,
 	sections: Vec<Section>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Type of the import entry to count
 pub enum ImportCountType {
 	/// Count functions
@@ -440,7 +440,7 @@ impl Serialize for Module {
 	}
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 struct PeekSection<'a> {
 	cursor: usize,
 	region: &'a [u8],

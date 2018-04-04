@@ -12,7 +12,7 @@ const TYPE_INDEX_LEB: u8 = 6;
 const GLOBAL_INDEX_LEB: u8 = 7;
 
 /// Relocation information.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RelocSection {
 	/// Name of this section.
 	name: String,

@@ -19,7 +19,7 @@ pub struct CodeLocation {
 	pub body: u32,
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 struct ModuleScaffold {
 	pub types: elements::TypeSection,
 	pub import: elements::ImportSection,

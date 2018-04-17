@@ -1,6 +1,7 @@
 use std::cmp::min;
 use std::io::{Read, Write};
 use std::iter::{FromIterator, IntoIterator};
+use std::mem;
 use std::slice;
 use std::vec;
 
@@ -83,7 +84,9 @@ impl<T> IndexMap<T> {
 			self.entries[idx] = Some(value);
 			existing
 		};
-		debug_assert!(self.entries.len() <= (::std::u32::MAX as usize) + 1);
+		if mem::size_of::<usize>() > 4 {
+			debug_assert!(self.entries.len() <= (::std::u32::MAX as usize) + 1);
+		}
 		#[cfg(debug_assertions)]
 		debug_assert_eq!(self.len, self.slow_len());
 		result

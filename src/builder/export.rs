@@ -1,3 +1,4 @@
+use std::string::String;
 use super::invoke::{Invoke, Identity};
 use elements;
 

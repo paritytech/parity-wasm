@@ -1,4 +1,6 @@
 use std::io::{Read, Write};
+use std::vec::Vec;
+use std::string::String;
 
 use super::{CountedList, CountedListWriter, CountedWriter, Deserialize, Error, Serialize, VarInt32, VarUint32, VarUint7};
 

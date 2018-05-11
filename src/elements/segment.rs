@@ -1,4 +1,5 @@
 use std::io;
+use std::vec::Vec;
 use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr, CountedListWriter};
 
 /// Entry in the element section.

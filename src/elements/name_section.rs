@@ -1,4 +1,6 @@
 use std::io::{Read, Write};
+use std::vec::Vec;
+use std::string::String;
 
 use super::{Deserialize, Error, Module, Serialize, VarUint32, VarUint7, Type};
 use super::index_map::IndexMap;

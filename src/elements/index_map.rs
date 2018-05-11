@@ -4,6 +4,7 @@ use std::iter::{FromIterator, IntoIterator};
 use std::mem;
 use std::slice;
 use std::vec;
+use std::vec::Vec;
 
 use super::{Deserialize, Error, Serialize, VarUint32};
 

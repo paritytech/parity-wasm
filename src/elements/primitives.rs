@@ -1,4 +1,6 @@
 use std::io;
+use std::vec::Vec;
+use std::string::String;
 use byteorder::{LittleEndian, ByteOrder};
 use super::{Error, Deserialize, Serialize};
 

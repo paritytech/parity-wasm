@@ -3,6 +3,8 @@
 use std::error;
 use std::fmt;
 use std::io;
+use std::vec::Vec;
+use std::string::String;
 
 macro_rules! buffered_read {
 	($buffer_size: expr, $length: expr, $reader: expr) => {

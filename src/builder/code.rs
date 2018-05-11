@@ -1,3 +1,4 @@
+use std::vec::Vec;
 use elements;
 use super::invoke::{Invoke, Identity};
 use super::misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder};

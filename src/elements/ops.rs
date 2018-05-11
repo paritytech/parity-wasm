@@ -1,4 +1,6 @@
 use std::{io, fmt};
+use std::vec::Vec;
+use std::boxed::Box;
 use super::{
 	Serialize, Deserialize, Error,
 	Uint8, VarUint32, CountedList, BlockType,

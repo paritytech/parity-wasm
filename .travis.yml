@@ -1,7 +1,9 @@
 dist: trusty
 sudo: required
-language:
-- rust
+language: rust
+rust:
+  - nightly
+  - stable
 addons:
   apt:
     sources:
@@ -13,7 +15,7 @@ addons:
 script:
 - export CC=/usr/bin/gcc-6
 - export CXX=/usr/bin/g++-6
-- cargo check --no-default-features
+- if rustc -Vv | grep nightly; then cargo check --no-default-features; fi
 - cargo build --release --verbose
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml

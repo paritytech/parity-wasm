@@ -36,4 +36,5 @@ mod std {
 	pub use alloc::vec;
 	pub use alloc::string;
 	pub use alloc::boxed;
+	pub use alloc::borrow;
 }

@@ -1,6 +1,7 @@
 use io;
 use std::vec::Vec;
 use std::string::String;
+use std::borrow::ToOwned;
 use super::{
 	Serialize,
 	Deserialize,

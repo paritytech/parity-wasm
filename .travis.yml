@@ -13,6 +13,7 @@ addons:
 script:
 - export CC=/usr/bin/gcc-6
 - export CXX=/usr/bin/g++-6
+- cargo check --no-default-features
 - cargo build --release --verbose
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml

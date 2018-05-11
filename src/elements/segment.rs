@@ -1,4 +1,4 @@
-use std::io;
+use io;
 use std::vec::Vec;
 use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr, CountedListWriter};
 
@@ -128,7 +128,7 @@ impl Serialize for DataSegment {
 
 		let value = self.value;
 		VarUint32::from(value.len()).serialize(writer)?;
-		writer.write_all(&value[..])?;
+		writer.write(&value[..])?;
 		Ok(())
 	}
 }

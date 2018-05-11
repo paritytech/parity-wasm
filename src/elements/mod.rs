@@ -1,8 +1,7 @@
 //! Elements of the WebAssembly binary format.
 
-use std::error;
 use std::fmt;
-use std::io;
+use io;
 use std::vec::Vec;
 use std::string::String;
 
@@ -14,7 +13,7 @@ macro_rules! buffered_read {
 			let mut buf = [0u8; $buffer_size];
 			while total_read < $length {
 				let next_to_read = if $length - total_read > $buffer_size { $buffer_size } else { $length - total_read };
-				$reader.read_exact(&mut buf[0..next_to_read])?;
+				$reader.read(&mut buf[0..next_to_read])?;
 				vec_buf.extend_from_slice(&buf[0..next_to_read]);
 				total_read += next_to_read;
 			}
@@ -177,7 +176,8 @@ impl fmt::Display for Error {
 	}
 }
 
-impl error::Error for Error {
+#[cfg(feature = "std")]
+impl ::std::error::Error for Error {
 	fn description(&self) -> &str {
 		match *self {
 			Error::UnexpectedEof => "Unexpected end of input",
@@ -212,7 +212,7 @@ impl error::Error for Error {
 
 impl From<io::Error> for Error {
 	fn from(err: io::Error) -> Self {
-		Error::HeapOther(format!("I/O Error: {}", err))
+		Error::HeapOther(format!("I/O Error: {:?}", err))
 	}
 }
 
@@ -225,7 +225,7 @@ impl Deserialize for Unparsed {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let len = VarUint32::deserialize(reader)?.into();
 		let mut vec = vec![0u8; len];
-		reader.read_exact(&mut vec[..])?;
+		reader.read(&mut vec[..])?;
 		Ok(Unparsed(vec))
 	}
 }
@@ -236,22 +236,14 @@ impl From<Unparsed> for Vec<u8> {
 	}
 }
 
-/// Deserialize module from file.
-pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Error> {
-	use std::io::Read;
-
-	let mut contents = Vec::new();
-	::std::fs::File::open(p)?.read_to_end(&mut contents)?;
-
-	deserialize_buffer(&contents)
-}
-
 /// Deserialize deserializable type from buffer.
 pub fn deserialize_buffer<T: Deserialize>(contents: &[u8]) -> Result<T, T::Error> {
 	let mut reader = io::Cursor::new(contents);
 	let result = T::deserialize(&mut reader)?;
-	if reader.position() != contents.len() as u64 {
-		return Err(io::Error::from(io::ErrorKind::InvalidData).into())
+	if reader.position() != contents.len() {
+		// It's a TrailingData, since if there is not enough data then
+		// UnexpectedEof must have been returned earlier in T::deserialize.
+		return Err(io::Error::TrailingData.into())
 	}
 	Ok(result)
 }
@@ -263,9 +255,33 @@ pub fn serialize<T: Serialize>(val: T) -> Result<Vec<u8>, T::Error> {
 	Ok(buf)
 }
 
+/// Deserialize module from file.
+#[cfg(feature = "std")]
+pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Error> {
+	use std::io::Read;
+
+	let mut contents = Vec::new();
+
+	::std::fs::File::open(p)
+		.and_then(|mut f| f.read_to_end(&mut contents))
+		.map_err(|e| Error::HeapOther(format!("Can't read from the file: {:?}", e)))?;
+
+	deserialize_buffer(&contents)
+}
+
 /// Serialize module to the file
-pub fn serialize_to_file<P: AsRef<::std::path::Path>>(p: P, module: Module) -> Result<(), Error>
-{
-	let mut io = ::std::fs::File::create(p)?;
-	module.serialize(&mut io)
+#[cfg(feature = "std")]
+pub fn serialize_to_file<P: AsRef<::std::path::Path>>(p: P, module: Module) -> Result<(), Error> {
+	use std::io::Write;
+
+	let mut io = ::std::fs::File::create(p)
+		.map_err(|e| Error::HeapOther(format!("Can't create the file: {:?}", e)))?;
+	let mut buf = Vec::new();
+
+	module.serialize(&mut buf)?;
+
+	io.write_all(&buf)
+		.map_err(|e| Error::HeapOther(format!("Can't write to the file: {:?}", e)))?;
+
+	Ok(())
 }

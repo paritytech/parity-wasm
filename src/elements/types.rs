@@ -1,4 +1,5 @@
-use std::{io, fmt};
+use io;
+use std::fmt;
 use std::vec::Vec;
 use super::{
 	Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList,

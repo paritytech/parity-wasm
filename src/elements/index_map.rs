@@ -1,10 +1,10 @@
 use std::cmp::min;
-use std::io::{Read, Write};
 use std::iter::{FromIterator, IntoIterator};
 use std::mem;
 use std::slice;
 use std::vec;
 use std::vec::Vec;
+use io;
 
 use super::{Deserialize, Error, Serialize, VarUint32};
 
@@ -151,7 +151,7 @@ impl<T> IndexMap<T> {
 		rdr: &mut R,
 	) -> Result<IndexMap<T>, Error>
 	where
-		R: Read,
+		R: io::Read,
 		F: Fn(u32, &mut R) -> Result<T, Error>,
 	{
 		let len: u32 = VarUint32::deserialize(rdr)?.into();
@@ -326,7 +326,7 @@ where
 {
 	type Error = Error;
 
-	fn serialize<W: Write>(self, wtr: &mut W) -> Result<(), Self::Error> {
+	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Self::Error> {
 		VarUint32::from(self.len()).serialize(wtr)?;
 		for (idx, value) in self {
 			VarUint32::from(idx).serialize(wtr)?;
@@ -344,7 +344,7 @@ where
 	/// Deserialize a map containing simple values that support `Deserialize`.
 	/// We will allocate an underlying array no larger than `max_entry_space` to
 	/// hold the data, so the maximum index must be less than `max_entry_space`.
-	pub fn deserialize<R: Read>(
+	pub fn deserialize<R: io::Read>(
 		max_entry_space: usize,
 		rdr: &mut R,
 	) -> Result<Self, Error> {
@@ -357,7 +357,7 @@ where
 
 #[cfg(test)]
 mod tests {
-	use std::io;
+	use io;
 	use super::*;
 
 	#[test]

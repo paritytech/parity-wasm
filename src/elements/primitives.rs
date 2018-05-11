@@ -1,4 +1,4 @@
-use std::io;
+use io;
 use std::vec::Vec;
 use std::string::String;
 use byteorder::{LittleEndian, ByteOrder};
@@ -44,7 +44,7 @@ impl Deserialize for VarUint32 {
 		loop {
 			if shift > 31 { return Err(Error::InvalidVarUint32); }
 
-			reader.read_exact(&mut u8buf)?;
+			reader.read(&mut u8buf)?;
 			let b = u8buf[0] as u32;
 			res |= (b & 0x7f).checked_shl(shift).ok_or(Error::InvalidVarUint32)?;
 			shift += 7;
@@ -71,7 +71,7 @@ impl Serialize for VarUint32 {
 			if v > 0 {
 				buf[0] |= 0b1000_0000;
 			}
-			writer.write_all(&buf[..])?;
+			writer.write(&buf[..])?;
 			if v == 0 { break; }
 		}
 
@@ -100,7 +100,7 @@ impl Deserialize for VarUint64 {
 		loop {
 			if shift > 63 { return Err(Error::InvalidVarUint64); }
 
-			reader.read_exact(&mut u8buf)?;
+			reader.read(&mut u8buf)?;
 			let b = u8buf[0] as u64;
 			res |= (b & 0x7f).checked_shl(shift).ok_or(Error::InvalidVarUint64)?;
 			shift += 7;
@@ -127,7 +127,7 @@ impl Serialize for VarUint64 {
 			if v > 0 {
 				buf[0] |= 0b1000_0000;
 			}
-			writer.write_all(&buf[..])?;
+			writer.write(&buf[..])?;
 			if v == 0 { break; }
 		}
 
@@ -162,7 +162,7 @@ impl Deserialize for VarUint7 {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut u8buf = [0u8; 1];
-		reader.read_exact(&mut u8buf)?;
+		reader.read(&mut u8buf)?;
 		Ok(VarUint7(u8buf[0]))
 	}
 }
@@ -172,7 +172,7 @@ impl Serialize for VarUint7 {
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		// todo check range?
-		writer.write_all(&[self.0])?;
+		writer.write(&[self.0])?;
 		Ok(())
 	}
 }
@@ -198,7 +198,7 @@ impl Deserialize for VarInt7 {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut u8buf = [0u8; 1];
-		reader.read_exact(&mut u8buf)?;
+		reader.read(&mut u8buf)?;
 
 		// check if number is not continued!
 		if u8buf[0] & 0b1000_0000 != 0 {
@@ -219,7 +219,7 @@ impl Serialize for VarInt7 {
 		// todo check range?
 		let mut b: u8 = self.0 as u8;
 		if self.0 < 0 { b |= 0b0100_0000; b &= 0b0111_1111; }
-		writer.write_all(&[b])?;
+		writer.write(&[b])?;
 		Ok(())
 	}
 }
@@ -246,7 +246,7 @@ impl Deserialize for Uint8 {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut u8buf = [0u8; 1];
-		reader.read_exact(&mut u8buf)?;
+		reader.read(&mut u8buf)?;
 		Ok(Uint8(u8buf[0]))
 	}
 }
@@ -255,7 +255,7 @@ impl Serialize for Uint8 {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		writer.write_all(&[self.0])?;
+		writer.write(&[self.0])?;
 		Ok(())
 	}
 }
@@ -286,7 +286,7 @@ impl Deserialize for VarInt32 {
 		let mut u8buf = [0u8; 1];
 		loop {
 			if shift > 31 { return Err(Error::InvalidVarInt32); }
-			reader.read_exact(&mut u8buf)?;
+			reader.read(&mut u8buf)?;
 			let b = u8buf[0];
 
 			res |= ((b & 0x7f) as i32).checked_shl(shift).ok_or(Error::InvalidVarInt32)?;
@@ -327,7 +327,7 @@ impl Serialize for VarInt32 {
 				buf[0] |= 0b1000_0000
 			}
 
-			writer.write_all(&buf[..])?;
+			writer.write(&buf[..])?;
 		}
 
 		Ok(())
@@ -360,7 +360,7 @@ impl Deserialize for VarInt64 {
 
 		loop {
 			if shift > 63 { return Err(Error::InvalidVarInt64); }
-			reader.read_exact(&mut u8buf)?;
+			reader.read(&mut u8buf)?;
 			let b = u8buf[0];
 
 			res |= ((b & 0x7f) as i64).checked_shl(shift).ok_or(Error::InvalidVarInt64)?;
@@ -399,7 +399,7 @@ impl Serialize for VarInt64 {
 				buf[0] |= 0b1000_0000
 			}
 
-			writer.write_all(&buf[..])?;
+			writer.write(&buf[..])?;
 		}
 
 		Ok(())
@@ -415,7 +415,7 @@ impl Deserialize for Uint32 {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut buf = [0u8; 4];
-		reader.read_exact(&mut buf)?;
+		reader.read(&mut buf)?;
 		// todo check range
 		Ok(Uint32(LittleEndian::read_u32(&buf)))
 	}
@@ -433,7 +433,7 @@ impl Serialize for Uint32 {
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		let mut buf = [0u8; 4];
 		LittleEndian::write_u32(&mut buf, self.0);
-		writer.write_all(&buf)?;
+		writer.write(&buf)?;
 		Ok(())
 	}
 }
@@ -451,7 +451,7 @@ impl Deserialize for Uint64 {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut buf = [0u8; 8];
-		reader.read_exact(&mut buf)?;
+		reader.read(&mut buf)?;
 		// todo check range
 		Ok(Uint64(LittleEndian::read_u64(&buf)))
 	}
@@ -463,7 +463,7 @@ impl Serialize for Uint64 {
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		let mut buf = [0u8; 8];
 		LittleEndian::write_u64(&mut buf, self.0);
-		writer.write_all(&buf)?;
+		writer.write(&buf)?;
 		Ok(())
 	}
 }
@@ -500,7 +500,7 @@ impl Deserialize for VarUint1 {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut u8buf = [0u8; 1];
-		reader.read_exact(&mut u8buf)?;
+		reader.read(&mut u8buf)?;
 		match u8buf[0] {
 			0 => Ok(VarUint1(false)),
 			1 => Ok(VarUint1(true)),
@@ -513,7 +513,7 @@ impl Serialize for VarUint1 {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		writer.write_all(&[
+		writer.write(&[
 			if self.0 { 1u8 } else { 0u8 }
 		])?;
 		Ok(())
@@ -539,7 +539,7 @@ impl Serialize for String {
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Error> {
 		VarUint32::from(self.len()).serialize(writer)?;
-		writer.write_all(&self.into_bytes()[..])?;
+		writer.write(&self.into_bytes()[..])?;
 		Ok(())
 	}
 }
@@ -589,24 +589,15 @@ impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
 		let data = self.data;
 		VarUint32::from(data.len())
 			.serialize(writer)
-			.map_err(
-				|_| io::Error::new(
-					io::ErrorKind::Other,
-					"Length serialization error",
-				)
-			)?;
-		writer.write_all(&data[..])?;
+			.map_err(|_| io::Error::InvalidData)?;
+		writer.write(&data[..])?;
 		Ok(())
 	}
 }
 
 impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
-	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+	fn write(&mut self, buf: &[u8]) -> io::Result<()> {
 		self.data.extend(buf.to_vec());
-		Ok(buf.len())
-	}
-
-	fn flush(&mut self) -> io::Result<()> {
 		Ok(())
 	}
 }

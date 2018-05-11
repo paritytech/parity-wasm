@@ -1,4 +1,4 @@
-use std::io;
+use io;
 use std::vec::Vec;
 use std::string::String;
 use super::{
@@ -145,7 +145,7 @@ impl Serialize for Section {
 			},
 			Section::Unparsed { id, payload } => {
 				VarUint7::from(id).serialize(writer)?;
-				writer.write_all(&payload[..])?;
+				writer.write(&payload[..])?;
 			},
 			Section::Type(type_section) => {
 				VarUint7::from(0x01).serialize(writer)?;
@@ -250,12 +250,12 @@ impl SectionReader {
 		})
 	}
 
-	pub fn close(self) -> Result<(), ::elements::Error> {
+	pub fn close(self) -> Result<(), io::Error> {
 		let cursor = self.cursor;
 		let buf_length = self.declared_length;
 
-		if cursor.position() != buf_length as u64 {
-			Err(io::Error::from(io::ErrorKind::InvalidData).into())
+		if cursor.position() != buf_length {
+			Err(io::Error::InvalidData)
 		} else {
 			Ok(())
 		}
@@ -263,8 +263,9 @@ impl SectionReader {
 }
 
 impl io::Read for SectionReader {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-		self.cursor.read(buf)
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<()> {
+		self.cursor.read(buf)?;
+		Ok(())
 	}
 }
 
@@ -313,7 +314,7 @@ impl Deserialize for CustomSection {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let section_length: usize = u32::from(VarUint32::deserialize(reader)?) as usize;
 		let buf = buffered_read!(16384, section_length, reader);
-		let mut cursor = ::std::io::Cursor::new(&buf[..]);
+		let mut cursor = io::Cursor::new(&buf[..]);
 		let name = String::deserialize(&mut cursor)?;
 		let payload = buf[cursor.position() as usize..].to_vec();
 		Ok(CustomSection { name: name, payload: payload })
@@ -324,11 +325,11 @@ impl Serialize for CustomSection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		use std::io::Write;
+		use io::Write;
 
 		let mut counted_writer = CountedWriter::new(writer);
 		self.name.serialize(&mut counted_writer)?;
-		counted_writer.write_all(&self.payload[..])?;
+		counted_writer.write(&self.payload[..])?;
 		counted_writer.done()?;
 		Ok(())
 	}

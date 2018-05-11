@@ -1,6 +1,7 @@
-use std::{io, fmt};
+use std::fmt;
 use std::vec::Vec;
 use std::boxed::Box;
+use io;
 use super::{
 	Serialize, Deserialize, Error,
 	Uint8, VarUint32, CountedList, BlockType,
@@ -613,7 +614,7 @@ impl Deserialize for Opcode {
 macro_rules! op {
 	($writer: expr, $byte: expr) => ({
 		let b: u8 = $byte;
-		$writer.write_all(&[b])?;
+		$writer.write(&[b])?;
 	});
 	($writer: expr, $byte: expr, $s: block) => ({
 		op!($writer, $byte);

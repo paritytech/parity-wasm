@@ -1,4 +1,4 @@
-use std::io;
+use io;
 use std::vec::Vec;
 use byteorder::{LittleEndian, ByteOrder};
 
@@ -310,8 +310,8 @@ impl Module {
 							Ok(reloc_section) => reloc_section,
 							Err(e) => { parse_errors.push((i, e)); continue; }
 						};
-						if rdr.position() != custom.payload().len() as u64 {
-							parse_errors.push((i, io::Error::from(io::ErrorKind::InvalidData).into()));
+						if rdr.position() != custom.payload().len() {
+							parse_errors.push((i, io::Error::InvalidData.into()));
 							continue;
 						}
 						Some(Section::Reloc(reloc_section))
@@ -448,17 +448,17 @@ struct PeekSection<'a> {
 }
 
 impl<'a> io::Read for PeekSection<'a> {
-	fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<()> {
 		let available = ::std::cmp::min(buf.len(), self.region.len() - self.cursor);
 		if available < buf.len() {
-			return Err(::std::io::Error::from(::std::io::ErrorKind::UnexpectedEof));
+			return Err(io::Error::UnexpectedEof);
 		}
 
 		let range = self.cursor..self.cursor + buf.len();
 		buf.copy_from_slice(&self.region[range]);
 
 		self.cursor += available;
-		Ok(available)
+		Ok(())
 	}
 }
 

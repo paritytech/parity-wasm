@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use io;
 use std::vec::Vec;
 use std::string::String;
 
@@ -32,7 +32,7 @@ pub enum NameSection {
 
 impl NameSection {
 	/// Deserialize a name section.
-	pub fn deserialize<R: Read>(
+	pub fn deserialize<R: io::Read>(
 		module: &Module,
 		rdr: &mut R,
 	) -> Result<NameSection, Error> {
@@ -44,7 +44,7 @@ impl NameSection {
 			NAME_TYPE_LOCAL => NameSection::Local(LocalNameSection::deserialize(module, rdr)?),
 			_ => {
 				let mut name_payload = vec![0u8; name_payload_len as usize];
-				rdr.read_exact(&mut name_payload)?;
+				rdr.read(&mut name_payload)?;
 				NameSection::Unparsed {
 					name_type,
 					name_payload,
@@ -58,7 +58,7 @@ impl NameSection {
 impl Serialize for NameSection {
 	type Error = Error;
 
-	fn serialize<W: Write>(self, wtr: &mut W) -> Result<(), Error> {
+	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
 		let (name_type, name_payload) = match self {
 			NameSection::Module(mod_name) => {
 				let mut buffer = vec![];
@@ -82,7 +82,7 @@ impl Serialize for NameSection {
 		};
 		VarUint7::from(name_type).serialize(wtr)?;
 		VarUint32::from(name_payload.len()).serialize(wtr)?;
-		wtr.write_all(&name_payload)?;
+		wtr.write(&name_payload)?;
 		Ok(())
 	}
 }
@@ -113,7 +113,7 @@ impl ModuleNameSection {
 impl Serialize for ModuleNameSection {
 	type Error = Error;
 
-	fn serialize<W: Write>(self, wtr: &mut W) -> Result<(), Error> {
+	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
 		self.name.serialize(wtr)
 	}
 }
@@ -121,7 +121,7 @@ impl Serialize for ModuleNameSection {
 impl Deserialize for ModuleNameSection {
 	type Error = Error;
 
-	fn deserialize<R: Read>(rdr: &mut R) -> Result<ModuleNameSection, Error> {
+	fn deserialize<R: io::Read>(rdr: &mut R) -> Result<ModuleNameSection, Error> {
 		let name = String::deserialize(rdr)?;
 		Ok(ModuleNameSection { name })
 	}
@@ -145,7 +145,7 @@ impl FunctionNameSection {
 	}
 
 	/// Deserialize names, making sure that all names correspond to functions.
-	pub fn deserialize<R: Read>(
+	pub fn deserialize<R: io::Read>(
 		module: &Module,
 		rdr: &mut R,
 	) -> Result<FunctionNameSection, Error> {
@@ -157,7 +157,7 @@ impl FunctionNameSection {
 impl Serialize for FunctionNameSection {
 	type Error = Error;
 
-	fn serialize<W: Write>(self, wtr: &mut W) -> Result<(), Error> {
+	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
 		self.names.serialize(wtr)
 	}
 }
@@ -182,7 +182,7 @@ impl LocalNameSection {
 
 	/// Deserialize names, making sure that all names correspond to local
 	/// variables.
-	pub fn deserialize<R: Read>(
+	pub fn deserialize<R: io::Read>(
 		module: &Module,
 		rdr: &mut R,
 	) -> Result<LocalNameSection, Error> {
@@ -221,7 +221,7 @@ impl LocalNameSection {
 impl Serialize for LocalNameSection {
 	type Error = Error;
 
-	fn serialize<W: Write>(self, wtr: &mut W) -> Result<(), Error> {
+	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
 		self.local_names.serialize(wtr)
 	}
 }

@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use io;
 use std::vec::Vec;
 use std::string::String;
 
@@ -73,7 +73,7 @@ impl RelocSection {
 
 impl RelocSection {
 	/// Deserialize a reloc section.
-	pub fn deserialize<R: Read>(
+	pub fn deserialize<R: io::Read>(
 		name: String,
 		rdr: &mut R,
 	) -> Result<Self, Error> {
@@ -101,7 +101,7 @@ impl RelocSection {
 impl Serialize for RelocSection {
 	type Error = Error;
 
-	fn serialize<W: Write>(self, wtr: &mut W) -> Result<(), Error> {
+	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
 		let mut counted_writer = CountedWriter::new(wtr);
 
 		self.name.serialize(&mut counted_writer)?;
@@ -209,7 +209,7 @@ pub enum RelocationEntry {
 impl Deserialize for RelocationEntry {
 	type Error = Error;
 
-	fn deserialize<R: Read>(rdr: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::Read>(rdr: &mut R) -> Result<Self, Self::Error> {
 		match VarUint7::deserialize(rdr)?.into() {
 			FUNCTION_INDEX_LEB => Ok(RelocationEntry::FunctionIndexLeb {
 				offset: VarUint32::deserialize(rdr)?.into(),
@@ -262,7 +262,7 @@ impl Deserialize for RelocationEntry {
 impl Serialize for RelocationEntry {
 	type Error = Error;
 
-	fn serialize<W: Write>(self, wtr: &mut W) -> Result<(), Error> {
+	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
 		match self {
 			RelocationEntry::FunctionIndexLeb { offset, index } => {
 				VarUint7::from(FUNCTION_INDEX_LEB).serialize(wtr)?;

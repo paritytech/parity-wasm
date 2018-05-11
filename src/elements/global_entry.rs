@@ -1,4 +1,4 @@
-use std::io;
+use io;
 use super::{Deserialize, Serialize, Error, GlobalType, InitExpr};
 
 /// Global entry in the module.

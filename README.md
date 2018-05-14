@@ -38,6 +38,16 @@ Decoder can be fuzzed with `cargo-fuzz` using `wasm-opt` (https://github.com/Web
 - set rustup to use a nightly toolchain, because `cargo fuzz` uses a rust compiler plugin: `rustup override set nightly`
 - run `cargo fuzz run deserialize`
 
+## `no_std` crates
+
+This crate has a feature, `std`, that is enabled by default. To use this crate
+in a `no_std` context, add the following to your `Cargo.toml`:
+
+```toml
+[dependencies]
+parity-wasm = { version = "0.29", default-features = false }
+```
+
 # License
 
 `parity-wasm` is primarily distributed under the terms of both the MIT

@@ -1,4 +1,5 @@
-use std::io;
+use io;
+use std::vec::Vec;
 use super::{
 	Deserialize, Error, ValueType, VarUint32, CountedList, Opcodes,
 	Serialize, CountedWriter, CountedListWriter,

@@ -1,3 +1,4 @@
+use std::vec::Vec;
 use elements;
 use super::invoke::{Invoke, Identity};
 

@@ -1,5 +1,7 @@
-use super::invoke::{Invoke, Identity};
+use super::invoke::{Identity, Invoke};
 use elements;
+use std::borrow::ToOwned;
+use std::string::String;
 
 /// Import builder
 pub struct ImportBuilder<F=Identity> {

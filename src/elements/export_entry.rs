@@ -1,5 +1,6 @@
-use std::io;
+use std::string::String;
 use super::{Deserialize, Serialize, Error, VarUint7, VarUint32};
+use io;
 
 /// Internal reference of the exported entry.
 #[derive(Debug, Clone, Copy, PartialEq)]

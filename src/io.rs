@@ -3,10 +3,8 @@
 //! Basically it just a replacement for the std::io that is usable from
 //! the `no_std` environment.
 
-use std::vec::Vec;
-
 /// IO specific error.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Error {
 	/// Some unexpected data left in the buffer after reading all data.
 	TrailingData,
@@ -16,6 +14,9 @@ pub enum Error {
 
 	/// Invalid data is encountered.
 	InvalidData,
+
+	#[cfg(feature = "std")]
+	IoError(::std::io::Error),
 }
 
 /// IO specific Result.
@@ -33,13 +34,6 @@ pub trait Read {
 	///
 	/// If there is not enough data in this read then `UnexpectedEof` will be returned.
 	fn read(&mut self, buf: &mut [u8]) -> Result<()>;
-}
-
-impl Write for Vec<u8> {
-	fn write(&mut self, buf: &[u8]) -> Result<()> {
-		self.extend(buf);
-		Ok(())
-	}
 }
 
 /// Reader that saves the last position.
@@ -72,6 +66,29 @@ impl<T: AsRef<[u8]>> Read for Cursor<T> {
 		buf.copy_from_slice(&slice[self.pos..(self.pos + requested)]);
 		self.pos += requested;
 		Ok(())
+	}
+}
+
+#[cfg(not(feature = "std"))]
+impl Write for ::std::vec::Vec<u8> {
+	fn write(&mut self, buf: &[u8]) -> Result<()> {
+		self.extend(buf);
+		Ok(())
+	}
+}
+
+#[cfg(feature = "std")]
+impl<T: ::std::io::Read> Read for T {
+	fn read(&mut self, buf: &mut [u8]) -> Result<()> {
+		self.read_exact(buf)
+			.map_err(Error::IoError)
+	}
+}
+
+#[cfg(feature = "std")]
+impl<T: ::std::io::Write> Write for T {
+	fn write(&mut self, buf: &[u8]) -> Result<()> {
+		self.write_all(buf).map_err(Error::IoError)
 	}
 }
 

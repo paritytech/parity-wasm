@@ -255,33 +255,23 @@ pub fn serialize<T: Serialize>(val: T) -> Result<Vec<u8>, T::Error> {
 	Ok(buf)
 }
 
-/// Deserialize module from file.
+/// Deserialize module from the file.
 #[cfg(feature = "std")]
 pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Error> {
-	use std::io::Read;
-
-	let mut contents = Vec::new();
-
-	::std::fs::File::open(p)
-		.and_then(|mut f| f.read_to_end(&mut contents))
+	let mut f = ::std::fs::File::open(p)
 		.map_err(|e| Error::HeapOther(format!("Can't read from the file: {:?}", e)))?;
 
-	deserialize_buffer(&contents)
+	Module::deserialize(&mut f)
 }
 
 /// Serialize module to the file
 #[cfg(feature = "std")]
 pub fn serialize_to_file<P: AsRef<::std::path::Path>>(p: P, module: Module) -> Result<(), Error> {
-	use std::io::Write;
-
 	let mut io = ::std::fs::File::create(p)
-		.map_err(|e| Error::HeapOther(format!("Can't create the file: {:?}", e)))?;
-	let mut buf = Vec::new();
+		.map_err(|e|
+			Error::HeapOther(format!("Can't create the file: {:?}", e))
+		)?;
 
-	module.serialize(&mut buf)?;
-
-	io.write_all(&buf)
-		.map_err(|e| Error::HeapOther(format!("Can't write to the file: {:?}", e)))?;
-
+	module.serialize(&mut io)?;
 	Ok(())
 }

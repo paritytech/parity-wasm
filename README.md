@@ -45,7 +45,7 @@ in a `no_std` context, add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-parity-wasm = { version = "0.29", default-features = false }
+parity-wasm = { version = "0.30", default-features = false }
 ```
 
 # License

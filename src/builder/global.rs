@@ -40,9 +40,9 @@ impl<F> GlobalBuilder<F> {
 		self
 	}
 
-	/// Set initialization expression opcode for this global (`end` opcode will be added automatically)
-	pub fn init_expr(mut self, opcode: elements::Opcode) -> Self {
-		self.init_expr = elements::InitExpr::new(vec![opcode, elements::Opcode::End]);
+	/// Set initialization expression instruction for this global (`end` instruction will be added automatically)
+	pub fn init_expr(mut self, instruction: elements::Instruction) -> Self {
+		self.init_expr = elements::InitExpr::new(vec![instruction, elements::Instruction::End]);
 		self
 	}
 

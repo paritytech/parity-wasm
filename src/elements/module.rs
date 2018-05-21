@@ -584,7 +584,7 @@ mod integration_tests {
 
 	#[test]
 	fn const_() {
-		use super::super::Opcode::*;
+		use super::super::Instruction::*;
 
 		let module = deserialize_file("./res/cases/v1/const.wasm").expect("Should be deserialized");
 		let func = &module.code_section().expect("Code section to exist").bodies()[0];
@@ -612,7 +612,7 @@ mod integration_tests {
 
 	#[test]
 	fn store() {
-		use super::super::Opcode::*;
+		use super::super::Instruction::*;
 
 		let module = deserialize_file("./res/cases/v1/offset.wasm").expect("Should be deserialized");
 		let func = &module.code_section().expect("Code section to exist").bodies()[0];

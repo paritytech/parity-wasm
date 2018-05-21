@@ -60,8 +60,8 @@ impl<F> TableBuilder<F> where F: Invoke<TableDefinition> {
 	pub fn with_element(mut self, index: u32, values: Vec<u32>) -> Self {
 		self.table.elements.push(TableEntryDefinition {
 			offset: elements::InitExpr::new(vec![
-				elements::Opcode::I32Const(index as i32),
-				elements::Opcode::End,
+				elements::Instruction::I32Const(index as i32),
+				elements::Instruction::End,
 			]),
 			values: values,
 		});

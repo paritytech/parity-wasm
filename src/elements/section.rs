@@ -805,7 +805,7 @@ mod tests {
 
 	use super::super::{
 		deserialize_buffer, deserialize_file, ValueType, InitExpr, DataSegment,
-		serialize, ElementSegment, Opcodes, BlockType, Local, FuncBody,
+		serialize, ElementSegment, Instructions, BlockType, Local, FuncBody,
 	};
 	use super::{Section, TypeSection, Type, DataSection, ElementSection, CodeSection};
 
@@ -1089,13 +1089,13 @@ mod tests {
 
 	#[test]
 	fn code_section_ser() {
-		use super::super::Opcode::*;
+		use super::super::Instruction::*;
 
 		let code_section = CodeSection::with_bodies(
 			vec![
 				FuncBody::new(
 					vec![Local::new(1, ValueType::I32)],
-					Opcodes::new(vec![
+					Instructions::new(vec![
 						Block(BlockType::Value(ValueType::I32)),
 						GetGlobal(0),
 						End,

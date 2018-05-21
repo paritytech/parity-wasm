@@ -224,7 +224,7 @@ impl<F> FuncBodyBuilder<F> {
 	pub fn with_callback(callback: F) -> Self {
 		FuncBodyBuilder {
 			callback: callback,
-			body: elements::FuncBody::new(Vec::new(), elements::Opcodes::empty()),
+			body: elements::FuncBody::new(Vec::new(), elements::Instructions::empty()),
 		}
 	}
 }
@@ -243,8 +243,8 @@ impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
 	}
 
 	/// Set code of the function
-	pub fn with_opcodes(mut self, opcodes: elements::Opcodes) -> Self {
-		*self.body.code_mut() = opcodes;
+	pub fn with_instructions(mut self, instructions: elements::Instructions) -> Self {
+		*self.body.code_mut() = instructions;
 		self
 	}
 
@@ -402,7 +402,7 @@ mod tests {
 				.return_type().i32()
 				.build()
 			.body()
-				.with_opcodes(elements::Opcodes::empty())
+				.with_instructions(elements::Instructions::empty())
 				.build()
 			.build();
 

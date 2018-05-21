@@ -29,9 +29,9 @@ impl<F> DataSegmentBuilder<F> {
 		}
 	}
 
-	/// Set offset initialization opcode. `End` opcode will be added automatically.
-	pub fn offset(mut self, opcode: elements::Opcode) -> Self {
-		self.offset = elements::InitExpr::new(vec![opcode, elements::Opcode::End]);
+	/// Set offset initialization instruction. `End` instruction will be added automatically.
+	pub fn offset(mut self, instruction: elements::Instruction) -> Self {
+		self.offset = elements::InitExpr::new(vec![instruction, elements::Instruction::End]);
 		self
 	}
 

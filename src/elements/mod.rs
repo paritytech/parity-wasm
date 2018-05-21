@@ -50,7 +50,7 @@ pub use self::primitives::{
 	Uint64, VarUint64, CountedList, CountedWriter, CountedListWriter,
 };
 pub use self::types::{Type, ValueType, BlockType, FunctionType, TableElementType};
-pub use self::ops::{Opcode, Opcodes, InitExpr};
+pub use self::ops::{Instruction, Instructions, InitExpr};
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
 pub use self::index_map::IndexMap;

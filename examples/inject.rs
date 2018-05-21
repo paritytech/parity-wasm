@@ -5,21 +5,21 @@ use std::env;
 use parity_wasm::elements;
 use parity_wasm::builder;
 
-pub fn inject_nop(opcodes: &mut elements::Opcodes) {
-	use parity_wasm::elements::Opcode::*;
-	let opcodes = opcodes.elements_mut();
+pub fn inject_nop(instructions: &mut elements::Instructions) {
+	use parity_wasm::elements::Instruction::*;
+	let instructions = instructions.elements_mut();
 	let mut position = 0;
 	loop {
-		let need_inject = match &opcodes[position] {
+		let need_inject = match &instructions[position] {
 			&Block(_) | &If(_) => true,
 			_ => false,
 		};
 		if need_inject {
-			opcodes.insert(position + 1, Nop);
+			instructions.insert(position + 1, Nop);
 		}
 
 		position += 1;
-		if position >= opcodes.len() {
+		if position >= instructions.len() {
 			break;
 		}
 	}

@@ -18,11 +18,11 @@ impl GlobalEntry {
 	}
 	/// Global type.
 	pub fn global_type(&self) -> &GlobalType { &self.global_type }
-	/// Initialization expression (opcodes) for global.
+	/// Initialization expression (instructions) for global.
 	pub fn init_expr(&self) -> &InitExpr { &self.init_expr }
 	/// Global type (mutable)
 	pub fn global_type_mut(&mut self) -> &mut GlobalType { &mut self.global_type }
-	/// Initialization expression (opcodes) for global (mutable)
+	/// Initialization expression (instructions) for global (mutable)
 	pub fn init_expr_mut(&mut self) -> &mut InitExpr { &mut self.init_expr }
 }
 

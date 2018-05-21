@@ -9,104 +9,103 @@ use super::{
 	VarInt32, VarInt64,
 };
 
-/// Collection of opcodes (usually inside a block section).
+/// List of instructions (usually inside a block section).
 #[derive(Debug, Clone, PartialEq)]
-pub struct Opcodes(Vec<Opcode>);
+pub struct Instructions(Vec<Instruction>);
 
-impl Opcodes {
-	/// New list of opcodes from vector of opcodes.
-	pub fn new(elements: Vec<Opcode>) -> Self {
-		Opcodes(elements)
+impl Instructions {
+	/// New list of instructions from vector of instructions.
+	pub fn new(elements: Vec<Instruction>) -> Self {
+		Instructions(elements)
 	}
 
-	/// Empty expression with only `Opcode::End` opcode.
+	/// Empty expression with only `Instruction::End` instruction.
 	pub fn empty() -> Self {
-		Opcodes(vec![Opcode::End])
+		Instructions(vec![Instruction::End])
 	}
 
-	/// List of individual opcodes.
-	pub fn elements(&self) -> &[Opcode] { &self.0 }
+	/// List of individual instructions.
+	pub fn elements(&self) -> &[Instruction] { &self.0 }
 
-	/// Individual opcodes, mutable.
-	pub fn elements_mut(&mut self) -> &mut Vec<Opcode> { &mut self.0 }
+	/// Individual instructions, mutable.
+	pub fn elements_mut(&mut self) -> &mut Vec<Instruction> { &mut self.0 }
 }
 
-impl Deserialize for Opcodes {
+impl Deserialize for Instructions {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		let mut opcodes = Vec::new();
+		let mut instructions = Vec::new();
 		let mut block_count = 1usize;
 
 		loop {
-			let opcode = Opcode::deserialize(reader)?;
-			if opcode.is_terminal() {
+			let instruction = Instruction::deserialize(reader)?;
+			if instruction.is_terminal() {
 				block_count -= 1;
-			} else if opcode.is_block() {
-				block_count = block_count.checked_add(1).ok_or(Error::Other("too many opcodes"))?;
+			} else if instruction.is_block() {
+				block_count = block_count.checked_add(1).ok_or(Error::Other("too many instructions"))?;
 			}
 
-			opcodes.push(opcode);
+			instructions.push(instruction);
 			if block_count == 0 {
 				break;
 			}
 		}
 
-		Ok(Opcodes(opcodes))
+		Ok(Instructions(instructions))
 	}
 }
 
 /// Initialization expression.
 #[derive(Debug, Clone, PartialEq)]
-pub struct InitExpr(Vec<Opcode>);
+pub struct InitExpr(Vec<Instruction>);
 
 impl InitExpr {
-	/// New initialization expression from list of opcodes.
-	///   `code` must end with the `Opcode::End` opcode!
-	pub fn new(code: Vec<Opcode>) -> Self {
+	/// New initialization expression from instruction list.
+	///   `code` must end with the `Instruction::End` instruction!
+	pub fn new(code: Vec<Instruction>) -> Self {
 		InitExpr(code)
 	}
 
-	/// Empty expression with only `Opcode::End` opcode
+	/// Empty expression with only `Instruction::End` instruction
 	pub fn empty() -> Self {
-		InitExpr(vec![Opcode::End])
+		InitExpr(vec![Instruction::End])
 	}
 
-	/// List of opcodes used in the expression.
-	pub fn code(&self) -> &[Opcode] {
+	/// List of instructions used in the expression.
+	pub fn code(&self) -> &[Instruction] {
 		&self.0
 	}
 
-	/// List of opcodes used in the expression.
-	pub fn code_mut(&mut self) -> &mut Vec<Opcode> {
+	/// List of instructions used in the expression.
+	pub fn code_mut(&mut self) -> &mut Vec<Instruction> {
 		&mut self.0
 	}
 }
 
-// todo: check if kind of opcode sequence is valid as an expression
 impl Deserialize for InitExpr {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		let mut opcodes = Vec::new();
+		let mut instructions = Vec::new();
 
 		loop {
-			let opcode = Opcode::deserialize(reader)?;
-			let is_terminal = opcode.is_terminal();
-			opcodes.push(opcode);
+			let instruction = Instruction::deserialize(reader)?;
+			let is_terminal = instruction.is_terminal();
+			instructions.push(instruction);
 			if is_terminal {
 				break;
 			}
 		}
 
-		Ok(InitExpr(opcodes))
+		Ok(InitExpr(instructions))
 	}
 }
 
-/// Opcode
+/// Instruction
 #[derive(Clone, Debug, PartialEq)]
 #[allow(missing_docs)]
-pub enum Opcode {
+pub enum Instruction {
 	Unreachable,
 	Nop,
 	Block(BlockType),
@@ -131,7 +130,7 @@ pub enum Opcode {
 	GetGlobal(u32),
 	SetGlobal(u32),
 
-	// All store/load opcodes operate with 'memory immediates'
+	// All store/load instructions operate with 'memory immediates'
 	// which represented here as (flag, offset) tuple
 	I32Load(u32, u32),
 	I64Load(u32, u32),
@@ -297,30 +296,30 @@ pub enum Opcode {
 	F64ReinterpretI64,
 }
 
-impl Opcode {
-	/// Is this opcode starts the new block (which should end with terminal opcode).
+impl Instruction {
+	/// Is this instruction starts the new block (which should end with terminal instruction).
 	pub fn is_block(&self) -> bool {
 		match self {
-			&Opcode::Block(_) | &Opcode::Loop(_) | &Opcode::If(_) => true,
+			&Instruction::Block(_) | &Instruction::Loop(_) | &Instruction::If(_) => true,
 			_ => false,
 		}
 	}
 
-	/// Is this opcode determines the termination of opcode sequence
-	/// `true` for `Opcode::End`
+	/// Is this instruction determines the termination of instruction sequence
+	/// `true` for `Instruction::End`
 	pub fn is_terminal(&self) -> bool {
 		match self {
-			&Opcode::End => true,
+			&Instruction::End => true,
 			_ => false,
 		}
 	}
 }
 
-impl Deserialize for Opcode {
+impl Deserialize for Instruction {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		use self::Opcode::*;
+		use self::Instruction::*;
 
 		let val: u8 = Uint8::deserialize(reader)?.into();
 
@@ -622,11 +621,11 @@ macro_rules! op {
 	});
 }
 
-impl Serialize for Opcode {
+impl Serialize for Instruction {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		use self::Opcode::*;
+		use self::Instruction::*;
 
 		match self {
 			Unreachable => op!(writer, 0x00),
@@ -939,9 +938,9 @@ macro_rules! fmt_op {
 	});
 }
 
-impl fmt::Display for Opcode {
+impl fmt::Display for Instruction {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::Opcode::*;
+		use self::Instruction::*;
 		use super::BlockType;
 
 		match *self {
@@ -1186,7 +1185,7 @@ impl fmt::Display for Opcode {
 	}
 }
 
-impl Serialize for Opcodes {
+impl Serialize for Instructions {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
@@ -1213,36 +1212,36 @@ impl Serialize for InitExpr {
 #[test]
 fn ifelse() {
 	// see if-else.wast/if-else.wasm
-	let opcode = super::deserialize_buffer::<Opcodes>(&[0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B])
+	let instruction_list = super::deserialize_buffer::<Instructions>(&[0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B])
 		.expect("valid hex of if instruction");
-	let opcodes = opcode.elements();
-	match &opcodes[0] {
-		&Opcode::If(_) => (),
-		_ => panic!("Should be deserialized as if opcode"),
+	let instructions = instruction_list.elements();
+	match &instructions[0] {
+		&Instruction::If(_) => (),
+		_ => panic!("Should be deserialized as if instruction"),
 	}
-	let before_else = opcodes.iter().skip(1)
-		.take_while(|op| match **op { Opcode::Else => false, _ => true }).count();
-	let after_else = opcodes.iter().skip(1)
-		.skip_while(|op| match **op { Opcode::Else => false, _ => true })
-		.take_while(|op| match **op { Opcode::End => false, _ => true })
+	let before_else = instructions.iter().skip(1)
+		.take_while(|op| match **op { Instruction::Else => false, _ => true }).count();
+	let after_else = instructions.iter().skip(1)
+		.skip_while(|op| match **op { Instruction::Else => false, _ => true })
+		.take_while(|op| match **op { Instruction::End => false, _ => true })
 		.count()
-		- 1; // minus Opcode::Else itself
+		- 1; // minus Instruction::Else itself
 	assert_eq!(before_else, after_else);
 }
 
 #[test]
 fn display() {
-	let opcode = Opcode::GetLocal(0);
-	assert_eq!("get_local 0", format!("{}", opcode));
+	let instruction = Instruction::GetLocal(0);
+	assert_eq!("get_local 0", format!("{}", instruction));
 
-	let opcode = Opcode::F64Store(0, 24);
-	assert_eq!("f64.store offset=24", format!("{}", opcode));
+	let instruction = Instruction::F64Store(0, 24);
+	assert_eq!("f64.store offset=24", format!("{}", instruction));
 
-	let opcode = Opcode::I64Store(0, 0);
-	assert_eq!("i64.store", format!("{}", opcode));
+	let instruction = Instruction::I64Store(0, 0);
+	assert_eq!("i64.store", format!("{}", instruction));
 }
 
 #[test]
 fn size_off() {
-	assert!(::std::mem::size_of::<Opcode>() <= 24);
+	assert!(::std::mem::size_of::<Instruction>() <= 24);
 }

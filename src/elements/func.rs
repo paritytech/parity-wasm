@@ -1,7 +1,7 @@
 use io;
 use std::vec::Vec;
 use super::{
-	Deserialize, Error, ValueType, VarUint32, CountedList, Opcodes,
+	Deserialize, Error, ValueType, VarUint32, CountedList, Instructions,
 	Serialize, CountedWriter, CountedListWriter,
 };
 use elements::section::SectionReader;
@@ -85,32 +85,32 @@ impl Serialize for Local {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FuncBody {
 	locals: Vec<Local>,
-	opcodes: Opcodes,
+	instructions: Instructions,
 }
 
 impl FuncBody {
-	/// New function body with given `locals` and `opcodes`
-	pub fn new(locals: Vec<Local>, opcodes: Opcodes) -> Self {
-		FuncBody { locals: locals, opcodes: opcodes }
+	/// New function body with given `locals` and `instructions`
+	pub fn new(locals: Vec<Local>, instructions: Instructions) -> Self {
+		FuncBody { locals: locals, instructions: instructions }
 	}
 
-	/// List of individual opcodes
+	/// List of individual instructions
 	pub fn empty() -> Self {
-		FuncBody { locals: Vec::new(), opcodes: Opcodes::empty() }
+		FuncBody { locals: Vec::new(), instructions: Instructions::empty() }
 	}
 
 	/// Locals declared in function body.
 	pub fn locals(&self) -> &[Local] { &self.locals }
 
-	/// Opcode sequence of the function body. Minimal opcode sequence
-	/// is just `&[Opcode::End]`
-	pub fn code(&self) -> &Opcodes { &self.opcodes }
+	/// Instruction list of the function body. Minimal instruction list
+	/// is just `&[Instruction::End]`
+	pub fn code(&self) -> &Instructions { &self.instructions }
 
 	/// Locals declared in function body (mutable).
 	pub fn locals_mut(&mut self) -> &mut Vec<Local> { &mut self.locals }
 
-	/// Opcode sequence of the function body (mutable).
-	pub fn code_mut(&mut self) -> &mut Opcodes { &mut self.opcodes }
+	/// Instruction list of the function body (mutable).
+	pub fn code_mut(&mut self) -> &mut Instructions { &mut self.instructions }
 }
 
 impl Deserialize for FuncBody {
@@ -120,9 +120,9 @@ impl Deserialize for FuncBody {
 		// todo: maybe use reader.take(section_length)
 		let mut body_reader = SectionReader::new(reader)?;
 		let locals: Vec<Local> = CountedList::<Local>::deserialize(&mut body_reader)?.into_inner();
-		let opcodes = Opcodes::deserialize(&mut body_reader)?;
+		let instructions = Instructions::deserialize(&mut body_reader)?;
 		body_reader.close()?;
-		Ok(FuncBody { locals: locals, opcodes: opcodes })
+		Ok(FuncBody { locals: locals, instructions: instructions })
 	}
 }
 
@@ -139,7 +139,7 @@ impl Serialize for FuncBody {
 		);
 		counted_list.serialize(&mut counted_writer)?;
 
-		let code = self.opcodes;
+		let code = self.instructions;
 		code.serialize(&mut counted_writer)?;
 
 		counted_writer.done()?;

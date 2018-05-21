@@ -336,7 +336,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 	/// # Examples
 	/// ```
 	/// use parity_wasm::builder::module;
-	/// use parity_wasm::elements::Opcode::*;
+	/// use parity_wasm::elements::Instruction::*;
 	///
 	/// let module = module()
 	///    .global()
@@ -359,7 +359,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 	/// # Examples
 	/// ```
 	/// use parity_wasm::builder::module;
-	/// use parity_wasm::elements::Opcode::*;
+	/// use parity_wasm::elements::Instruction::*;
 	///
 	/// let module = module()
 	///    .global()
@@ -551,7 +551,7 @@ mod tests {
 	#[test]
 	fn global() {
 		let module = module()
-			.global().value_type().i64().mutable().init_expr(::elements::Opcode::I64Const(5)).build()
+			.global().value_type().i64().mutable().init_expr(::elements::Instruction::I64Const(5)).build()
 			.build();
 
 		assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);
@@ -561,7 +561,7 @@ mod tests {
 	fn data() {
 		let module = module()
 			.data()
-				.offset(::elements::Opcode::I32Const(16))
+				.offset(::elements::Instruction::I32Const(16))
 				.value(vec![0u8, 15, 10, 5, 25])
 				.build()
 			.build();

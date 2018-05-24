@@ -16,6 +16,8 @@ Add to Cargo.toml
 parity-wasm = "0.31"
 ```
 
+and then
+
 ```rust
 
 extern crate parity_wasm;

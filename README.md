@@ -9,6 +9,13 @@ Low-level WebAssembly format library.
 
 ## Rust WebAssembly format serializing/deserializing
 
+Add to Cargo.toml
+
+```toml
+[dependencies]
+parity-wasm = "0.31"
+```
+
 ```rust
 
 extern crate parity_wasm;
@@ -45,7 +52,7 @@ in a `no_std` context, add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-parity-wasm = { version = "0.30", default-features = false }
+parity-wasm = { version = "0.31", default-features = false }
 ```
 
 # License

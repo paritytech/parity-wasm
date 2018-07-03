@@ -32,7 +32,7 @@ println!("Function count in wasm file: {}", code_section.bodies().len());
 
 ## Wabt Test suite
 
-`parity-wasm` supports full wabt testsuite (https://github.com/WebAssembly/testsuite), running asserts that invloves deserialization.
+`parity-wasm` supports full wabt testsuite (https://github.com/WebAssembly/testsuite), running asserts that involves deserialization.
 
 To run testsuite:
 - make sure you have all prerequisites to build `wabt` (since parity-wasm builds it internally using `wabt-rs`, see https://github.com/WebAssembly/wabt)

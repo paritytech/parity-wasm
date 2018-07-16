@@ -573,4 +573,20 @@ mod tests {
 
 		assert_eq!(module.data_section().expect("data section to exist").entries().len(), 1);
 	}
+
+	#[test]
+	fn reuse_types() {
+		let module = module()
+			.function()
+				.signature().param().i32().build()
+				.body().build()
+				.build()
+			.function()
+				.signature().param().i32().build()
+				.body().build()
+				.build()
+			.build();
+
+		assert_eq!(module.type_section().expect("type section failed").types().len(), 1);
+	}
  }

@@ -230,7 +230,12 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 	fn resolve_type_ref(&mut self, signature: code::Signature) -> u32 {
 		match signature {
 			code::Signature::Inline(func_type) => {
-				// todo: maybe search for existing type
+				if let Some(existing_entry) = self.module.types.types().iter().enumerate().find(|(_idx, t)| {
+					let elements::Type::Function(ref existing) = t;
+					*existing == func_type
+				}) {
+					return existing_entry.0 as u32
+				}
 				self.module.types.types_mut().push(elements::Type::Function(func_type));
 				self.module.types.types().len() as u32 - 1
 			}
@@ -567,5 +572,21 @@ mod tests {
 			.build();
 
 		assert_eq!(module.data_section().expect("data section to exist").entries().len(), 1);
+	}
+
+	#[test]
+	fn reuse_types() {
+		let module = module()
+			.function()
+				.signature().param().i32().build()
+				.body().build()
+				.build()
+			.function()
+				.signature().param().i32().build()
+				.body().build()
+				.build()
+			.build();
+
+		assert_eq!(module.type_section().expect("type section failed").types().len(), 1);
 	}
  }

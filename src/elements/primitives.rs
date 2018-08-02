@@ -597,7 +597,7 @@ impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
 
 impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
 	fn write(&mut self, buf: &[u8]) -> io::Result<()> {
-		self.data.extend(buf.to_vec());
+		self.data.extend_from_slice(buf);
 		Ok(())
 	}
 }

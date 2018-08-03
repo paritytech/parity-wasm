@@ -88,7 +88,7 @@ impl<T> IndexMap<T> {
 		if mem::size_of::<usize>() > 4 {
 			debug_assert!(self.entries.len() <= (::std::u32::MAX as usize) + 1);
 		}
-		#[cfg(debug_assertions)]
+		#[cfg(slow_assertions)]
 		debug_assert_eq!(self.len, self.slow_len());
 		result
 	}
@@ -102,14 +102,14 @@ impl<T> IndexMap<T> {
 			}
 			Some(&mut None) | None => None,
 		};
-		#[cfg(debug_assertions)]
+		#[cfg(slow_assertions)]
 		debug_assert_eq!(self.len, self.slow_len());
 		result
 	}
 
 	/// The number of items in this map.
 	pub fn len(&self) -> usize {
-		#[cfg(debug_assertions)]
+		#[cfg(slow_assertions)]
 		debug_assert_eq!(self.len, self.slow_len());
 		self.len
 	}
@@ -119,13 +119,13 @@ impl<T> IndexMap<T> {
 		self.len == 0
 	}
 
-	/// This function is only compiled when `-C debug-assertions` is enabled.
+	/// This function is only compiled when `--cfg slow_assertions` is enabled.
 	/// It computes the `len` value using a slow algorithm.
 	///
 	/// WARNING: This turns a bunch of O(n) operations into O(n^2) operations.
 	/// We may want to remove it once the code is tested, or to put it behind
 	/// a feature flag named `slow_debug_checks`, or something like that.
-	#[cfg(debug_assertions)]
+	#[cfg(slow_assertions)]
 	fn slow_len(&self) -> usize {
 		self.entries.iter().filter(|entry| entry.is_some()).count()
 	}

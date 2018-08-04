@@ -9,6 +9,7 @@ homepage = "https://github.com/paritytech/parity-wasm"
 documentation = "https://paritytech.github.io/parity-wasm/parity_wasm/"
 description = "WebAssembly binary format serialization/deserialization/interpreter"
 keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"]
+categories = ["wasm", "parser-implementations"]
 exclude = [ "res/*", "spec/*" ]
 
 [dependencies]

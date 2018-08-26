@@ -1,7 +1,7 @@
 use io;
 use std::string::String;
 use super::{
-	Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint32, VarUint1,
+	Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint32, VarUint1, Uint8,
 	ValueType, TableElementType
 };
 
@@ -101,6 +101,7 @@ impl Serialize for TableType {
 pub struct ResizableLimits {
 	initial: u32,
 	maximum: Option<u32>,
+	flags: u8,
 }
 
 impl ResizableLimits {
@@ -109,21 +110,24 @@ impl ResizableLimits {
 		ResizableLimits {
 			initial: min,
 			maximum: max,
+			flags: 0,
 		}
 	}
 	/// Initial size
 	pub fn initial(&self) -> u32 { self.initial }
 	/// Maximum size
 	pub fn maximum(&self) -> Option<u32> { self.maximum }
+	/// Whether or not this is a shared array buffer
+	pub fn shared(&self) -> bool { self.flags & 0x2 != 0 }
 }
 
 impl Deserialize for ResizableLimits {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		let has_max = VarUint1::deserialize(reader)?;
+		let flags: u8 = Uint8::deserialize(reader)?.into();
 		let initial = VarUint32::deserialize(reader)?;
-		let maximum = if has_max.into() {
+		let maximum = if flags & 0x1 != 0 {
 			Some(VarUint32::deserialize(reader)?.into())
 		} else {
 			None
@@ -132,6 +136,7 @@ impl Deserialize for ResizableLimits {
 		Ok(ResizableLimits {
 			initial: initial.into(),
 			maximum: maximum,
+			flags,
 		})
 	}
 }
@@ -141,7 +146,8 @@ impl Serialize for ResizableLimits {
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		let max = self.maximum;
-		VarUint1::from(max.is_some()).serialize(writer)?;
+		let flags = self.flags & !0x1 | (if max.is_some() { 0x1 } else { 0x0 });
+		Uint8::from(flags).serialize(writer)?;
 		VarUint32::from(self.initial).serialize(writer)?;
 		if let Some(val) = max {
 			VarUint32::from(val).serialize(writer)?;

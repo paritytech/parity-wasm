@@ -5,6 +5,8 @@ use super::{
 	ValueType, TableElementType
 };
 
+const FLAG_SHARED: u8 = 0x2;
+
 /// Global definition struct
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct GlobalType {
@@ -118,7 +120,7 @@ impl ResizableLimits {
 	/// Maximum size
 	pub fn maximum(&self) -> Option<u32> { self.maximum }
 	/// Whether or not this is a shared array buffer
-	pub fn shared(&self) -> bool { self.flags & 0x2 != 0 }
+	pub fn shared(&self) -> bool { self.flags & FLAG_SHARED != 0 }
 }
 
 impl Deserialize for ResizableLimits {
@@ -165,7 +167,7 @@ impl MemoryType {
 	pub fn new(min: u32, max: Option<u32>, shared: bool) -> Self {
 		let mut r = ResizableLimits::new(min, max);
 		if shared {
-			r.flags |= 0x2;
+			r.flags |= FLAG_SHARED;
 		}
 		MemoryType(r)
 	}

@@ -527,6 +527,15 @@ pub enum Instruction {
 	I32x4TruncUF32x4Sat,
 	I64x2TruncSF64x2Sat,
 	I64x2TruncUF64x2Sat,
+
+	// https://github.com/WebAssembly/bulk-memory-operations
+	MemoryInit(u32),
+	MemoryDrop(u32),
+	MemoryCopy,
+	MemoryFill,
+	TableInit(u32),
+	TableDrop(u32),
+	TableCopy,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -980,6 +989,15 @@ pub mod opcodes {
 	pub const I32X4_TRUNC_U_F32X4_SAT: u32 = 148;
 	pub const I64X2_TRUNC_S_F64X2_SAT: u32 = 149;
 	pub const I64X2_TRUNC_U_F64X2_SAT: u32 = 150;
+
+	pub const BULK_PREFIX: u8 = 0xfc;
+	pub const MEMORY_INIT: u8 = 0x08;
+	pub const MEMORY_DROP: u8 = 0x09;
+	pub const MEMORY_COPY: u8 = 0x0a;
+	pub const MEMORY_FILL: u8 = 0x0b;
+	pub const TABLE_INIT: u8 = 0x0c;
+	pub const TABLE_DROP: u8 = 0x0d;
+	pub const TABLE_COPY: u8 = 0x0e;
 }
 
 impl Deserialize for Instruction {
@@ -1283,11 +1301,14 @@ impl Deserialize for Instruction {
 				ATOMIC_PREFIX => return deserialize_atomic(reader),
 				SIMD_PREFIX => return deserialize_simd(reader),
 
+				BULK_PREFIX => return deserialize_bulk(reader),
+
 				_ => { return Err(Error::UnknownOpcode(val)); }
 			}
 		)
 	}
 }
+
 fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	use self::Instruction::*;
 	use self::opcodes::*;
@@ -1537,6 +1558,50 @@ fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	})
 }
 
+fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
+	use self::Instruction::*;
+	use self::opcodes::*;
+
+	let val: u8 = Uint8::deserialize(reader)?.into();
+	Ok(match val {
+		MEMORY_INIT => {
+			if u8::from(Uint8::deserialize(reader)?) != 0 {
+				return Err(Error::UnknownOpcode(val))
+			}
+			MemoryInit(VarUint32::deserialize(reader)?.into())
+		}
+		MEMORY_DROP => MemoryDrop(VarUint32::deserialize(reader)?.into()),
+		MEMORY_FILL => {
+			if u8::from(Uint8::deserialize(reader)?) != 0 {
+				return Err(Error::UnknownOpcode(val))
+			}
+			MemoryFill
+		}
+		MEMORY_COPY => {
+			if u8::from(Uint8::deserialize(reader)?) != 0 {
+				return Err(Error::UnknownOpcode(val))
+			}
+			MemoryCopy
+		}
+
+		TABLE_INIT => {
+			if u8::from(Uint8::deserialize(reader)?) != 0 {
+				return Err(Error::UnknownOpcode(val))
+			}
+			TableInit(VarUint32::deserialize(reader)?.into())
+		}
+		TABLE_DROP => TableDrop(VarUint32::deserialize(reader)?.into()),
+		TABLE_COPY => {
+			if u8::from(Uint8::deserialize(reader)?) != 0 {
+				return Err(Error::UnknownOpcode(val))
+			}
+			TableCopy
+		}
+
+		_ => return Err(Error::UnknownOpcode(val)),
+	})
+}
+
 impl Deserialize for MemArg {
 	type Error = Error;
 
@@ -1570,6 +1635,16 @@ macro_rules! simd {
 		$writer.write(&[SIMD_PREFIX])?;
 		VarUint32::from($byte).serialize($writer)?;
 		$other;
+	})
+}
+
+macro_rules! bulk {
+	($writer: expr, $byte: expr) => ({
+		$writer.write(&[BULK_PREFIX, $byte])?;
+	});
+	($writer: expr, $byte: expr, $remaining:expr) => ({
+		bulk!($writer, $byte);
+		$remaining;
 	});
 }
 
@@ -2106,6 +2181,20 @@ impl Serialize for Instruction {
 			I32x4TruncUF32x4Sat => simd!(writer, opcodes::I32X4_TRUNC_U_F32X4_SAT, ()),
 			I64x2TruncSF64x2Sat => simd!(writer, opcodes::I64X2_TRUNC_S_F64X2_SAT, ()),
 			I64x2TruncUF64x2Sat => simd!(writer, opcodes::I64X2_TRUNC_U_F64X2_SAT, ()),
+
+			MemoryInit(seg) => bulk!(writer, MEMORY_INIT, {
+				Uint8::from(0).serialize(writer)?;
+				VarUint32::from(seg).serialize(writer)?;
+			}),
+			MemoryDrop(seg) => bulk!(writer, MEMORY_DROP, VarUint32::from(seg).serialize(writer)?),
+			MemoryFill => bulk!(writer, MEMORY_FILL, Uint8::from(0).serialize(writer)?),
+			MemoryCopy => bulk!(writer, MEMORY_COPY, Uint8::from(0).serialize(writer)?),
+			TableInit(seg) => bulk!(writer, TABLE_INIT, {
+				Uint8::from(0).serialize(writer)?;
+				VarUint32::from(seg).serialize(writer)?;
+			}),
+			TableDrop(seg) => bulk!(writer, TABLE_DROP, VarUint32::from(seg).serialize(writer)?),
+			TableCopy => bulk!(writer, TABLE_COPY, Uint8::from(0).serialize(writer)?),
 		}
 
 		Ok(())
@@ -2610,6 +2699,14 @@ impl fmt::Display for Instruction {
 			I32x4TruncUF32x4Sat => write!(f, "i32x4.trunc_u/f32x4:sat"),
 			I64x2TruncSF64x2Sat => write!(f, "i64x2.trunc_s/f64x2:sat"),
 			I64x2TruncUF64x2Sat => write!(f, "i64x2.trunc_u/f64x2:sat"),
+
+			MemoryInit(_) => write!(f, "memory.init"),
+			MemoryDrop(_) => write!(f, "memory.drop"),
+			MemoryFill => write!(f, "memory.fill"),
+			MemoryCopy => write!(f, "memory.copy"),
+			TableInit(_) => write!(f, "table.init"),
+			TableDrop(_) => write!(f, "table.drop"),
+			TableCopy => write!(f, "table.copy"),
 		}
 	}
 }

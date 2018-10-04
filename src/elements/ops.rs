@@ -115,7 +115,7 @@ pub enum Instruction {
 	End,
 	Br(u32),
 	BrIf(u32),
-	BrTable(Box<[u32]>, u32),
+	BrTable(Box<BrTableData>),
 	Return,
 
 	Call(u32),
@@ -369,6 +369,158 @@ pub enum Instruction {
 	I64AtomicRmwCmpxchg8u(MemArg),
 	I64AtomicRmwCmpxchg16u(MemArg),
 	I64AtomicRmwCmpxchg32u(MemArg),
+
+	V128Const(Box<[u8; 16]>),
+	V128Load(MemArg),
+	V128Store(MemArg),
+	I8x16Splat,
+	I16x8Splat,
+	I32x4Splat,
+	I64x2Splat,
+	F32x4Splat,
+	F64x2Splat,
+	I8x16ExtractLaneS(u8),
+	I8x16ExtractLaneU(u8),
+	I16x8ExtractLaneS(u8),
+	I16x8ExtractLaneU(u8),
+	I32x4ExtractLane(u8),
+	I64x2ExtractLane(u8),
+	F32x4ExtractLane(u8),
+	F64x2ExtractLane(u8),
+	I8x16ReplaceLane(u8),
+	I16x8ReplaceLane(u8),
+	I32x4ReplaceLane(u8),
+	I64x2ReplaceLane(u8),
+	F32x4ReplaceLane(u8),
+	F64x2ReplaceLane(u8),
+	V8x16Shuffle(Box<[u8; 16]>),
+	I8x16Add,
+	I16x8Add,
+	I32x4Add,
+	I64x2Add,
+	I8x16Sub,
+	I16x8Sub,
+	I32x4Sub,
+	I64x2Sub,
+	I8x16Mul,
+	I16x8Mul,
+	I32x4Mul,
+	// I64x2Mul,
+	I8x16Neg,
+	I16x8Neg,
+	I32x4Neg,
+	I64x2Neg,
+	I8x16AddSaturateS,
+	I8x16AddSaturateU,
+	I16x8AddSaturateS,
+	I16x8AddSaturateU,
+	I8x16SubSaturateS,
+	I8x16SubSaturateU,
+	I16x8SubSaturateS,
+	I16x8SubSaturateU,
+	I8x16Shl,
+	I16x8Shl,
+	I32x4Shl,
+	I64x2Shl,
+	I8x16ShrS,
+	I8x16ShrU,
+	I16x8ShrS,
+	I16x8ShrU,
+	I32x4ShrS,
+	I32x4ShrU,
+	I64x2ShrS,
+	I64x2ShrU,
+	V128And,
+	V128Or,
+	V128Xor,
+	V128Not,
+	V128Bitselect,
+	I8x16AnyTrue,
+	I16x8AnyTrue,
+	I32x4AnyTrue,
+	I64x2AnyTrue,
+	I8x16AllTrue,
+	I16x8AllTrue,
+	I32x4AllTrue,
+	I64x2AllTrue,
+	I8x16Eq,
+	I16x8Eq,
+	I32x4Eq,
+	// I64x2Eq,
+	F32x4Eq,
+	F64x2Eq,
+	I8x16Ne,
+	I16x8Ne,
+	I32x4Ne,
+	// I64x2Ne,
+	F32x4Ne,
+	F64x2Ne,
+	I8x16LtS,
+	I8x16LtU,
+	I16x8LtS,
+	I16x8LtU,
+	I32x4LtS,
+	I32x4LtU,
+	// I64x2LtS,
+	// I64x2LtU,
+	F32x4Lt,
+	F64x2Lt,
+	I8x16LeS,
+	I8x16LeU,
+	I16x8LeS,
+	I16x8LeU,
+	I32x4LeS,
+	I32x4LeU,
+	// I64x2LeS,
+	// I64x2LeU,
+	F32x4Le,
+	F64x2Le,
+	I8x16GtS,
+	I8x16GtU,
+	I16x8GtS,
+	I16x8GtU,
+	I32x4GtS,
+	I32x4GtU,
+	// I64x2GtS,
+	// I64x2GtU,
+	F32x4Gt,
+	F64x2Gt,
+	I8x16GeS,
+	I8x16GeU,
+	I16x8GeS,
+	I16x8GeU,
+	I32x4GeS,
+	I32x4GeU,
+	// I64x2GeS,
+	// I64x2GeU,
+	F32x4Ge,
+	F64x2Ge,
+	F32x4Neg,
+	F64x2Neg,
+	F32x4Abs,
+	F64x2Abs,
+	F32x4Min,
+	F64x2Min,
+	F32x4Max,
+	F64x2Max,
+	F32x4Add,
+	F64x2Add,
+	F32x4Sub,
+	F64x2Sub,
+	F32x4Div,
+	F64x2Div,
+	F32x4Mul,
+	F64x2Mul,
+	F32x4Sqrt,
+	F64x2Sqrt,
+	F32x4ConvertSI32x4,
+	F32x4ConvertUI32x4,
+	F64x2ConvertSI64x2,
+	F64x2ConvertUI64x2,
+	I32x4TruncSF32x4Sat,
+	I32x4TruncUF32x4Sat,
+	I64x2TruncSF64x2Sat,
+	I64x2TruncUF64x2Sat,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -376,6 +528,13 @@ pub enum Instruction {
 pub struct MemArg {
 	pub align: u8,
 	pub offset: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[allow(missing_docs)]
+pub struct BrTableData {
+	pub table: Box<[u32]>,
+	pub default: u32,
 }
 
 impl Instruction {
@@ -653,6 +812,162 @@ pub mod opcodes {
 	pub const I64_ATOMIC_RMW_CMPXCHG8U: u8 = 0x4c;
 	pub const I64_ATOMIC_RMW_CMPXCHG16U: u8 = 0x4d;
 	pub const I64_ATOMIC_RMW_CMPXCHG32U: u8 = 0x4e;
+
+	// https://github.com/WebAssembly/simd/blob/master/proposals/simd/BinarySIMD.md
+	pub const SIMD_PREFIX: u8 = 0xfd;
+
+	pub const V128_CONST: u32 = 0;
+	pub const V128_LOAD: u32 = 1;
+	pub const V128_STORE: u32 = 2;
+	pub const I8X16_SPLAT: u32 = 3;
+	pub const I16X8_SPLAT: u32 = 4;
+	pub const I32X4_SPLAT: u32 = 5;
+	pub const I64X2_SPLAT: u32 = 6;
+	pub const F32X4_SPLAT: u32 = 7;
+	pub const F64X2_SPLAT: u32 = 8;
+	pub const I8X16_EXTRACT_LANE_S: u32 = 9;
+	pub const I8X16_EXTRACT_LANE_U: u32 = 10;
+	pub const I16X8_EXTRACT_LANE_S: u32 = 11;
+	pub const I16X8_EXTRACT_LANE_U: u32 = 12;
+	pub const I32X4_EXTRACT_LANE: u32 = 13;
+	pub const I64X2_EXTRACT_LANE: u32 = 14;
+	pub const F32X4_EXTRACT_LANE: u32 = 15;
+	pub const F64X2_EXTRACT_LANE: u32 = 16;
+	pub const I8X16_REPLACE_LANE: u32 = 17;
+	pub const I16X8_REPLACE_LANE: u32 = 18;
+	pub const I32X4_REPLACE_LANE: u32 = 19;
+	pub const I64X2_REPLACE_LANE: u32 = 20;
+	pub const F32X4_REPLACE_LANE: u32 = 21;
+	pub const F64X2_REPLACE_LANE: u32 = 22;
+	pub const V8X16_SHUFFLE: u32 = 23;
+	pub const I8X16_ADD: u32 = 24;
+	pub const I16X8_ADD: u32 = 25;
+	pub const I32X4_ADD: u32 = 26;
+	pub const I64X2_ADD: u32 = 27;
+	pub const I8X16_SUB: u32 = 28;
+	pub const I16X8_SUB: u32 = 29;
+	pub const I32X4_SUB: u32 = 30;
+	pub const I64X2_SUB: u32 = 31;
+	pub const I8X16_MUL: u32 = 32;
+	pub const I16X8_MUL: u32 = 33;
+	pub const I32X4_MUL: u32 = 34;
+	// pub const I64X2_MUL: u32 = 35;
+	pub const I8X16_NEG: u32 = 36;
+	pub const I16X8_NEG: u32 = 37;
+	pub const I32X4_NEG: u32 = 38;
+	pub const I64X2_NEG: u32 = 39;
+
+	pub const I8X16_ADD_SATURATE_S: u32 = 40;
+	pub const I8X16_ADD_SATURATE_U: u32 = 41;
+	pub const I16X8_ADD_SATURATE_S: u32 = 42;
+	pub const I16X8_ADD_SATURATE_U: u32 = 43;
+	pub const I8X16_SUB_SATURATE_S: u32 = 44;
+	pub const I8X16_SUB_SATURATE_U: u32 = 45;
+	pub const I16X8_SUB_SATURATE_S: u32 = 46;
+	pub const I16X8_SUB_SATURATE_U: u32 = 47;
+	pub const I8X16_SHL: u32 = 48;
+	pub const I16X8_SHL: u32 = 49;
+	pub const I32X4_SHL: u32 = 50;
+	pub const I64X2_SHL: u32 = 51;
+	pub const I8X16_SHR_S: u32 = 52;
+	pub const I8X16_SHR_U: u32 = 53;
+	pub const I16X8_SHR_S: u32 = 54;
+	pub const I16X8_SHR_U: u32 = 55;
+	pub const I32X4_SHR_S: u32 = 56;
+	pub const I32X4_SHR_U: u32 = 57;
+	pub const I64X2_SHR_S: u32 = 58;
+	pub const I64X2_SHR_U: u32 = 59;
+	pub const V128_AND: u32 = 60;
+	pub const V128_OR: u32 = 61;
+	pub const V128_XOR: u32 = 62;
+	pub const V128_NOT: u32 = 63;
+	pub const V128_BITSELECT: u32 = 64;
+	pub const I8X16_ANY_TRUE: u32 = 65;
+	pub const I16X8_ANY_TRUE: u32 = 66;
+	pub const I32X4_ANY_TRUE: u32 = 67;
+	pub const I64X2_ANY_TRUE: u32 = 68;
+	pub const I8X16_ALL_TRUE: u32 = 69;
+	pub const I16X8_ALL_TRUE: u32 = 70;
+	pub const I32X4_ALL_TRUE: u32 = 71;
+	pub const I64X2_ALL_TRUE: u32 = 72;
+	pub const I8X16_EQ: u32 = 73;
+	pub const I16X8_EQ: u32 = 74;
+	pub const I32X4_EQ: u32 = 75;
+	// pub const I64X2_EQ: u32 = 76;
+	pub const F32X4_EQ: u32 = 77;
+	pub const F64X2_EQ: u32 = 78;
+	pub const I8X16_NE: u32 = 79;
+	pub const I16X8_NE: u32 = 80;
+	pub const I32X4_NE: u32 = 81;
+	// pub const I64X2_NE: u32 = 82;
+	pub const F32X4_NE: u32 = 83;
+	pub const F64X2_NE: u32 = 84;
+	pub const I8X16_LT_S: u32 = 85;
+	pub const I8X16_LT_U: u32 = 86;
+	pub const I16X8_LT_S: u32 = 87;
+	pub const I16X8_LT_U: u32 = 88;
+	pub const I32X4_LT_S: u32 = 89;
+	pub const I32X4_LT_U: u32 = 90;
+	pub const I64X2_LT_S: u32 = 91;
+	pub const I64X2_LT_U: u32 = 92;
+	pub const F32X4_LT: u32 = 93;
+	pub const F64X2_LT: u32 = 94;
+	pub const I8X16_LE_S: u32 = 95;
+	pub const I8X16_LE_U: u32 = 96;
+	pub const I16X8_LE_S: u32 = 97;
+	pub const I16X8_LE_U: u32 = 98;
+	pub const I32X4_LE_S: u32 = 99;
+	pub const I32X4_LE_U: u32 = 100;
+	pub const I64X2_LE_S: u32 = 101;
+	pub const I64X2_LE_U: u32 = 102;
+	pub const F32X4_LE: u32 = 103;
+	pub const F64X2_LE: u32 = 104;
+	pub const I8X16_GT_S: u32 = 105;
+	pub const I8X16_GT_U: u32 = 106;
+	pub const I16X8_GT_S: u32 = 107;
+	pub const I16X8_GT_U: u32 = 108;
+	pub const I32X4_GT_S: u32 = 109;
+	pub const I32X4_GT_U: u32 = 110;
+	pub const I64X2_GT_S: u32 = 111;
+	pub const I64X2_GT_U: u32 = 112;
+	pub const F32X4_GT: u32 = 113;
+	pub const F64X2_GT: u32 = 114;
+	pub const I8X16_GE_S: u32 = 115;
+	pub const I8X16_GE_U: u32 = 116;
+	pub const I16X8_GE_S: u32 = 117;
+	pub const I16X8_GE_U: u32 = 118;
+	pub const I32X4_GE_S: u32 = 119;
+	pub const I32X4_GE_U: u32 = 120;
+	pub const I64X2_GE_S: u32 = 121;
+	pub const I64X2_GE_U: u32 = 122;
+	pub const F32X4_GE: u32 = 123;
+	pub const F64X2_GE: u32 = 124;
+	pub const F32X4_NEG: u32 = 125;
+	pub const F64X2_NEG: u32 = 126;
+	pub const F32X4_ABS: u32 = 127;
+	pub const F64X2_ABS: u32 = 128;
+	pub const F32X4_MIN: u32 = 129;
+	pub const F64X2_MIN: u32 = 130;
+	pub const F32X4_MAX: u32 = 131;
+	pub const F64X2_MAX: u32 = 132;
+	pub const F32X4_ADD: u32 = 133;
+	pub const F64X2_ADD: u32 = 134;
+	pub const F32X4_SUB: u32 = 135;
+	pub const F64X2_SUB: u32 = 136;
+	pub const F32X4_DIV: u32 = 137;
+	pub const F64X2_DIV: u32 = 138;
+	pub const F32X4_MUL: u32 = 139;
+	pub const F64X2_MUL: u32 = 140;
+	pub const F32X4_SQRT: u32 = 141;
+	pub const F64X2_SQRT: u32 = 142;
+	pub const F32X4_CONVERT_S_I32X4: u32 = 143;
+	pub const F32X4_CONVERT_U_I32X4: u32 = 144;
+	pub const F64X2_CONVERT_S_I64X2: u32 = 145;
+	pub const F64X2_CONVERT_U_I64X2: u32 = 146;
+	pub const I32X4_TRUNC_S_F32X4_SAT: u32 = 147;
+	pub const I32X4_TRUNC_U_F32X4_SAT: u32 = 148;
+	pub const I64X2_TRUNC_S_F64X2_SAT: u32 = 149;
+	pub const I64X2_TRUNC_U_F64X2_SAT: u32 = 150;
 }
 
 impl Deserialize for Instruction {
@@ -683,7 +998,10 @@ impl Deserialize for Instruction {
 						.map(Into::into)
 						.collect();
 
-					BrTable(t1.into_boxed_slice(), VarUint32::deserialize(reader)?.into())
+					BrTable(Box::new(BrTableData {
+						table: t1.into_boxed_slice(),
+						default: VarUint32::deserialize(reader)?.into(),
+					}))
 				},
 				RETURN => Return,
 				CALL => Call(VarUint32::deserialize(reader)?.into()),
@@ -946,6 +1264,7 @@ impl Deserialize for Instruction {
 				F64REINTERPRETI64 => F64ReinterpretI64,
 
 				ATOMIC_PREFIX => return deserialize_atomic(reader),
+				SIMD_PREFIX => return deserialize_simd(reader),
 
 				_ => { return Err(Error::UnknownOpcode(val)); }
 			}
@@ -1030,6 +1349,177 @@ fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error>
 	})
 }
 
+fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
+	use self::Instruction::*;
+	use self::opcodes::*;
+
+	let val = VarUint32::deserialize(reader)?.into();
+	Ok(match val {
+		V128_CONST => {
+			let mut buf = [0; 16];
+			reader.read(&mut buf)?;
+			V128Const(Box::new(buf))
+		}
+		V128_LOAD => V128Load(MemArg::deserialize(reader)?),
+		V128_STORE => V128Store(MemArg::deserialize(reader)?),
+		I8X16_SPLAT => I8x16Splat,
+		I16X8_SPLAT => I16x8Splat,
+		I32X4_SPLAT => I32x4Splat,
+		I64X2_SPLAT => I64x2Splat,
+		F32X4_SPLAT => F32x4Splat,
+		F64X2_SPLAT => F64x2Splat,
+		I8X16_EXTRACT_LANE_S => I8x16ExtractLaneS(Uint8::deserialize(reader)?.into()),
+		I8X16_EXTRACT_LANE_U => I8x16ExtractLaneU(Uint8::deserialize(reader)?.into()),
+		I16X8_EXTRACT_LANE_S => I16x8ExtractLaneS(Uint8::deserialize(reader)?.into()),
+		I16X8_EXTRACT_LANE_U => I16x8ExtractLaneU(Uint8::deserialize(reader)?.into()),
+		I32X4_EXTRACT_LANE => I32x4ExtractLane(Uint8::deserialize(reader)?.into()),
+		I64X2_EXTRACT_LANE => I64x2ExtractLane(Uint8::deserialize(reader)?.into()),
+		F32X4_EXTRACT_LANE => F32x4ExtractLane(Uint8::deserialize(reader)?.into()),
+		F64X2_EXTRACT_LANE => F64x2ExtractLane(Uint8::deserialize(reader)?.into()),
+		I8X16_REPLACE_LANE => I8x16ReplaceLane(Uint8::deserialize(reader)?.into()),
+		I16X8_REPLACE_LANE => I16x8ReplaceLane(Uint8::deserialize(reader)?.into()),
+		I32X4_REPLACE_LANE => I32x4ReplaceLane(Uint8::deserialize(reader)?.into()),
+		I64X2_REPLACE_LANE => I64x2ReplaceLane(Uint8::deserialize(reader)?.into()),
+		F32X4_REPLACE_LANE => F32x4ReplaceLane(Uint8::deserialize(reader)?.into()),
+		F64X2_REPLACE_LANE => F64x2ReplaceLane(Uint8::deserialize(reader)?.into()),
+		V8X16_SHUFFLE => {
+			let mut buf = [0; 16];
+			reader.read(&mut buf)?;
+			V8x16Shuffle(Box::new(buf))
+		}
+		I8X16_ADD => I8x16Add,
+		I16X8_ADD => I16x8Add,
+		I32X4_ADD => I32x4Add,
+		I64X2_ADD => I64x2Add,
+		I8X16_SUB => I8x16Sub,
+		I16X8_SUB => I16x8Sub,
+		I32X4_SUB => I32x4Sub,
+		I64X2_SUB => I64x2Sub,
+		I8X16_MUL => I8x16Mul,
+		I16X8_MUL => I16x8Mul,
+		I32X4_MUL => I32x4Mul,
+		// I64X2_MUL => I64x2Mul,
+		I8X16_NEG => I8x16Neg,
+		I16X8_NEG => I16x8Neg,
+		I32X4_NEG => I32x4Neg,
+		I64X2_NEG => I64x2Neg,
+
+		I8X16_ADD_SATURATE_S => I8x16AddSaturateS,
+		I8X16_ADD_SATURATE_U => I8x16AddSaturateU,
+		I16X8_ADD_SATURATE_S => I16x8AddSaturateS,
+		I16X8_ADD_SATURATE_U => I16x8AddSaturateU,
+		I8X16_SUB_SATURATE_S => I8x16SubSaturateS,
+		I8X16_SUB_SATURATE_U => I8x16SubSaturateU,
+		I16X8_SUB_SATURATE_S => I16x8SubSaturateS,
+		I16X8_SUB_SATURATE_U => I16x8SubSaturateU,
+		I8X16_SHL => I8x16Shl,
+		I16X8_SHL => I16x8Shl,
+		I32X4_SHL => I32x4Shl,
+		I64X2_SHL => I64x2Shl,
+		I8X16_SHR_S => I8x16ShrS,
+		I8X16_SHR_U => I8x16ShrU,
+		I16X8_SHR_S => I16x8ShrS,
+		I16X8_SHR_U => I16x8ShrU,
+		I32X4_SHR_S => I32x4ShrS,
+		I32X4_SHR_U => I32x4ShrU,
+		I64X2_SHR_S => I64x2ShrS,
+		I64X2_SHR_U => I64x2ShrU,
+		V128_AND => V128And,
+		V128_OR => V128Or,
+		V128_XOR => V128Xor,
+		V128_NOT => V128Not,
+		V128_BITSELECT => V128Bitselect,
+		I8X16_ANY_TRUE => I8x16AnyTrue,
+		I16X8_ANY_TRUE => I16x8AnyTrue,
+		I32X4_ANY_TRUE => I32x4AnyTrue,
+		I64X2_ANY_TRUE => I64x2AnyTrue,
+		I8X16_ALL_TRUE => I8x16AllTrue,
+		I16X8_ALL_TRUE => I16x8AllTrue,
+		I32X4_ALL_TRUE => I32x4AllTrue,
+		I64X2_ALL_TRUE => I64x2AllTrue,
+		I8X16_EQ => I8x16Eq,
+		I16X8_EQ => I16x8Eq,
+		I32X4_EQ => I32x4Eq,
+		// I64X2_EQ => I64x2Eq,
+		F32X4_EQ => F32x4Eq,
+		F64X2_EQ => F64x2Eq,
+		I8X16_NE => I8x16Ne,
+		I16X8_NE => I16x8Ne,
+		I32X4_NE => I32x4Ne,
+		// I64X2_NE => I64x2Ne,
+		F32X4_NE => F32x4Ne,
+		F64X2_NE => F64x2Ne,
+		I8X16_LT_S => I8x16LtS,
+		I8X16_LT_U => I8x16LtU,
+		I16X8_LT_S => I16x8LtS,
+		I16X8_LT_U => I16x8LtU,
+		I32X4_LT_S => I32x4LtS,
+		I32X4_LT_U => I32x4LtU,
+		// I64X2_LT_S => I64x2LtS,
+		// I64X2_LT_U => I64x2LtU,
+		F32X4_LT => F32x4Lt,
+		F64X2_LT => F64x2Lt,
+		I8X16_LE_S => I8x16LeS,
+		I8X16_LE_U => I8x16LeU,
+		I16X8_LE_S => I16x8LeS,
+		I16X8_LE_U => I16x8LeU,
+		I32X4_LE_S => I32x4LeS,
+		I32X4_LE_U => I32x4LeU,
+		// I64X2_LE_S => I64x2LeS,
+		// I64X2_LE_U => I64x2LeU,
+		F32X4_LE => F32x4Le,
+		F64X2_LE => F64x2Le,
+		I8X16_GT_S => I8x16GtS,
+		I8X16_GT_U => I8x16GtU,
+		I16X8_GT_S => I16x8GtS,
+		I16X8_GT_U => I16x8GtU,
+		I32X4_GT_S => I32x4GtS,
+		I32X4_GT_U => I32x4GtU,
+		// I64X2_GT_S => I64x2GtS,
+		// I64X2_GT_U => I64x2GtU,
+		F32X4_GT => F32x4Gt,
+		F64X2_GT => F64x2Gt,
+		I8X16_GE_S => I8x16GeS,
+		I8X16_GE_U => I8x16GeU,
+		I16X8_GE_S => I16x8GeS,
+		I16X8_GE_U => I16x8GeU,
+		I32X4_GE_S => I32x4GeS,
+		I32X4_GE_U => I32x4GeU,
+		// I64X2_GE_S => I64x2GeS,
+		// I64X2_GE_U => I64x2GeU,
+		F32X4_GE => F32x4Ge,
+		F64X2_GE => F64x2Ge,
+		F32X4_NEG => F32x4Neg,
+		F64X2_NEG => F64x2Neg,
+		F32X4_ABS => F32x4Abs,
+		F64X2_ABS => F64x2Abs,
+		F32X4_MIN => F32x4Min,
+		F64X2_MIN => F64x2Min,
+		F32X4_MAX => F32x4Max,
+		F64X2_MAX => F64x2Max,
+		F32X4_ADD => F32x4Add,
+		F64X2_ADD => F64x2Add,
+		F32X4_SUB => F32x4Sub,
+		F64X2_SUB => F64x2Sub,
+		F32X4_DIV => F32x4Div,
+		F64X2_DIV => F64x2Div,
+		F32X4_MUL => F32x4Mul,
+		F64X2_MUL => F64x2Mul,
+		F32X4_SQRT => F32x4Sqrt,
+		F64X2_SQRT => F64x2Sqrt,
+		F32X4_CONVERT_S_I32X4 => F32x4ConvertSI32x4,
+		F32X4_CONVERT_U_I32X4 => F32x4ConvertUI32x4,
+		F64X2_CONVERT_S_I64X2 => F64x2ConvertSI64x2,
+		F64X2_CONVERT_U_I64X2 => F64x2ConvertUI64x2,
+		I32X4_TRUNC_S_F32X4_SAT => I32x4TruncSF32x4Sat,
+		I32X4_TRUNC_U_F32X4_SAT => I32x4TruncUF32x4Sat,
+		I64X2_TRUNC_S_F64X2_SAT => I64x2TruncSF64x2Sat,
+		I64X2_TRUNC_U_F64X2_SAT => I64x2TruncUF64x2Sat,
+
+		_ => return Err(Error::UnknownSimdOpcode(val)),
+	})
+}
+
 impl Deserialize for MemArg {
 	type Error = Error;
 
@@ -1055,6 +1545,14 @@ macro_rules! atomic {
 	($writer: expr, $byte: expr, $mem:expr) => ({
 		$writer.write(&[ATOMIC_PREFIX, $byte])?;
 		MemArg::serialize($mem, $writer)?;
+	});
+}
+
+macro_rules! simd {
+	($writer: expr, $byte: expr, $other:expr) => ({
+		$writer.write(&[SIMD_PREFIX])?;
+		VarUint32::from($byte).serialize($writer)?;
+		$other;
 	});
 }
 
@@ -1085,13 +1583,13 @@ impl Serialize for Instruction {
 			BrIf(idx) => op!(writer, BRIF, {
 				VarUint32::from(idx).serialize(writer)?;
 			}),
-			BrTable(table, default) => op!(writer, BRTABLE, {
+			BrTable(ref table) => op!(writer, BRTABLE, {
 				let list_writer = CountedListWriter::<VarUint32, _>(
-					table.len(),
-					table.into_iter().map(|x| VarUint32::from(*x)),
+					table.table.len(),
+					table.table.into_iter().map(|x| VarUint32::from(*x)),
 				);
 				list_writer.serialize(writer)?;
-				VarUint32::from(default).serialize(writer)?;
+				VarUint32::from(table.default).serialize(writer)?;
 			}),
 			Return => op!(writer, RETURN),
 			Call(index) => op!(writer, CALL, {
@@ -1433,6 +1931,158 @@ impl Serialize for Instruction {
 			I64AtomicRmwCmpxchg8u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG8U, m),
 			I64AtomicRmwCmpxchg16u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG16U, m),
 			I64AtomicRmwCmpxchg32u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG32U, m),
+
+			V128Const(ref c) => simd!(writer, opcodes::V128_CONST, writer.write(&c[..])?),
+			V128Load(m) => simd!(writer, opcodes::V128_LOAD, MemArg::serialize(m, writer)?),
+			V128Store(m) => simd!(writer, opcodes::V128_STORE, MemArg::serialize(m, writer)?),
+			I8x16Splat => simd!(writer, opcodes::I8X16_SPLAT, ()),
+			I16x8Splat => simd!(writer, opcodes::I16X8_SPLAT, ()),
+			I32x4Splat => simd!(writer, opcodes::I32X4_SPLAT, ()),
+			I64x2Splat => simd!(writer, opcodes::I64X2_SPLAT, ()),
+			F32x4Splat => simd!(writer, opcodes::F32X4_SPLAT, ()),
+			F64x2Splat => simd!(writer, opcodes::F64X2_SPLAT, ()),
+			I8x16ExtractLaneS(i) => simd!(writer, opcodes::I8X16_EXTRACT_LANE_S, writer.write(&[i])?),
+			I8x16ExtractLaneU(i) => simd!(writer, opcodes::I8X16_EXTRACT_LANE_U, writer.write(&[i])?),
+			I16x8ExtractLaneS(i) => simd!(writer, opcodes::I16X8_EXTRACT_LANE_S, writer.write(&[i])?),
+			I16x8ExtractLaneU(i) => simd!(writer, opcodes::I16X8_EXTRACT_LANE_U, writer.write(&[i])?),
+			I32x4ExtractLane(i) => simd!(writer, opcodes::I32X4_EXTRACT_LANE, writer.write(&[i])?),
+			I64x2ExtractLane(i) => simd!(writer, opcodes::I64X2_EXTRACT_LANE, writer.write(&[i])?),
+			F32x4ExtractLane(i) => simd!(writer, opcodes::F32X4_EXTRACT_LANE, writer.write(&[i])?),
+			F64x2ExtractLane(i) => simd!(writer, opcodes::F64X2_EXTRACT_LANE, writer.write(&[i])?),
+			I8x16ReplaceLane(i) => simd!(writer, opcodes::I8X16_REPLACE_LANE, writer.write(&[i])?),
+			I16x8ReplaceLane(i) => simd!(writer, opcodes::I16X8_REPLACE_LANE, writer.write(&[i])?),
+			I32x4ReplaceLane(i) => simd!(writer, opcodes::I32X4_REPLACE_LANE, writer.write(&[i])?),
+			I64x2ReplaceLane(i) => simd!(writer, opcodes::I64X2_REPLACE_LANE, writer.write(&[i])?),
+			F32x4ReplaceLane(i) => simd!(writer, opcodes::F32X4_REPLACE_LANE, writer.write(&[i])?),
+			F64x2ReplaceLane(i) => simd!(writer, opcodes::F64X2_REPLACE_LANE, writer.write(&[i])?),
+			V8x16Shuffle(ref i) => simd!(writer, opcodes::V8X16_SHUFFLE, writer.write(&i[..])?),
+			I8x16Add => simd!(writer, opcodes::I8X16_ADD, ()),
+			I16x8Add => simd!(writer, opcodes::I16X8_ADD, ()),
+			I32x4Add => simd!(writer, opcodes::I32X4_ADD, ()),
+			I64x2Add => simd!(writer, opcodes::I64X2_ADD, ()),
+			I8x16Sub => simd!(writer, opcodes::I8X16_SUB, ()),
+			I16x8Sub => simd!(writer, opcodes::I16X8_SUB, ()),
+			I32x4Sub => simd!(writer, opcodes::I32X4_SUB, ()),
+			I64x2Sub => simd!(writer, opcodes::I64X2_SUB, ()),
+			I8x16Mul => simd!(writer, opcodes::I8X16_MUL, ()),
+			I16x8Mul => simd!(writer, opcodes::I16X8_MUL, ()),
+			I32x4Mul => simd!(writer, opcodes::I32X4_MUL, ()),
+			// I64x2Mul => simd!(writer, opcodes::I64X2_MUL, ()),
+			I8x16Neg => simd!(writer, opcodes::I8X16_NEG, ()),
+			I16x8Neg => simd!(writer, opcodes::I16X8_NEG, ()),
+			I32x4Neg => simd!(writer, opcodes::I32X4_NEG, ()),
+			I64x2Neg => simd!(writer, opcodes::I64X2_NEG, ()),
+			I8x16AddSaturateS => simd!(writer, opcodes::I8X16_ADD_SATURATE_S, ()),
+			I8x16AddSaturateU => simd!(writer, opcodes::I8X16_ADD_SATURATE_U, ()),
+			I16x8AddSaturateS => simd!(writer, opcodes::I16X8_ADD_SATURATE_S, ()),
+			I16x8AddSaturateU => simd!(writer, opcodes::I16X8_ADD_SATURATE_U, ()),
+			I8x16SubSaturateS => simd!(writer, opcodes::I8X16_SUB_SATURATE_S, ()),
+			I8x16SubSaturateU => simd!(writer, opcodes::I8X16_SUB_SATURATE_U, ()),
+			I16x8SubSaturateS => simd!(writer, opcodes::I16X8_SUB_SATURATE_S, ()),
+			I16x8SubSaturateU => simd!(writer, opcodes::I16X8_SUB_SATURATE_U, ()),
+			I8x16Shl => simd!(writer, opcodes::I8X16_SHL, ()),
+			I16x8Shl => simd!(writer, opcodes::I16X8_SHL, ()),
+			I32x4Shl => simd!(writer, opcodes::I32X4_SHL, ()),
+			I64x2Shl => simd!(writer, opcodes::I64X2_SHL, ()),
+			I8x16ShrS => simd!(writer, opcodes::I8X16_SHR_S, ()),
+			I8x16ShrU => simd!(writer, opcodes::I8X16_SHR_U, ()),
+			I16x8ShrS => simd!(writer, opcodes::I16X8_SHR_S, ()),
+			I16x8ShrU => simd!(writer, opcodes::I16X8_SHR_U, ()),
+			I32x4ShrU => simd!(writer, opcodes::I32X4_SHR_U, ()),
+			I32x4ShrS => simd!(writer, opcodes::I32X4_SHR_S, ()),
+			I64x2ShrU => simd!(writer, opcodes::I64X2_SHR_U, ()),
+			I64x2ShrS => simd!(writer, opcodes::I64X2_SHR_S, ()),
+			V128And => simd!(writer, opcodes::V128_AND, ()),
+			V128Or => simd!(writer, opcodes::V128_OR, ()),
+			V128Xor => simd!(writer, opcodes::V128_XOR, ()),
+			V128Not => simd!(writer, opcodes::V128_NOT, ()),
+			V128Bitselect => simd!(writer, opcodes::V128_BITSELECT, ()),
+			I8x16AnyTrue => simd!(writer, opcodes::I8X16_ANY_TRUE, ()),
+			I16x8AnyTrue => simd!(writer, opcodes::I16X8_ANY_TRUE, ()),
+			I32x4AnyTrue => simd!(writer, opcodes::I32X4_ANY_TRUE, ()),
+			I64x2AnyTrue => simd!(writer, opcodes::I64X2_ANY_TRUE, ()),
+			I8x16AllTrue => simd!(writer, opcodes::I8X16_ALL_TRUE, ()),
+			I16x8AllTrue => simd!(writer, opcodes::I16X8_ALL_TRUE, ()),
+			I32x4AllTrue => simd!(writer, opcodes::I32X4_ALL_TRUE, ()),
+			I64x2AllTrue => simd!(writer, opcodes::I64X2_ALL_TRUE, ()),
+			I8x16Eq => simd!(writer, opcodes::I8X16_EQ, ()),
+			I16x8Eq => simd!(writer, opcodes::I16X8_EQ, ()),
+			I32x4Eq => simd!(writer, opcodes::I32X4_EQ, ()),
+			// I64x2Eq => simd!(writer, opcodes::I64X2_EQ, ()),
+			F32x4Eq => simd!(writer, opcodes::F32X4_EQ, ()),
+			F64x2Eq => simd!(writer, opcodes::F64X2_EQ, ()),
+			I8x16Ne => simd!(writer, opcodes::I8X16_NE, ()),
+			I16x8Ne => simd!(writer, opcodes::I16X8_NE, ()),
+			I32x4Ne => simd!(writer, opcodes::I32X4_NE, ()),
+			// I64x2Ne => simd!(writer, opcodes::I64X2_NE, ()),
+			F32x4Ne => simd!(writer, opcodes::F32X4_NE, ()),
+			F64x2Ne => simd!(writer, opcodes::F64X2_NE, ()),
+			I8x16LtS => simd!(writer, opcodes::I8X16_LT_S, ()),
+			I8x16LtU => simd!(writer, opcodes::I8X16_LT_U, ()),
+			I16x8LtS => simd!(writer, opcodes::I16X8_LT_S, ()),
+			I16x8LtU => simd!(writer, opcodes::I16X8_LT_U, ()),
+			I32x4LtS => simd!(writer, opcodes::I32X4_LT_S, ()),
+			I32x4LtU => simd!(writer, opcodes::I32X4_LT_U, ()),
+			// I64x2LtS => simd!(writer, opcodes::I64X2_LT_S, ()),
+			// I64x2LtU => simd!(writer, opcodes::I64X2_LT_U, ()),
+			F32x4Lt => simd!(writer, opcodes::F32X4_LT, ()),
+			F64x2Lt => simd!(writer, opcodes::F64X2_LT, ()),
+			I8x16LeS => simd!(writer, opcodes::I8X16_LE_S, ()),
+			I8x16LeU => simd!(writer, opcodes::I8X16_LE_U, ()),
+			I16x8LeS => simd!(writer, opcodes::I16X8_LE_S, ()),
+			I16x8LeU => simd!(writer, opcodes::I16X8_LE_U, ()),
+			I32x4LeS => simd!(writer, opcodes::I32X4_LE_S, ()),
+			I32x4LeU => simd!(writer, opcodes::I32X4_LE_U, ()),
+			// I64x2LeS => simd!(writer, opcodes::I64X2_LE_S, ()),
+			// I64x2LeU => simd!(writer, opcodes::I64X2_LE_U, ()),
+			F32x4Le => simd!(writer, opcodes::F32X4_LE, ()),
+			F64x2Le => simd!(writer, opcodes::F64X2_LE, ()),
+			I8x16GtS => simd!(writer, opcodes::I8X16_GT_S, ()),
+			I8x16GtU => simd!(writer, opcodes::I8X16_GT_U, ()),
+			I16x8GtS => simd!(writer, opcodes::I16X8_GT_S, ()),
+			I16x8GtU => simd!(writer, opcodes::I16X8_GT_U, ()),
+			I32x4GtS => simd!(writer, opcodes::I32X4_GT_S, ()),
+			I32x4GtU => simd!(writer, opcodes::I32X4_GT_U, ()),
+			// I64x2GtS => simd!(writer, opcodes::I64X2_GT_S, ()),
+			// I64x2GtU => simd!(writer, opcodes::I64X2_GT_U, ()),
+			F32x4Gt => simd!(writer, opcodes::F32X4_GT, ()),
+			F64x2Gt => simd!(writer, opcodes::F64X2_GT, ()),
+			I8x16GeS => simd!(writer, opcodes::I8X16_GE_S, ()),
+			I8x16GeU => simd!(writer, opcodes::I8X16_GE_U, ()),
+			I16x8GeS => simd!(writer, opcodes::I16X8_GE_S, ()),
+			I16x8GeU => simd!(writer, opcodes::I16X8_GE_U, ()),
+			I32x4GeS => simd!(writer, opcodes::I32X4_GE_S, ()),
+			I32x4GeU => simd!(writer, opcodes::I32X4_GE_U, ()),
+			// I64x2GeS => simd!(writer, opcodes::I64X2_GE_S, ()),
+			// I64x2GeU => simd!(writer, opcodes::I64X2_GE_U, ()),
+			F32x4Ge => simd!(writer, opcodes::F32X4_GE, ()),
+			F64x2Ge => simd!(writer, opcodes::F64X2_GE, ()),
+			F32x4Neg => simd!(writer, opcodes::F32X4_NEG, ()),
+			F64x2Neg => simd!(writer, opcodes::F64X2_NEG, ()),
+			F32x4Abs => simd!(writer, opcodes::F32X4_ABS, ()),
+			F64x2Abs => simd!(writer, opcodes::F64X2_ABS, ()),
+			F32x4Min => simd!(writer, opcodes::F32X4_MIN, ()),
+			F64x2Min => simd!(writer, opcodes::F64X2_MIN, ()),
+			F32x4Max => simd!(writer, opcodes::F32X4_MAX, ()),
+			F64x2Max => simd!(writer, opcodes::F64X2_MAX, ()),
+			F32x4Add => simd!(writer, opcodes::F32X4_ADD, ()),
+			F64x2Add => simd!(writer, opcodes::F64X2_ADD, ()),
+			F32x4Sub => simd!(writer, opcodes::F32X4_SUB, ()),
+			F64x2Sub => simd!(writer, opcodes::F64X2_SUB, ()),
+			F32x4Div => simd!(writer, opcodes::F32X4_DIV, ()),
+			F64x2Div => simd!(writer, opcodes::F64X2_DIV, ()),
+			F32x4Mul => simd!(writer, opcodes::F32X4_MUL, ()),
+			F64x2Mul => simd!(writer, opcodes::F64X2_MUL, ()),
+			F32x4Sqrt => simd!(writer, opcodes::F32X4_SQRT, ()),
+			F64x2Sqrt => simd!(writer, opcodes::F64X2_SQRT, ()),
+			F32x4ConvertSI32x4 => simd!(writer, opcodes::F32X4_CONVERT_S_I32X4, ()),
+			F32x4ConvertUI32x4 => simd!(writer, opcodes::F32X4_CONVERT_U_I32X4, ()),
+			F64x2ConvertSI64x2 => simd!(writer, opcodes::F64X2_CONVERT_S_I64X2, ()),
+			F64x2ConvertUI64x2 => simd!(writer, opcodes::F64X2_CONVERT_U_I64X2, ()),
+			I32x4TruncSF32x4Sat => simd!(writer, opcodes::I32X4_TRUNC_S_F32X4_SAT, ()),
+			I32x4TruncUF32x4Sat => simd!(writer, opcodes::I32X4_TRUNC_U_F32X4_SAT, ()),
+			I64x2TruncSF64x2Sat => simd!(writer, opcodes::I64X2_TRUNC_S_F64X2_SAT, ()),
+			I64x2TruncUF64x2Sat => simd!(writer, opcodes::I64X2_TRUNC_U_F64X2_SAT, ()),
 		}
 
 		Ok(())
@@ -1479,7 +2129,7 @@ impl fmt::Display for Instruction {
 			End => fmt_op!(f, "end"),
 			Br(idx) => fmt_op!(f, "br",  idx),
 			BrIf(idx) => fmt_op!(f, "br_if",  idx),
-			BrTable(_, default) => fmt_op!(f, "br_table", default),
+			BrTable(ref table) => fmt_op!(f, "br_table", table.default),
 			Return => fmt_op!(f, "return"),
 			Call(index) => fmt_op!(f, "call", index),
 			CallIndirect(index, _) =>  fmt_op!(f, "call_indirect", index),
@@ -1779,6 +2429,158 @@ impl fmt::Display for Instruction {
 			I64AtomicRmwCmpxchg8u(_) => write!(f, "i64.atomic.rmw8_u.cmpxchg"),
 			I64AtomicRmwCmpxchg16u(_) => write!(f, "i64.atomic.rmw16_u.cmpxchg"),
 			I64AtomicRmwCmpxchg32u(_) => write!(f, "i64.atomic.rmw32_u.cmpxchg"),
+
+			V128Const(_) => write!(f, "v128.const"),
+			V128Load(_) => write!(f, "v128.load"),
+			V128Store(_) => write!(f, "v128.store"),
+			I8x16Splat => write!(f, "i8x16.splat"),
+			I16x8Splat => write!(f, "i16x8.splat"),
+			I32x4Splat => write!(f, "i32x4.splat"),
+			I64x2Splat => write!(f, "i64x2.splat"),
+			F32x4Splat => write!(f, "f32x4.splat"),
+			F64x2Splat => write!(f, "f64x2.splat"),
+			I8x16ExtractLaneS(_) => write!(f, "i8x16.extract_lane_s"),
+			I8x16ExtractLaneU(_) => write!(f, "i8x16.extract_lane_u"),
+			I16x8ExtractLaneS(_) => write!(f, "i16x8.extract_lane_s"),
+			I16x8ExtractLaneU(_) => write!(f, "i16x8.extract_lane_u"),
+			I32x4ExtractLane(_) => write!(f, "i32x4.extract_lane"),
+			I64x2ExtractLane(_) => write!(f, "i64x2.extract_lane"),
+			F32x4ExtractLane(_) => write!(f, "f32x4.extract_lane"),
+			F64x2ExtractLane(_) => write!(f, "f64x2.extract_lane"),
+			I8x16ReplaceLane(_) => write!(f, "i8x16.replace_lane"),
+			I16x8ReplaceLane(_) => write!(f, "i16x8.replace_lane"),
+			I32x4ReplaceLane(_) => write!(f, "i32x4.replace_lane"),
+			I64x2ReplaceLane(_) => write!(f, "i64x2.replace_lane"),
+			F32x4ReplaceLane(_) => write!(f, "f32x4.replace_lane"),
+			F64x2ReplaceLane(_) => write!(f, "f64x2.replace_lane"),
+			V8x16Shuffle(_) => write!(f, "v8x16.shuffle"),
+			I8x16Add => write!(f, "i8x16.add"),
+			I16x8Add => write!(f, "i16x8.add"),
+			I32x4Add => write!(f, "i32x4.add"),
+			I64x2Add => write!(f, "i64x2.add"),
+			I8x16Sub => write!(f, "i8x16.sub"),
+			I16x8Sub => write!(f, "i16x8.sub"),
+			I32x4Sub => write!(f, "i32x4.sub"),
+			I64x2Sub => write!(f, "i64x2.sub"),
+			I8x16Mul => write!(f, "i8x16.mul"),
+			I16x8Mul => write!(f, "i16x8.mul"),
+			I32x4Mul => write!(f, "i32x4.mul"),
+			// I64x2Mul => write!(f, "i64x2.mul"),
+			I8x16Neg => write!(f, "i8x16.neg"),
+			I16x8Neg => write!(f, "i16x8.neg"),
+			I32x4Neg => write!(f, "i32x4.neg"),
+			I64x2Neg => write!(f, "i64x2.neg"),
+			I8x16AddSaturateS => write!(f, "i8x16.add_saturate_s"),
+			I8x16AddSaturateU => write!(f, "i8x16.add_saturate_u"),
+			I16x8AddSaturateS => write!(f, "i16x8.add_saturate_S"),
+			I16x8AddSaturateU => write!(f, "i16x8.add_saturate_u"),
+			I8x16SubSaturateS => write!(f, "i8x16.sub_saturate_S"),
+			I8x16SubSaturateU => write!(f, "i8x16.sub_saturate_u"),
+			I16x8SubSaturateS => write!(f, "i16x8.sub_saturate_S"),
+			I16x8SubSaturateU => write!(f, "i16x8.sub_saturate_u"),
+			I8x16Shl => write!(f, "i8x16.shl"),
+			I16x8Shl => write!(f, "i16x8.shl"),
+			I32x4Shl => write!(f, "i32x4.shl"),
+			I64x2Shl => write!(f, "i64x2.shl"),
+			I8x16ShrS => write!(f, "i8x16.shr_s"),
+			I8x16ShrU => write!(f, "i8x16.shr_u"),
+			I16x8ShrS => write!(f, "i16x8.shr_s"),
+			I16x8ShrU => write!(f, "i16x8.shr_u"),
+			I32x4ShrS => write!(f, "i32x4.shr_s"),
+			I32x4ShrU => write!(f, "i32x4.shr_u"),
+			I64x2ShrS => write!(f, "i64x2.shr_s"),
+			I64x2ShrU => write!(f, "i64x2.shr_u"),
+			V128And => write!(f, "v128.and"),
+			V128Or => write!(f, "v128.or"),
+			V128Xor => write!(f, "v128.xor"),
+			V128Not => write!(f, "v128.not"),
+			V128Bitselect => write!(f, "v128.bitselect"),
+			I8x16AnyTrue => write!(f, "i8x16.any_true"),
+			I16x8AnyTrue => write!(f, "i16x8.any_true"),
+			I32x4AnyTrue => write!(f, "i32x4.any_true"),
+			I64x2AnyTrue => write!(f, "i64x2.any_true"),
+			I8x16AllTrue => write!(f, "i8x16.all_true"),
+			I16x8AllTrue => write!(f, "i16x8.all_true"),
+			I32x4AllTrue => write!(f, "i32x4.all_true"),
+			I64x2AllTrue => write!(f, "i64x2.all_true"),
+			I8x16Eq => write!(f, "i8x16.eq"),
+			I16x8Eq => write!(f, "i16x8.eq"),
+			I32x4Eq => write!(f, "i32x4.eq"),
+			// I64x2Eq => write!(f, "i64x2.eq"),
+			F32x4Eq => write!(f, "f32x4.eq"),
+			F64x2Eq => write!(f, "f64x2.eq"),
+			I8x16Ne => write!(f, "i8x16.ne"),
+			I16x8Ne => write!(f, "i16x8.ne"),
+			I32x4Ne => write!(f, "i32x4.ne"),
+			// I64x2Ne => write!(f, "i64x2.ne"),
+			F32x4Ne => write!(f, "f32x4.ne"),
+			F64x2Ne => write!(f, "f64x2.ne"),
+			I8x16LtS => write!(f, "i8x16.lt_s"),
+			I8x16LtU => write!(f, "i8x16.lt_u"),
+			I16x8LtS => write!(f, "i16x8.lt_s"),
+			I16x8LtU => write!(f, "i16x8.lt_u"),
+			I32x4LtS => write!(f, "i32x4.lt_s"),
+			I32x4LtU => write!(f, "i32x4.lt_u"),
+			// I64x2LtS => write!(f, "// I64x2.lt_s"),
+			// I64x2LtU => write!(f, "// I64x2.lt_u"),
+			F32x4Lt => write!(f, "f32x4.lt"),
+			F64x2Lt => write!(f, "f64x2.lt"),
+			I8x16LeS => write!(f, "i8x16.le_s"),
+			I8x16LeU => write!(f, "i8x16.le_u"),
+			I16x8LeS => write!(f, "i16x8.le_s"),
+			I16x8LeU => write!(f, "i16x8.le_u"),
+			I32x4LeS => write!(f, "i32x4.le_s"),
+			I32x4LeU => write!(f, "i32x4.le_u"),
+			// I64x2LeS => write!(f, "// I64x2.le_s"),
+			// I64x2LeU => write!(f, "// I64x2.le_u"),
+			F32x4Le => write!(f, "f32x4.le"),
+			F64x2Le => write!(f, "f64x2.le"),
+			I8x16GtS => write!(f, "i8x16.gt_s"),
+			I8x16GtU => write!(f, "i8x16.gt_u"),
+			I16x8GtS => write!(f, "i16x8.gt_s"),
+			I16x8GtU => write!(f, "i16x8.gt_u"),
+			I32x4GtS => write!(f, "i32x4.gt_s"),
+			I32x4GtU => write!(f, "i32x4.gt_u"),
+			// I64x2GtS => write!(f, "// I64x2.gt_s"),
+			// I64x2GtU => write!(f, "// I64x2.gt_u"),
+			F32x4Gt => write!(f, "f32x4.gt"),
+			F64x2Gt => write!(f, "f64x2.gt"),
+			I8x16GeS => write!(f, "i8x16.ge_s"),
+			I8x16GeU => write!(f, "i8x16.ge_u"),
+			I16x8GeS => write!(f, "i16x8.ge_s"),
+			I16x8GeU => write!(f, "i16x8.ge_u"),
+			I32x4GeS => write!(f, "i32x4.ge_s"),
+			I32x4GeU => write!(f, "i32x4.ge_u"),
+			// I64x2GeS => write!(f, "// I64x2.ge_s"),
+			// I64x2GeU => write!(f, "// I64x2.ge_u"),
+			F32x4Ge => write!(f, "f32x4.ge"),
+			F64x2Ge => write!(f, "f64x2.ge"),
+			F32x4Neg => write!(f, "f32x4.neg"),
+			F64x2Neg => write!(f, "f64x2.neg"),
+			F32x4Abs => write!(f, "f32x4.abs"),
+			F64x2Abs => write!(f, "f64x2.abs"),
+			F32x4Min => write!(f, "f32x4.min"),
+			F64x2Min => write!(f, "f64x2.min"),
+			F32x4Max => write!(f, "f32x4.max"),
+			F64x2Max => write!(f, "f64x2.max"),
+			F32x4Add => write!(f, "f32x4.add"),
+			F64x2Add => write!(f, "f64x2.add"),
+			F32x4Sub => write!(f, "f32x4.sub"),
+			F64x2Sub => write!(f, "f64x2.sub"),
+			F32x4Div => write!(f, "f32x4.div"),
+			F64x2Div => write!(f, "f64x2.div"),
+			F32x4Mul => write!(f, "f32x4.mul"),
+			F64x2Mul => write!(f, "f64x2.mul"),
+			F32x4Sqrt => write!(f, "f32x4.sqrt"),
+			F64x2Sqrt => write!(f, "f64x2.sqrt"),
+			F32x4ConvertSI32x4 => write!(f, "f32x4.convert_s/i32x4"),
+			F32x4ConvertUI32x4 => write!(f, "f32x4.convert_u/i32x4"),
+			F64x2ConvertSI64x2 => write!(f, "f64x2.convert_s/i64x2"),
+			F64x2ConvertUI64x2 => write!(f, "f64x2.convert_u/i64x2"),
+			I32x4TruncSF32x4Sat => write!(f, "i32x4.trunc_s/f32x4:sat"),
+			I32x4TruncUF32x4Sat => write!(f, "i32x4.trunc_u/f32x4:sat"),
+			I64x2TruncSF64x2Sat => write!(f, "i64x2.trunc_s/f64x2:sat"),
+			I64x2TruncUF64x2Sat => write!(f, "i64x2.trunc_u/f64x2:sat"),
 		}
 	}
 }

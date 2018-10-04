@@ -42,6 +42,8 @@ pub enum ValueType {
 	F32,
 	/// 64-bit float
 	F64,
+	/// 128-bit SIMD register
+	V128,
 }
 
 impl Deserialize for ValueType {
@@ -55,6 +57,7 @@ impl Deserialize for ValueType {
 			-0x02 => Ok(ValueType::I64),
 			-0x03 => Ok(ValueType::F32),
 			-0x04 => Ok(ValueType::F64),
+			-0x05 => Ok(ValueType::V128),
 			_ => Err(Error::UnknownValueType(val.into())),
 		}
 	}
@@ -69,6 +72,7 @@ impl Serialize for ValueType {
 			ValueType::I64 => -0x02,
 			ValueType::F32 => -0x03,
 			ValueType::F64 => -0x04,
+			ValueType::V128 => -0x05,
 		}.into();
 		val.serialize(writer)?;
 		Ok(())
@@ -82,6 +86,7 @@ impl fmt::Display for ValueType {
 			ValueType::I64 => write!(f, "i64"),
 			ValueType::F32 => write!(f, "f32"),
 			ValueType::F64 => write!(f, "f64"),
+			ValueType::V128 => write!(f, "v128"),
 		}
 	}
 }
@@ -106,6 +111,7 @@ impl Deserialize for BlockType {
 			-0x02 => Ok(BlockType::Value(ValueType::I64)),
 			-0x03 => Ok(BlockType::Value(ValueType::F32)),
 			-0x04 => Ok(BlockType::Value(ValueType::F64)),
+			0x7b => Ok(BlockType::Value(ValueType::V128)),
 			-0x40 => Ok(BlockType::NoResult),
 			_ => Err(Error::UnknownValueType(val.into())),
 		}
@@ -122,6 +128,7 @@ impl Serialize for BlockType {
 			BlockType::Value(ValueType::I64) => -0x02,
 			BlockType::Value(ValueType::F32) => -0x03,
 			BlockType::Value(ValueType::F64) => -0x04,
+			BlockType::Value(ValueType::V128) => 0x7b,
 		}.into();
 		val.serialize(writer)?;
 		Ok(())

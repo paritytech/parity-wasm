@@ -206,7 +206,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 	/// Push linear memory region
 	pub fn push_memory(&mut self, mut memory: memory::MemoryDefinition) -> u32 {
 		let entries = self.module.memory.entries_mut();
-		entries.push(elements::MemoryType::new(memory.min, memory.max));
+		entries.push(elements::MemoryType::new(memory.min, memory.max, false));
 		let memory_index = (entries.len() - 1) as u32;
 		for data in memory.data.drain(..) {
 			self.module.data.entries_mut()

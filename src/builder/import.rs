@@ -95,7 +95,7 @@ impl<F> ImportExternalBuilder<F> where F: Invoke<elements::External> {
 
 	/// Memory mapping with specified limits
 	pub fn memory(mut self, min: u32, max: Option<u32>) -> F::Result {
-		self.binding = elements::External::Memory(elements::MemoryType::new(min, max));
+		self.binding = elements::External::Memory(elements::MemoryType::new(min, max, false));
 		self.callback.invoke(self.binding)
 	}
 

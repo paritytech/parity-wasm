@@ -295,6 +295,12 @@ pub enum Instruction {
 	F32ReinterpretI32,
 	F64ReinterpretI64,
 
+	I32Extend8S,
+	I32Extend16S,
+	I64Extend8S,
+	I64Extend16S,
+	I64Extend32S,
+
 	AtomicWake(MemArg),
 	I32AtomicWait(MemArg),
 	I64AtomicWait(MemArg),
@@ -577,6 +583,12 @@ pub mod opcodes {
 	pub const I64REINTERPRETF64: u8 = 0xbd;
 	pub const F32REINTERPRETI32: u8 = 0xbe;
 	pub const F64REINTERPRETI64: u8 = 0xbf;
+
+	pub const I32_EXTEND8_S: u8 = 0xc0;
+	pub const I32_EXTEND16_S: u8 = 0xc1;
+	pub const I64_EXTEND8_S: u8 = 0xc2;
+	pub const I64_EXTEND16_S: u8 = 0xc3;
+	pub const I64_EXTEND32_S: u8 = 0xc4;
 
 	pub const ATOMIC_PREFIX: u8 = 0xfe;
 	pub const ATOMIC_WAKE: u8 = 0x00;
@@ -944,6 +956,11 @@ impl Deserialize for Instruction {
 				I64REINTERPRETF64 => I64ReinterpretF64,
 				F32REINTERPRETI32 => F32ReinterpretI32,
 				F64REINTERPRETI64 => F64ReinterpretI64,
+				I32_EXTEND8_S => I32Extend8S,
+				I32_EXTEND16_S => I32Extend16S,
+				I64_EXTEND8_S => I64Extend8S,
+				I64_EXTEND16_S => I64Extend16S,
+				I64_EXTEND32_S => I64Extend32S,
 
 				ATOMIC_PREFIX => return deserialize_atomic(reader),
 
@@ -1359,6 +1376,12 @@ impl Serialize for Instruction {
 			F32ReinterpretI32 => op!(writer, F32REINTERPRETI32),
 			F64ReinterpretI64 => op!(writer, F64REINTERPRETI64),
 
+			I32Extend8S => op!(writer, I32_EXTEND8_S),
+			I32Extend16S => op!(writer, I32_EXTEND16_S),
+			I64Extend8S => op!(writer, I64_EXTEND8_S),
+			I64Extend16S => op!(writer, I64_EXTEND16_S),
+			I64Extend32S => op!(writer, I64_EXTEND32_S),
+
 			AtomicWake(m) => atomic!(writer, ATOMIC_WAKE, m),
 			I32AtomicWait(m) => atomic!(writer, I32_ATOMIC_WAIT, m),
 			I64AtomicWait(m) => atomic!(writer, I64_ATOMIC_WAIT, m),
@@ -1704,6 +1727,12 @@ impl fmt::Display for Instruction {
 			I64ReinterpretF64 => write!(f, "i64.reinterpret/f64"),
 			F32ReinterpretI32 => write!(f, "f32.reinterpret/i32"),
 			F64ReinterpretI64 => write!(f, "f64.reinterpret/i64"),
+
+			I32Extend8S => write!(f, "i32.extend8_s"),
+			I32Extend16S => write!(f, "i32.extend16_s"),
+			I64Extend8S => write!(f, "i64.extend8_s"),
+			I64Extend16S => write!(f, "i64.extend16_s"),
+			I64Extend32S => write!(f, "i64.extend32_s"),
 
 			AtomicWake(_) => write!(f, "atomic.wake"),
 			I32AtomicWait(_) => write!(f, "i32.atomic.wait"),

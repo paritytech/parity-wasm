@@ -111,6 +111,8 @@ pub enum Error {
 	UnknownInternalKind(u8),
 	/// Unknown opcode encountered
 	UnknownOpcode(u8),
+	/// Unknown SIMD opcode encountered
+	UnknownSimdOpcode(u32),
 	/// Invalid VarUint1 value
 	InvalidVarUint1(u8),
 	/// Invalid VarInt32 value
@@ -158,6 +160,7 @@ impl fmt::Display for Error {
 			Error::UnknownExternalKind(kind) => write!(f, "Unknown external kind {}", kind),
 			Error::UnknownInternalKind(kind) => write!(f, "Unknown internal kind {}", kind),
 			Error::UnknownOpcode(opcode) => write!(f, "Unknown opcode {}", opcode),
+			Error::UnknownSimdOpcode(opcode) => write!(f, "Unknown SIMD opcode {}", opcode),
 			Error::InvalidVarUint1(val) => write!(f, "Not an unsigned 1-bit integer: {}", val),
 			Error::InvalidVarInt7(val) => write!(f, "Not a signed 7-bit integer: {}", val),
 			Error::InvalidVarInt32 => write!(f, "Not a signed 32-bit integer"),
@@ -192,6 +195,7 @@ impl ::std::error::Error for Error {
 			Error::UnknownExternalKind(_) => "Unknown external kind",
 			Error::UnknownInternalKind(_) => "Unknown internal kind",
 			Error::UnknownOpcode(_) => "Unknown opcode",
+			Error::UnknownSimdOpcode(_) => "Unknown SIMD opcode",
 			Error::InvalidVarUint1(_) => "Not an unsigned 1-bit integer",
 			Error::InvalidVarInt32 => "Not a signed 32-bit integer",
 			Error::InvalidVarInt7(_) => "Not a signed 7-bit integer",

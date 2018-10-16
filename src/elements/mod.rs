@@ -135,6 +135,8 @@ pub enum Error {
 	InvalidMemoryReference(u8),
 	/// Invalid table reference (should be 0)
 	InvalidTableReference(u8),
+	/// Invalid value used for flags in limits type.
+	InvalidLimitsFlags(u8),
 	/// Unknown function form (should be 0x60)
 	UnknownFunctionForm(u8),
 	/// Invalid varint7 (should be in -64..63 range)
@@ -175,6 +177,7 @@ impl fmt::Display for Error {
 			Error::DuplicatedSections(ref id) =>  write!(f, "Dupliated sections ({})", id),
 			Error::InvalidMemoryReference(ref mem_ref) =>  write!(f, "Invalid memory reference ({})", mem_ref),
 			Error::InvalidTableReference(ref table_ref) =>  write!(f, "Invalid table reference ({})", table_ref),
+			Error::InvalidLimitsFlags(ref flags) =>  write!(f, "Invalid limits flags ({})", flags),
 			Error::UnknownFunctionForm(ref form) =>  write!(f, "Unknown function form ({})", form),
 			Error::InconsistentCode =>  write!(f, "Number of function body entries and signatures does not match"),
 			Error::InvalidSegmentFlags(n) =>  write!(f, "Invalid segment flags: {}", n),
@@ -211,6 +214,7 @@ impl ::std::error::Error for Error {
 			Error::DuplicatedSections(_) =>  "Duplicated section",
 			Error::InvalidMemoryReference(_) =>  "Invalid memory reference",
 			Error::InvalidTableReference(_) =>  "Invalid table reference",
+			Error::InvalidLimitsFlags(_) => "Invalid limits flags",
 			Error::UnknownFunctionForm(_) =>  "Unknown function form",
 			Error::InconsistentCode =>  "Number of function body entries and signatures does not match",
 			Error::InvalidSegmentFlags(_) =>  "Invalid segment flags",

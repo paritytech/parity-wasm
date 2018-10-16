@@ -5,7 +5,8 @@ use super::{
 	ValueType, TableElementType
 };
 
-const FLAG_SHARED: u8 = 0x2;
+const FLAG_HAS_MAX: u8 = 0x01;
+const FLAG_SHARED: u8 = 0x02;
 
 /// Global definition struct
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -98,12 +99,12 @@ impl Serialize for TableType {
 	}
 }
 
-/// Memory limits
+/// Memory and table limits.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ResizableLimits {
 	initial: u32,
 	maximum: Option<u32>,
-	flags: u8,
+	shared: bool,
 }
 
 impl ResizableLimits {
@@ -112,7 +113,7 @@ impl ResizableLimits {
 		ResizableLimits {
 			initial: min,
 			maximum: max,
-			flags: 0,
+			shared: false,
 		}
 	}
 	/// Initial size
@@ -120,7 +121,7 @@ impl ResizableLimits {
 	/// Maximum size
 	pub fn maximum(&self) -> Option<u32> { self.maximum }
 	/// Whether or not this is a shared array buffer
-	pub fn shared(&self) -> bool { self.flags & FLAG_SHARED != 0 }
+	pub fn shared(&self) -> bool { self.shared }
 }
 
 impl Deserialize for ResizableLimits {
@@ -128,17 +129,23 @@ impl Deserialize for ResizableLimits {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let flags: u8 = Uint8::deserialize(reader)?.into();
+		match flags {
+			0x00 | 0x01 | 0x03 => {},
+			_ => return Err(Error::InvalidLimitsFlags(flags)),
+		}
+
 		let initial = VarUint32::deserialize(reader)?;
-		let maximum = if flags & 0x1 != 0 {
+		let maximum = if flags & FLAG_HAS_MAX != 0 {
 			Some(VarUint32::deserialize(reader)?.into())
 		} else {
 			None
 		};
+		let shared = flags & FLAG_SHARED != 0;
 
 		Ok(ResizableLimits {
 			initial: initial.into(),
 			maximum: maximum,
-			flags,
+			shared,
 		})
 	}
 }
@@ -147,12 +154,17 @@ impl Serialize for ResizableLimits {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		let max = self.maximum;
-		let flags = self.flags & !0x1 | (if max.is_some() { 0x1 } else { 0x0 });
+		let mut flags: u8 = 0;
+		if self.maximum.is_some() {
+			flags |= FLAG_HAS_MAX;
+		}
+		if self.shared {
+			flags |= FLAG_SHARED;
+		}
 		Uint8::from(flags).serialize(writer)?;
 		VarUint32::from(self.initial).serialize(writer)?;
-		if let Some(val) = max {
-			VarUint32::from(val).serialize(writer)?;
+		if let Some(max) = self.maximum {
+			VarUint32::from(max).serialize(writer)?;
 		}
 		Ok(())
 	}
@@ -166,9 +178,7 @@ impl MemoryType {
 	/// New memory definition
 	pub fn new(min: u32, max: Option<u32>, shared: bool) -> Self {
 		let mut r = ResizableLimits::new(min, max);
-		if shared {
-			r.flags |= FLAG_SHARED;
-		}
+		r.shared = shared;
 		MemoryType(r)
 	}
 

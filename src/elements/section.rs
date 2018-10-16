@@ -1038,7 +1038,7 @@ mod tests {
 	#[test]
 	fn data_section_ser() {
 		let data_section = DataSection::with_entries(
-			vec![DataSegment::new(0u32, InitExpr::empty(), vec![0u8; 16])]
+			vec![DataSegment::new(0u32, Some(InitExpr::empty()), vec![0u8; 16], false)]
 		);
 
 		let buf = serialize(data_section).expect("Data section to be serialized");
@@ -1072,7 +1072,7 @@ mod tests {
 	#[test]
 	fn element_section_ser() {
 		let element_section = ElementSection::with_entries(
-			vec![ElementSegment::new(0u32, InitExpr::empty(), vec![0u32; 4])]
+			vec![ElementSegment::new(0u32, Some(InitExpr::empty()), vec![0u32; 4], false)]
 		);
 
 		let buf = serialize(element_section).expect("Element section to be serialized");

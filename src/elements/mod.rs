@@ -50,7 +50,7 @@ pub use self::primitives::{
 	Uint64, VarUint64, CountedList, CountedWriter, CountedListWriter,
 };
 pub use self::types::{Type, ValueType, BlockType, FunctionType, TableElementType};
-pub use self::ops::{Instruction, Instructions, InitExpr, opcodes};
+pub use self::ops::{Instruction, Instructions, InitExpr, opcodes, MemArg};
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
 pub use self::index_map::IndexMap;
@@ -141,6 +141,8 @@ pub enum Error {
 	InvalidVarInt7(u8),
 	/// Number of function body entries and signatures does not match
 	InconsistentCode,
+	/// Only flags 0, 1, and 2 are accepted on segments
+	InvalidSegmentFlags(u32),
 }
 
 impl fmt::Display for Error {
@@ -175,6 +177,7 @@ impl fmt::Display for Error {
 			Error::InvalidTableReference(ref table_ref) =>  write!(f, "Invalid table reference ({})", table_ref),
 			Error::UnknownFunctionForm(ref form) =>  write!(f, "Unknown function form ({})", form),
 			Error::InconsistentCode =>  write!(f, "Number of function body entries and signatures does not match"),
+			Error::InvalidSegmentFlags(n) =>  write!(f, "Invalid segment flags: {}", n),
 		}
 	}
 }
@@ -210,6 +213,7 @@ impl ::std::error::Error for Error {
 			Error::InvalidTableReference(_) =>  "Invalid table reference",
 			Error::UnknownFunctionForm(_) =>  "Unknown function form",
 			Error::InconsistentCode =>  "Number of function body entries and signatures does not match",
+			Error::InvalidSegmentFlags(_) =>  "Invalid segment flags",
 		}
 	}
 }

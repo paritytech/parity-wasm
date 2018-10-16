@@ -48,8 +48,9 @@ impl<F> DataSegmentBuilder<F> where F: Invoke<elements::DataSegment> {
 		self.callback.invoke(
 			elements::DataSegment::new(
 				self.mem_index,
-				self.offset,
+				Some(self.offset),
 				self.value,
+				false,
 			)
 		)
 	}

@@ -7,7 +7,7 @@ use super::{
 };
 
 /// Type definition in types section. Currently can be only of the function type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum Type {
 	/// Function type.
 	Function(FunctionType),
@@ -32,7 +32,7 @@ impl Serialize for Type {
 }
 
 /// Value type.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
 pub enum ValueType {
 	/// 32-bit signed integer
 	I32,
@@ -136,7 +136,7 @@ impl Serialize for BlockType {
 }
 
 /// Function signature type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct FunctionType {
 	form: u8,
 	params: Vec<ValueType>,

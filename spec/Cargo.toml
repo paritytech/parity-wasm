@@ -9,5 +9,5 @@ homepage = "https://github.com/nikvolf/parity-wasm"
 description = "parity-wasm testsuite"
 
 [dependencies]
-wabt = "0.2"
+wabt = "0.6"
 parity-wasm = { path = ".." }

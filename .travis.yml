@@ -9,12 +9,12 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
     packages:
-    - gcc-6
-    - g++-6
+    - gcc-8
+    - g++-8
     - cmake
 script:
-- export CC=/usr/bin/gcc-6
-- export CXX=/usr/bin/g++-6
+- export CC=/usr/bin/gcc-8
+- export CXX=/usr/bin/g++-8
 - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo build --no-default-features; fi
 - cargo build --release --verbose
 - cargo test --release --verbose
@@ -32,3 +32,5 @@ env:
   global:
     - secure: o0FH3sDSvQPBgGku0QU86HrSCH7YUN+l6WD4jk2OKkb/OVaYHR/9zna9/v7V5cQarg7uo4s7T8xSd6HJD3B+yxl2t73uPD+sqgf3hWx1PSI9ARtg3YWhq/l+Bl79Mm3Bz9hW68wPHXrKa95bDu2oYX6o15jWIYEMT4BUrGJWqhAoADnVdDttBaqKEkCBl1dFpRBagFV0/0eLXya8b+/6T7Q7Y8ZtINOD54fw5iDqAIlcKEyTWNF96/ZMOTfachs58hEn/EAFKLRWnarrGl9+jK/g7fU5+2QivJw8qVidqJvTA9A6FhRzELcwbS+okx63ViZe/JRO/GeGo3QR/Q71ukneu62EQf608B12h/3SLMomTlhv0swIvcehcUDXxCkujFN1dm3b68Tun9kbfnDyoTSy5dOLd92zkjgXo2M8PGfwLLceZVUovnrE9e9Je/lji9O+9bpFbxBkvrXnK8jAAmNVdfmefY/qeDW2HDFcP9aqquXXQ20JQw1fnd/R5y9MC+IKcKxaRtKoioDpQXtxj6JA7YyBzrMnVcmtOxUzvplNYPif9BBFtuBNKUIW5h3lcoyDWesRgzt5MXsm8q+femBDhkxbb24RU8hd8j5heUNtblqgADQpssH0eNHqYgSHgwYRhuRgjByTMt6rf0Da/uANoGnBZQWbwLsW9h/GGN0=
     - RUSTFLAGS=--cfg=slow_assertions
+    - CC=/usr/bin/gcc-8
+    - CXX=/usr/bin/g++-8

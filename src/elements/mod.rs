@@ -145,6 +145,8 @@ pub enum Error {
 	InconsistentCode,
 	/// Only flags 0, 1, and 2 are accepted on segments
 	InvalidSegmentFlags(u32),
+	/// Sum of counts of locals is greater than 2^32.
+	TooManyLocals,
 }
 
 impl fmt::Display for Error {
@@ -181,6 +183,7 @@ impl fmt::Display for Error {
 			Error::UnknownFunctionForm(ref form) =>  write!(f, "Unknown function form ({})", form),
 			Error::InconsistentCode =>  write!(f, "Number of function body entries and signatures does not match"),
 			Error::InvalidSegmentFlags(n) =>  write!(f, "Invalid segment flags: {}", n),
+			Error::TooManyLocals => write!(f, "Too many locals"),
 		}
 	}
 }
@@ -218,6 +221,7 @@ impl ::std::error::Error for Error {
 			Error::UnknownFunctionForm(_) =>  "Unknown function form",
 			Error::InconsistentCode =>  "Number of function body entries and signatures does not match",
 			Error::InvalidSegmentFlags(_) =>  "Invalid segment flags",
+			Error::TooManyLocals => "Too many locals",
 		}
 	}
 }

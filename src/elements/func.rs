@@ -120,6 +120,14 @@ impl Deserialize for FuncBody {
 		// todo: maybe use reader.take(section_length)
 		let mut body_reader = SectionReader::new(reader)?;
 		let locals: Vec<Local> = CountedList::<Local>::deserialize(&mut body_reader)?.into_inner();
+
+		// The specification obliges us to count the total number of local variables while
+		// decoding the binary format.
+		locals
+			.iter()
+			.try_fold(0u32, |acc, &Local { count, .. }| acc.checked_add(count))
+			.ok_or_else(|| Error::TooManyLocals)?;
+
 		let instructions = Instructions::deserialize(&mut body_reader)?;
 		body_reader.close()?;
 		Ok(FuncBody { locals: locals, instructions: instructions })

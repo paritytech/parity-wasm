@@ -50,7 +50,7 @@ Decoder can be fuzzed with `cargo-fuzz` using `wasm-opt` (https://github.com/Web
 ## `no_std` crates
 
 This crate has a feature, `std`, that is enabled by default. To use this crate
-in a `no_std` context, add the following to your `Cargo.toml`:
+in a `no_std` context, add the following to your `Cargo.toml` (still requires allocator though):
 
 ```toml
 [dependencies]

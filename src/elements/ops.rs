@@ -837,31 +837,31 @@ pub mod opcodes {
 	// https://github.com/WebAssembly/simd/blob/master/proposals/simd/BinarySIMD.md
 	pub const SIMD_PREFIX: u8 = 0xfd;
 
-	pub const V128_LOAD: u32 = 0;
-	pub const V128_STORE: u32 = 1;
-	pub const V128_CONST: u32 = 2;
-	pub const V8X16_SHUFFLE: u32 = 3;
+	pub const V128_LOAD: u32 = 0x00;
+	pub const V128_STORE: u32 = 0x01;
+	pub const V128_CONST: u32 = 0x02;
+	pub const V8X16_SHUFFLE: u32 = 0x03;
 
-	pub const I8X16_SPLAT: u32 = 4;
-	pub const I8X16_EXTRACT_LANE_S: u32 = 5;
-	pub const I8X16_EXTRACT_LANE_U: u32 = 6;
-	pub const I8X16_REPLACE_LANE: u32 = 7;
-	pub const I16X8_SPLAT: u32 = 8;
-	pub const I16X8_EXTRACT_LANE_S: u32 = 9;
-	pub const I16X8_EXTRACT_LANE_U: u32 = 10;
-	pub const I16X8_REPLACE_LANE: u32 = 11;
-	pub const I32X4_SPLAT: u32 = 12;
-	pub const I32X4_EXTRACT_LANE: u32 = 13;
-	pub const I32X4_REPLACE_LANE: u32 = 14;
-	pub const I64X2_SPLAT: u32 = 15;
-	pub const I64X2_EXTRACT_LANE: u32 = 16;
-	pub const I64X2_REPLACE_LANE: u32 = 17;
-	pub const F32X4_SPLAT: u32 = 18;
-	pub const F32X4_EXTRACT_LANE: u32 = 19;
-	pub const F32X4_REPLACE_LANE: u32 = 20;
-	pub const F64X2_SPLAT: u32 = 21;
-	pub const F64X2_EXTRACT_LANE: u32 = 22;
-	pub const F64X2_REPLACE_LANE: u32 = 23;
+	pub const I8X16_SPLAT: u32 = 0x04;
+	pub const I8X16_EXTRACT_LANE_S: u32 = 0x05;
+	pub const I8X16_EXTRACT_LANE_U: u32 = 0x06;
+	pub const I8X16_REPLACE_LANE: u32 = 0x07;
+	pub const I16X8_SPLAT: u32 = 0x08;
+	pub const I16X8_EXTRACT_LANE_S: u32 = 0x09;
+	pub const I16X8_EXTRACT_LANE_U: u32 = 0xa;
+	pub const I16X8_REPLACE_LANE: u32 = 0x0b;
+	pub const I32X4_SPLAT: u32 = 0x0c;
+	pub const I32X4_EXTRACT_LANE: u32 = 0x0d;
+	pub const I32X4_REPLACE_LANE: u32 = 0x0e;
+	pub const I64X2_SPLAT: u32 = 0x0f;
+	pub const I64X2_EXTRACT_LANE: u32 = 0x10;
+	pub const I64X2_REPLACE_LANE: u32 = 0x11;
+	pub const F32X4_SPLAT: u32 = 0x12;
+	pub const F32X4_EXTRACT_LANE: u32 = 0x13;
+	pub const F32X4_REPLACE_LANE: u32 = 0x14;
+	pub const F64X2_SPLAT: u32 = 0x15;
+	pub const F64X2_EXTRACT_LANE: u32 = 0x16;
+	pub const F64X2_REPLACE_LANE: u32 = 0x17;
 
 	pub const I8X16_EQ: u32 = 0x18;
 	pub const I8X16_NE: u32 = 0x19;

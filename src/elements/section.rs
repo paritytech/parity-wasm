@@ -287,6 +287,10 @@ pub struct CustomSection {
 }
 
 impl CustomSection {
+	/// Creates a new custom section with the given name and payload
+	pub fn new(name: String, payload: Vec<u8>) -> CustomSection {
+		CustomSection { name, payload }
+	}
 
 	/// Name of the custom section
 	pub fn name(&self) -> &str {

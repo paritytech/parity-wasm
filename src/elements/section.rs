@@ -35,34 +35,34 @@ const ENTRIES_BUFFER_LENGTH: usize = 16384;
 pub enum Section {
 	/// Section is unparsed.
 	Unparsed {
-		/// id of the unparsed section
+		/// id of the unparsed section.
 		id: u8,
-		/// raw bytes of the unparsed section
+		/// raw bytes of the unparsed section.
 		payload: Vec<u8>,
 	},
-	/// Custom section (`id=0`)
+	/// Custom section (`id=0`).
 	Custom(CustomSection),
-	/// Types section
+	/// Types section.
 	Type(TypeSection),
-	/// Import section
+	/// Import section.
 	Import(ImportSection),
-	/// Function signatures section
+	/// Function signatures section.
 	Function(FunctionSection),
-	/// Table definition section
+	/// Table definition section.
 	Table(TableSection),
-	/// Memory definition section
+	/// Memory definition section.
 	Memory(MemorySection),
-	/// Global entries section
+	/// Global entries section.
 	Global(GlobalSection),
-	/// Export definitions
+	/// Export definitions.
 	Export(ExportSection),
-	/// Entry reference of the module
+	/// Entry reference of the module.
 	Start(u32),
-	/// Elements section
+	/// Elements section.
 	Element(ElementSection),
-	/// Function bodies section
+	/// Function bodies section.
 	Code(CodeSection),
-	/// Data definition section
+	/// Data definition section.
 	Data(DataSection),
 	/// Name section.
 	///
@@ -72,7 +72,7 @@ pub enum Section {
 	///
 	/// Note that initially it is not parsed until `parse_reloc` is called explicitly.
 	/// Also note that currently there are serialization (but not de-serialization)
-	///   issues with this section (#198)
+	///   issues with this section (#198).
 	Reloc(RelocSection),
 }
 
@@ -279,7 +279,7 @@ fn read_entries<R: io::Read, T: Deserialize<Error=::elements::Error>>(reader: &m
 	Ok(result)
 }
 
-/// Custom section
+/// Custom section.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct CustomSection {
 	name: String,
@@ -287,27 +287,27 @@ pub struct CustomSection {
 }
 
 impl CustomSection {
-	/// Creates a new custom section with the given name and payload
+	/// Creates a new custom section with the given name and payload.
 	pub fn new(name: String, payload: Vec<u8>) -> CustomSection {
 		CustomSection { name, payload }
 	}
 
-	/// Name of the custom section
+	/// Name of the custom section.
 	pub fn name(&self) -> &str {
 		&self.name
 	}
 
-	/// Payload of the custom secion
+	/// Payload of the custom secion.
 	pub fn payload(&self) -> &[u8] {
 		&self.payload
 	}
 
-	/// Name of the custom section (mutable)
+	/// Name of the custom section (mutable).
 	pub fn name_mut(&mut self) -> &mut String {
 		&mut self.name
 	}
 
-	/// Payload of the custom section (mutable)
+	/// Payload of the custom section (mutable).
 	pub fn payload_mut(&mut self) -> &mut Vec<u8> {
 		&mut self.payload
 	}
@@ -340,22 +340,22 @@ impl Serialize for CustomSection {
 	}
 }
 
-/// Section with type declarations
+/// Section with type declarations.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct TypeSection(Vec<Type>);
 
 impl TypeSection {
-	///  New type section with provided types
+	///  New type section with provided types.
 	pub fn with_types(types: Vec<Type>) -> Self {
 		TypeSection(types)
 	}
 
-	/// List of type declarations
+	/// List of type declarations.
 	pub fn types(&self) -> &[Type] {
 		&self.0
 	}
 
-	/// List of type declarations (mutable)
+	/// List of type declarations (mutable).
 	pub fn types_mut(&mut self) -> &mut Vec<Type> {
 		&mut self.0
 	}
@@ -390,7 +390,7 @@ impl Serialize for TypeSection {
 pub struct ImportSection(Vec<ImportEntry>);
 
 impl ImportSection {
-	///  New import section with provided types
+	///  New import section with provided types.
 	pub fn with_entries(entries: Vec<ImportEntry>) -> Self {
 		ImportSection(entries)
 	}
@@ -405,7 +405,7 @@ impl ImportSection {
 		&mut self.0
 	}
 
-	/// Returns number of functions
+	/// Returns number of functions.
 	pub fn functions(&self) -> usize {
 		self.0.iter()
 			.filter(|entry| match entry.external() { &External::Function(_) => true, _ => false })
@@ -449,17 +449,17 @@ impl Serialize for ImportSection {
 pub struct FunctionSection(Vec<Func>);
 
 impl FunctionSection {
-	///  New function signatures section with provided entries
+	///  New function signatures section with provided entries.
 	pub fn with_entries(entries: Vec<Func>) -> Self {
 		FunctionSection(entries)
 	}
 
-	/// List of all functions in the section, mutable
+	/// List of all functions in the section, mutable.
 	pub fn entries_mut(&mut self) -> &mut Vec<Func> {
 		&mut self.0
 	}
 
-	/// List of all functions in the section
+	/// List of all functions in the section.
 	pub fn entries(&self) -> &[Func] {
 		&self.0
 	}
@@ -499,7 +499,7 @@ impl TableSection {
 		&self.0
 	}
 
-	///  New table section with provided table entries
+	///  New table section with provided table entries.
 	pub fn with_entries(entries: Vec<TableType>) -> Self {
 		TableSection(entries)
 	}
@@ -544,12 +544,12 @@ impl MemorySection {
 		&self.0
 	}
 
-	///  New memory section with memory types
+	///  New memory section with memory types.
 	pub fn with_entries(entries: Vec<MemoryType>) -> Self {
 		MemorySection(entries)
 	}
 
-	/// Mutable list of all memory entries in the section
+	/// Mutable list of all memory entries in the section.
 	pub fn entries_mut(&mut self) -> &mut Vec<MemoryType> {
 		&mut self.0
 	}
@@ -584,17 +584,17 @@ impl Serialize for MemorySection {
 pub struct GlobalSection(Vec<GlobalEntry>);
 
 impl GlobalSection {
-	/// List of all global entries in the section
+	/// List of all global entries in the section.
 	pub fn entries(&self) -> &[GlobalEntry] {
 		&self.0
 	}
 
-	/// New global section from list of global entries
+	/// New global section from list of global entries.
 	pub fn with_entries(entries: Vec<GlobalEntry>) -> Self {
 		GlobalSection(entries)
 	}
 
-	/// List of all global entries in the section (mutable)
+	/// List of all global entries in the section (mutable).
 	pub fn entries_mut(&mut self) -> &mut Vec<GlobalEntry> {
 		&mut self.0
 	}
@@ -629,17 +629,17 @@ impl Serialize for GlobalSection {
 pub struct ExportSection(Vec<ExportEntry>);
 
 impl ExportSection {
-	/// List of all export entries in the section
+	/// List of all export entries in the section.
 	pub fn entries(&self) -> &[ExportEntry] {
 		&self.0
 	}
 
-	/// New export section from list of export entries
+	/// New export section from list of export entries.
 	pub fn with_entries(entries: Vec<ExportEntry>) -> Self {
 		ExportSection(entries)
 	}
 
-	/// List of all export entries in the section (mutable)
+	/// List of all export entries in the section (mutable).
 	pub fn entries_mut(&mut self) -> &mut Vec<ExportEntry> {
 		&mut self.0
 	}
@@ -674,7 +674,7 @@ impl Serialize for ExportSection {
 pub struct CodeSection(Vec<FuncBody>);
 
 impl CodeSection {
-	/// New code section with specified function bodies
+	/// New code section with specified function bodies.
 	pub fn with_bodies(bodies: Vec<FuncBody>) -> Self {
 		CodeSection(bodies)
 	}
@@ -719,17 +719,17 @@ impl Serialize for CodeSection {
 pub struct ElementSection(Vec<ElementSegment>);
 
 impl ElementSection {
-	/// New elements section
+	/// New elements section.
 	pub fn with_entries(entries: Vec<ElementSegment>) -> Self {
 		ElementSection(entries)
 	}
 
-	/// New elements entries in the section
+	/// New elements entries in the section.
 	pub fn entries(&self) -> &[ElementSegment] {
 		&self.0
 	}
 
-	/// List of all data entries in the section (mutable)
+	/// List of all data entries in the section (mutable).
 	pub fn entries_mut(&mut self) -> &mut Vec<ElementSegment> {
 		&mut self.0
 	}
@@ -764,17 +764,17 @@ impl Serialize for ElementSection {
 pub struct DataSection(Vec<DataSegment>);
 
 impl DataSection {
-	/// New data section
+	/// New data section.
 	pub fn with_entries(entries: Vec<DataSegment>) -> Self {
 		DataSection(entries)
 	}
 
-	/// List of all data entries in the section
+	/// List of all data entries in the section.
 	pub fn entries(&self) -> &[DataSegment] {
 		&self.0
 	}
 
-	/// List of all data entries in the section (mutable)
+	/// List of all data entries in the section (mutable).
 	pub fn entries_mut(&mut self) -> &mut Vec<DataSegment> {
 		&mut self.0
 	}

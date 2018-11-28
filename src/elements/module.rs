@@ -61,12 +61,14 @@ impl Module {
 	pub fn version(&self) -> u32 { self.version }
 
 	/// Sections list.
+	///
 	/// Each known section is optional and may appear at most once.
 	pub fn sections(&self) -> &[Section] {
 		&self.sections
 	}
 
-	/// Sections list (mutable)
+	/// Sections list (mutable).
+	///
 	/// Each known section is optional and may appear at most once.
 	pub fn sections_mut(&mut self) -> &mut Vec<Section> {
 		&mut self.sections
@@ -242,6 +244,7 @@ impl Module {
 	}
 
 	/// Functions signatures section reference, if any.
+	///
 	/// NOTE: name section is not parsed by default so `names_section` could return None even if name section exists.
 	/// Call `parse_names` to parse name section
 	pub fn names_section(&self) -> Option<&NameSection> {
@@ -252,6 +255,7 @@ impl Module {
 	}
 
 	/// Functions signatures section mutable reference, if any.
+	///
 	/// NOTE: name section is not parsed by default so `names_section` could return None even if name section exists.
 	/// Call `parse_names` to parse name section
 	pub fn names_section_mut(&mut self) -> Option<&mut NameSection> {
@@ -261,7 +265,8 @@ impl Module {
 		None
 	}
 
-	/// Try to parse name section in place
+	/// Try to parse name section in place/
+	///
 	/// Corresponding custom section with proper header will convert to name sections
 	/// If some of them will fail to be decoded, Err variant is returned with the list of
 	/// (index, Error) tuples of failed sections.
@@ -295,7 +300,8 @@ impl Module {
 		}
 	}
 
-	/// Try to parse reloc section in place
+	/// Try to parse reloc section in place.
+	///
 	/// Corresponding custom section with proper header will convert to reloc sections
 	/// If some of them will fail to be decoded, Err variant is returned with the list of
 	/// (index, Error) tuples of failed sections.
@@ -336,7 +342,7 @@ impl Module {
 		}
 	}
 
-	/// Count imports by provided type
+	/// Count imports by provided type.
 	pub fn import_count(&self, count_type: ImportCountType) -> usize {
 		self.import_section()
 			.map(|is|
@@ -350,25 +356,25 @@ impl Module {
 			.unwrap_or(0)
 	}
 
-	/// Query functions space
+	/// Query functions space.
 	pub fn functions_space(&self) -> usize {
 		self.import_count(ImportCountType::Function) +
 			self.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
 	}
 
-	/// Query globals space
+	/// Query globals space.
 	pub fn globals_space(&self) -> usize {
 		self.import_count(ImportCountType::Global) +
 			self.global_section().map(|gs| gs.entries().len()).unwrap_or(0)
 	}
 
-	/// Query table space
+	/// Query table space.
 	pub fn table_space(&self) -> usize {
 		self.import_count(ImportCountType::Table) +
 			self.table_section().map(|ts| ts.entries().len()).unwrap_or(0)
 	}
 
-	/// Query memory space
+	/// Query memory space.
 	pub fn memory_space(&self) -> usize {
 		self.import_count(ImportCountType::Memory) +
 			self.memory_section().map(|ms| ms.entries().len()).unwrap_or(0)
@@ -463,7 +469,7 @@ impl<'a> io::Read for PeekSection<'a> {
 	}
 }
 
-/// Returns size of the module in the provided stream
+/// Returns size of the module in the provided stream.
 pub fn peek_size(source: &[u8]) -> usize {
 	if source.len() < 9 {
 		return 0;

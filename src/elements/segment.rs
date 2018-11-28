@@ -143,10 +143,10 @@ impl DataSegment {
 	/// Initial value of the data segment (mutable).
 	pub fn value_mut(&mut self) -> &mut Vec<u8> { &mut self.value }
 
-	/// Whether or not this data segment is "passive"
+	/// Whether or not this data segment is "passive".
 	pub fn passive(&self) -> bool { self.passive }
 
-	/// Whether or not this data segment is "passive" (mutable)
+	/// Whether or not this data segment is "passive" (mutable).
 	pub fn passive_mut(&mut self) -> &mut bool { &mut self.passive }
 }
 

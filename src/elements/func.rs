@@ -89,12 +89,12 @@ pub struct FuncBody {
 }
 
 impl FuncBody {
-	/// New function body with given `locals` and `instructions`
+	/// New function body with given `locals` and `instructions`.
 	pub fn new(locals: Vec<Local>, instructions: Instructions) -> Self {
 		FuncBody { locals: locals, instructions: instructions }
 	}
 
-	/// List of individual instructions
+	/// List of individual instructions.
 	pub fn empty() -> Self {
 		FuncBody { locals: Vec::new(), instructions: Instructions::empty() }
 	}
@@ -103,6 +103,7 @@ impl FuncBody {
 	pub fn locals(&self) -> &[Local] { &self.locals }
 
 	/// Instruction list of the function body. Minimal instruction list
+	///
 	/// is just `&[Instruction::End]`
 	pub fn code(&self) -> &Instructions { &self.instructions }
 
@@ -117,7 +118,6 @@ impl Deserialize for FuncBody {
 	 type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		// todo: maybe use reader.take(section_length)
 		let mut body_reader = SectionReader::new(reader)?;
 		let locals: Vec<Local> = CountedList::<Local>::deserialize(&mut body_reader)?.into_inner();
 

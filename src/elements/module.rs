@@ -245,27 +245,27 @@ impl Module {
 	pub fn set_start_section(&mut self, new_start : u32) {
 		for section in self.sections_mut() {
 			if let &mut Section::Start(_sect) = section {
-                *section = Section::Start(new_start);
-                return
-            }
+				*section = Section::Start(new_start);
+				return
+			}
 		}
-        self.sections_mut().push(Section::Start(new_start));
+		self.sections_mut().push(Section::Start(new_start));
 	}
 
-    /// Removes the module's start section.
-    pub fn clear_start_section(&mut self) {
-        let sections = self.sections_mut();
-        let mut rmidx = sections.len();
-        for (index, section) in sections.iter_mut().enumerate() {
-            if let Section::Start(_sect) = section {
-                rmidx = index;
-                break;
-            }
-        }
-        if rmidx < sections.len() {
-            sections.remove(rmidx);
-        }
-    }
+	/// Removes the module's start section.
+	pub fn clear_start_section(&mut self) {
+		let sections = self.sections_mut();
+		let mut rmidx = sections.len();
+		for (index, section) in sections.iter_mut().enumerate() {
+			if let Section::Start(_sect) = section {
+				rmidx = index;
+				break;
+			}
+		}
+		if rmidx < sections.len() {
+			sections.remove(rmidx);
+		}
+	}
 
 	/// Functions signatures section reference, if any.
 	/// NOTE: name section is not parsed by default so `names_section` could return None even if name section exists.

@@ -9,7 +9,7 @@ pub struct GlobalEntry {
 }
 
 impl GlobalEntry {
-	/// New global entry
+	/// New global entry.
 	pub fn new(global_type: GlobalType, init_expr: InitExpr) -> Self {
 		GlobalEntry {
 			global_type: global_type,
@@ -20,9 +20,9 @@ impl GlobalEntry {
 	pub fn global_type(&self) -> &GlobalType { &self.global_type }
 	/// Initialization expression (instructions) for global.
 	pub fn init_expr(&self) -> &InitExpr { &self.init_expr }
-	/// Global type (mutable)
+	/// Global type (mutable).
 	pub fn global_type_mut(&mut self) -> &mut GlobalType { &mut self.global_type }
-	/// Initialization expression (instructions) for global (mutable)
+	/// Initialization expression (instructions) for global (mutable).
 	pub fn init_expr_mut(&mut self) -> &mut InitExpr { &mut self.init_expr }
 }
 

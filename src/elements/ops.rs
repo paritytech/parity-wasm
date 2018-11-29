@@ -62,12 +62,13 @@ pub struct InitExpr(Vec<Instruction>);
 
 impl InitExpr {
 	/// New initialization expression from instruction list.
-	///   `code` must end with the `Instruction::End` instruction!
+	///
+	/// `code` must end with the `Instruction::End` instruction!
 	pub fn new(code: Vec<Instruction>) -> Self {
 		InitExpr(code)
 	}
 
-	/// Empty expression with only `Instruction::End` instruction
+	/// Empty expression with only `Instruction::End` instruction.
 	pub fn empty() -> Self {
 		InitExpr(vec![Instruction::End])
 	}
@@ -102,7 +103,7 @@ impl Deserialize for InitExpr {
 	}
 }
 
-/// Instruction
+/// Instruction.
 #[derive(Clone, Debug, PartialEq)]
 #[allow(missing_docs)]
 pub enum Instruction {
@@ -561,7 +562,8 @@ impl Instruction {
 		}
 	}
 
-	/// Is this instruction determines the termination of instruction sequence
+	/// Is this instruction determines the termination of instruction sequence?
+	///
 	/// `true` for `Instruction::End`
 	pub fn is_terminal(&self) -> bool {
 		match self {

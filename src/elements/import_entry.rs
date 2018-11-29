@@ -108,7 +108,7 @@ pub struct ResizableLimits {
 }
 
 impl ResizableLimits {
-	/// New memory limits definition
+	/// New memory limits definition.
 	pub fn new(min: u32, max: Option<u32>) -> Self {
 		ResizableLimits {
 			initial: min,
@@ -116,11 +116,11 @@ impl ResizableLimits {
 			shared: false,
 		}
 	}
-	/// Initial size
+	/// Initial size.
 	pub fn initial(&self) -> u32 { self.initial }
-	/// Maximum size
+	/// Maximum size.
 	pub fn maximum(&self) -> Option<u32> { self.maximum }
-	/// Whether or not this is a shared array buffer
+	/// Whether or not this is a shared array buffer.
 	pub fn shared(&self) -> bool { self.shared }
 }
 

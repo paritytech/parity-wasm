@@ -241,6 +241,32 @@ impl Module {
 		None
 	}
 
+	/// Changes the module's start section.
+	pub fn set_start_section(&mut self, new_start : u32) {
+		for section in self.sections_mut() {
+			if let &mut Section::Start(_sect) = section {
+				*section = Section::Start(new_start);
+				return
+			}
+		}
+		self.sections_mut().push(Section::Start(new_start));
+	}
+
+	/// Removes the module's start section.
+	pub fn clear_start_section(&mut self) {
+		let sections = self.sections_mut();
+		let mut rmidx = sections.len();
+		for (index, section) in sections.iter_mut().enumerate() {
+			if let Section::Start(_sect) = section {
+				rmidx = index;
+				break;
+			}
+		}
+		if rmidx < sections.len() {
+			sections.remove(rmidx);
+		}
+	}
+
 	/// Functions signatures section reference, if any.
 	/// NOTE: name section is not parsed by default so `names_section` could return None even if name section exists.
 	/// Call `parse_names` to parse name section
@@ -713,4 +739,14 @@ mod integration_tests {
 		let module = deserialize_file("./res/cases/v1/two-mems.wasm").expect("failed to deserialize");
 		assert_eq!(module.memory_space(), 2);
 	}
+
+    #[test]
+    fn mut_start() {
+        let mut module = deserialize_file("./res/cases/v1/start_mut.wasm").expect("failed to deserialize");
+        assert_eq!(module.start_section().expect("Did not find any start section"), 1);
+        module.set_start_section(0);
+        assert_eq!(module.start_section().expect("Did not find any start section"), 0);
+        module.clear_start_section();
+        assert_eq!(None, module.start_section());
+    }
 }

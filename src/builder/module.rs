@@ -258,7 +258,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 		).collect()
 	}
 
-	/// Push import entry to module. Not that it does not update calling indices in
+	/// Push import entry to module. Note that this does not update calling indices in
 	/// function bodies.
 	pub fn push_import(&mut self, import: elements::ImportEntry) -> u32 {
 		self.module.import.entries_mut().push(import);

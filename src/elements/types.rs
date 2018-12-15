@@ -92,7 +92,7 @@ impl fmt::Display for ValueType {
 }
 
 /// Block type which is basically `ValueType` + NoResult (to define blocks that have no return type)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlockType {
 	/// Value-type specified block type
 	Value(ValueType),

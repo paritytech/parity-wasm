@@ -207,7 +207,8 @@ impl Serialize for MemoryType {
 /// External to local binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum External {
-	/// Binds to function with index.
+	/// Binds to a function whose type is associated with the given index in the
+	/// type section.
 	Function(u32),
 	/// Describes local table definition to be imported as.
 	Table(TableType),

@@ -104,7 +104,7 @@ impl Deserialize for InitExpr {
 }
 
 /// Instruction.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub enum Instruction {
 	Unreachable,
@@ -539,14 +539,14 @@ pub enum Instruction {
 	TableCopy,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub struct MemArg {
 	pub align: u8,
 	pub offset: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub struct BrTableData {
 	pub table: Box<[u32]>,
@@ -2779,4 +2779,14 @@ fn display() {
 #[test]
 fn size_off() {
 	assert!(::std::mem::size_of::<Instruction>() <= 24);
+}
+
+#[test]
+fn instructions_hashset() {
+	use self::Instruction::{Call, Block, Drop};
+	use super::types::{BlockType::Value, ValueType};
+
+	let set: std::collections::HashSet<Instruction> =
+		vec![Call(1), Block(Value(ValueType::I32)), Drop].into_iter().collect();
+	assert_eq!(set.contains(&Drop), true)
 }

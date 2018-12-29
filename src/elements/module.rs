@@ -245,13 +245,17 @@ impl Module {
 
 	/// Changes the module's start section.
 	pub fn set_start_section(&mut self, new_start : u32) {
-		for section in self.sections_mut() {
+		let mut insert_after = 0;
+		for (i, section) in self.sections_mut().iter_mut().enumerate() {
 			if let &mut Section::Start(_sect) = section {
 				*section = Section::Start(new_start);
 				return
 			}
+			if section.id() < 0x8 {
+				insert_after = i;
+			}
 		}
-		self.sections_mut().push(Section::Start(new_start));
+		self.sections_mut().insert(insert_after + 1, Section::Start(new_start));
 	}
 
 	/// Removes the module's start section.
@@ -754,5 +758,21 @@ mod integration_tests {
         assert_eq!(module.start_section().expect("Did not find any start section"), 0);
         module.clear_start_section();
         assert_eq!(None, module.start_section());
+    }
+
+    #[test]
+    fn add_start() {
+        let mut module = deserialize_file("./res/cases/v1/start_add.wasm").expect("failed to deserialize");
+        assert!(module.start_section().is_none());
+        module.set_start_section(0);
+        assert_eq!(module.start_section().expect("Did not find any start section"), 0);
+
+        let sections = module.sections().iter().map(|s| s.id()).collect::<Vec<_>>();
+        let sorted_sections = {
+        	let mut s = sections.clone();
+        	s.sort();
+        	s
+        };
+        assert_eq!(sections, sorted_sections, "Sections must be correctly sorted by id");
     }
 }

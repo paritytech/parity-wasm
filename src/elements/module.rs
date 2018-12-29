@@ -6,7 +6,8 @@ use byteorder::{LittleEndian, ByteOrder};
 use super::{Deserialize, Serialize, Error, Uint32, External};
 use super::section::{
 	Section, CodeSection, TypeSection, ImportSection, ExportSection, FunctionSection,
-	GlobalSection, TableSection, ElementSection, DataSection, MemorySection
+	GlobalSection, TableSection, ElementSection, DataSection, MemorySection,
+	CustomSection,
 };
 use super::name_section::NameSection;
 use super::reloc_section::RelocSection;
@@ -271,6 +272,55 @@ impl Module {
 		if rmidx < sections.len() {
 			sections.remove(rmidx);
 		}
+	}
+
+	/// Returns an iterator over the module's custom sections
+	pub fn custom_sections(&self) -> impl Iterator<Item=&CustomSection> {
+		self.sections().iter().filter_map(|s| {
+			if let Section::Custom(s) = s {
+				Some(s)
+			} else {
+				None
+			}
+		})
+	}
+
+	/// Sets the payload associated with the given custom section, or adds a new custom section,
+	/// as appropriate.
+	pub fn set_custom_section(&mut self, name: String, payload: Vec<u8>) {
+		for section in self.sections_mut() {
+			if let &mut Section::Custom(ref mut sect) = section {
+				if sect.name() == name {
+					*sect = CustomSection::new(name, payload);
+					return
+				}
+			}
+		}
+		self.sections_mut().push(Section::Custom(CustomSection::new(name, payload)));
+	}
+
+	/// Removes the given custom section, if it exists.
+	/// Returns the removed section if it existed, or None otherwise.
+	pub fn clear_custom_section(&mut self, name: &str) -> Option<CustomSection> {
+		let sections = self.sections_mut();
+
+		for i in 0..sections.len() {
+			let mut remove = false;
+			if let Section::Custom(ref sect) = sections[i] {
+				if sect.name() == name {
+					remove = true;
+				}
+			}
+
+			if remove {
+				let removed = sections.remove(i);
+				match removed {
+					Section::Custom(sect) => return Some(sect),
+					_ => unreachable!(), // This is the section we just matched on, so...
+				}
+			}
+		}
+		None
 	}
 
 	/// Functions signatures section reference, if any.
@@ -540,7 +590,6 @@ pub fn peek_size(source: &[u8]) -> usize {
 
 #[cfg(test)]
 mod integration_tests {
-
 	use super::super::{deserialize_file, serialize, deserialize_buffer, Section};
 	use super::Module;
 
@@ -749,6 +798,24 @@ mod integration_tests {
 		let module = deserialize_file("./res/cases/v1/two-mems.wasm").expect("failed to deserialize");
 		assert_eq!(module.memory_space(), 2);
 	}
+
+    #[test]
+    fn add_custom_section() {
+        let mut module = deserialize_file("./res/cases/v1/start_mut.wasm").expect("failed to deserialize");
+        assert!(module.custom_sections().next().is_none());
+        module.set_custom_section("mycustomsection".to_string(), vec![1, 2, 3, 4]);
+        {
+	        let sections = module.custom_sections().collect::<Vec<_>>();
+	        assert_eq!(sections.len(), 1);
+	        assert_eq!(sections[0].name(), "mycustomsection");
+	        assert_eq!(sections[0].payload(), &[1, 2, 3, 4]);
+	    }
+
+        let old_section = module.clear_custom_section("mycustomsection");
+        assert_eq!(old_section.expect("Did not find custom section").payload(), &[1, 2, 3, 4]);
+
+        assert!(module.custom_sections().next().is_none());
+    }
 
     #[test]
     fn mut_start() {

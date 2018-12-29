@@ -768,11 +768,6 @@ mod integration_tests {
         assert_eq!(module.start_section().expect("Did not find any start section"), 0);
 
         let sections = module.sections().iter().map(|s| s.id()).collect::<Vec<_>>();
-        let sorted_sections = {
-        	let mut s = sections.clone();
-        	s.sort();
-        	s
-        };
-        assert_eq!(sections, sorted_sections, "Sections must be correctly sorted by id");
+        assert_eq!(sections, vec![1, 2, 3, 6, 7, 8, 9, 10, 11]);
     }
 }

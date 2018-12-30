@@ -287,7 +287,8 @@ impl Module {
 
 	/// Sets the payload associated with the given custom section, or adds a new custom section,
 	/// as appropriate.
-	pub fn set_custom_section(&mut self, name: String, payload: Vec<u8>) {
+	pub fn set_custom_section(&mut self, name: impl Into<String>, payload: Vec<u8>) {
+		let name: String = name.into();
 		for section in self.sections_mut() {
 			if let &mut Section::Custom(ref mut sect) = section {
 				if sect.name() == name {
@@ -301,7 +302,9 @@ impl Module {
 
 	/// Removes the given custom section, if it exists.
 	/// Returns the removed section if it existed, or None otherwise.
-	pub fn clear_custom_section(&mut self, name: &str) -> Option<CustomSection> {
+	pub fn clear_custom_section(&mut self, name: impl AsRef<str>) -> Option<CustomSection> {
+		let name: &str = name.as_ref();
+
 		let sections = self.sections_mut();
 
 		for i in 0..sections.len() {

@@ -1,7 +1,6 @@
 use io;
 use std::vec::Vec;
 use std::string::String;
-use byteorder::{LittleEndian, ByteOrder};
 use super::{Error, Deserialize, Serialize};
 
 /// Unsigned variable-length integer, limited to 32 bits,
@@ -417,7 +416,7 @@ impl Deserialize for Uint32 {
 		let mut buf = [0u8; 4];
 		reader.read(&mut buf)?;
 		// todo check range
-		Ok(Uint32(LittleEndian::read_u32(&buf)))
+		Ok(u32::from_le_bytes(buf).into())
 	}
 }
 
@@ -431,9 +430,7 @@ impl Serialize for Uint32 {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		let mut buf = [0u8; 4];
-		LittleEndian::write_u32(&mut buf, self.0);
-		writer.write(&buf)?;
+		writer.write(&self.0.to_le_bytes())?;
 		Ok(())
 	}
 }
@@ -453,7 +450,7 @@ impl Deserialize for Uint64 {
 		let mut buf = [0u8; 8];
 		reader.read(&mut buf)?;
 		// todo check range
-		Ok(Uint64(LittleEndian::read_u64(&buf)))
+		Ok(u64::from_le_bytes(buf).into())
 	}
 }
 
@@ -461,9 +458,7 @@ impl Serialize for Uint64 {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		let mut buf = [0u8; 8];
-		LittleEndian::write_u64(&mut buf, self.0);
-		writer.write(&buf)?;
+		writer.write(&self.0.to_le_bytes())?;
 		Ok(())
 	}
 }

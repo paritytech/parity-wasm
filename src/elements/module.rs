@@ -2,7 +2,6 @@ use io;
 use std::vec::Vec;
 use std::borrow::ToOwned;
 use std::string::String;
-use byteorder::{LittleEndian, ByteOrder};
 
 use super::{Deserialize, Serialize, Error, Uint32, External};
 use super::section::{
@@ -39,7 +38,7 @@ pub enum ImportCountType {
 impl Default for Module {
 	fn default() -> Self {
 		Module {
-			magic: LittleEndian::read_u32(&WASM_MAGIC_NUMBER),
+			magic: u32::from_le_bytes(WASM_MAGIC_NUMBER),
 			version: 1,
 			sections: Vec::with_capacity(16),
 		}
@@ -504,7 +503,7 @@ impl Deserialize for Module {
 		}
 
 		let module = Module {
-			magic: LittleEndian::read_u32(&magic),
+			magic: u32::from_le_bytes(magic),
 			version: version,
 			sections: sections,
 		};

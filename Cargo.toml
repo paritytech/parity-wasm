@@ -12,12 +12,9 @@ keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"]
 categories = ["wasm", "parser-implementations"]
 exclude = [ "res/*", "spec/*" ]
 
-[dependencies]
-byteorder = { version = "1.0", default-features = false }
-
 [dev-dependencies]
 time = "0.1"
 
 [features]
 default = ["std"]
-std = ["byteorder/std"]
+std = []

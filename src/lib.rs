@@ -5,8 +5,6 @@
 
 #![warn(missing_docs)]
 
-extern crate byteorder;
-
 #[cfg(not(feature = "std"))]
 #[macro_use]
 extern crate alloc;

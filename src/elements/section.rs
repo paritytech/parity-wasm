@@ -60,6 +60,8 @@ pub enum Section {
 	Start(u32),
 	/// Elements section.
 	Element(ElementSection),
+	/// Number of passive data entries in the data section
+	DataCount(u32),
 	/// Function bodies section.
 	Code(CodeSection),
 	/// Data definition section.
@@ -127,6 +129,12 @@ impl Deserialize for Section {
 				11 => {
 					Section::Data(DataSection::deserialize(reader)?)
 				},
+				12 => {
+					let mut section_reader = SectionReader::new(reader)?;
+					let count = VarUint32::deserialize(&mut section_reader)?;
+					section_reader.close()?;
+					Section::DataCount(count.into())
+				},
 				invalid_id => {
 					return Err(Error::InvalidSectionId(invalid_id))
 				},
@@ -182,6 +190,12 @@ impl Serialize for Section {
 				VarUint32::from(index).serialize(&mut counted_writer)?;
 				counted_writer.done()?;
 			},
+			Section::DataCount(count) => {
+				VarUint7::from(0x0c).serialize(writer)?;
+				let mut counted_writer = CountedWriter::new(writer);
+				VarUint32::from(count).serialize(&mut counted_writer)?;
+				counted_writer.done()?;
+			},
 			Section::Element(element_section) => {
 				VarUint7::from(0x09).serialize(writer)?;
 				element_section.serialize(writer)?;
@@ -212,7 +226,7 @@ impl Serialize for Section {
 }
 
 impl Section {
-	pub(crate) fn id(&self) -> u8 {
+	pub(crate) fn order(&self) -> u8 {
 		match *self {
 			Section::Custom(_) => 0x00,
 			Section::Unparsed { .. } => 0x00,
@@ -225,8 +239,9 @@ impl Section {
 			Section::Export(_) => 0x7,
 			Section::Start(_) => 0x8,
 			Section::Element(_) => 0x9,
-			Section::Code(_) => 0x0a,
-			Section::Data(_) => 0x0b,
+			Section::DataCount(_) => 0x0a,
+			Section::Code(_) => 0x0b,
+			Section::Data(_) => 0x0c,
 			Section::Name(_) => 0x00,
 			Section::Reloc(_) => 0x00,
 		}

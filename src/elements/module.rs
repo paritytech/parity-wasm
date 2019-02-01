@@ -253,7 +253,7 @@ impl Module {
 			}
 		}
 		let insert_before = self.sections().iter().enumerate()
-			.filter_map(|(i, s)| if s.id() > 0x8 { Some(i) } else { None })
+			.filter_map(|(i, s)| if s.order() > 0x8 { Some(i) } else { None })
 			.next()
 			.unwrap_or(0);
 		self.sections_mut().insert(insert_before, Section::Start(new_start));
@@ -482,20 +482,20 @@ impl Deserialize for Module {
 			return Err(Error::UnsupportedVersion(version));
 		}
 
-		let mut last_section_id = 0;
+		let mut last_section_order = 0;
 
 		loop {
 			match Section::deserialize(reader) {
 				Err(Error::UnexpectedEof) => { break; },
 				Err(e) => { return Err(e) },
 				Ok(section) => {
-					if section.id() != 0 {
-						if last_section_id > section.id() {
+					if section.order() != 0 {
+						if last_section_order > section.order() {
 							return Err(Error::SectionsOutOfOrder);
-						} else if last_section_id == section.id() {
-							return Err(Error::DuplicatedSections(last_section_id));
+						} else if last_section_order == section.order() {
+							return Err(Error::DuplicatedSections(last_section_order));
 						}
-						last_section_id = section.id();
+						last_section_order = section.order();
 					}
 					sections.push(section);
 				}
@@ -837,22 +837,22 @@ mod integration_tests {
         module.set_start_section(0);
         assert_eq!(module.start_section().expect("Did not find any start section"), 0);
 
-        let sections = module.sections().iter().map(|s| s.id()).collect::<Vec<_>>();
-        assert_eq!(sections, vec![1, 2, 3, 6, 7, 8, 9, 10, 11]);
+        let sections = module.sections().iter().map(|s| s.order()).collect::<Vec<_>>();
+        assert_eq!(sections, vec![1, 2, 3, 6, 7, 8, 9, 11, 12]);
     }
 
     #[test]
     fn add_start_custom() {
         let mut module = deserialize_file("./res/cases/v1/start_add_custom.wasm").expect("failed to deserialize");
 
-        let sections = module.sections().iter().map(|s| s.id()).collect::<Vec<_>>();
-        assert_eq!(sections, vec![1, 2, 3, 6, 7, 9, 10, 11, 0]);
+        let sections = module.sections().iter().map(|s| s.order()).collect::<Vec<_>>();
+        assert_eq!(sections, vec![1, 2, 3, 6, 7, 9, 11, 12, 0]);
 
         assert!(module.start_section().is_none());
         module.set_start_section(0);
-        assert_eq!(module.start_section().expect("Did not find any start section"), 0);
+        assert_eq!(module.start_section().expect("Dorder not find any start section"), 0);
 
-        let sections = module.sections().iter().map(|s| s.id()).collect::<Vec<_>>();
-        assert_eq!(sections, vec![1, 2, 3, 6, 7, 8, 9, 10, 11, 0]);
+        let sections = module.sections().iter().map(|s| s.order()).collect::<Vec<_>>();
+        assert_eq!(sections, vec![1, 2, 3, 6, 7, 8, 9, 11, 12, 0]);
     }
 }

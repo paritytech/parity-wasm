@@ -1,6 +1,6 @@
 use std::vec::Vec;
 use super::invoke::{Identity, Invoke};
-use elements;
+use crate::elements;
 
 /// Data segment builder
 pub struct DataSegmentBuilder<F=Identity> {

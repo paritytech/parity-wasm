@@ -1,10 +1,10 @@
-use io;
+use crate::io;
 use std::vec::Vec;
 use super::{
 	Deserialize, Error, ValueType, VarUint32, CountedList, Instructions,
 	Serialize, CountedWriter, CountedListWriter,
 };
-use elements::section::SectionReader;
+use crate::elements::section::SectionReader;
 
 /// Function signature (type reference)
 #[derive(Debug, Copy, Clone, PartialEq)]

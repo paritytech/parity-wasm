@@ -1,4 +1,4 @@
-use io;
+use crate::io;
 use std::string::String;
 use super::{
 	Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint32, VarUint1, Uint8,

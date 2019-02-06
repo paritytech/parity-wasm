@@ -4,7 +4,7 @@ use std::mem;
 use std::slice;
 use std::vec;
 use std::vec::Vec;
-use io;
+use crate::io;
 
 use super::{Deserialize, Error, Serialize, VarUint32};
 
@@ -357,7 +357,7 @@ where
 
 #[cfg(test)]
 mod tests {
-	use io;
+	use crate::io;
 	use super::*;
 
 	#[test]

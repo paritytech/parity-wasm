@@ -1,7 +1,7 @@
 //! Elements of the WebAssembly binary format.
 
 use std::fmt;
-use io;
+use crate::io;
 use std::vec::Vec;
 use std::string::String;
 

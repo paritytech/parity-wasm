@@ -1,5 +1,5 @@
 use std::vec::Vec;
-use elements;
+use crate::elements;
 use super::invoke::{Invoke, Identity};
 use super::misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder};
 
@@ -373,7 +373,7 @@ pub fn function() -> FunctionBuilder {
 mod tests {
 
 	use super::{signatures, function};
-	use elements;
+	use crate::elements;
 
 	#[test]
 	fn example() {

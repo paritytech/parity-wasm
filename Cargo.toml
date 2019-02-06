@@ -11,6 +11,7 @@ description = "WebAssembly binary format serialization/deserialization/interpret
 keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"]
 categories = ["wasm", "parser-implementations"]
 exclude = [ "res/*", "spec/*" ]
+edition = "2018"
 
 [dev-dependencies]
 time = "0.1"

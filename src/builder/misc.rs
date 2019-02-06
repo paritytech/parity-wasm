@@ -1,6 +1,6 @@
 use std::vec::Vec;
 use super::invoke::{Invoke, Identity};
-use elements;
+use crate::elements;
 
 pub struct ValueTypeBuilder<F=Identity> {
 	callback: F,

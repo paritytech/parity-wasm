@@ -1,4 +1,4 @@
-use io;
+use crate::io;
 use std::vec::Vec;
 use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr, CountedListWriter};
 

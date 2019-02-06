@@ -1,6 +1,4 @@
-use std::fmt;
-use std::vec::Vec;
-use std::boxed::Box;
+use std::{fmt, vec::Vec, boxed::Box};
 use crate::io;
 use super::{
 	Serialize, Deserialize, Error,

@@ -1,7 +1,9 @@
 use std::vec::Vec;
 use crate::elements;
-use super::invoke::{Invoke, Identity};
-use super::misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder};
+use super::{
+	invoke::{Invoke, Identity},
+	misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder},
+};
 
 /// Signature template description
 pub enum Signature {

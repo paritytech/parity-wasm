@@ -1,5 +1,4 @@
-use std::string::String;
-use std::borrow::ToOwned;
+use std::{string::String, borrow::ToOwned};
 use super::invoke::{Invoke, Identity};
 use crate::elements;
 

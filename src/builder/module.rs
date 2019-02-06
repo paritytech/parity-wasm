@@ -1,10 +1,15 @@
 use std::vec::Vec;
 use crate::elements;
-use super::invoke::{Invoke, Identity};
-use super::code::{self, SignaturesBuilder, FunctionBuilder};
-use super::memory::{self, MemoryBuilder};
-use super::table::{self, TableBuilder};
-use super::{import, export, global, data};
+use super::{
+	import,
+	export,
+	global,
+	data,
+	invoke::{Invoke, Identity},
+	code::{self, SignaturesBuilder, FunctionBuilder},
+	memory::{self, MemoryBuilder},
+	table::{self, TableBuilder},
+};
 
 /// Module builder
 pub struct ModuleBuilder<F=Identity> {

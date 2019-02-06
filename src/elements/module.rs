@@ -1,7 +1,5 @@
+use std::{vec::Vec, borrow::ToOwned, string::String};
 use crate::io;
-use std::vec::Vec;
-use std::borrow::ToOwned;
-use std::string::String;
 
 use super::{Deserialize, Serialize, Error, Uint32, External};
 use super::section::{

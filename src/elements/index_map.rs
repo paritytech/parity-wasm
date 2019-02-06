@@ -1,9 +1,11 @@
-use std::cmp::min;
-use std::iter::{FromIterator, IntoIterator};
-use std::mem;
-use std::slice;
-use std::vec;
-use std::vec::Vec;
+use std::{
+	cmp::min,
+	iter::{FromIterator, IntoIterator},
+	mem,
+	slice,
+	vec::{self, Vec},
+};
+
 use crate::io;
 
 use super::{Deserialize, Error, Serialize, VarUint32};

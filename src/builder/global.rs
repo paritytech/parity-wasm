@@ -1,5 +1,8 @@
-use super::invoke::{Invoke, Identity};
-use super::misc::ValueTypeBuilder;
+use super::{
+	invoke::{Invoke, Identity},
+	misc::ValueTypeBuilder,
+};
+
 use crate::elements;
 
 /// Global builder

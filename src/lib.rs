@@ -25,7 +25,7 @@ pub use elements::{
 };
 
 #[cfg(not(feature = "std"))]
-pub (crate) mod std {
+pub (crate) mod rust {
 	pub use core::*;
 	pub use ::alloc::format;
 	pub use ::alloc::vec;
@@ -35,4 +35,6 @@ pub (crate) mod std {
 }
 
 #[cfg(feature="std")]
-pub (crate) extern crate std;
+pub (crate) mod rust {
+	pub use std::*;
+}

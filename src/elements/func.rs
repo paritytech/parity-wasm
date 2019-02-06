@@ -1,4 +1,4 @@
-use crate::std::vec::Vec;
+use crate::rust::vec::Vec;
 use super::{
 	Deserialize, Error, ValueType, VarUint32, CountedList, Instructions,
 	Serialize, CountedWriter, CountedListWriter,

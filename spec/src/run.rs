@@ -2,8 +2,8 @@ use parity_wasm::elements::{deserialize_buffer, Module};
 use wabt::script::{Command, CommandKind, ScriptParser};
 
 fn read_file(filename: &str) -> String {
-	use crate::std::fs::File;
-	use crate::std::io::prelude::*;
+	use crate::rust::fs::File;
+	use crate::rust::io::prelude::*;
 
 	let mut f = File::open(filename).expect("file not found");
 

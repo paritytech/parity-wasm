@@ -1,4 +1,4 @@
-use crate::std::{vec::Vec, borrow::ToOwned, string::String, cmp};
+use crate::rust::{vec::Vec, borrow::ToOwned, string::String, cmp};
 use crate::io;
 
 use super::{Deserialize, Serialize, Error, Uint32, External};

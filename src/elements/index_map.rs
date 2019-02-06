@@ -1,4 +1,4 @@
-use crate::std::{
+use crate::rust::{
 	cmp::min,
 	iter::{FromIterator, IntoIterator},
 	mem,

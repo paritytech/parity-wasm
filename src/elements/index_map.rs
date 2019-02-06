@@ -1,4 +1,4 @@
-use std::{
+use crate::std::{
 	cmp::min,
 	iter::{FromIterator, IntoIterator},
 	mem,
@@ -88,7 +88,7 @@ impl<T> IndexMap<T> {
 			existing
 		};
 		if mem::size_of::<usize>() > 4 {
-			debug_assert!(self.entries.len() <= (::std::u32::MAX as usize) + 1);
+			debug_assert!(self.entries.len() <= (u32::max_value() as usize) + 1);
 		}
 		#[cfg(slow_assertions)]
 		debug_assert_eq!(self.len, self.slow_len());

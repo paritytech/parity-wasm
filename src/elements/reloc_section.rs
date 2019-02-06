@@ -1,4 +1,4 @@
-use std::{vec::Vec, string::String};
+use crate::std::{vec::Vec, string::String};
 use crate::io;
 
 use super::{CountedList, CountedListWriter, CountedWriter, Deserialize, Error, Serialize, VarInt32, VarUint32, VarUint7};

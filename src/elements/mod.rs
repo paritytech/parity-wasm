@@ -1,6 +1,6 @@
 //! Elements of the WebAssembly binary format.
 
-use std::{fmt, vec::Vec, string::String};
+use crate::std::{fmt, vec::Vec, format, string::String};
 use crate::io;
 
 macro_rules! buffered_read {

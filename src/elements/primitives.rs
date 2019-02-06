@@ -1,4 +1,4 @@
-use std::{vec::Vec, string::String};
+use crate::std::{vec::Vec, string::String};
 use crate::{io, elements};
 use super::{Error, Deserialize, Serialize};
 
@@ -27,7 +27,7 @@ impl From<u32> for VarUint32 {
 
 impl From<usize> for VarUint32 {
 	fn from(i: usize) -> VarUint32 {
-		assert!(i <= ::std::u32::MAX as usize);
+		assert!(i <= u32::max_value() as usize);
 		VarUint32(i as u32)
 	}
 }

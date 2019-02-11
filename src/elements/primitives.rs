@@ -1,6 +1,5 @@
-use io;
-use std::vec::Vec;
-use std::string::String;
+use crate::rust::{vec::Vec, string::String};
+use crate::{io, elements};
 use super::{Error, Deserialize, Serialize};
 
 /// Unsigned variable-length integer, limited to 32 bits,
@@ -28,7 +27,7 @@ impl From<u32> for VarUint32 {
 
 impl From<usize> for VarUint32 {
 	fn from(i: usize) -> VarUint32 {
-		assert!(i <= ::std::u32::MAX as usize);
+		assert!(i <= u32::max_value() as usize);
 		VarUint32(i as u32)
 	}
 }
@@ -600,9 +599,9 @@ impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
 /// Helper struct to write series of `T` preceded by the length of the sequence
 /// serialized as VarUint32.
 #[derive(Debug, Clone)]
-pub struct CountedListWriter<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>>(pub usize, pub T);
+pub struct CountedListWriter<I: Serialize<Error=elements::Error>, T: IntoIterator<Item=I>>(pub usize, pub T);
 
-impl<I: Serialize<Error=::elements::Error>, T: IntoIterator<Item=I>> Serialize for CountedListWriter<I, T> {
+impl<I: Serialize<Error=elements::Error>, T: IntoIterator<Item=I>> Serialize for CountedListWriter<I, T> {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
@@ -622,7 +621,7 @@ mod tests {
 
 	use super::super::{deserialize_buffer, Serialize};
 	use super::{CountedList, VarInt7, VarUint32, VarInt32, VarInt64, VarUint64};
-	use elements::Error;
+	use crate::elements::Error;
 
 	fn varuint32_ser_test(val: u32, expected: Vec<u8>) {
 		let mut buf = Vec::new();

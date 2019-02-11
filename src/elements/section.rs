@@ -1,7 +1,5 @@
-use io;
-use std::vec::Vec;
-use std::string::String;
-use std::borrow::ToOwned;
+use crate::rust::{vec::Vec, string::String, borrow::ToOwned};
+use crate::{io, elements};
 use super::{
 	Serialize,
 	Deserialize,
@@ -254,7 +252,7 @@ pub(crate) struct SectionReader {
 }
 
 impl SectionReader {
-	pub fn new<R: io::Read>(reader: &mut R) -> Result<Self, ::elements::Error> {
+	pub fn new<R: io::Read>(reader: &mut R) -> Result<Self, elements::Error> {
 		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
 		let inner_buffer = buffered_read!(ENTRIES_BUFFER_LENGTH, length, reader);
 		let buf_length = inner_buffer.len();
@@ -285,8 +283,8 @@ impl io::Read for SectionReader {
 	}
 }
 
-fn read_entries<R: io::Read, T: Deserialize<Error=::elements::Error>>(reader: &mut R)
-	-> Result<Vec<T>, ::elements::Error>
+fn read_entries<R: io::Read, T: Deserialize<Error=elements::Error>>(reader: &mut R)
+	-> Result<Vec<T>, elements::Error>
 {
 	let mut section_reader = SectionReader::new(reader)?;
 	let result = CountedList::<T>::deserialize(&mut section_reader)?.into_inner();

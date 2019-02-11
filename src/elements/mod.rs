@@ -1,9 +1,7 @@
 //! Elements of the WebAssembly binary format.
 
-use std::fmt;
-use io;
-use std::vec::Vec;
-use std::string::String;
+use crate::rust::{fmt, vec::Vec, format, string::String};
+use crate::io;
 
 macro_rules! buffered_read {
 	($buffer_size: expr, $length: expr, $reader: expr) => {

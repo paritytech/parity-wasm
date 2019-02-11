@@ -1,7 +1,5 @@
-use io;
-use std::vec::Vec;
-use std::borrow::ToOwned;
-use std::string::String;
+use crate::rust::{vec::Vec, borrow::ToOwned, string::String, cmp};
+use crate::io;
 
 use super::{Deserialize, Serialize, Error, Uint32, External};
 use super::section::{
@@ -539,7 +537,7 @@ struct PeekSection<'a> {
 
 impl<'a> io::Read for PeekSection<'a> {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<()> {
-		let available = ::std::cmp::min(buf.len(), self.region.len() - self.cursor);
+		let available = cmp::min(buf.len(), self.region.len() - self.cursor);
 		if available < buf.len() {
 			return Err(io::Error::UnexpectedEof);
 		}

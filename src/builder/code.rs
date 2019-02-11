@@ -1,7 +1,9 @@
-use std::vec::Vec;
-use elements;
-use super::invoke::{Invoke, Identity};
-use super::misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder};
+use crate::rust::vec::Vec;
+use crate::elements;
+use super::{
+	invoke::{Invoke, Identity},
+	misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder},
+};
 
 /// Signature template description
 pub enum Signature {
@@ -373,7 +375,7 @@ pub fn function() -> FunctionBuilder {
 mod tests {
 
 	use super::{signatures, function};
-	use elements;
+	use crate::elements;
 
 	#[test]
 	fn example() {

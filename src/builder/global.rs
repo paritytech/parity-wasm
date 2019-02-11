@@ -1,6 +1,9 @@
-use super::invoke::{Invoke, Identity};
-use super::misc::ValueTypeBuilder;
-use elements;
+use super::{
+	invoke::{Invoke, Identity},
+	misc::ValueTypeBuilder,
+};
+
+use crate::elements;
 
 /// Global builder
 pub struct GlobalBuilder<F=Identity> {
@@ -79,7 +82,7 @@ pub fn global() -> GlobalBuilder {
 #[cfg(test)]
 mod tests {
 	use super::global;
-	use elements;
+	use crate::elements;
 
 	#[test]
 	fn example() {

@@ -1,7 +1,6 @@
+use crate::rust::{borrow::ToOwned, string::String};
 use super::invoke::{Identity, Invoke};
-use elements;
-use std::borrow::ToOwned;
-use std::string::String;
+use crate::elements;
 
 /// Import builder
 pub struct ImportBuilder<F=Identity> {

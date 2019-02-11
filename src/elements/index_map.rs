@@ -1,10 +1,12 @@
-use std::cmp::min;
-use std::iter::{FromIterator, IntoIterator};
-use std::mem;
-use std::slice;
-use std::vec;
-use std::vec::Vec;
-use io;
+use crate::rust::{
+	cmp::min,
+	iter::{FromIterator, IntoIterator},
+	mem,
+	slice,
+	vec::{self, Vec},
+};
+
+use crate::io;
 
 use super::{Deserialize, Error, Serialize, VarUint32};
 
@@ -86,7 +88,7 @@ impl<T> IndexMap<T> {
 			existing
 		};
 		if mem::size_of::<usize>() > 4 {
-			debug_assert!(self.entries.len() <= (::std::u32::MAX as usize) + 1);
+			debug_assert!(self.entries.len() <= (u32::max_value() as usize) + 1);
 		}
 		#[cfg(slow_assertions)]
 		debug_assert_eq!(self.len, self.slow_len());
@@ -357,7 +359,7 @@ where
 
 #[cfg(test)]
 mod tests {
-	use io;
+	use crate::io;
 	use super::*;
 
 	#[test]

@@ -1,7 +1,5 @@
-use std::fmt;
-use std::vec::Vec;
-use std::boxed::Box;
-use io;
+use crate::rust::{fmt, vec::Vec, boxed::Box};
+use crate::io;
 use super::{
 	Serialize, Deserialize, Error,
 	Uint8, VarUint32, CountedList, BlockType,

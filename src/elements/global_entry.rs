@@ -1,4 +1,4 @@
-use io;
+use crate::io;
 use super::{Deserialize, Serialize, Error, GlobalType, InitExpr};
 
 /// Global entry in the module.

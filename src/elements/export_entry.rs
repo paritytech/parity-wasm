@@ -1,6 +1,6 @@
-use std::string::String;
+use crate::rust::string::String;
 use super::{Deserialize, Serialize, Error, VarUint7, VarUint32};
-use io;
+use crate::io;
 
 /// Internal reference of the exported entry.
 #[derive(Debug, Clone, Copy, PartialEq)]

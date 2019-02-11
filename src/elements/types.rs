@@ -1,6 +1,5 @@
-use io;
-use std::fmt;
-use std::vec::Vec;
+use crate::rust::{fmt, vec::Vec};
+use crate::io;
 use super::{
 	Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList,
 	CountedListWriter, VarUint32,

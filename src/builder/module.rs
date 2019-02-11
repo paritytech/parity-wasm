@@ -1,10 +1,15 @@
-use std::vec::Vec;
-use super::invoke::{Invoke, Identity};
-use super::code::{self, SignaturesBuilder, FunctionBuilder};
-use super::memory::{self, MemoryBuilder};
-use super::table::{self, TableBuilder};
-use super::{import, export, global, data};
-use elements;
+use crate::rust::vec::Vec;
+use crate::elements;
+use super::{
+	import,
+	export,
+	global,
+	data,
+	invoke::{Invoke, Identity},
+	code::{self, SignaturesBuilder, FunctionBuilder},
+	memory::{self, MemoryBuilder},
+	table::{self, TableBuilder},
+};
 
 /// Module builder
 pub struct ModuleBuilder<F=Identity> {
@@ -522,6 +527,7 @@ pub fn from_module(module: elements::Module) -> ModuleBuilder {
 #[cfg(test)]
 mod tests {
 
+	use crate::elements;
 	use super::module;
 
 	#[test]
@@ -556,7 +562,7 @@ mod tests {
 	#[test]
 	fn global() {
 		let module = module()
-			.global().value_type().i64().mutable().init_expr(::elements::Instruction::I64Const(5)).build()
+			.global().value_type().i64().mutable().init_expr(elements::Instruction::I64Const(5)).build()
 			.build();
 
 		assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);
@@ -566,7 +572,7 @@ mod tests {
 	fn data() {
 		let module = module()
 			.data()
-				.offset(::elements::Instruction::I32Const(16))
+				.offset(elements::Instruction::I32Const(16))
 				.value(vec![0u8, 15, 10, 5, 25])
 				.build()
 			.build();

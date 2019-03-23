@@ -22,6 +22,17 @@ pub struct NameSection {
 }
 
 impl NameSection {
+	/// Creates new name section.
+	pub fn new(module_name_subsection: Option<ModuleNameSubsection>,
+			   function_name_subsection: Option<FunctionNameSubsection>,
+			   local_name_subsection: Option<LocalNameSubsection>) -> Self {
+		Self {
+			module_name_subsection,
+			function_name_subsection,
+			local_name_subsection
+		}
+	}
+
 	/// Module name subsection of this section.
 	pub fn module_name_subsection(&self) -> Option<&ModuleNameSubsection> {
 		self.module_name_subsection.as_ref()
@@ -295,34 +306,43 @@ mod tests {
 
 	#[test]
 	fn serialize_module_name() {
-		let original = NameSection::Module(ModuleNameSubsection::new("my_mod"));
+		let module_name_subsection = ModuleNameSubsection::new("my_mod");
+		let original = NameSection::new(Some(module_name_subsection), None, None);
 		serialize_test(original.clone());
 	}
 
 	#[test]
 	fn serialize_function_names() {
-		let mut sect = FunctionNameSubsection::default();
-		sect.names_mut().insert(0, "hello_world".to_string());
-		serialize_test(NameSection::Function(sect));
+		let mut function_name_subsection = FunctionNameSubsection::default();
+		function_name_subsection.names_mut().insert(0, "hello_world".to_string());
+		let name_section = NameSection::new(None, Some(function_name_subsection), None);
+		serialize_test(name_section);
 	}
 
 	#[test]
 	fn serialize_local_names() {
-		let mut sect = LocalNameSubsection::default();
+		let mut local_name_subsection = LocalNameSubsection::default();
 		let mut locals = NameMap::default();
 		locals.insert(0, "msg".to_string());
-		sect.local_names_mut().insert(0, locals);
-		serialize_test(NameSection::Local(sect));
+		local_name_subsection.local_names_mut().insert(0, locals);
+
+		let name_section = NameSection::new(None, None, Some(local_name_subsection));
+		serialize_test(name_section);
 	}
 
 	#[test]
-	fn serialize_and_deserialize_unparsed() {
-		let original = NameSection::Unparsed {
-			// A made-up name section type which is unlikely to be allocated
-			// soon, in order to allow us to test `Unparsed`.
-			name_type: 120,
-			name_payload: vec![0u8, 1, 2],
-		};
-		serialize_test(original.clone());
+	fn serialize_all_subsections() {
+		let module_name_subsection = ModuleNameSubsection::new("my_mod");
+
+		let mut function_name_subsection = FunctionNameSubsection::default();
+		function_name_subsection.names_mut().insert(0, "hello_world".to_string());
+
+		let mut local_name_subsection = LocalNameSubsection::default();
+		let mut locals = NameMap::default();
+		locals.insert(0, "msg".to_string());
+		local_name_subsection.local_names_mut().insert(0, locals);
+
+		let name_section = NameSection::new(Some(module_name_subsection), Some(function_name_subsection), Some(local_name_subsection));
+		serialize_test(name_section);
 	}
 }

@@ -758,8 +758,6 @@ mod integration_tests {
 
 	#[test]
 	fn names() {
-		use super::super::name_section::NameSection;
-
 		let module = deserialize_file("./res/cases/v1/with_names.wasm")
 			.expect("Should be deserialized")
 			.parse_names()
@@ -769,21 +767,19 @@ mod integration_tests {
 		for section in module.sections() {
 			match *section {
 				Section::Name(ref name_section) => {
-					match *name_section {
-						NameSection::Function(ref function_name_section) => {
-							assert_eq!(
-								function_name_section.names().get(0).expect("Should be entry #0"),
-								"elog"
-							);
-							assert_eq!(
-								function_name_section.names().get(11).expect("Should be entry #0"),
-								"_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
-							);
+					println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1");
+					let function_name_subsection = name_section.function_name_subsection().expect("function_name_subsection should presence");
+					println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2");
+					assert_eq!(
+						function_name_subsection.names().get(0).expect("Should be entry #0"),
+						"elog"
+					);
+					assert_eq!(
+						function_name_subsection.names().get(11).expect("Should be entry #0"),
+						"_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
+					);
 
-							found_section = true;
-						},
-						_ => {},
-					}
+					found_section = true;
 				},
 				_ => {},
 			}

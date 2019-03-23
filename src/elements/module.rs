@@ -528,6 +528,7 @@ impl Serialize for Module {
 		Uint32::from(self.magic).serialize(w)?;
 		Uint32::from(self.version).serialize(w)?;
 		for section in self.sections.into_iter() {
+			// TODO: according to the spec the name section should appear after the data section
 			section.serialize(w)?;
 		}
 		Ok(())
@@ -759,17 +760,16 @@ mod integration_tests {
 	#[test]
 	fn names() {
 		let module = deserialize_file("./res/cases/v1/with_names.wasm")
-			.expect("Should be deserialized")
-			.parse_names()
+			.expect("Should be deserialized");
+
+		let module = module.parse_names()
 			.expect("Names to be parsed");
 
 		let mut found_section = false;
 		for section in module.sections() {
 			match *section {
 				Section::Name(ref name_section) => {
-					println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1");
 					let function_name_subsection = name_section.function_name_subsection().expect("function_name_subsection should presence");
-					println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2");
 					assert_eq!(
 						function_name_subsection.names().get(0).expect("Should be entry #0"),
 						"elog"

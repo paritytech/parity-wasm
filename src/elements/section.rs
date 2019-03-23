@@ -310,7 +310,7 @@ impl CustomSection {
 		&self.name
 	}
 
-	/// Payload of the custom secion.
+	/// Payload of the custom section.
 	pub fn payload(&self) -> &[u8] {
 		&self.payload
 	}

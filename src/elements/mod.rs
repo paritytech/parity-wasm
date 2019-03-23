@@ -234,7 +234,10 @@ impl ::std::error::Error for Error {
 
 impl From<io::Error> for Error {
 	fn from(err: io::Error) -> Self {
-		Error::HeapOther(format!("I/O Error: {:?}", err))
+		match err {
+			io::Error::UnexpectedEof => Error::UnexpectedEof,
+			_ => Error::HeapOther(format!("I/O Error: {:?}", err)),
+		}
 	}
 }
 

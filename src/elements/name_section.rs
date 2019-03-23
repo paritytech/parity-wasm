@@ -82,6 +82,8 @@ impl NameSection {
 				Err(error) => return Err(error),
 			};
 
+			let tt: u32 = VarUint32::deserialize(rdr)?.into();
+
 			match subsection_type {
 				NAME_TYPE_MODULE => {
 					if let Some(_) = module_name_subsection {
@@ -294,7 +296,7 @@ pub type NameMap = IndexMap<String>;
 mod tests {
 	use super::*;
 
-	// A helper funtion for the tests. Serialize a section, deserialize it,
+	// A helper function for the tests. Serialize a section, deserialize it,
 	// and make sure it matches the original.
 	fn serialize_test(original: NameSection) -> Vec<u8> {
 		let mut buffer = vec![];

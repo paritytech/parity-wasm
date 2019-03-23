@@ -53,8 +53,8 @@ pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
 pub use self::index_map::IndexMap;
 pub use self::name_section::{
-	NameMap, NameSection, ModuleNameSection, FunctionNameSection,
-	LocalNameSection,
+	NameMap, NameSection, ModuleNameSubsection, FunctionNameSubsection,
+	LocalNameSubsection,
 };
 pub use self::reloc_section::{
 	RelocSection, RelocationEntry,
@@ -145,6 +145,10 @@ pub enum Error {
 	InvalidSegmentFlags(u32),
 	/// Sum of counts of locals is greater than 2^32.
 	TooManyLocals,
+	/// Duplicated name subsections.
+	DuplicatedNameSubsections(u8),
+	/// Unknown name subsection type.
+	UnknownNameSubsectionType(u8),
 }
 
 impl fmt::Display for Error {
@@ -174,7 +178,7 @@ impl fmt::Display for Error {
 			Error::InconsistentMetadata =>  write!(f, "Inconsistent metadata"),
 			Error::InvalidSectionId(ref id) =>  write!(f, "Invalid section id: {}", id),
 			Error::SectionsOutOfOrder =>  write!(f, "Sections out of order"),
-			Error::DuplicatedSections(ref id) =>  write!(f, "Dupliated sections ({})", id),
+			Error::DuplicatedSections(ref id) =>  write!(f, "Duplicated sections ({})", id),
 			Error::InvalidMemoryReference(ref mem_ref) =>  write!(f, "Invalid memory reference ({})", mem_ref),
 			Error::InvalidTableReference(ref table_ref) =>  write!(f, "Invalid table reference ({})", table_ref),
 			Error::InvalidLimitsFlags(ref flags) =>  write!(f, "Invalid limits flags ({})", flags),
@@ -182,6 +186,8 @@ impl fmt::Display for Error {
 			Error::InconsistentCode =>  write!(f, "Number of function body entries and signatures does not match"),
 			Error::InvalidSegmentFlags(n) =>  write!(f, "Invalid segment flags: {}", n),
 			Error::TooManyLocals => write!(f, "Too many locals"),
+			Error::DuplicatedNameSubsections(n) =>  write!(f, "Duplicated name sections: {}", n),
+			Error::UnknownNameSubsectionType(n) => write!(f, "Unknown subsection type: {}", n),
 		}
 	}
 }
@@ -220,6 +226,8 @@ impl ::std::error::Error for Error {
 			Error::InconsistentCode =>  "Number of function body entries and signatures does not match",
 			Error::InvalidSegmentFlags(_) =>  "Invalid segment flags",
 			Error::TooManyLocals => "Too many locals",
+			Error::DuplicatedNameSubsections(_) =>  "Duplicated name sections",
+			Error::UnknownNameSubsectionType(_) => "Unknown name subsections type",
 		}
 	}
 }

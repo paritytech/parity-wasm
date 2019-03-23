@@ -10,23 +10,47 @@ const NAME_TYPE_LOCAL: u8 = 2;
 
 /// Debug name information.
 #[derive(Clone, Debug, PartialEq)]
-pub enum NameSection {
-	/// Module name section.
-	Module(ModuleNameSection),
+pub struct NameSection {
+	/// Module name subsection.
+	module_name_subsection: Option<ModuleNameSubsection>,
 
-	/// Function name section.
-	Function(FunctionNameSection),
+	/// Function name subsection.
+	function_name_subsection: Option<FunctionNameSubsection>,
 
-	/// Local name section.
-	Local(LocalNameSection),
+	/// Local name subsection.
+	local_name_subsection: Option<LocalNameSubsection>,
+}
 
-	/// Name section is unparsed.
-	Unparsed {
-		/// The numeric identifier for this name section type.
-		name_type: u8,
-		/// The contents of this name section, unparsed.
-		name_payload: Vec<u8>,
-	},
+impl NameSection {
+	/// Module name subsection of this section.
+	pub fn module_name_subsection(&self) -> Option<&ModuleNameSubsection> {
+		self.module_name_subsection.as_ref()
+	}
+
+	/// Module name subsection of this section (mutable).
+	pub fn module_name_subsection_mut(&mut self) -> &mut Option<ModuleNameSubsection> {
+		&mut self.module_name_subsection
+	}
+
+	/// Functions name subsection of this section.
+	pub fn function_name_subsection(&self) -> Option<&FunctionNameSubsection> {
+		self.function_name_subsection.as_ref()
+	}
+
+	/// Functions name subsection of this section (mutable).
+	pub fn function_name_subsection_mut(&mut self) -> &mut Option<FunctionNameSubsection> {
+		&mut self.function_name_subsection
+	}
+
+	/// Local name subsection of this section.
+	pub fn local_name_subsection(&self) -> Option<&LocalNameSubsection> {
+		self.local_name_subsection.as_ref()
+	}
+
+	/// Local name subsection of this section (mutable).
+	pub fn local_name_subsection_mut(&mut self) -> &mut Option<LocalNameSubsection> {
+		&mut self.local_name_subsection
+	}
 }
 
 impl NameSection {
@@ -34,23 +58,50 @@ impl NameSection {
 	pub fn deserialize<R: io::Read>(
 		module: &Module,
 		rdr: &mut R,
-	) -> Result<NameSection, Error> {
-		let name_type: u8 = VarUint7::deserialize(rdr)?.into();
-		let name_payload_len: u32 = VarUint32::deserialize(rdr)?.into();
-		let name_section = match name_type {
-			NAME_TYPE_MODULE => NameSection::Module(ModuleNameSection::deserialize(rdr)?),
-			NAME_TYPE_FUNCTION => NameSection::Function(FunctionNameSection::deserialize(module, rdr)?),
-			NAME_TYPE_LOCAL => NameSection::Local(LocalNameSection::deserialize(module, rdr)?),
-			_ => {
-				let mut name_payload = vec![0u8; name_payload_len as usize];
-				rdr.read(&mut name_payload)?;
-				NameSection::Unparsed {
-					name_type,
-					name_payload,
-				}
-			}
-		};
-		Ok(name_section)
+	) -> Result<Self, Error> {
+		let mut module_name_subsection: Option<ModuleNameSubsection> = None;
+		let mut function_name_subsection: Option<FunctionNameSubsection> = None;
+		let mut local_name_subsection: Option<LocalNameSubsection> = None;
+
+		loop {
+			let subsection_type: u8 = match VarUint7::deserialize(rdr) {
+				Ok(raw_subsection_type) => raw_subsection_type.into(),
+				// there is no data to read -> there is no other subsections
+				Err(Error::UnexpectedEof) => break,
+				Err(error) => return Err(error),
+			};
+
+			match subsection_type {
+				NAME_TYPE_MODULE => {
+					if let Some(_) = module_name_subsection {
+						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION));
+					}
+					module_name_subsection = Some(ModuleNameSubsection::deserialize(rdr)?);
+				},
+
+				NAME_TYPE_FUNCTION => {
+					if let Some(_) = function_name_subsection {
+						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION));
+					}
+					function_name_subsection = Some(FunctionNameSubsection::deserialize(module, rdr)?);
+				},
+
+				NAME_TYPE_LOCAL => {
+					if let Some(_) = local_name_subsection {
+						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_LOCAL));
+					}
+					local_name_subsection = Some(LocalNameSubsection::deserialize(module, rdr)?);
+				},
+
+				_ => return Err(Error::UnknownNameSubsectionType(subsection_type))
+			};
+		}
+
+		Ok(NameSection {
+			module_name_subsection,
+			function_name_subsection,
+			local_name_subsection,
+		})
 	}
 }
 
@@ -58,44 +109,44 @@ impl Serialize for NameSection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
-		let (name_type, name_payload) = match self {
-			NameSection::Module(mod_name) => {
-				let mut buffer = vec![];
-				mod_name.serialize(&mut buffer)?;
-				(NAME_TYPE_MODULE, buffer)
-			}
-			NameSection::Function(fn_names) => {
-				let mut buffer = vec![];
-				fn_names.serialize(&mut buffer)?;
-				(NAME_TYPE_FUNCTION, buffer)
-			}
-			NameSection::Local(local_names) => {
-				let mut buffer = vec![];
-				local_names.serialize(&mut buffer)?;
-				(NAME_TYPE_LOCAL, buffer)
-			}
-			NameSection::Unparsed {
-				name_type,
-				name_payload,
-			} => (name_type, name_payload),
-		};
-		VarUint7::from(name_type).serialize(wtr)?;
-		VarUint32::from(name_payload.len()).serialize(wtr)?;
-		wtr.write(&name_payload)?;
+		fn serialize_subsection<W: io::Write>(wtr: &mut W, name_type: u8, name_payload: &Vec<u8>) -> Result<(), Error> {
+			VarUint7::from(name_type).serialize(wtr)?;
+			VarUint32::from(name_payload.len()).serialize(wtr)?;
+			wtr.write(name_payload).map_err(Into::into)
+		}
+
+		if let Some(module_name_subsection) = self.module_name_subsection {
+			let mut buffer = vec![];
+			module_name_subsection.serialize(&mut buffer)?;
+			serialize_subsection(wtr, NAME_TYPE_MODULE, &buffer)?;
+		}
+
+		if let Some(function_name_subsection) = self.function_name_subsection {
+			let mut buffer = vec![];
+			function_name_subsection.serialize(&mut buffer)?;
+			serialize_subsection(wtr, NAME_TYPE_FUNCTION, &buffer)?;
+		}
+
+		if let Some(local_name_subsection) = self.local_name_subsection {
+			let mut buffer = vec![];
+			local_name_subsection.serialize(&mut buffer)?;
+			serialize_subsection(wtr, NAME_TYPE_LOCAL, &buffer)?;
+		}
+
 		Ok(())
 	}
 }
 
 /// The name of this module.
 #[derive(Clone, Debug, PartialEq)]
-pub struct ModuleNameSection {
+pub struct ModuleNameSubsection {
 	name: String,
 }
 
-impl ModuleNameSection {
+impl ModuleNameSubsection {
 	/// Create a new module name section with the specified name.
-	pub fn new<S: Into<String>>(name: S) -> ModuleNameSection {
-		ModuleNameSection { name: name.into() }
+	pub fn new<S: Into<String>>(name: S) -> ModuleNameSubsection {
+		ModuleNameSubsection { name: name.into() }
 	}
 
 	/// The name of this module.
@@ -109,7 +160,7 @@ impl ModuleNameSection {
 	}
 }
 
-impl Serialize for ModuleNameSection {
+impl Serialize for ModuleNameSubsection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
@@ -117,22 +168,22 @@ impl Serialize for ModuleNameSection {
 	}
 }
 
-impl Deserialize for ModuleNameSection {
+impl Deserialize for ModuleNameSubsection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(rdr: &mut R) -> Result<ModuleNameSection, Error> {
+	fn deserialize<R: io::Read>(rdr: &mut R) -> Result<ModuleNameSubsection, Error> {
 		let name = String::deserialize(rdr)?;
-		Ok(ModuleNameSection { name })
+		Ok(ModuleNameSubsection { name })
 	}
 }
 
 /// The names of the functions in this module.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct FunctionNameSection {
+pub struct FunctionNameSubsection {
 	names: NameMap,
 }
 
-impl FunctionNameSection {
+impl FunctionNameSubsection {
 	/// A map from function indices to names.
 	pub fn names(&self) -> &NameMap {
 		&self.names
@@ -147,13 +198,13 @@ impl FunctionNameSection {
 	pub fn deserialize<R: io::Read>(
 		module: &Module,
 		rdr: &mut R,
-	) -> Result<FunctionNameSection, Error> {
+	) -> Result<FunctionNameSubsection, Error> {
 		let names = IndexMap::deserialize(module.functions_space(), rdr)?;
-		Ok(FunctionNameSection { names })
+		Ok(FunctionNameSubsection { names })
 	}
 }
 
-impl Serialize for FunctionNameSection {
+impl Serialize for FunctionNameSubsection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
@@ -163,11 +214,11 @@ impl Serialize for FunctionNameSection {
 
 /// The names of the local variables in this module's functions.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct LocalNameSection {
+pub struct LocalNameSubsection {
 	local_names: IndexMap<NameMap>,
 }
 
-impl LocalNameSection {
+impl LocalNameSubsection {
 	/// A map from function indices to a map from variables indices to names.
 	pub fn local_names(&self) -> &IndexMap<NameMap> {
 		&self.local_names
@@ -184,7 +235,7 @@ impl LocalNameSection {
 	pub fn deserialize<R: io::Read>(
 		module: &Module,
 		rdr: &mut R,
-	) -> Result<LocalNameSection, Error> {
+	) -> Result<LocalNameSubsection, Error> {
 		let funcs = module.function_section().ok_or_else(|| {
 			Error::Other("cannot deserialize local names without a function section")
 		})?;
@@ -214,10 +265,10 @@ impl LocalNameSection {
 			&deserialize_locals,
 			rdr,
 		)?;
-		Ok(LocalNameSection { local_names })
+		Ok(LocalNameSubsection { local_names })
 	}}
 
-impl Serialize for LocalNameSection {
+impl Serialize for LocalNameSubsection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
@@ -244,20 +295,20 @@ mod tests {
 
 	#[test]
 	fn serialize_module_name() {
-		let original = NameSection::Module(ModuleNameSection::new("my_mod"));
+		let original = NameSection::Module(ModuleNameSubsection::new("my_mod"));
 		serialize_test(original.clone());
 	}
 
 	#[test]
 	fn serialize_function_names() {
-		let mut sect = FunctionNameSection::default();
+		let mut sect = FunctionNameSubsection::default();
 		sect.names_mut().insert(0, "hello_world".to_string());
 		serialize_test(NameSection::Function(sect));
 	}
 
 	#[test]
 	fn serialize_local_names() {
-		let mut sect = LocalNameSection::default();
+		let mut sect = LocalNameSubsection::default();
 		let mut locals = NameMap::default();
 		locals.insert(0, "msg".to_string());
 		sect.local_names_mut().insert(0, locals);

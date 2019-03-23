@@ -346,7 +346,7 @@ impl Module {
 		None
 	}
 
-	/// Try to parse name section in place/
+	/// Try to parse name section in place.
 	///
 	/// Corresponding custom section with proper header will convert to name sections
 	/// If some of them will fail to be decoded, Err variant is returned with the list of
@@ -364,12 +364,17 @@ impl Module {
 							Ok(ns) => ns,
 							Err(e) => { parse_errors.push((i, e)); continue; }
 						};
+						if rdr.position() != custom.payload().len() {
+							parse_errors.push((i, io::Error::InvalidData.into()));
+							break;
+						}
 						Some(name_section)
 					} else {
 						None
 					}
 				} else { None }
 			} {
+				// TODO: according to the spec a Wasm binary can contain only one name section
 				*self.sections.get_mut(i).expect("cannot fail because i in range 0..len; qed") = Section::Name(name_section);
 			}
 		}

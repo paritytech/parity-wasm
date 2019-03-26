@@ -110,7 +110,7 @@ impl NameSection {
 			};
 		}
 
-		Ok(NameSection {
+		Ok(Self {
 			module_name_subsection,
 			function_name_subsection,
 			local_name_subsection,
@@ -122,9 +122,7 @@ impl Serialize for NameSection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
-		fn serialize_subsection<W: io::Write>(wtr: &mut W,
-											  name_type: u8,
-											  name_payload: &Vec<u8>) -> Result<(), Error> {
+		fn serialize_subsection<W: io::Write>(wtr: &mut W, name_type: u8, name_payload: &Vec<u8>) -> Result<(), Error> {
 			VarUint7::from(name_type).serialize(wtr)?;
 			VarUint32::from(name_payload.len()).serialize(wtr)?;
 			wtr.write(name_payload).map_err(Into::into)

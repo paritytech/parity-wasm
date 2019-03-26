@@ -756,16 +756,17 @@ mod integration_tests {
 	#[test]
 	fn names() {
 		let module = deserialize_file("./res/cases/v1/with_names.wasm")
-			.expect("Should be deserialized");
-
-		let module = module.parse_names()
+			.expect("Should be deserialized")
+			.parse_names()
 			.expect("Names to be parsed");
 
 		let mut found_section = false;
 		for section in module.sections() {
 			match *section {
 				Section::Name(ref name_section) => {
-					let function_name_subsection = name_section.function_name_subsection().expect("function_name_subsection should presence");
+					let function_name_subsection = name_section
+						.function_name_subsection()
+						.expect("function_name_subsection should presence");
 					assert_eq!(
 						function_name_subsection.names().get(0).expect("Should be entry #0"),
 						"elog"

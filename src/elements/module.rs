@@ -364,17 +364,13 @@ impl Module {
 							Ok(ns) => ns,
 							Err(e) => { parse_errors.push((i, e)); continue; }
 						};
-						if rdr.position() != custom.payload().len() {
-							parse_errors.push((i, io::Error::InvalidData.into()));
-							break;
-						}
 						Some(name_section)
 					} else {
 						None
 					}
 				} else { None }
 			} {
-				// TODO: according to the spec a Wasm binary can contain only one name section
+				// todo: according to the spec a Wasm binary can contain only one name section
 				*self.sections.get_mut(i).expect("cannot fail because i in range 0..len; qed") = Section::Name(name_section);
 			}
 		}
@@ -528,7 +524,7 @@ impl Serialize for Module {
 		Uint32::from(self.magic).serialize(w)?;
 		Uint32::from(self.version).serialize(w)?;
 		for section in self.sections.into_iter() {
-			// TODO: according to the spec the name section should appear after the data section
+			// todo: according to the spec the name section should appear after the data section
 			section.serialize(w)?;
 		}
 		Ok(())

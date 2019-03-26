@@ -77,9 +77,8 @@ impl NameSection {
 		loop {
 			let subsection_type: u8 = match VarUint7::deserialize(rdr) {
 				Ok(raw_subsection_type) => raw_subsection_type.into(),
-				// there is no data to read -> there is no other subsections
-				Err(Error::UnexpectedEof) => break,
-				Err(error) => return Err(error),
+				// todo: be more selective detecting no more subsection
+				Err(_) => { break; },
 			};
 
 			// deserialize the section size
@@ -307,6 +306,7 @@ mod tests {
 			.serialize(&mut buffer)
 			.expect("serialize error");
 		buffer
+		// todo: add deserialize to this test
 	}
 
 	#[test]
@@ -337,14 +337,16 @@ mod tests {
 
 	#[test]
 	fn serialize_all_subsections() {
-		let module_name_subsection = ModuleNameSubsection::new("my_mod");
+		let module_name_subsection = ModuleNameSubsection::new("ModuleNameSubsection");
 
 		let mut function_name_subsection = FunctionNameSubsection::default();
-		function_name_subsection.names_mut().insert(0, "hello_world".to_string());
+		function_name_subsection.names_mut().insert(0, "foo".to_string());
+		function_name_subsection.names_mut().insert(1, "bar".to_string());
 
 		let mut local_name_subsection = LocalNameSubsection::default();
 		let mut locals = NameMap::default();
-		locals.insert(0, "msg".to_string());
+		locals.insert(0, "msg1".to_string());
+		locals.insert(1, "msg2".to_string());
 		local_name_subsection.local_names_mut().insert(0, locals);
 
 		let name_section = NameSection::new(Some(module_name_subsection), Some(function_name_subsection), Some(local_name_subsection));

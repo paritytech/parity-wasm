@@ -22,7 +22,7 @@ pub struct NameSection {
 }
 
 impl NameSection {
-	/// Creates new name section.
+	/// Creates a new name section.
 	pub fn new(module_name_subsection: Option<ModuleNameSubsection>,
 			   function_name_subsection: Option<FunctionNameSubsection>,
 			   local_name_subsection: Option<LocalNameSubsection>) -> Self {
@@ -82,7 +82,8 @@ impl NameSection {
 				Err(error) => return Err(error),
 			};
 
-			let tt: u32 = VarUint32::deserialize(rdr)?.into();
+			// deserialize the section size
+			VarUint32::deserialize(rdr)?;
 
 			match subsection_type {
 				NAME_TYPE_MODULE => {
@@ -122,7 +123,9 @@ impl Serialize for NameSection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
-		fn serialize_subsection<W: io::Write>(wtr: &mut W, name_type: u8, name_payload: &Vec<u8>) -> Result<(), Error> {
+		fn serialize_subsection<W: io::Write>(wtr: &mut W,
+											  name_type: u8,
+											  name_payload: &Vec<u8>) -> Result<(), Error> {
 			VarUint7::from(name_type).serialize(wtr)?;
 			VarUint32::from(name_payload.len()).serialize(wtr)?;
 			wtr.write(name_payload).map_err(Into::into)

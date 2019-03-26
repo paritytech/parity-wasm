@@ -186,7 +186,7 @@ impl fmt::Display for Error {
 			Error::InconsistentCode =>  write!(f, "Number of function body entries and signatures does not match"),
 			Error::InvalidSegmentFlags(n) =>  write!(f, "Invalid segment flags: {}", n),
 			Error::TooManyLocals => write!(f, "Too many locals"),
-			Error::DuplicatedNameSubsections(n) =>  write!(f, "Duplicated name sections: {}", n),
+			Error::DuplicatedNameSubsections(n) =>  write!(f, "Duplicated name subsections: {}", n),
 			Error::UnknownNameSubsectionType(n) => write!(f, "Unknown subsection type: {}", n),
 		}
 	}
@@ -226,7 +226,7 @@ impl ::std::error::Error for Error {
 			Error::InconsistentCode =>  "Number of function body entries and signatures does not match",
 			Error::InvalidSegmentFlags(_) =>  "Invalid segment flags",
 			Error::TooManyLocals => "Too many locals",
-			Error::DuplicatedNameSubsections(_) =>  "Duplicated name sections",
+			Error::DuplicatedNameSubsections(_) =>  "Duplicated name subsections",
 			Error::UnknownNameSubsectionType(_) => "Unknown name subsections type",
 		}
 	}

@@ -766,7 +766,7 @@ mod integration_tests {
 				Section::Name(ref name_section) => {
 					let function_name_subsection = name_section
 						.function_name_subsection()
-						.expect("function_name_subsection should presence");
+						.expect("function_name_subsection should be present");
 					assert_eq!(
 						function_name_subsection.names().get(0).expect("Should be entry #0"),
 						"elog"

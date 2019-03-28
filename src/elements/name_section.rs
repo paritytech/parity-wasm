@@ -24,8 +24,8 @@ pub struct NameSection {
 impl NameSection {
 	/// Creates a new name section.
 	pub fn new(module_name_subsection: Option<ModuleNameSubsection>,
-			   function_name_subsection: Option<FunctionNameSubsection>,
-			   local_name_subsection: Option<LocalNameSubsection>) -> Self {
+                  function_name_subsection: Option<FunctionNameSubsection>,
+                  local_name_subsection: Option<LocalNameSubsection>) -> Self {
 		Self {
 			module_name_subsection,
 			function_name_subsection,

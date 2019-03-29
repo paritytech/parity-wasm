@@ -1,8 +1,8 @@
 dist: trusty
 language: rust
 rust:
-  - nightly
-  - stable
+- nightly
+- stable
 addons:
   apt:
     sources:
@@ -14,7 +14,8 @@ addons:
 script:
 - export CC=/usr/bin/gcc-8
 - export CXX=/usr/bin/g++-8
-- if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo build --no-default-features; fi
+- if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo build --no-default-features;
+  fi
 - cargo build --release --verbose
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml
@@ -29,7 +30,7 @@ after_success: |-
   git push -qf https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
 env:
   global:
-    - secure: o0FH3sDSvQPBgGku0QU86HrSCH7YUN+l6WD4jk2OKkb/OVaYHR/9zna9/v7V5cQarg7uo4s7T8xSd6HJD3B+yxl2t73uPD+sqgf3hWx1PSI9ARtg3YWhq/l+Bl79Mm3Bz9hW68wPHXrKa95bDu2oYX6o15jWIYEMT4BUrGJWqhAoADnVdDttBaqKEkCBl1dFpRBagFV0/0eLXya8b+/6T7Q7Y8ZtINOD54fw5iDqAIlcKEyTWNF96/ZMOTfachs58hEn/EAFKLRWnarrGl9+jK/g7fU5+2QivJw8qVidqJvTA9A6FhRzELcwbS+okx63ViZe/JRO/GeGo3QR/Q71ukneu62EQf608B12h/3SLMomTlhv0swIvcehcUDXxCkujFN1dm3b68Tun9kbfnDyoTSy5dOLd92zkjgXo2M8PGfwLLceZVUovnrE9e9Je/lji9O+9bpFbxBkvrXnK8jAAmNVdfmefY/qeDW2HDFcP9aqquXXQ20JQw1fnd/R5y9MC+IKcKxaRtKoioDpQXtxj6JA7YyBzrMnVcmtOxUzvplNYPif9BBFtuBNKUIW5h3lcoyDWesRgzt5MXsm8q+femBDhkxbb24RU8hd8j5heUNtblqgADQpssH0eNHqYgSHgwYRhuRgjByTMt6rf0Da/uANoGnBZQWbwLsW9h/GGN0=
-    - RUSTFLAGS=--cfg=slow_assertions
-    - CC=/usr/bin/gcc-8
-    - CXX=/usr/bin/g++-8
+  - RUSTFLAGS=--cfg=slow_assertions
+  - CC=/usr/bin/gcc-8
+  - CXX=/usr/bin/g++-8
+  - secure: kHPUuykUjlSOMk6ArSIto+mgyBR34lNcEpP7uk+BTg9U/EtZ+kjdqEbrsSyJRUcUTQf7Da8H+2m02o6h3CuBVkZRIwGfwrZ9y8aHOePH/vIYbZ8Syb/J/2PHbGkVbV1DeF0aXIA4VdRU6opfetre6Bh3/hfkLfEFlu8wvC5wVg1ezsRzFVVGfr3qgY3b33SaZw7cHw1B+bcM+mJd4FeXbhJn3V7b2pSnxk9d8QHK4izccYV7rPSrYiOd64NciO53g+3Tc9O0PSq/vojIPR1jQ+ku2/91cWTUzAQ4LOkV0ekR50y6CDxj+LYRUI3E8XnLhRje+ErBhI1K3TbaxDSuzxj+zcVVS1Miio9X/yq9tJqmYmeMt9OvGNOT4fTv2cd+O1ZrFy/MJL/VnV9S6paxeeb742DZ/AkL02q6o34xv6kXrj5UBoLEyTRgYQi2tzrCLA3xf0678e/9NIRt6tIe0PwiCF54kNsXE67gsicCmKAhv1V/YKhN9WqyNpSDUlX78fDFbiqY8yGAkNu5OdwcfoifadoP5jHVwSSLFotLy4mYvvH5VtwJHPakY3eQYncuieUdbPiH0PO74XudptLuPWzLzvfcsNy35uqSeSlrGIM52Pan/QRntZvnuX67cyn6uYti3AMpcaDJL3gQ+YfP1MXYlJTN9w4pFmpqPXz2+7A=

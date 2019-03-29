@@ -346,7 +346,7 @@ impl Module {
 		None
 	}
 
-	/// Try to parse name section in place/
+	/// Try to parse name section in place.
 	///
 	/// Corresponding custom section with proper header will convert to name sections
 	/// If some of them will fail to be decoded, Err variant is returned with the list of
@@ -370,6 +370,7 @@ impl Module {
 					}
 				} else { None }
 			} {
+				// todo: according to the spec a Wasm binary can contain only one name section
 				*self.sections.get_mut(i).expect("cannot fail because i in range 0..len; qed") = Section::Name(name_section);
 			}
 		}
@@ -523,6 +524,7 @@ impl Serialize for Module {
 		Uint32::from(self.magic).serialize(w)?;
 		Uint32::from(self.version).serialize(w)?;
 		for section in self.sections.into_iter() {
+			// todo: according to the spec the name section should appear after the data section
 			section.serialize(w)?;
 		}
 		Ok(())
@@ -753,8 +755,6 @@ mod integration_tests {
 
 	#[test]
 	fn names() {
-		use super::super::name_section::NameSection;
-
 		let module = deserialize_file("./res/cases/v1/with_names.wasm")
 			.expect("Should be deserialized")
 			.parse_names()
@@ -764,21 +764,19 @@ mod integration_tests {
 		for section in module.sections() {
 			match *section {
 				Section::Name(ref name_section) => {
-					match *name_section {
-						NameSection::Function(ref function_name_section) => {
-							assert_eq!(
-								function_name_section.names().get(0).expect("Should be entry #0"),
-								"elog"
-							);
-							assert_eq!(
-								function_name_section.names().get(11).expect("Should be entry #0"),
-								"_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
-							);
+					let function_name_subsection = name_section
+						.functions()
+						.expect("function_name_subsection should be present");
+					assert_eq!(
+						function_name_subsection.names().get(0).expect("Should be entry #0"),
+						"elog"
+					);
+					assert_eq!(
+						function_name_subsection.names().get(11).expect("Should be entry #0"),
+						"_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
+					);
 
-							found_section = true;
-						},
-						_ => {},
-					}
+					found_section = true;
 				},
 				_ => {},
 			}

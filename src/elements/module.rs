@@ -765,7 +765,7 @@ mod integration_tests {
 			match *section {
 				Section::Name(ref name_section) => {
 					let function_name_subsection = name_section
-						.function_name_subsection()
+						.functions()
 						.expect("function_name_subsection should be present");
 					assert_eq!(
 						function_name_subsection.names().get(0).expect("Should be entry #0"),

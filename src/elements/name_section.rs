@@ -12,55 +12,55 @@ const NAME_TYPE_LOCAL: u8 = 2;
 #[derive(Clone, Debug, PartialEq)]
 pub struct NameSection {
 	/// Module name subsection.
-	module_name_subsection: Option<ModuleNameSubsection>,
+	module: Option<ModuleNameSubsection>,
 
 	/// Function name subsection.
-	function_name_subsection: Option<FunctionNameSubsection>,
+	functions: Option<FunctionNameSubsection>,
 
 	/// Local name subsection.
-	local_name_subsection: Option<LocalNameSubsection>,
+	locals: Option<LocalNameSubsection>,
 }
 
 impl NameSection {
 	/// Creates a new name section.
-	pub fn new(module_name_subsection: Option<ModuleNameSubsection>,
-			   function_name_subsection: Option<FunctionNameSubsection>,
-			   local_name_subsection: Option<LocalNameSubsection>) -> Self {
+	pub fn new(module: Option<ModuleNameSubsection>,
+                  functions: Option<FunctionNameSubsection>,
+                  locals: Option<LocalNameSubsection>) -> Self {
 		Self {
-			module_name_subsection,
-			function_name_subsection,
-			local_name_subsection,
+			module,
+			functions,
+			locals,
 		}
 	}
 
 	/// Module name subsection of this section.
-	pub fn module_name_subsection(&self) -> Option<&ModuleNameSubsection> {
-		self.module_name_subsection.as_ref()
+	pub fn module(&self) -> Option<&ModuleNameSubsection> {
+		self.module.as_ref()
 	}
 
 	/// Module name subsection of this section (mutable).
-	pub fn module_name_subsection_mut(&mut self) -> &mut Option<ModuleNameSubsection> {
-		&mut self.module_name_subsection
+	pub fn module_mut(&mut self) -> &mut Option<ModuleNameSubsection> {
+		&mut self.module
 	}
 
 	/// Functions name subsection of this section.
-	pub fn function_name_subsection(&self) -> Option<&FunctionNameSubsection> {
-		self.function_name_subsection.as_ref()
+	pub fn functions(&self) -> Option<&FunctionNameSubsection> {
+		self.functions.as_ref()
 	}
 
 	/// Functions name subsection of this section (mutable).
-	pub fn function_name_subsection_mut(&mut self) -> &mut Option<FunctionNameSubsection> {
-		&mut self.function_name_subsection
+	pub fn functions_mut(&mut self) -> &mut Option<FunctionNameSubsection> {
+		&mut self.functions
 	}
 
 	/// Local name subsection of this section.
-	pub fn local_name_subsection(&self) -> Option<&LocalNameSubsection> {
-		self.local_name_subsection.as_ref()
+	pub fn locals(&self) -> Option<&LocalNameSubsection> {
+		self.locals.as_ref()
 	}
 
 	/// Local name subsection of this section (mutable).
-	pub fn local_name_subsection_mut(&mut self) -> &mut Option<LocalNameSubsection> {
-		&mut self.local_name_subsection
+	pub fn locals_mut(&mut self) -> &mut Option<LocalNameSubsection> {
+		&mut self.locals
 	}
 }
 
@@ -70,9 +70,9 @@ impl NameSection {
 		module: &Module,
 		rdr: &mut R,
 	) -> Result<Self, Error> {
-		let mut module_name_subsection: Option<ModuleNameSubsection> = None;
-		let mut function_name_subsection: Option<FunctionNameSubsection> = None;
-		let mut local_name_subsection: Option<LocalNameSubsection> = None;
+		let mut module_name: Option<ModuleNameSubsection> = None;
+		let mut function_names: Option<FunctionNameSubsection> = None;
+		let mut local_names: Option<LocalNameSubsection> = None;
 
 		loop {
 			let subsection_type: u8 = match VarUint7::deserialize(rdr) {
@@ -86,24 +86,24 @@ impl NameSection {
 
 			match subsection_type {
 				NAME_TYPE_MODULE => {
-					if let Some(_) = module_name_subsection {
+					if let Some(_) = module_name {
 						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION));
 					}
-					module_name_subsection = Some(ModuleNameSubsection::deserialize(rdr)?);
+					module_name = Some(ModuleNameSubsection::deserialize(rdr)?);
 				},
 
 				NAME_TYPE_FUNCTION => {
-					if let Some(_) = function_name_subsection {
+					if let Some(_) = function_names {
 						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION));
 					}
-					function_name_subsection = Some(FunctionNameSubsection::deserialize(module, rdr)?);
+					function_names = Some(FunctionNameSubsection::deserialize(module, rdr)?);
 				},
 
 				NAME_TYPE_LOCAL => {
-					if let Some(_) = local_name_subsection {
+					if let Some(_) = local_names {
 						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_LOCAL));
 					}
-					local_name_subsection = Some(LocalNameSubsection::deserialize(module, rdr)?);
+					local_names = Some(LocalNameSubsection::deserialize(module, rdr)?);
 				},
 
 				_ => return Err(Error::UnknownNameSubsectionType(subsection_type))
@@ -111,9 +111,9 @@ impl NameSection {
 		}
 
 		Ok(Self {
-			module_name_subsection,
-			function_name_subsection,
-			local_name_subsection,
+			module: module_name,
+			functions: function_names,
+			locals: local_names,
 		})
 	}
 }
@@ -128,19 +128,19 @@ impl Serialize for NameSection {
 			wtr.write(name_payload).map_err(Into::into)
 		}
 
-		if let Some(module_name_subsection) = self.module_name_subsection {
+		if let Some(module_name_subsection) = self.module {
 			let mut buffer = vec![];
 			module_name_subsection.serialize(&mut buffer)?;
 			serialize_subsection(wtr, NAME_TYPE_MODULE, &buffer)?;
 		}
 
-		if let Some(function_name_subsection) = self.function_name_subsection {
+		if let Some(function_name_subsection) = self.functions {
 			let mut buffer = vec![];
 			function_name_subsection.serialize(&mut buffer)?;
 			serialize_subsection(wtr, NAME_TYPE_FUNCTION, &buffer)?;
 		}
 
-		if let Some(local_name_subsection) = self.local_name_subsection {
+		if let Some(local_name_subsection) = self.locals {
 			let mut buffer = vec![];
 			local_name_subsection.serialize(&mut buffer)?;
 			serialize_subsection(wtr, NAME_TYPE_LOCAL, &buffer)?;

@@ -29,7 +29,7 @@ impl NameSection {
 		Self {
 			module_name_subsection,
 			function_name_subsection,
-			local_name_subsection
+			local_name_subsection,
 		}
 	}
 

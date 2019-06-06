@@ -272,6 +272,21 @@ impl Module {
 		}
 	}
 
+	/// Removes the module's names section.
+	pub fn clear_names_section(&mut self) {
+		let sections = self.sections_mut();
+		let mut rmidx = sections.len();
+		for (index, section) in sections.iter_mut().enumerate() {
+			if let Section::Name(_) = section {
+				rmidx = index;
+				break;
+			}
+		}
+		if rmidx < sections.len() {
+			sections.remove(rmidx);
+		}
+	}
+
 	/// Returns an iterator over the module's custom sections
 	pub fn custom_sections(&self) -> impl Iterator<Item=&CustomSection> {
 		self.sections().iter().filter_map(|s| {

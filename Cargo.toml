@@ -25,13 +25,17 @@ std = []
 #
 
 # Atomics aka threading.
-# https://github.com/webassembly/threads/blob/master/proposals/threads/Overview.md
+# https://github.com/webassembly/threads/
 atomics = []
 
 # SIMD
-# https://github.com/WebAssembly/simd/blob/master/proposals/simd/SIMD.md
+# https://github.com/WebAssembly/simd/
 simd = []
 
 # Sign-extension operators
-# https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md
+# https://github.com/WebAssembly/sign-extension-ops/
 sign_ext = []
+
+# Bulk-memory operators
+# https://github.com/WebAssembly/bulk-memory-operations/
+bulk = []

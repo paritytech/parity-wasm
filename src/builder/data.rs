@@ -50,7 +50,6 @@ impl<F> DataSegmentBuilder<F> where F: Invoke<elements::DataSegment> {
 				self.mem_index,
 				Some(self.offset),
 				self.value,
-				false,
 			)
 		)
 	}

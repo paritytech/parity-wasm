@@ -303,16 +303,11 @@ pub enum Instruction {
 	#[cfg(feature="sign_ext")]
 	SignExt(SignExtInstruction),
 
-	// https://github.com/WebAssembly/bulk-memory-operations
-	MemoryInit(u32),
-	MemoryDrop(u32),
-	MemoryCopy,
-	MemoryFill,
-	TableInit(u32),
-	TableDrop(u32),
-	TableCopy,
+	#[cfg(feature="bulk")]
+	Bulk(BulkInstruction),
 }
 
+#[allow(missing_docs)]
 #[cfg(feature="atomics")]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AtomicsInstruction {
@@ -392,6 +387,7 @@ pub enum AtomicsInstruction {
 	I64AtomicRmwCmpxchg32u(MemArg),
 }
 
+#[allow(missing_docs)]
 #[cfg(feature="simd")]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SimdInstruction {
@@ -548,6 +544,7 @@ pub enum SimdInstruction {
 	I64x2TruncUF64x2Sat,
 }
 
+#[allow(missing_docs)]
 #[cfg(feature="sign_ext")]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SignExtInstruction {
@@ -556,6 +553,19 @@ pub enum SignExtInstruction {
 	I64Extend8S,
 	I64Extend16S,
 	I64Extend32S,
+}
+
+#[allow(missing_docs)]
+#[cfg(feature="bulk")]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum BulkInstruction {
+	MemoryInit(u32),
+	MemoryDrop(u32),
+	MemoryCopy,
+	MemoryFill,
+	TableInit(u32),
+	TableDrop(u32),
+	TableCopy,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -1342,6 +1352,7 @@ impl Deserialize for Instruction {
 				#[cfg(feature="simd")]
 				SIMD_PREFIX => return deserialize_simd(reader),
 
+				#[cfg(feature="bulk")]
 				BULK_PREFIX => return deserialize_bulk(reader),
 
 				_ => { return Err(Error::UnknownOpcode(val)); }
@@ -1601,12 +1612,13 @@ fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	}))
 }
 
+#[cfg(feature="bulk")]
 fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
-	use self::Instruction::*;
+	use self::BulkInstruction::*;
 	use self::opcodes::*;
 
 	let val: u8 = Uint8::deserialize(reader)?.into();
-	Ok(match val {
+	Ok(Instruction::Bulk(match val {
 		MEMORY_INIT => {
 			if u8::from(Uint8::deserialize(reader)?) != 0 {
 				return Err(Error::UnknownOpcode(val))
@@ -1642,7 +1654,7 @@ fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 		}
 
 		_ => return Err(Error::UnknownOpcode(val)),
-	})
+	}))
 }
 
 impl Deserialize for MemArg {
@@ -1683,6 +1695,7 @@ macro_rules! simd {
 	})
 }
 
+#[cfg(feature="bulk")]
 macro_rules! bulk {
 	($writer: expr, $byte: expr) => ({
 		$writer.write(&[BULK_PREFIX, $byte])?;
@@ -2009,19 +2022,8 @@ impl Serialize for Instruction {
 			#[cfg(feature="simd")]
 			Simd(a) => return a.serialize(writer),
 
-			MemoryInit(seg) => bulk!(writer, MEMORY_INIT, {
-				Uint8::from(0).serialize(writer)?;
-				VarUint32::from(seg).serialize(writer)?;
-			}),
-			MemoryDrop(seg) => bulk!(writer, MEMORY_DROP, VarUint32::from(seg).serialize(writer)?),
-			MemoryFill => bulk!(writer, MEMORY_FILL, Uint8::from(0).serialize(writer)?),
-			MemoryCopy => bulk!(writer, MEMORY_COPY, Uint8::from(0).serialize(writer)?),
-			TableInit(seg) => bulk!(writer, TABLE_INIT, {
-				Uint8::from(0).serialize(writer)?;
-				VarUint32::from(seg).serialize(writer)?;
-			}),
-			TableDrop(seg) => bulk!(writer, TABLE_DROP, VarUint32::from(seg).serialize(writer)?),
-			TableCopy => bulk!(writer, TABLE_COPY, Uint8::from(0).serialize(writer)?),
+			#[cfg(feature="bulk")]
+			Bulk(a) => return a.serialize(writer),
 		}
 
 		Ok(())
@@ -2277,6 +2279,34 @@ impl Serialize for SimdInstruction {
 			I32x4TruncUF32x4Sat => simd!(writer, opcodes::I32X4_TRUNC_U_F32X4_SAT, ()),
 			I64x2TruncSF64x2Sat => simd!(writer, opcodes::I64X2_TRUNC_S_F64X2_SAT, ()),
 			I64x2TruncUF64x2Sat => simd!(writer, opcodes::I64X2_TRUNC_U_F64X2_SAT, ()),
+		}
+
+		Ok(())
+	}
+}
+
+#[cfg(feature="bulk")]
+impl Serialize for BulkInstruction {
+	type Error = Error;
+
+	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+		use self::BulkInstruction::*;
+		use self::opcodes::*;
+
+		match self {
+			MemoryInit(seg) => bulk!(writer, MEMORY_INIT, {
+				Uint8::from(0).serialize(writer)?;
+				VarUint32::from(seg).serialize(writer)?;
+			}),
+			MemoryDrop(seg) => bulk!(writer, MEMORY_DROP, VarUint32::from(seg).serialize(writer)?),
+			MemoryFill => bulk!(writer, MEMORY_FILL, Uint8::from(0).serialize(writer)?),
+			MemoryCopy => bulk!(writer, MEMORY_COPY, Uint8::from(0).serialize(writer)?),
+			TableInit(seg) => bulk!(writer, TABLE_INIT, {
+				Uint8::from(0).serialize(writer)?;
+				VarUint32::from(seg).serialize(writer)?;
+			}),
+			TableDrop(seg) => bulk!(writer, TABLE_DROP, VarUint32::from(seg).serialize(writer)?),
+			TableCopy => bulk!(writer, TABLE_COPY, Uint8::from(0).serialize(writer)?),
 		}
 
 		Ok(())
@@ -2563,13 +2593,8 @@ impl fmt::Display for Instruction {
 			#[cfg(feature="simd")]
 			Simd(ref i) => i.fmt(f),
 
-			MemoryInit(_) => write!(f, "memory.init"),
-			MemoryDrop(_) => write!(f, "memory.drop"),
-			MemoryFill => write!(f, "memory.fill"),
-			MemoryCopy => write!(f, "memory.copy"),
-			TableInit(_) => write!(f, "table.init"),
-			TableDrop(_) => write!(f, "table.drop"),
-			TableCopy => write!(f, "table.copy"),
+			#[cfg(feature="bulk")]
+			Bulk(ref i) => i.fmt(f),
 		}
 	}
 }
@@ -2815,6 +2840,23 @@ impl fmt::Display for SimdInstruction {
 			I32x4TruncUF32x4Sat => write!(f, "i32x4.trunc_u/f32x4:sat"),
 			I64x2TruncSF64x2Sat => write!(f, "i64x2.trunc_s/f64x2:sat"),
 			I64x2TruncUF64x2Sat => write!(f, "i64x2.trunc_u/f64x2:sat"),
+		}
+	}
+}
+
+#[cfg(feature="bulk")]
+impl fmt::Display for BulkInstruction {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::BulkInstruction::*;
+
+		match *self {
+			MemoryInit(_) => write!(f, "memory.init"),
+			MemoryDrop(_) => write!(f, "memory.drop"),
+			MemoryFill => write!(f, "memory.fill"),
+			MemoryCopy => write!(f, "memory.copy"),
+			TableInit(_) => write!(f, "table.init"),
+			TableDrop(_) => write!(f, "table.drop"),
+			TableCopy => write!(f, "table.copy"),
 		}
 	}
 }

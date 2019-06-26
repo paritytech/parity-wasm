@@ -785,10 +785,11 @@ mod integration_tests {
 		assert!(found_section, "Name section should be present in dedicated example");
 	}
 
+	// This test fixture has FLAG_SHARED so it depends on atomics feature.
 	#[test]
-	fn varuint1_case() {
-		let _module = deserialize_file("./res/cases/v1/varuint1_1.wasm")
-			.expect("Maybe shouldn't be deserialized");
+	fn shared_memory_flag() {
+		let module = deserialize_file("./res/cases/v1/varuint1_1.wasm");
+		assert_eq!(module.is_ok(), cfg!(feature="atomics"));
 	}
 
 

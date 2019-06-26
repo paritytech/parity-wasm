@@ -6,6 +6,7 @@ use super::{
 };
 
 const FLAG_HAS_MAX: u8 = 0x01;
+#[cfg(feature="atomics")]
 const FLAG_SHARED: u8 = 0x02;
 
 /// Global definition struct
@@ -104,6 +105,7 @@ impl Serialize for TableType {
 pub struct ResizableLimits {
 	initial: u32,
 	maximum: Option<u32>,
+	#[cfg(feature = "atomics")]
 	shared: bool,
 }
 
@@ -113,6 +115,7 @@ impl ResizableLimits {
 		ResizableLimits {
 			initial: min,
 			maximum: max,
+			#[cfg(feature = "atomics")]
 			shared: false,
 		}
 	}
@@ -120,6 +123,8 @@ impl ResizableLimits {
 	pub fn initial(&self) -> u32 { self.initial }
 	/// Maximum size.
 	pub fn maximum(&self) -> Option<u32> { self.maximum }
+
+	#[cfg(feature = "atomics")]
 	/// Whether or not this is a shared array buffer.
 	pub fn shared(&self) -> bool { self.shared }
 }
@@ -130,7 +135,14 @@ impl Deserialize for ResizableLimits {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let flags: u8 = Uint8::deserialize(reader)?.into();
 		match flags {
-			0x00 | 0x01 | 0x03 => {},
+			// Default flags are always supported. This is simply: FLAG_HAS_MAX={true, false}.
+			0x00 | 0x01 => {},
+
+			// Atomics proposal introduce FLAG_SHARED (0x02). Shared memories can be used only
+			// together with FLAG_HAS_MAX (0x01), hence 0x03.
+			#[cfg(feature="atomics")]
+			0x03 => {},
+
 			_ => return Err(Error::InvalidLimitsFlags(flags)),
 		}
 
@@ -140,12 +152,13 @@ impl Deserialize for ResizableLimits {
 		} else {
 			None
 		};
-		let shared = flags & FLAG_SHARED != 0;
 
 		Ok(ResizableLimits {
 			initial: initial.into(),
 			maximum: maximum,
-			shared,
+
+			#[cfg(feature="atomics")]
+			shared: flags & FLAG_SHARED != 0,
 		})
 	}
 }
@@ -158,8 +171,14 @@ impl Serialize for ResizableLimits {
 		if self.maximum.is_some() {
 			flags |= FLAG_HAS_MAX;
 		}
-		if self.shared {
-			flags |= FLAG_SHARED;
+
+		#[cfg(feature="atomics")]
+		{
+			// If the atomics feature is enabled and if the shared flag is set, add logically
+			// it to the flags.
+			if self.shared {
+				flags |= FLAG_SHARED;
+			}
 		}
 		Uint8::from(flags).serialize(writer)?;
 		VarUint32::from(self.initial).serialize(writer)?;
@@ -176,10 +195,20 @@ pub struct MemoryType(ResizableLimits);
 
 impl MemoryType {
 	/// New memory definition
-	pub fn new(min: u32, max: Option<u32>, shared: bool) -> Self {
-		let mut r = ResizableLimits::new(min, max);
-		r.shared = shared;
+	pub fn new(
+		min: u32,
+		max: Option<u32>,
+	) -> Self {
+		let r = ResizableLimits::new(min, max);
 		MemoryType(r)
+	}
+
+	/// Set the `shared` flag that denotes a memory that can be shared between threads.
+	///
+	/// `false` by default. This is only available if the `atomics` feature is enabled.
+	#[cfg(feature = "atomics")]
+	pub fn set_shared(&mut self, shared: bool) {
+		self.0.shared = shared;
 	}
 
 	/// Limits of the memory entry.

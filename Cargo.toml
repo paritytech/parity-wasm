@@ -19,3 +19,11 @@ time = "0.1"
 [features]
 default = ["std"]
 std = []
+
+#
+# Features for enabling non-MVP proposals.
+#
+
+# Atomics aka threading.
+# https://github.com/webassembly/threads/blob/master/proposals/threads/Overview.md
+atomics = []

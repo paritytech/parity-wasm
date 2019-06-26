@@ -300,80 +300,8 @@ pub enum Instruction {
 	I64Extend16S,
 	I64Extend32S,
 
-	AtomicWake(MemArg),
-	I32AtomicWait(MemArg),
-	I64AtomicWait(MemArg),
-
-	I32AtomicLoad(MemArg),
-	I64AtomicLoad(MemArg),
-	I32AtomicLoad8u(MemArg),
-	I32AtomicLoad16u(MemArg),
-	I64AtomicLoad8u(MemArg),
-	I64AtomicLoad16u(MemArg),
-	I64AtomicLoad32u(MemArg),
-	I32AtomicStore(MemArg),
-	I64AtomicStore(MemArg),
-	I32AtomicStore8u(MemArg),
-	I32AtomicStore16u(MemArg),
-	I64AtomicStore8u(MemArg),
-	I64AtomicStore16u(MemArg),
-	I64AtomicStore32u(MemArg),
-
-	I32AtomicRmwAdd(MemArg),
-	I64AtomicRmwAdd(MemArg),
-	I32AtomicRmwAdd8u(MemArg),
-	I32AtomicRmwAdd16u(MemArg),
-	I64AtomicRmwAdd8u(MemArg),
-	I64AtomicRmwAdd16u(MemArg),
-	I64AtomicRmwAdd32u(MemArg),
-
-	I32AtomicRmwSub(MemArg),
-	I64AtomicRmwSub(MemArg),
-	I32AtomicRmwSub8u(MemArg),
-	I32AtomicRmwSub16u(MemArg),
-	I64AtomicRmwSub8u(MemArg),
-	I64AtomicRmwSub16u(MemArg),
-	I64AtomicRmwSub32u(MemArg),
-
-	I32AtomicRmwAnd(MemArg),
-	I64AtomicRmwAnd(MemArg),
-	I32AtomicRmwAnd8u(MemArg),
-	I32AtomicRmwAnd16u(MemArg),
-	I64AtomicRmwAnd8u(MemArg),
-	I64AtomicRmwAnd16u(MemArg),
-	I64AtomicRmwAnd32u(MemArg),
-
-	I32AtomicRmwOr(MemArg),
-	I64AtomicRmwOr(MemArg),
-	I32AtomicRmwOr8u(MemArg),
-	I32AtomicRmwOr16u(MemArg),
-	I64AtomicRmwOr8u(MemArg),
-	I64AtomicRmwOr16u(MemArg),
-	I64AtomicRmwOr32u(MemArg),
-
-	I32AtomicRmwXor(MemArg),
-	I64AtomicRmwXor(MemArg),
-	I32AtomicRmwXor8u(MemArg),
-	I32AtomicRmwXor16u(MemArg),
-	I64AtomicRmwXor8u(MemArg),
-	I64AtomicRmwXor16u(MemArg),
-	I64AtomicRmwXor32u(MemArg),
-
-	I32AtomicRmwXchg(MemArg),
-	I64AtomicRmwXchg(MemArg),
-	I32AtomicRmwXchg8u(MemArg),
-	I32AtomicRmwXchg16u(MemArg),
-	I64AtomicRmwXchg8u(MemArg),
-	I64AtomicRmwXchg16u(MemArg),
-	I64AtomicRmwXchg32u(MemArg),
-
-	I32AtomicRmwCmpxchg(MemArg),
-	I64AtomicRmwCmpxchg(MemArg),
-	I32AtomicRmwCmpxchg8u(MemArg),
-	I32AtomicRmwCmpxchg16u(MemArg),
-	I64AtomicRmwCmpxchg8u(MemArg),
-	I64AtomicRmwCmpxchg16u(MemArg),
-	I64AtomicRmwCmpxchg32u(MemArg),
+	#[cfg(feature="atomics")]
+	Atomics(AtomicsInstruction),
 
 	V128Const(Box<[u8; 16]>),
 	V128Load(MemArg),
@@ -535,6 +463,85 @@ pub enum Instruction {
 	TableInit(u32),
 	TableDrop(u32),
 	TableCopy,
+}
+
+#[cfg(feature="atomics")]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum AtomicsInstruction {
+	AtomicWake(MemArg),
+	I32AtomicWait(MemArg),
+	I64AtomicWait(MemArg),
+
+	I32AtomicLoad(MemArg),
+	I64AtomicLoad(MemArg),
+	I32AtomicLoad8u(MemArg),
+	I32AtomicLoad16u(MemArg),
+	I64AtomicLoad8u(MemArg),
+	I64AtomicLoad16u(MemArg),
+	I64AtomicLoad32u(MemArg),
+	I32AtomicStore(MemArg),
+	I64AtomicStore(MemArg),
+	I32AtomicStore8u(MemArg),
+	I32AtomicStore16u(MemArg),
+	I64AtomicStore8u(MemArg),
+	I64AtomicStore16u(MemArg),
+	I64AtomicStore32u(MemArg),
+
+	I32AtomicRmwAdd(MemArg),
+	I64AtomicRmwAdd(MemArg),
+	I32AtomicRmwAdd8u(MemArg),
+	I32AtomicRmwAdd16u(MemArg),
+	I64AtomicRmwAdd8u(MemArg),
+	I64AtomicRmwAdd16u(MemArg),
+	I64AtomicRmwAdd32u(MemArg),
+
+	I32AtomicRmwSub(MemArg),
+	I64AtomicRmwSub(MemArg),
+	I32AtomicRmwSub8u(MemArg),
+	I32AtomicRmwSub16u(MemArg),
+	I64AtomicRmwSub8u(MemArg),
+	I64AtomicRmwSub16u(MemArg),
+	I64AtomicRmwSub32u(MemArg),
+
+	I32AtomicRmwAnd(MemArg),
+	I64AtomicRmwAnd(MemArg),
+	I32AtomicRmwAnd8u(MemArg),
+	I32AtomicRmwAnd16u(MemArg),
+	I64AtomicRmwAnd8u(MemArg),
+	I64AtomicRmwAnd16u(MemArg),
+	I64AtomicRmwAnd32u(MemArg),
+
+	I32AtomicRmwOr(MemArg),
+	I64AtomicRmwOr(MemArg),
+	I32AtomicRmwOr8u(MemArg),
+	I32AtomicRmwOr16u(MemArg),
+	I64AtomicRmwOr8u(MemArg),
+	I64AtomicRmwOr16u(MemArg),
+	I64AtomicRmwOr32u(MemArg),
+
+	I32AtomicRmwXor(MemArg),
+	I64AtomicRmwXor(MemArg),
+	I32AtomicRmwXor8u(MemArg),
+	I32AtomicRmwXor16u(MemArg),
+	I64AtomicRmwXor8u(MemArg),
+	I64AtomicRmwXor16u(MemArg),
+	I64AtomicRmwXor32u(MemArg),
+
+	I32AtomicRmwXchg(MemArg),
+	I64AtomicRmwXchg(MemArg),
+	I32AtomicRmwXchg8u(MemArg),
+	I32AtomicRmwXchg16u(MemArg),
+	I64AtomicRmwXchg8u(MemArg),
+	I64AtomicRmwXchg16u(MemArg),
+	I64AtomicRmwXchg32u(MemArg),
+
+	I32AtomicRmwCmpxchg(MemArg),
+	I64AtomicRmwCmpxchg(MemArg),
+	I32AtomicRmwCmpxchg8u(MemArg),
+	I32AtomicRmwCmpxchg16u(MemArg),
+	I64AtomicRmwCmpxchg8u(MemArg),
+	I64AtomicRmwCmpxchg16u(MemArg),
+	I64AtomicRmwCmpxchg32u(MemArg),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -758,6 +765,7 @@ pub mod opcodes {
 	pub const I64_EXTEND16_S: u8 = 0xc3;
 	pub const I64_EXTEND32_S: u8 = 0xc4;
 
+	#[cfg(feature="atomics")]
 	pub const ATOMIC_PREFIX: u8 = 0xfe;
 	pub const ATOMIC_WAKE: u8 = 0x00;
 	pub const I32_ATOMIC_WAIT: u8 = 0x01;
@@ -1305,6 +1313,7 @@ impl Deserialize for Instruction {
 				I64_EXTEND16_S => I64Extend16S,
 				I64_EXTEND32_S => I64Extend32S,
 
+				#[cfg(feature="atomics")]
 				ATOMIC_PREFIX => return deserialize_atomic(reader),
 				SIMD_PREFIX => return deserialize_simd(reader),
 
@@ -1316,13 +1325,14 @@ impl Deserialize for Instruction {
 	}
 }
 
+#[cfg(feature="atomics")]
 fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
-	use self::Instruction::*;
+	use self::AtomicsInstruction::*;
 	use self::opcodes::*;
 
 	let val: u8 = Uint8::deserialize(reader)?.into();
 	let mem = MemArg::deserialize(reader)?;
-	Ok(match val {
+	let atomics_instruction = match val {
 		ATOMIC_WAKE => AtomicWake(mem),
 		I32_ATOMIC_WAIT => I32AtomicWait(mem),
 		I64_ATOMIC_WAIT => I64AtomicWait(mem),
@@ -1391,7 +1401,9 @@ fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error>
 		I64_ATOMIC_RMW_CMPXCHG32U => I64AtomicRmwCmpxchg32u(mem),
 
 		_ => return Err(Error::UnknownOpcode(val)),
-	})
+	};
+
+	Ok(Instruction::Atomics(atomics_instruction))
 }
 
 fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
@@ -1630,6 +1642,7 @@ macro_rules! op {
 	});
 }
 
+#[cfg(feature="atomics")]
 macro_rules! atomic {
 	($writer: expr, $byte: expr, $mem:expr) => ({
 		$writer.write(&[ATOMIC_PREFIX, $byte])?;
@@ -1962,80 +1975,8 @@ impl Serialize for Instruction {
 			I64Extend16S => op!(writer, I64_EXTEND16_S),
 			I64Extend32S => op!(writer, I64_EXTEND32_S),
 
-			AtomicWake(m) => atomic!(writer, ATOMIC_WAKE, m),
-			I32AtomicWait(m) => atomic!(writer, I32_ATOMIC_WAIT, m),
-			I64AtomicWait(m) => atomic!(writer, I64_ATOMIC_WAIT, m),
-
-			I32AtomicLoad(m) => atomic!(writer, I32_ATOMIC_LOAD, m),
-			I64AtomicLoad(m) => atomic!(writer, I64_ATOMIC_LOAD, m),
-			I32AtomicLoad8u(m) => atomic!(writer, I32_ATOMIC_LOAD8U, m),
-			I32AtomicLoad16u(m) => atomic!(writer, I32_ATOMIC_LOAD16U, m),
-			I64AtomicLoad8u(m) => atomic!(writer, I64_ATOMIC_LOAD8U, m),
-			I64AtomicLoad16u(m) => atomic!(writer, I64_ATOMIC_LOAD16U, m),
-			I64AtomicLoad32u(m) => atomic!(writer, I64_ATOMIC_LOAD32U, m),
-			I32AtomicStore(m) => atomic!(writer, I32_ATOMIC_STORE, m),
-			I64AtomicStore(m) => atomic!(writer, I64_ATOMIC_STORE, m),
-			I32AtomicStore8u(m) => atomic!(writer, I32_ATOMIC_STORE8U, m),
-			I32AtomicStore16u(m) => atomic!(writer, I32_ATOMIC_STORE16U, m),
-			I64AtomicStore8u(m) => atomic!(writer, I64_ATOMIC_STORE8U, m),
-			I64AtomicStore16u(m) => atomic!(writer, I64_ATOMIC_STORE16U, m),
-			I64AtomicStore32u(m) => atomic!(writer, I64_ATOMIC_STORE32U, m),
-
-			I32AtomicRmwAdd(m) => atomic!(writer, I32_ATOMIC_RMW_ADD, m),
-			I64AtomicRmwAdd(m) => atomic!(writer, I64_ATOMIC_RMW_ADD, m),
-			I32AtomicRmwAdd8u(m) => atomic!(writer, I32_ATOMIC_RMW_ADD8U, m),
-			I32AtomicRmwAdd16u(m) => atomic!(writer, I32_ATOMIC_RMW_ADD16U, m),
-			I64AtomicRmwAdd8u(m) => atomic!(writer, I64_ATOMIC_RMW_ADD8U, m),
-			I64AtomicRmwAdd16u(m) => atomic!(writer, I64_ATOMIC_RMW_ADD16U, m),
-			I64AtomicRmwAdd32u(m) => atomic!(writer, I64_ATOMIC_RMW_ADD32U, m),
-
-			I32AtomicRmwSub(m) => atomic!(writer, I32_ATOMIC_RMW_SUB, m),
-			I64AtomicRmwSub(m) => atomic!(writer, I64_ATOMIC_RMW_SUB, m),
-			I32AtomicRmwSub8u(m) => atomic!(writer, I32_ATOMIC_RMW_SUB8U, m),
-			I32AtomicRmwSub16u(m) => atomic!(writer, I32_ATOMIC_RMW_SUB16U, m),
-			I64AtomicRmwSub8u(m) => atomic!(writer, I64_ATOMIC_RMW_SUB8U, m),
-			I64AtomicRmwSub16u(m) => atomic!(writer, I64_ATOMIC_RMW_SUB16U, m),
-			I64AtomicRmwSub32u(m) => atomic!(writer, I64_ATOMIC_RMW_SUB32U, m),
-
-			I32AtomicRmwAnd(m) => atomic!(writer, I32_ATOMIC_RMW_AND, m),
-			I64AtomicRmwAnd(m) => atomic!(writer, I64_ATOMIC_RMW_AND, m),
-			I32AtomicRmwAnd8u(m) => atomic!(writer, I32_ATOMIC_RMW_AND8U, m),
-			I32AtomicRmwAnd16u(m) => atomic!(writer, I32_ATOMIC_RMW_AND16U, m),
-			I64AtomicRmwAnd8u(m) => atomic!(writer, I64_ATOMIC_RMW_AND8U, m),
-			I64AtomicRmwAnd16u(m) => atomic!(writer, I64_ATOMIC_RMW_AND16U, m),
-			I64AtomicRmwAnd32u(m) => atomic!(writer, I64_ATOMIC_RMW_AND32U, m),
-
-			I32AtomicRmwOr(m) => atomic!(writer, I32_ATOMIC_RMW_OR, m),
-			I64AtomicRmwOr(m) => atomic!(writer, I64_ATOMIC_RMW_OR, m),
-			I32AtomicRmwOr8u(m) => atomic!(writer, I32_ATOMIC_RMW_OR8U, m),
-			I32AtomicRmwOr16u(m) => atomic!(writer, I32_ATOMIC_RMW_OR16U, m),
-			I64AtomicRmwOr8u(m) => atomic!(writer, I64_ATOMIC_RMW_OR8U, m),
-			I64AtomicRmwOr16u(m) => atomic!(writer, I64_ATOMIC_RMW_OR16U, m),
-			I64AtomicRmwOr32u(m) => atomic!(writer, I64_ATOMIC_RMW_OR32U, m),
-
-			I32AtomicRmwXor(m) => atomic!(writer, I32_ATOMIC_RMW_XOR, m),
-			I64AtomicRmwXor(m) => atomic!(writer, I64_ATOMIC_RMW_XOR, m),
-			I32AtomicRmwXor8u(m) => atomic!(writer, I32_ATOMIC_RMW_XOR8U, m),
-			I32AtomicRmwXor16u(m) => atomic!(writer, I32_ATOMIC_RMW_XOR16U, m),
-			I64AtomicRmwXor8u(m) => atomic!(writer, I64_ATOMIC_RMW_XOR8U, m),
-			I64AtomicRmwXor16u(m) => atomic!(writer, I64_ATOMIC_RMW_XOR16U, m),
-			I64AtomicRmwXor32u(m) => atomic!(writer, I64_ATOMIC_RMW_XOR32U, m),
-
-			I32AtomicRmwXchg(m) => atomic!(writer, I32_ATOMIC_RMW_XCHG, m),
-			I64AtomicRmwXchg(m) => atomic!(writer, I64_ATOMIC_RMW_XCHG, m),
-			I32AtomicRmwXchg8u(m) => atomic!(writer, I32_ATOMIC_RMW_XCHG8U, m),
-			I32AtomicRmwXchg16u(m) => atomic!(writer, I32_ATOMIC_RMW_XCHG16U, m),
-			I64AtomicRmwXchg8u(m) => atomic!(writer, I64_ATOMIC_RMW_XCHG8U, m),
-			I64AtomicRmwXchg16u(m) => atomic!(writer, I64_ATOMIC_RMW_XCHG16U, m),
-			I64AtomicRmwXchg32u(m) => atomic!(writer, I64_ATOMIC_RMW_XCHG32U, m),
-
-			I32AtomicRmwCmpxchg(m) => atomic!(writer, I32_ATOMIC_RMW_CMPXCHG, m),
-			I64AtomicRmwCmpxchg(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG, m),
-			I32AtomicRmwCmpxchg8u(m) => atomic!(writer, I32_ATOMIC_RMW_CMPXCHG8U, m),
-			I32AtomicRmwCmpxchg16u(m) => atomic!(writer, I32_ATOMIC_RMW_CMPXCHG16U, m),
-			I64AtomicRmwCmpxchg8u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG8U, m),
-			I64AtomicRmwCmpxchg16u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG16U, m),
-			I64AtomicRmwCmpxchg32u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG32U, m),
+			#[cfg(feature="atomics")]
+			Atomics(a) => return a.serialize(writer),
 
 			V128Const(ref c) => simd!(writer, opcodes::V128_CONST, writer.write(&c[..])?),
 			V128Load(m) => simd!(writer, opcodes::V128_LOAD, MemArg::serialize(m, writer)?),
@@ -2208,6 +2149,95 @@ impl Serialize for Instruction {
 	}
 }
 
+#[cfg(feature="atomics")]
+impl Serialize for AtomicsInstruction {
+	type Error = Error;
+
+	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+		use self::AtomicsInstruction::*;
+		use self::opcodes::*;
+
+		match self {
+			AtomicWake(m) => atomic!(writer, ATOMIC_WAKE, m),
+			I32AtomicWait(m) => atomic!(writer, I32_ATOMIC_WAIT, m),
+			I64AtomicWait(m) => atomic!(writer, I64_ATOMIC_WAIT, m),
+
+			I32AtomicLoad(m) => atomic!(writer, I32_ATOMIC_LOAD, m),
+			I64AtomicLoad(m) => atomic!(writer, I64_ATOMIC_LOAD, m),
+			I32AtomicLoad8u(m) => atomic!(writer, I32_ATOMIC_LOAD8U, m),
+			I32AtomicLoad16u(m) => atomic!(writer, I32_ATOMIC_LOAD16U, m),
+			I64AtomicLoad8u(m) => atomic!(writer, I64_ATOMIC_LOAD8U, m),
+			I64AtomicLoad16u(m) => atomic!(writer, I64_ATOMIC_LOAD16U, m),
+			I64AtomicLoad32u(m) => atomic!(writer, I64_ATOMIC_LOAD32U, m),
+			I32AtomicStore(m) => atomic!(writer, I32_ATOMIC_STORE, m),
+			I64AtomicStore(m) => atomic!(writer, I64_ATOMIC_STORE, m),
+			I32AtomicStore8u(m) => atomic!(writer, I32_ATOMIC_STORE8U, m),
+			I32AtomicStore16u(m) => atomic!(writer, I32_ATOMIC_STORE16U, m),
+			I64AtomicStore8u(m) => atomic!(writer, I64_ATOMIC_STORE8U, m),
+			I64AtomicStore16u(m) => atomic!(writer, I64_ATOMIC_STORE16U, m),
+			I64AtomicStore32u(m) => atomic!(writer, I64_ATOMIC_STORE32U, m),
+
+			I32AtomicRmwAdd(m) => atomic!(writer, I32_ATOMIC_RMW_ADD, m),
+			I64AtomicRmwAdd(m) => atomic!(writer, I64_ATOMIC_RMW_ADD, m),
+			I32AtomicRmwAdd8u(m) => atomic!(writer, I32_ATOMIC_RMW_ADD8U, m),
+			I32AtomicRmwAdd16u(m) => atomic!(writer, I32_ATOMIC_RMW_ADD16U, m),
+			I64AtomicRmwAdd8u(m) => atomic!(writer, I64_ATOMIC_RMW_ADD8U, m),
+			I64AtomicRmwAdd16u(m) => atomic!(writer, I64_ATOMIC_RMW_ADD16U, m),
+			I64AtomicRmwAdd32u(m) => atomic!(writer, I64_ATOMIC_RMW_ADD32U, m),
+
+			I32AtomicRmwSub(m) => atomic!(writer, I32_ATOMIC_RMW_SUB, m),
+			I64AtomicRmwSub(m) => atomic!(writer, I64_ATOMIC_RMW_SUB, m),
+			I32AtomicRmwSub8u(m) => atomic!(writer, I32_ATOMIC_RMW_SUB8U, m),
+			I32AtomicRmwSub16u(m) => atomic!(writer, I32_ATOMIC_RMW_SUB16U, m),
+			I64AtomicRmwSub8u(m) => atomic!(writer, I64_ATOMIC_RMW_SUB8U, m),
+			I64AtomicRmwSub16u(m) => atomic!(writer, I64_ATOMIC_RMW_SUB16U, m),
+			I64AtomicRmwSub32u(m) => atomic!(writer, I64_ATOMIC_RMW_SUB32U, m),
+
+			I32AtomicRmwAnd(m) => atomic!(writer, I32_ATOMIC_RMW_AND, m),
+			I64AtomicRmwAnd(m) => atomic!(writer, I64_ATOMIC_RMW_AND, m),
+			I32AtomicRmwAnd8u(m) => atomic!(writer, I32_ATOMIC_RMW_AND8U, m),
+			I32AtomicRmwAnd16u(m) => atomic!(writer, I32_ATOMIC_RMW_AND16U, m),
+			I64AtomicRmwAnd8u(m) => atomic!(writer, I64_ATOMIC_RMW_AND8U, m),
+			I64AtomicRmwAnd16u(m) => atomic!(writer, I64_ATOMIC_RMW_AND16U, m),
+			I64AtomicRmwAnd32u(m) => atomic!(writer, I64_ATOMIC_RMW_AND32U, m),
+
+			I32AtomicRmwOr(m) => atomic!(writer, I32_ATOMIC_RMW_OR, m),
+			I64AtomicRmwOr(m) => atomic!(writer, I64_ATOMIC_RMW_OR, m),
+			I32AtomicRmwOr8u(m) => atomic!(writer, I32_ATOMIC_RMW_OR8U, m),
+			I32AtomicRmwOr16u(m) => atomic!(writer, I32_ATOMIC_RMW_OR16U, m),
+			I64AtomicRmwOr8u(m) => atomic!(writer, I64_ATOMIC_RMW_OR8U, m),
+			I64AtomicRmwOr16u(m) => atomic!(writer, I64_ATOMIC_RMW_OR16U, m),
+			I64AtomicRmwOr32u(m) => atomic!(writer, I64_ATOMIC_RMW_OR32U, m),
+
+			I32AtomicRmwXor(m) => atomic!(writer, I32_ATOMIC_RMW_XOR, m),
+			I64AtomicRmwXor(m) => atomic!(writer, I64_ATOMIC_RMW_XOR, m),
+			I32AtomicRmwXor8u(m) => atomic!(writer, I32_ATOMIC_RMW_XOR8U, m),
+			I32AtomicRmwXor16u(m) => atomic!(writer, I32_ATOMIC_RMW_XOR16U, m),
+			I64AtomicRmwXor8u(m) => atomic!(writer, I64_ATOMIC_RMW_XOR8U, m),
+			I64AtomicRmwXor16u(m) => atomic!(writer, I64_ATOMIC_RMW_XOR16U, m),
+			I64AtomicRmwXor32u(m) => atomic!(writer, I64_ATOMIC_RMW_XOR32U, m),
+
+			I32AtomicRmwXchg(m) => atomic!(writer, I32_ATOMIC_RMW_XCHG, m),
+			I64AtomicRmwXchg(m) => atomic!(writer, I64_ATOMIC_RMW_XCHG, m),
+			I32AtomicRmwXchg8u(m) => atomic!(writer, I32_ATOMIC_RMW_XCHG8U, m),
+			I32AtomicRmwXchg16u(m) => atomic!(writer, I32_ATOMIC_RMW_XCHG16U, m),
+			I64AtomicRmwXchg8u(m) => atomic!(writer, I64_ATOMIC_RMW_XCHG8U, m),
+			I64AtomicRmwXchg16u(m) => atomic!(writer, I64_ATOMIC_RMW_XCHG16U, m),
+			I64AtomicRmwXchg32u(m) => atomic!(writer, I64_ATOMIC_RMW_XCHG32U, m),
+
+			I32AtomicRmwCmpxchg(m) => atomic!(writer, I32_ATOMIC_RMW_CMPXCHG, m),
+			I64AtomicRmwCmpxchg(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG, m),
+			I32AtomicRmwCmpxchg8u(m) => atomic!(writer, I32_ATOMIC_RMW_CMPXCHG8U, m),
+			I32AtomicRmwCmpxchg16u(m) => atomic!(writer, I32_ATOMIC_RMW_CMPXCHG16U, m),
+			I64AtomicRmwCmpxchg8u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG8U, m),
+			I64AtomicRmwCmpxchg16u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG16U, m),
+			I64AtomicRmwCmpxchg32u(m) => atomic!(writer, I64_ATOMIC_RMW_CMPXCHG32U, m),
+		}
+
+		Ok(())
+	}
+}
+
 impl Serialize for MemArg {
 	type Error = Error;
 
@@ -2233,7 +2263,6 @@ macro_rules! fmt_op {
 impl fmt::Display for Instruction {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::Instruction::*;
-		use super::BlockType;
 
 		match *self {
 			Unreachable => fmt_op!(f, "unreachable"),
@@ -2480,80 +2509,8 @@ impl fmt::Display for Instruction {
 			I64Extend16S => write!(f, "i64.extend16_s"),
 			I64Extend32S => write!(f, "i64.extend32_s"),
 
-			AtomicWake(_) => write!(f, "atomic.wake"),
-			I32AtomicWait(_) => write!(f, "i32.atomic.wait"),
-			I64AtomicWait(_) => write!(f, "i64.atomic.wait"),
-
-			I32AtomicLoad(_) => write!(f, "i32.atomic.load"),
-			I64AtomicLoad(_) => write!(f, "i64.atomic.load"),
-			I32AtomicLoad8u(_) => write!(f, "i32.atomic.load8_u"),
-			I32AtomicLoad16u(_) => write!(f, "i32.atomic.load16_u"),
-			I64AtomicLoad8u(_) => write!(f, "i64.atomic.load8_u"),
-			I64AtomicLoad16u(_) => write!(f, "i64.atomic.load16_u"),
-			I64AtomicLoad32u(_) => write!(f, "i64.atomic.load32_u"),
-			I32AtomicStore(_) => write!(f, "i32.atomic.store"),
-			I64AtomicStore(_) => write!(f, "i64.atomic.store"),
-			I32AtomicStore8u(_) => write!(f, "i32.atomic.store8_u"),
-			I32AtomicStore16u(_) => write!(f, "i32.atomic.store16_u"),
-			I64AtomicStore8u(_) => write!(f, "i64.atomic.store8_u"),
-			I64AtomicStore16u(_) => write!(f, "i64.atomic.store16_u"),
-			I64AtomicStore32u(_) => write!(f, "i64.atomic.store32_u"),
-
-			I32AtomicRmwAdd(_) => write!(f, "i32.atomic.rmw.add"),
-			I64AtomicRmwAdd(_) => write!(f, "i64.atomic.rmw.add"),
-			I32AtomicRmwAdd8u(_) => write!(f, "i32.atomic.rmw8_u.add"),
-			I32AtomicRmwAdd16u(_) => write!(f, "i32.atomic.rmw16_u.add"),
-			I64AtomicRmwAdd8u(_) => write!(f, "i64.atomic.rmw8_u.add"),
-			I64AtomicRmwAdd16u(_) => write!(f, "i64.atomic.rmw16_u.add"),
-			I64AtomicRmwAdd32u(_) => write!(f, "i64.atomic.rmw32_u.add"),
-
-			I32AtomicRmwSub(_) => write!(f, "i32.atomic.rmw.sub"),
-			I64AtomicRmwSub(_) => write!(f, "i64.atomic.rmw.sub"),
-			I32AtomicRmwSub8u(_) => write!(f, "i32.atomic.rmw8_u.sub"),
-			I32AtomicRmwSub16u(_) => write!(f, "i32.atomic.rmw16_u.sub"),
-			I64AtomicRmwSub8u(_) => write!(f, "i64.atomic.rmw8_u.sub"),
-			I64AtomicRmwSub16u(_) => write!(f, "i64.atomic.rmw16_u.sub"),
-			I64AtomicRmwSub32u(_) => write!(f, "i64.atomic.rmw32_u.sub"),
-
-			I32AtomicRmwAnd(_) => write!(f, "i32.atomic.rmw.and"),
-			I64AtomicRmwAnd(_) => write!(f, "i64.atomic.rmw.and"),
-			I32AtomicRmwAnd8u(_) => write!(f, "i32.atomic.rmw8_u.and"),
-			I32AtomicRmwAnd16u(_) => write!(f, "i32.atomic.rmw16_u.and"),
-			I64AtomicRmwAnd8u(_) => write!(f, "i64.atomic.rmw8_u.and"),
-			I64AtomicRmwAnd16u(_) => write!(f, "i64.atomic.rmw16_u.and"),
-			I64AtomicRmwAnd32u(_) => write!(f, "i64.atomic.rmw32_u.and"),
-
-			I32AtomicRmwOr(_) => write!(f, "i32.atomic.rmw.or"),
-			I64AtomicRmwOr(_) => write!(f, "i64.atomic.rmw.or"),
-			I32AtomicRmwOr8u(_) => write!(f, "i32.atomic.rmw8_u.or"),
-			I32AtomicRmwOr16u(_) => write!(f, "i32.atomic.rmw16_u.or"),
-			I64AtomicRmwOr8u(_) => write!(f, "i64.atomic.rmw8_u.or"),
-			I64AtomicRmwOr16u(_) => write!(f, "i64.atomic.rmw16_u.or"),
-			I64AtomicRmwOr32u(_) => write!(f, "i64.atomic.rmw32_u.or"),
-
-			I32AtomicRmwXor(_) => write!(f, "i32.atomic.rmw.xor"),
-			I64AtomicRmwXor(_) => write!(f, "i64.atomic.rmw.xor"),
-			I32AtomicRmwXor8u(_) => write!(f, "i32.atomic.rmw8_u.xor"),
-			I32AtomicRmwXor16u(_) => write!(f, "i32.atomic.rmw16_u.xor"),
-			I64AtomicRmwXor8u(_) => write!(f, "i64.atomic.rmw8_u.xor"),
-			I64AtomicRmwXor16u(_) => write!(f, "i64.atomic.rmw16_u.xor"),
-			I64AtomicRmwXor32u(_) => write!(f, "i64.atomic.rmw32_u.xor"),
-
-			I32AtomicRmwXchg(_) => write!(f, "i32.atomic.rmw.xchg"),
-			I64AtomicRmwXchg(_) => write!(f, "i64.atomic.rmw.xchg"),
-			I32AtomicRmwXchg8u(_) => write!(f, "i32.atomic.rmw8_u.xchg"),
-			I32AtomicRmwXchg16u(_) => write!(f, "i32.atomic.rmw16_u.xchg"),
-			I64AtomicRmwXchg8u(_) => write!(f, "i64.atomic.rmw8_u.xchg"),
-			I64AtomicRmwXchg16u(_) => write!(f, "i64.atomic.rmw16_u.xchg"),
-			I64AtomicRmwXchg32u(_) => write!(f, "i64.atomic.rmw32_u.xchg"),
-
-			I32AtomicRmwCmpxchg(_) => write!(f, "i32.atomic.rmw.cmpxchg"),
-			I64AtomicRmwCmpxchg(_) => write!(f, "i64.atomic.rmw.cmpxchg"),
-			I32AtomicRmwCmpxchg8u(_) => write!(f, "i32.atomic.rmw8_u.cmpxchg"),
-			I32AtomicRmwCmpxchg16u(_) => write!(f, "i32.atomic.rmw16_u.cmpxchg"),
-			I64AtomicRmwCmpxchg8u(_) => write!(f, "i64.atomic.rmw8_u.cmpxchg"),
-			I64AtomicRmwCmpxchg16u(_) => write!(f, "i64.atomic.rmw16_u.cmpxchg"),
-			I64AtomicRmwCmpxchg32u(_) => write!(f, "i64.atomic.rmw32_u.cmpxchg"),
+			#[cfg(feature="atomics")]
+			Atomics(ref i) => i.fmt(f),
 
 			V128Const(_) => write!(f, "v128.const"),
 			V128Load(_) => write!(f, "v128.load"),
@@ -2714,6 +2671,90 @@ impl fmt::Display for Instruction {
 			TableInit(_) => write!(f, "table.init"),
 			TableDrop(_) => write!(f, "table.drop"),
 			TableCopy => write!(f, "table.copy"),
+		}
+	}
+}
+
+#[cfg(feature="atomics")]
+impl fmt::Display for AtomicsInstruction {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::AtomicsInstruction::*;
+
+		match *self {
+			AtomicWake(_) => write!(f, "atomic.wake"),
+			I32AtomicWait(_) => write!(f, "i32.atomic.wait"),
+			I64AtomicWait(_) => write!(f, "i64.atomic.wait"),
+
+			I32AtomicLoad(_) => write!(f, "i32.atomic.load"),
+			I64AtomicLoad(_) => write!(f, "i64.atomic.load"),
+			I32AtomicLoad8u(_) => write!(f, "i32.atomic.load8_u"),
+			I32AtomicLoad16u(_) => write!(f, "i32.atomic.load16_u"),
+			I64AtomicLoad8u(_) => write!(f, "i64.atomic.load8_u"),
+			I64AtomicLoad16u(_) => write!(f, "i64.atomic.load16_u"),
+			I64AtomicLoad32u(_) => write!(f, "i64.atomic.load32_u"),
+			I32AtomicStore(_) => write!(f, "i32.atomic.store"),
+			I64AtomicStore(_) => write!(f, "i64.atomic.store"),
+			I32AtomicStore8u(_) => write!(f, "i32.atomic.store8_u"),
+			I32AtomicStore16u(_) => write!(f, "i32.atomic.store16_u"),
+			I64AtomicStore8u(_) => write!(f, "i64.atomic.store8_u"),
+			I64AtomicStore16u(_) => write!(f, "i64.atomic.store16_u"),
+			I64AtomicStore32u(_) => write!(f, "i64.atomic.store32_u"),
+
+			I32AtomicRmwAdd(_) => write!(f, "i32.atomic.rmw.add"),
+			I64AtomicRmwAdd(_) => write!(f, "i64.atomic.rmw.add"),
+			I32AtomicRmwAdd8u(_) => write!(f, "i32.atomic.rmw8_u.add"),
+			I32AtomicRmwAdd16u(_) => write!(f, "i32.atomic.rmw16_u.add"),
+			I64AtomicRmwAdd8u(_) => write!(f, "i64.atomic.rmw8_u.add"),
+			I64AtomicRmwAdd16u(_) => write!(f, "i64.atomic.rmw16_u.add"),
+			I64AtomicRmwAdd32u(_) => write!(f, "i64.atomic.rmw32_u.add"),
+
+			I32AtomicRmwSub(_) => write!(f, "i32.atomic.rmw.sub"),
+			I64AtomicRmwSub(_) => write!(f, "i64.atomic.rmw.sub"),
+			I32AtomicRmwSub8u(_) => write!(f, "i32.atomic.rmw8_u.sub"),
+			I32AtomicRmwSub16u(_) => write!(f, "i32.atomic.rmw16_u.sub"),
+			I64AtomicRmwSub8u(_) => write!(f, "i64.atomic.rmw8_u.sub"),
+			I64AtomicRmwSub16u(_) => write!(f, "i64.atomic.rmw16_u.sub"),
+			I64AtomicRmwSub32u(_) => write!(f, "i64.atomic.rmw32_u.sub"),
+
+			I32AtomicRmwAnd(_) => write!(f, "i32.atomic.rmw.and"),
+			I64AtomicRmwAnd(_) => write!(f, "i64.atomic.rmw.and"),
+			I32AtomicRmwAnd8u(_) => write!(f, "i32.atomic.rmw8_u.and"),
+			I32AtomicRmwAnd16u(_) => write!(f, "i32.atomic.rmw16_u.and"),
+			I64AtomicRmwAnd8u(_) => write!(f, "i64.atomic.rmw8_u.and"),
+			I64AtomicRmwAnd16u(_) => write!(f, "i64.atomic.rmw16_u.and"),
+			I64AtomicRmwAnd32u(_) => write!(f, "i64.atomic.rmw32_u.and"),
+
+			I32AtomicRmwOr(_) => write!(f, "i32.atomic.rmw.or"),
+			I64AtomicRmwOr(_) => write!(f, "i64.atomic.rmw.or"),
+			I32AtomicRmwOr8u(_) => write!(f, "i32.atomic.rmw8_u.or"),
+			I32AtomicRmwOr16u(_) => write!(f, "i32.atomic.rmw16_u.or"),
+			I64AtomicRmwOr8u(_) => write!(f, "i64.atomic.rmw8_u.or"),
+			I64AtomicRmwOr16u(_) => write!(f, "i64.atomic.rmw16_u.or"),
+			I64AtomicRmwOr32u(_) => write!(f, "i64.atomic.rmw32_u.or"),
+
+			I32AtomicRmwXor(_) => write!(f, "i32.atomic.rmw.xor"),
+			I64AtomicRmwXor(_) => write!(f, "i64.atomic.rmw.xor"),
+			I32AtomicRmwXor8u(_) => write!(f, "i32.atomic.rmw8_u.xor"),
+			I32AtomicRmwXor16u(_) => write!(f, "i32.atomic.rmw16_u.xor"),
+			I64AtomicRmwXor8u(_) => write!(f, "i64.atomic.rmw8_u.xor"),
+			I64AtomicRmwXor16u(_) => write!(f, "i64.atomic.rmw16_u.xor"),
+			I64AtomicRmwXor32u(_) => write!(f, "i64.atomic.rmw32_u.xor"),
+
+			I32AtomicRmwXchg(_) => write!(f, "i32.atomic.rmw.xchg"),
+			I64AtomicRmwXchg(_) => write!(f, "i64.atomic.rmw.xchg"),
+			I32AtomicRmwXchg8u(_) => write!(f, "i32.atomic.rmw8_u.xchg"),
+			I32AtomicRmwXchg16u(_) => write!(f, "i32.atomic.rmw16_u.xchg"),
+			I64AtomicRmwXchg8u(_) => write!(f, "i64.atomic.rmw8_u.xchg"),
+			I64AtomicRmwXchg16u(_) => write!(f, "i64.atomic.rmw16_u.xchg"),
+			I64AtomicRmwXchg32u(_) => write!(f, "i64.atomic.rmw32_u.xchg"),
+
+			I32AtomicRmwCmpxchg(_) => write!(f, "i32.atomic.rmw.cmpxchg"),
+			I64AtomicRmwCmpxchg(_) => write!(f, "i64.atomic.rmw.cmpxchg"),
+			I32AtomicRmwCmpxchg8u(_) => write!(f, "i32.atomic.rmw8_u.cmpxchg"),
+			I32AtomicRmwCmpxchg16u(_) => write!(f, "i32.atomic.rmw16_u.cmpxchg"),
+			I64AtomicRmwCmpxchg8u(_) => write!(f, "i64.atomic.rmw8_u.cmpxchg"),
+			I64AtomicRmwCmpxchg16u(_) => write!(f, "i64.atomic.rmw16_u.cmpxchg"),
+			I64AtomicRmwCmpxchg32u(_) => write!(f, "i64.atomic.rmw32_u.cmpxchg"),
 		}
 	}
 }

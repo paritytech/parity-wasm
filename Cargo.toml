@@ -31,3 +31,7 @@ atomics = []
 # SIMD
 # https://github.com/WebAssembly/simd/blob/master/proposals/simd/SIMD.md
 simd = []
+
+# Sign-extension operators
+# https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md
+sign_ext = []

@@ -294,17 +294,14 @@ pub enum Instruction {
 	F32ReinterpretI32,
 	F64ReinterpretI64,
 
-	I32Extend8S,
-	I32Extend16S,
-	I64Extend8S,
-	I64Extend16S,
-	I64Extend32S,
-
 	#[cfg(feature="atomics")]
 	Atomics(AtomicsInstruction),
 
 	#[cfg(feature="simd")]
 	Simd(SimdInstruction),
+
+	#[cfg(feature="sign_ext")]
+	SignExt(SignExtInstruction),
 
 	// https://github.com/WebAssembly/bulk-memory-operations
 	MemoryInit(u32),
@@ -549,6 +546,16 @@ pub enum SimdInstruction {
 	I32x4TruncUF32x4Sat,
 	I64x2TruncSF64x2Sat,
 	I64x2TruncUF64x2Sat,
+}
+
+#[cfg(feature="sign_ext")]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SignExtInstruction {
+	I32Extend8S,
+	I32Extend16S,
+	I64Extend8S,
+	I64Extend16S,
+	I64Extend32S,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -1314,11 +1321,20 @@ impl Deserialize for Instruction {
 				I64REINTERPRETF64 => I64ReinterpretF64,
 				F32REINTERPRETI32 => F32ReinterpretI32,
 				F64REINTERPRETI64 => F64ReinterpretI64,
-				I32_EXTEND8_S => I32Extend8S,
-				I32_EXTEND16_S => I32Extend16S,
-				I64_EXTEND8_S => I64Extend8S,
-				I64_EXTEND16_S => I64Extend16S,
-				I64_EXTEND32_S => I64Extend32S,
+
+				#[cfg(feature="sign_ext")]
+				I32_EXTEND8_S |
+				I32_EXTEND16_S |
+				I64_EXTEND8_S |
+				I64_EXTEND16_S |
+				I64_EXTEND32_S => match val {
+					I32_EXTEND8_S => SignExt(SignExtInstruction::I32Extend8S),
+					I32_EXTEND16_S => SignExt(SignExtInstruction::I32Extend16S),
+					I64_EXTEND8_S => SignExt(SignExtInstruction::I64Extend8S),
+					I64_EXTEND16_S => SignExt(SignExtInstruction::I64Extend16S),
+					I64_EXTEND32_S => SignExt(SignExtInstruction::I64Extend32S),
+					_ => return Err(Error::UnknownOpcode(val)),
+				}
 
 				#[cfg(feature="atomics")]
 				ATOMIC_PREFIX => return deserialize_atomic(reader),
@@ -1978,11 +1994,14 @@ impl Serialize for Instruction {
 			F32ReinterpretI32 => op!(writer, F32REINTERPRETI32),
 			F64ReinterpretI64 => op!(writer, F64REINTERPRETI64),
 
-			I32Extend8S => op!(writer, I32_EXTEND8_S),
-			I32Extend16S => op!(writer, I32_EXTEND16_S),
-			I64Extend8S => op!(writer, I64_EXTEND8_S),
-			I64Extend16S => op!(writer, I64_EXTEND16_S),
-			I64Extend32S => op!(writer, I64_EXTEND32_S),
+			#[cfg(feature="sign_ext")]
+			SignExt(ref a) => match *a {
+				SignExtInstruction::I32Extend8S => op!(writer, I32_EXTEND8_S),
+				SignExtInstruction::I32Extend16S => op!(writer, I32_EXTEND16_S),
+				SignExtInstruction::I64Extend8S => op!(writer, I64_EXTEND8_S),
+				SignExtInstruction::I64Extend16S => op!(writer, I64_EXTEND16_S),
+				SignExtInstruction::I64Extend32S => op!(writer, I64_EXTEND32_S),
+			}
 
 			#[cfg(feature="atomics")]
 			Atomics(a) => return a.serialize(writer),
@@ -2529,11 +2548,14 @@ impl fmt::Display for Instruction {
 			F32ReinterpretI32 => write!(f, "f32.reinterpret/i32"),
 			F64ReinterpretI64 => write!(f, "f64.reinterpret/i64"),
 
-			I32Extend8S => write!(f, "i32.extend8_s"),
-			I32Extend16S => write!(f, "i32.extend16_s"),
-			I64Extend8S => write!(f, "i64.extend8_s"),
-			I64Extend16S => write!(f, "i64.extend16_s"),
-			I64Extend32S => write!(f, "i64.extend32_s"),
+			#[cfg(feature="sign_ext")]
+			SignExt(ref i) => match i {
+				SignExtInstruction::I32Extend8S => write!(f, "i32.extend8_s"),
+				SignExtInstruction::I32Extend16S => write!(f, "i32.extend16_s"),
+				SignExtInstruction::I64Extend8S => write!(f, "i64.extend8_s"),
+				SignExtInstruction::I64Extend16S => write!(f, "i64.extend16_s"),
+				SignExtInstruction::I64Extend32S => write!(f, "i64.extend32_s"),
+			}
 
 			#[cfg(feature="atomics")]
 			Atomics(ref i) => i.fmt(f),

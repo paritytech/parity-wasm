@@ -568,6 +568,7 @@ pub enum BulkInstruction {
 	TableCopy,
 }
 
+#[cfg(any(feature="simd", feature="atomics"))]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub struct MemArg {
@@ -1657,6 +1658,7 @@ fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	}))
 }
 
+#[cfg(any(feature="simd", feature="atomics"))]
 impl Deserialize for MemArg {
 	type Error = Error;
 
@@ -2313,6 +2315,7 @@ impl Serialize for BulkInstruction {
 	}
 }
 
+#[cfg(any(feature="simd", feature="atomics"))]
 impl Serialize for MemArg {
 	type Error = Error;
 

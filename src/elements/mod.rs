@@ -53,6 +53,18 @@ pub use self::ops::{Instruction, Instructions, InitExpr, opcodes, BrTableData};
 #[cfg(feature="atomics")]
 pub use self::ops::AtomicsInstruction;
 
+#[cfg(feature="simd")]
+pub use self::ops::SimdInstruction;
+
+#[cfg(feature="sign_ext")]
+pub use self::ops::SignExtInstruction;
+
+#[cfg(feature="bulk")]
+pub use self::ops::BulkInstruction;
+
+#[cfg(any(feature="simd", feature="atomics"))]
+pub use self::ops::MemArg;
+
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
 pub use self::index_map::IndexMap;

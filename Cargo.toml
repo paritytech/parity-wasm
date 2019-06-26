@@ -27,3 +27,7 @@ std = []
 # Atomics aka threading.
 # https://github.com/webassembly/threads/blob/master/proposals/threads/Overview.md
 atomics = []
+
+# SIMD
+# https://github.com/WebAssembly/simd/blob/master/proposals/simd/SIMD.md
+simd = []

@@ -195,10 +195,7 @@ pub struct MemoryType(ResizableLimits);
 
 impl MemoryType {
 	/// New memory definition
-	pub fn new(
-		min: u32,
-		max: Option<u32>,
-	) -> Self {
+	pub fn new(min: u32, max: Option<u32>) -> Self {
 		let r = ResizableLimits::new(min, max);
 		MemoryType(r)
 	}

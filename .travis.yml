@@ -16,6 +16,8 @@ script:
 - export CXX=/usr/bin/g++-8
 - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo build --no-default-features;
   fi
+# Check with all features
+- cargo check --features simd,atomics,sign_ext,bulk
 - cargo build --release --verbose
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml

@@ -22,6 +22,7 @@ std = []
 
 #
 # Features for enabling non-MVP proposals.
+# These features should be tested as part of Travis CI build.
 #
 
 # Atomics aka threading.

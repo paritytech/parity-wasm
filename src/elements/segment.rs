@@ -2,8 +2,11 @@ use crate::rust::vec::Vec;
 use crate::io;
 use super::{Deserialize, Serialize, Error, VarUint32, CountedList, InitExpr, CountedListWriter};
 
+#[cfg(feature="bulk")]
 const FLAG_MEMZERO: u32 = 0;
+#[cfg(feature="bulk")]
 const FLAG_PASSIVE: u32 = 1;
+#[cfg(feature="bulk")]
 const FLAG_MEM_NONZERO: u32 = 2;
 
 /// Entry in the element section.
@@ -12,13 +15,22 @@ pub struct ElementSegment {
 	index: u32,
 	offset: Option<InitExpr>,
 	members: Vec<u32>,
+
+	#[cfg(feature="bulk")]
 	passive: bool,
 }
 
 impl ElementSegment {
 	/// New element segment.
-	pub fn new(index: u32, offset: Option<InitExpr>, members: Vec<u32>, passive: bool) -> Self {
-		ElementSegment { index: index, offset: offset, members: members, passive: passive }
+	pub fn new(index: u32, offset: Option<InitExpr>, members: Vec<u32>) -> Self {
+		ElementSegment {
+			index: index,
+			offset: offset,
+			members: members,
+
+			#[cfg(feature="bulk")]
+			passive: false,
+		}
 	}
 
 	/// Sequence of function indices.
@@ -39,18 +51,46 @@ impl ElementSegment {
 	///
 	/// Note that this return `None` if the segment is `passive`.
 	pub fn offset_mut(&mut self) -> &mut Option<InitExpr> { &mut self.offset }
+}
 
-	/// Whether or not this table element is "passive"
+#[cfg(feature="bulk")]
+impl ElementSegment {
+	/// Whether or not this table segment is "passive"
 	pub fn passive(&self) -> bool { self.passive }
 
-	/// Whether or not this table element is "passive"
+	/// Whether or not this table segment is "passive"
 	pub fn passive_mut(&mut self) -> &mut bool { &mut self.passive }
+
+	/// Set whether or not this table segment is "passive"
+	pub fn set_passive(&mut self, passive: bool) {
+		self.passive = passive;
+	}
 }
 
 impl Deserialize for ElementSegment {
-	 type Error = Error;
+	type Error = Error;
 
+	#[cfg(not(feature="bulk"))]
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+		let index: u32 = VarUint32::deserialize(reader)?.into();
+		let offset = InitExpr::deserialize(reader)?;
+		let members: Vec<u32> = CountedList::<VarUint32>::deserialize(reader)?
+			.into_inner()
+			.into_iter()
+			.map(Into::into)
+			.collect();
+
+		Ok(ElementSegment {
+			index,
+			offset: Some(offset),
+			members,
+		})
+	}
+
+	#[cfg(feature="bulk")]
+	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+		// This piece of data was treated as `index` [of the table], but was repurposed
+		// for flags in bulk-memory operations proposal.
 		let flags: u32 = VarUint32::deserialize(reader)?.into();
 		let index = if flags == FLAG_MEMZERO || flags == FLAG_PASSIVE {
 			0u32
@@ -64,6 +104,7 @@ impl Deserialize for ElementSegment {
 		} else {
 			Some(InitExpr::deserialize(reader)?)
 		};
+
 		let funcs: Vec<u32> = CountedList::<VarUint32>::deserialize(reader)?
 			.into_inner()
 			.into_iter()
@@ -83,14 +124,20 @@ impl Serialize for ElementSegment {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		if self.passive {
-			VarUint32::from(FLAG_PASSIVE).serialize(writer)?;
-		} else if self.index != 0 {
-			VarUint32::from(FLAG_MEM_NONZERO).serialize(writer)?;
-			VarUint32::from(self.index).serialize(writer)?;
-		} else {
-			VarUint32::from(FLAG_MEMZERO).serialize(writer)?;
+		#[cfg(feature="bulk")]
+		{
+			if self.passive {
+				VarUint32::from(FLAG_PASSIVE).serialize(writer)?;
+			} else if self.index != 0 {
+				VarUint32::from(FLAG_MEM_NONZERO).serialize(writer)?;
+				VarUint32::from(self.index).serialize(writer)?;
+			} else {
+				VarUint32::from(FLAG_MEMZERO).serialize(writer)?;
+			}
 		}
+		#[cfg(not(feature="bulk"))]
+		VarUint32::from(self.index).serialize(writer)?;
+
 		if let Some(offset) = self.offset {
 			offset.serialize(writer)?;
 		}
@@ -110,17 +157,21 @@ pub struct DataSegment {
 	index: u32,
 	offset: Option<InitExpr>,
 	value: Vec<u8>,
+
+	#[cfg(feature="bulk")]
 	passive: bool,
 }
 
 impl DataSegment {
 	/// New data segments.
-	pub fn new(index: u32, offset: Option<InitExpr>, value: Vec<u8>, passive: bool) -> Self {
+	pub fn new(index: u32, offset: Option<InitExpr>, value: Vec<u8>) -> Self {
 		DataSegment {
 			index: index,
 			offset: offset,
 			value: value,
-			passive: passive,
+
+			#[cfg(feature="bulk")]
+			passive: false,
 		}
 	}
 
@@ -142,17 +193,40 @@ impl DataSegment {
 
 	/// Initial value of the data segment (mutable).
 	pub fn value_mut(&mut self) -> &mut Vec<u8> { &mut self.value }
+}
 
+#[cfg(feature="bulk")]
+impl DataSegment {
 	/// Whether or not this data segment is "passive".
 	pub fn passive(&self) -> bool { self.passive }
 
 	/// Whether or not this data segment is "passive" (mutable).
 	pub fn passive_mut(&mut self) -> &mut bool { &mut self.passive }
+
+	/// Set whether or not this table segment is "passive"
+	pub fn set_passive(&mut self, passive: bool) {
+		self.passive = passive;
+	}
 }
 
 impl Deserialize for DataSegment {
-	 type Error = Error;
+	type Error = Error;
 
+	#[cfg(not(feature="bulk"))]
+	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+		let index = VarUint32::deserialize(reader)?;
+		let offset = InitExpr::deserialize(reader)?;
+		let value_len = u32::from(VarUint32::deserialize(reader)?) as usize;
+		let value_buf = buffered_read!(65536, value_len, reader);
+
+		Ok(DataSegment {
+			index: index.into(),
+			offset: Some(offset),
+			value: value_buf,
+		})
+	}
+
+	#[cfg(feature="bulk")]
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let flags: u32 = VarUint32::deserialize(reader)?.into();
 		let index = if flags == FLAG_MEMZERO || flags == FLAG_PASSIVE {
@@ -183,14 +257,20 @@ impl Serialize for DataSegment {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		if self.passive {
-			VarUint32::from(FLAG_PASSIVE).serialize(writer)?;
-		} else if self.index != 0 {
-			VarUint32::from(FLAG_MEM_NONZERO).serialize(writer)?;
-			VarUint32::from(self.index).serialize(writer)?;
-		} else {
-			VarUint32::from(FLAG_MEMZERO).serialize(writer)?;
+		#[cfg(feature="bulk")]
+		{
+			if self.passive {
+				VarUint32::from(FLAG_PASSIVE).serialize(writer)?;
+			} else if self.index != 0 {
+				VarUint32::from(FLAG_MEM_NONZERO).serialize(writer)?;
+				VarUint32::from(self.index).serialize(writer)?;
+			} else {
+				VarUint32::from(FLAG_MEMZERO).serialize(writer)?;
+			}
 		}
+		#[cfg(not(feature="bulk"))]
+		VarUint32::from(self.index).serialize(writer)?;
+
 		if let Some(offset) = self.offset {
 			offset.serialize(writer)?;
 		}

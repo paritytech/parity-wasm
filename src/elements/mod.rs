@@ -48,7 +48,23 @@ pub use self::primitives::{
 	Uint64, VarUint64, CountedList, CountedWriter, CountedListWriter,
 };
 pub use self::types::{Type, ValueType, BlockType, FunctionType, TableElementType};
-pub use self::ops::{Instruction, Instructions, InitExpr, opcodes, MemArg, BrTableData};
+pub use self::ops::{Instruction, Instructions, InitExpr, opcodes, BrTableData};
+
+#[cfg(feature="atomics")]
+pub use self::ops::AtomicsInstruction;
+
+#[cfg(feature="simd")]
+pub use self::ops::SimdInstruction;
+
+#[cfg(feature="sign_ext")]
+pub use self::ops::SignExtInstruction;
+
+#[cfg(feature="bulk")]
+pub use self::ops::BulkInstruction;
+
+#[cfg(any(feature="simd", feature="atomics"))]
+pub use self::ops::MemArg;
+
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
 pub use self::index_map::IndexMap;
@@ -109,6 +125,7 @@ pub enum Error {
 	UnknownInternalKind(u8),
 	/// Unknown opcode encountered.
 	UnknownOpcode(u8),
+	#[cfg(feature="simd")]
 	/// Unknown SIMD opcode encountered.
 	UnknownSimdOpcode(u32),
 	/// Invalid VarUint1 value.
@@ -168,6 +185,7 @@ impl fmt::Display for Error {
 			Error::UnknownExternalKind(kind) => write!(f, "Unknown external kind {}", kind),
 			Error::UnknownInternalKind(kind) => write!(f, "Unknown internal kind {}", kind),
 			Error::UnknownOpcode(opcode) => write!(f, "Unknown opcode {}", opcode),
+			#[cfg(feature="simd")]
 			Error::UnknownSimdOpcode(opcode) => write!(f, "Unknown SIMD opcode {}", opcode),
 			Error::InvalidVarUint1(val) => write!(f, "Not an unsigned 1-bit integer: {}", val),
 			Error::InvalidVarInt7(val) => write!(f, "Not a signed 7-bit integer: {}", val),
@@ -208,6 +226,7 @@ impl ::std::error::Error for Error {
 			Error::UnknownExternalKind(_) => "Unknown external kind",
 			Error::UnknownInternalKind(_) => "Unknown internal kind",
 			Error::UnknownOpcode(_) => "Unknown opcode",
+			#[cfg(feature="simd")]
 			Error::UnknownSimdOpcode(_) => "Unknown SIMD opcode",
 			Error::InvalidVarUint1(_) => "Not an unsigned 1-bit integer",
 			Error::InvalidVarInt32 => "Not a signed 32-bit integer",

@@ -784,260 +784,271 @@ pub mod opcodes {
 	pub const F32REINTERPRETI32: u8 = 0xbe;
 	pub const F64REINTERPRETI64: u8 = 0xbf;
 
-	pub const I32_EXTEND8_S: u8 = 0xc0;
-	pub const I32_EXTEND16_S: u8 = 0xc1;
-	pub const I64_EXTEND8_S: u8 = 0xc2;
-	pub const I64_EXTEND16_S: u8 = 0xc3;
-	pub const I64_EXTEND32_S: u8 = 0xc4;
+	#[cfg(feature="sign_ext")]
+	pub mod sign_ext {
+		pub const I32_EXTEND8_S: u8 = 0xc0;
+		pub const I32_EXTEND16_S: u8 = 0xc1;
+		pub const I64_EXTEND8_S: u8 = 0xc2;
+		pub const I64_EXTEND16_S: u8 = 0xc3;
+		pub const I64_EXTEND32_S: u8 = 0xc4;
+	}
 
 	#[cfg(feature="atomics")]
-	pub const ATOMIC_PREFIX: u8 = 0xfe;
-	pub const ATOMIC_WAKE: u8 = 0x00;
-	pub const I32_ATOMIC_WAIT: u8 = 0x01;
-	pub const I64_ATOMIC_WAIT: u8 = 0x02;
+	pub mod atomics {
+		pub const ATOMIC_PREFIX: u8 = 0xfe;
+		pub const ATOMIC_WAKE: u8 = 0x00;
+		pub const I32_ATOMIC_WAIT: u8 = 0x01;
+		pub const I64_ATOMIC_WAIT: u8 = 0x02;
 
-	pub const I32_ATOMIC_LOAD: u8 = 0x10;
-	pub const I64_ATOMIC_LOAD: u8 = 0x11;
-	pub const I32_ATOMIC_LOAD8U: u8 = 0x12;
-	pub const I32_ATOMIC_LOAD16U: u8 = 0x13;
-	pub const I64_ATOMIC_LOAD8U: u8 = 0x14;
-	pub const I64_ATOMIC_LOAD16U: u8 = 0x15;
-	pub const I64_ATOMIC_LOAD32U: u8 = 0x16;
-	pub const I32_ATOMIC_STORE: u8 = 0x17;
-	pub const I64_ATOMIC_STORE: u8 = 0x18;
-	pub const I32_ATOMIC_STORE8U: u8 = 0x19;
-	pub const I32_ATOMIC_STORE16U: u8 = 0x1a;
-	pub const I64_ATOMIC_STORE8U: u8 = 0x1b;
-	pub const I64_ATOMIC_STORE16U: u8 = 0x1c;
-	pub const I64_ATOMIC_STORE32U: u8 = 0x1d;
+		pub const I32_ATOMIC_LOAD: u8 = 0x10;
+		pub const I64_ATOMIC_LOAD: u8 = 0x11;
+		pub const I32_ATOMIC_LOAD8U: u8 = 0x12;
+		pub const I32_ATOMIC_LOAD16U: u8 = 0x13;
+		pub const I64_ATOMIC_LOAD8U: u8 = 0x14;
+		pub const I64_ATOMIC_LOAD16U: u8 = 0x15;
+		pub const I64_ATOMIC_LOAD32U: u8 = 0x16;
+		pub const I32_ATOMIC_STORE: u8 = 0x17;
+		pub const I64_ATOMIC_STORE: u8 = 0x18;
+		pub const I32_ATOMIC_STORE8U: u8 = 0x19;
+		pub const I32_ATOMIC_STORE16U: u8 = 0x1a;
+		pub const I64_ATOMIC_STORE8U: u8 = 0x1b;
+		pub const I64_ATOMIC_STORE16U: u8 = 0x1c;
+		pub const I64_ATOMIC_STORE32U: u8 = 0x1d;
 
-	pub const I32_ATOMIC_RMW_ADD: u8 = 0x1e;
-	pub const I64_ATOMIC_RMW_ADD: u8 = 0x1f;
-	pub const I32_ATOMIC_RMW_ADD8U: u8 = 0x20;
-	pub const I32_ATOMIC_RMW_ADD16U: u8 = 0x21;
-	pub const I64_ATOMIC_RMW_ADD8U: u8 = 0x22;
-	pub const I64_ATOMIC_RMW_ADD16U: u8 = 0x23;
-	pub const I64_ATOMIC_RMW_ADD32U: u8 = 0x24;
+		pub const I32_ATOMIC_RMW_ADD: u8 = 0x1e;
+		pub const I64_ATOMIC_RMW_ADD: u8 = 0x1f;
+		pub const I32_ATOMIC_RMW_ADD8U: u8 = 0x20;
+		pub const I32_ATOMIC_RMW_ADD16U: u8 = 0x21;
+		pub const I64_ATOMIC_RMW_ADD8U: u8 = 0x22;
+		pub const I64_ATOMIC_RMW_ADD16U: u8 = 0x23;
+		pub const I64_ATOMIC_RMW_ADD32U: u8 = 0x24;
 
-	pub const I32_ATOMIC_RMW_SUB: u8 = 0x25;
-	pub const I64_ATOMIC_RMW_SUB: u8 = 0x26;
-	pub const I32_ATOMIC_RMW_SUB8U: u8 = 0x27;
-	pub const I32_ATOMIC_RMW_SUB16U: u8 = 0x28;
-	pub const I64_ATOMIC_RMW_SUB8U: u8 = 0x29;
-	pub const I64_ATOMIC_RMW_SUB16U: u8 = 0x2a;
-	pub const I64_ATOMIC_RMW_SUB32U: u8 = 0x2b;
+		pub const I32_ATOMIC_RMW_SUB: u8 = 0x25;
+		pub const I64_ATOMIC_RMW_SUB: u8 = 0x26;
+		pub const I32_ATOMIC_RMW_SUB8U: u8 = 0x27;
+		pub const I32_ATOMIC_RMW_SUB16U: u8 = 0x28;
+		pub const I64_ATOMIC_RMW_SUB8U: u8 = 0x29;
+		pub const I64_ATOMIC_RMW_SUB16U: u8 = 0x2a;
+		pub const I64_ATOMIC_RMW_SUB32U: u8 = 0x2b;
 
-	pub const I32_ATOMIC_RMW_AND: u8 = 0x2c;
-	pub const I64_ATOMIC_RMW_AND: u8 = 0x2d;
-	pub const I32_ATOMIC_RMW_AND8U: u8 = 0x2e;
-	pub const I32_ATOMIC_RMW_AND16U: u8 = 0x2f;
-	pub const I64_ATOMIC_RMW_AND8U: u8 = 0x30;
-	pub const I64_ATOMIC_RMW_AND16U: u8 = 0x31;
-	pub const I64_ATOMIC_RMW_AND32U: u8 = 0x32;
+		pub const I32_ATOMIC_RMW_AND: u8 = 0x2c;
+		pub const I64_ATOMIC_RMW_AND: u8 = 0x2d;
+		pub const I32_ATOMIC_RMW_AND8U: u8 = 0x2e;
+		pub const I32_ATOMIC_RMW_AND16U: u8 = 0x2f;
+		pub const I64_ATOMIC_RMW_AND8U: u8 = 0x30;
+		pub const I64_ATOMIC_RMW_AND16U: u8 = 0x31;
+		pub const I64_ATOMIC_RMW_AND32U: u8 = 0x32;
 
-	pub const I32_ATOMIC_RMW_OR: u8 = 0x33;
-	pub const I64_ATOMIC_RMW_OR: u8 = 0x34;
-	pub const I32_ATOMIC_RMW_OR8U: u8 = 0x35;
-	pub const I32_ATOMIC_RMW_OR16U: u8 = 0x36;
-	pub const I64_ATOMIC_RMW_OR8U: u8 = 0x37;
-	pub const I64_ATOMIC_RMW_OR16U: u8 = 0x38;
-	pub const I64_ATOMIC_RMW_OR32U: u8 = 0x39;
+		pub const I32_ATOMIC_RMW_OR: u8 = 0x33;
+		pub const I64_ATOMIC_RMW_OR: u8 = 0x34;
+		pub const I32_ATOMIC_RMW_OR8U: u8 = 0x35;
+		pub const I32_ATOMIC_RMW_OR16U: u8 = 0x36;
+		pub const I64_ATOMIC_RMW_OR8U: u8 = 0x37;
+		pub const I64_ATOMIC_RMW_OR16U: u8 = 0x38;
+		pub const I64_ATOMIC_RMW_OR32U: u8 = 0x39;
 
-	pub const I32_ATOMIC_RMW_XOR: u8 = 0x3a;
-	pub const I64_ATOMIC_RMW_XOR: u8 = 0x3b;
-	pub const I32_ATOMIC_RMW_XOR8U: u8 = 0x3c;
-	pub const I32_ATOMIC_RMW_XOR16U: u8 = 0x3d;
-	pub const I64_ATOMIC_RMW_XOR8U: u8 = 0x3e;
-	pub const I64_ATOMIC_RMW_XOR16U: u8 = 0x3f;
-	pub const I64_ATOMIC_RMW_XOR32U: u8 = 0x40;
+		pub const I32_ATOMIC_RMW_XOR: u8 = 0x3a;
+		pub const I64_ATOMIC_RMW_XOR: u8 = 0x3b;
+		pub const I32_ATOMIC_RMW_XOR8U: u8 = 0x3c;
+		pub const I32_ATOMIC_RMW_XOR16U: u8 = 0x3d;
+		pub const I64_ATOMIC_RMW_XOR8U: u8 = 0x3e;
+		pub const I64_ATOMIC_RMW_XOR16U: u8 = 0x3f;
+		pub const I64_ATOMIC_RMW_XOR32U: u8 = 0x40;
 
-	pub const I32_ATOMIC_RMW_XCHG: u8 = 0x41;
-	pub const I64_ATOMIC_RMW_XCHG: u8 = 0x42;
-	pub const I32_ATOMIC_RMW_XCHG8U: u8 = 0x43;
-	pub const I32_ATOMIC_RMW_XCHG16U: u8 = 0x44;
-	pub const I64_ATOMIC_RMW_XCHG8U: u8 = 0x45;
-	pub const I64_ATOMIC_RMW_XCHG16U: u8 = 0x46;
-	pub const I64_ATOMIC_RMW_XCHG32U: u8 = 0x47;
+		pub const I32_ATOMIC_RMW_XCHG: u8 = 0x41;
+		pub const I64_ATOMIC_RMW_XCHG: u8 = 0x42;
+		pub const I32_ATOMIC_RMW_XCHG8U: u8 = 0x43;
+		pub const I32_ATOMIC_RMW_XCHG16U: u8 = 0x44;
+		pub const I64_ATOMIC_RMW_XCHG8U: u8 = 0x45;
+		pub const I64_ATOMIC_RMW_XCHG16U: u8 = 0x46;
+		pub const I64_ATOMIC_RMW_XCHG32U: u8 = 0x47;
 
-	pub const I32_ATOMIC_RMW_CMPXCHG: u8 = 0x48;
-	pub const I64_ATOMIC_RMW_CMPXCHG: u8 = 0x49;
-	pub const I32_ATOMIC_RMW_CMPXCHG8U: u8 = 0x4a;
-	pub const I32_ATOMIC_RMW_CMPXCHG16U: u8 = 0x4b;
-	pub const I64_ATOMIC_RMW_CMPXCHG8U: u8 = 0x4c;
-	pub const I64_ATOMIC_RMW_CMPXCHG16U: u8 = 0x4d;
-	pub const I64_ATOMIC_RMW_CMPXCHG32U: u8 = 0x4e;
+		pub const I32_ATOMIC_RMW_CMPXCHG: u8 = 0x48;
+		pub const I64_ATOMIC_RMW_CMPXCHG: u8 = 0x49;
+		pub const I32_ATOMIC_RMW_CMPXCHG8U: u8 = 0x4a;
+		pub const I32_ATOMIC_RMW_CMPXCHG16U: u8 = 0x4b;
+		pub const I64_ATOMIC_RMW_CMPXCHG8U: u8 = 0x4c;
+		pub const I64_ATOMIC_RMW_CMPXCHG16U: u8 = 0x4d;
+		pub const I64_ATOMIC_RMW_CMPXCHG32U: u8 = 0x4e;
+	}
 
-	// https://github.com/WebAssembly/simd/blob/master/proposals/simd/BinarySIMD.md
-	pub const SIMD_PREFIX: u8 = 0xfd;
+	#[cfg(feature="simd")]
+	pub mod simd {
+		// https://github.com/WebAssembly/simd/blob/master/proposals/simd/BinarySIMD.md
+		pub const SIMD_PREFIX: u8 = 0xfd;
 
-	pub const V128_LOAD: u32 = 0x00;
-	pub const V128_STORE: u32 = 0x01;
-	pub const V128_CONST: u32 = 0x02;
-	pub const V8X16_SHUFFLE: u32 = 0x03;
+		pub const V128_LOAD: u32 = 0x00;
+		pub const V128_STORE: u32 = 0x01;
+		pub const V128_CONST: u32 = 0x02;
+		pub const V8X16_SHUFFLE: u32 = 0x03;
 
-	pub const I8X16_SPLAT: u32 = 0x04;
-	pub const I8X16_EXTRACT_LANE_S: u32 = 0x05;
-	pub const I8X16_EXTRACT_LANE_U: u32 = 0x06;
-	pub const I8X16_REPLACE_LANE: u32 = 0x07;
-	pub const I16X8_SPLAT: u32 = 0x08;
-	pub const I16X8_EXTRACT_LANE_S: u32 = 0x09;
-	pub const I16X8_EXTRACT_LANE_U: u32 = 0xa;
-	pub const I16X8_REPLACE_LANE: u32 = 0x0b;
-	pub const I32X4_SPLAT: u32 = 0x0c;
-	pub const I32X4_EXTRACT_LANE: u32 = 0x0d;
-	pub const I32X4_REPLACE_LANE: u32 = 0x0e;
-	pub const I64X2_SPLAT: u32 = 0x0f;
-	pub const I64X2_EXTRACT_LANE: u32 = 0x10;
-	pub const I64X2_REPLACE_LANE: u32 = 0x11;
-	pub const F32X4_SPLAT: u32 = 0x12;
-	pub const F32X4_EXTRACT_LANE: u32 = 0x13;
-	pub const F32X4_REPLACE_LANE: u32 = 0x14;
-	pub const F64X2_SPLAT: u32 = 0x15;
-	pub const F64X2_EXTRACT_LANE: u32 = 0x16;
-	pub const F64X2_REPLACE_LANE: u32 = 0x17;
+		pub const I8X16_SPLAT: u32 = 0x04;
+		pub const I8X16_EXTRACT_LANE_S: u32 = 0x05;
+		pub const I8X16_EXTRACT_LANE_U: u32 = 0x06;
+		pub const I8X16_REPLACE_LANE: u32 = 0x07;
+		pub const I16X8_SPLAT: u32 = 0x08;
+		pub const I16X8_EXTRACT_LANE_S: u32 = 0x09;
+		pub const I16X8_EXTRACT_LANE_U: u32 = 0xa;
+		pub const I16X8_REPLACE_LANE: u32 = 0x0b;
+		pub const I32X4_SPLAT: u32 = 0x0c;
+		pub const I32X4_EXTRACT_LANE: u32 = 0x0d;
+		pub const I32X4_REPLACE_LANE: u32 = 0x0e;
+		pub const I64X2_SPLAT: u32 = 0x0f;
+		pub const I64X2_EXTRACT_LANE: u32 = 0x10;
+		pub const I64X2_REPLACE_LANE: u32 = 0x11;
+		pub const F32X4_SPLAT: u32 = 0x12;
+		pub const F32X4_EXTRACT_LANE: u32 = 0x13;
+		pub const F32X4_REPLACE_LANE: u32 = 0x14;
+		pub const F64X2_SPLAT: u32 = 0x15;
+		pub const F64X2_EXTRACT_LANE: u32 = 0x16;
+		pub const F64X2_REPLACE_LANE: u32 = 0x17;
 
-	pub const I8X16_EQ: u32 = 0x18;
-	pub const I8X16_NE: u32 = 0x19;
-	pub const I8X16_LT_S: u32 = 0x1a;
-	pub const I8X16_LT_U: u32 = 0x1b;
-	pub const I8X16_GT_S: u32 = 0x1c;
-	pub const I8X16_GT_U: u32 = 0x1d;
-	pub const I8X16_LE_S: u32 = 0x1e;
-	pub const I8X16_LE_U: u32 = 0x1f;
-	pub const I8X16_GE_S: u32 = 0x20;
-	pub const I8X16_GE_U: u32 = 0x21;
+		pub const I8X16_EQ: u32 = 0x18;
+		pub const I8X16_NE: u32 = 0x19;
+		pub const I8X16_LT_S: u32 = 0x1a;
+		pub const I8X16_LT_U: u32 = 0x1b;
+		pub const I8X16_GT_S: u32 = 0x1c;
+		pub const I8X16_GT_U: u32 = 0x1d;
+		pub const I8X16_LE_S: u32 = 0x1e;
+		pub const I8X16_LE_U: u32 = 0x1f;
+		pub const I8X16_GE_S: u32 = 0x20;
+		pub const I8X16_GE_U: u32 = 0x21;
 
-	pub const I16X8_EQ: u32 = 0x22;
-	pub const I16X8_NE: u32 = 0x23;
-	pub const I16X8_LT_S: u32 = 0x24;
-	pub const I16X8_LT_U: u32 = 0x25;
-	pub const I16X8_GT_S: u32 = 0x26;
-	pub const I16X8_GT_U: u32 = 0x27;
-	pub const I16X8_LE_S: u32 = 0x28;
-	pub const I16X8_LE_U: u32 = 0x29;
-	pub const I16X8_GE_S: u32 = 0x2a;
-	pub const I16X8_GE_U: u32 = 0x2b;
+		pub const I16X8_EQ: u32 = 0x22;
+		pub const I16X8_NE: u32 = 0x23;
+		pub const I16X8_LT_S: u32 = 0x24;
+		pub const I16X8_LT_U: u32 = 0x25;
+		pub const I16X8_GT_S: u32 = 0x26;
+		pub const I16X8_GT_U: u32 = 0x27;
+		pub const I16X8_LE_S: u32 = 0x28;
+		pub const I16X8_LE_U: u32 = 0x29;
+		pub const I16X8_GE_S: u32 = 0x2a;
+		pub const I16X8_GE_U: u32 = 0x2b;
 
-	pub const I32X4_EQ: u32 = 0x2c;
-	pub const I32X4_NE: u32 = 0x2d;
-	pub const I32X4_LT_S: u32 = 0x2e;
-	pub const I32X4_LT_U: u32 = 0x2f;
-	pub const I32X4_GT_S: u32 = 0x30;
-	pub const I32X4_GT_U: u32 = 0x31;
-	pub const I32X4_LE_S: u32 = 0x32;
-	pub const I32X4_LE_U: u32 = 0x33;
-	pub const I32X4_GE_S: u32 = 0x34;
-	pub const I32X4_GE_U: u32 = 0x35;
+		pub const I32X4_EQ: u32 = 0x2c;
+		pub const I32X4_NE: u32 = 0x2d;
+		pub const I32X4_LT_S: u32 = 0x2e;
+		pub const I32X4_LT_U: u32 = 0x2f;
+		pub const I32X4_GT_S: u32 = 0x30;
+		pub const I32X4_GT_U: u32 = 0x31;
+		pub const I32X4_LE_S: u32 = 0x32;
+		pub const I32X4_LE_U: u32 = 0x33;
+		pub const I32X4_GE_S: u32 = 0x34;
+		pub const I32X4_GE_U: u32 = 0x35;
 
-	pub const F32X4_EQ: u32 = 0x40;
-	pub const F32X4_NE: u32 = 0x41;
-	pub const F32X4_LT: u32 = 0x42;
-	pub const F32X4_GT: u32 = 0x43;
-	pub const F32X4_LE: u32 = 0x44;
-	pub const F32X4_GE: u32 = 0x45;
+		pub const F32X4_EQ: u32 = 0x40;
+		pub const F32X4_NE: u32 = 0x41;
+		pub const F32X4_LT: u32 = 0x42;
+		pub const F32X4_GT: u32 = 0x43;
+		pub const F32X4_LE: u32 = 0x44;
+		pub const F32X4_GE: u32 = 0x45;
 
-	pub const F64X2_EQ: u32 = 0x46;
-	pub const F64X2_NE: u32 = 0x47;
-	pub const F64X2_LT: u32 = 0x48;
-	pub const F64X2_GT: u32 = 0x49;
-	pub const F64X2_LE: u32 = 0x4a;
-	pub const F64X2_GE: u32 = 0x4b;
+		pub const F64X2_EQ: u32 = 0x46;
+		pub const F64X2_NE: u32 = 0x47;
+		pub const F64X2_LT: u32 = 0x48;
+		pub const F64X2_GT: u32 = 0x49;
+		pub const F64X2_LE: u32 = 0x4a;
+		pub const F64X2_GE: u32 = 0x4b;
 
-	pub const V128_NOT: u32 = 0x4c;
-	pub const V128_AND: u32 = 0x4d;
-	pub const V128_OR: u32 = 0x4e;
-	pub const V128_XOR: u32 = 0x4f;
-	pub const V128_BITSELECT: u32 = 0x50;
+		pub const V128_NOT: u32 = 0x4c;
+		pub const V128_AND: u32 = 0x4d;
+		pub const V128_OR: u32 = 0x4e;
+		pub const V128_XOR: u32 = 0x4f;
+		pub const V128_BITSELECT: u32 = 0x50;
 
-	pub const I8X16_NEG: u32 = 0x51;
-	pub const I8X16_ANY_TRUE: u32 = 0x52;
-	pub const I8X16_ALL_TRUE: u32 = 0x53;
-	pub const I8X16_SHL: u32 = 0x54;
-	pub const I8X16_SHR_S: u32 = 0x55;
-	pub const I8X16_SHR_U: u32 = 0x56;
-	pub const I8X16_ADD: u32 = 0x57;
-	pub const I8X16_ADD_SATURATE_S: u32 = 0x58;
-	pub const I8X16_ADD_SATURATE_U: u32 = 0x59;
-	pub const I8X16_SUB: u32 = 0x5a;
-	pub const I8X16_SUB_SATURATE_S: u32 = 0x5b;
-	pub const I8X16_SUB_SATURATE_U: u32 = 0x5c;
-	pub const I8X16_MUL: u32 = 0x5d;
+		pub const I8X16_NEG: u32 = 0x51;
+		pub const I8X16_ANY_TRUE: u32 = 0x52;
+		pub const I8X16_ALL_TRUE: u32 = 0x53;
+		pub const I8X16_SHL: u32 = 0x54;
+		pub const I8X16_SHR_S: u32 = 0x55;
+		pub const I8X16_SHR_U: u32 = 0x56;
+		pub const I8X16_ADD: u32 = 0x57;
+		pub const I8X16_ADD_SATURATE_S: u32 = 0x58;
+		pub const I8X16_ADD_SATURATE_U: u32 = 0x59;
+		pub const I8X16_SUB: u32 = 0x5a;
+		pub const I8X16_SUB_SATURATE_S: u32 = 0x5b;
+		pub const I8X16_SUB_SATURATE_U: u32 = 0x5c;
+		pub const I8X16_MUL: u32 = 0x5d;
 
-	pub const I16X8_NEG: u32 = 0x62;
-	pub const I16X8_ANY_TRUE: u32 = 0x63;
-	pub const I16X8_ALL_TRUE: u32 = 0x64;
-	pub const I16X8_SHL: u32 = 0x65;
-	pub const I16X8_SHR_S: u32 = 0x66;
-	pub const I16X8_SHR_U: u32 = 0x67;
-	pub const I16X8_ADD: u32 = 0x68;
-	pub const I16X8_ADD_SATURATE_S: u32 = 0x69;
-	pub const I16X8_ADD_SATURATE_U: u32 = 0x6a;
-	pub const I16X8_SUB: u32 = 0x6b;
-	pub const I16X8_SUB_SATURATE_S: u32 = 0x6c;
-	pub const I16X8_SUB_SATURATE_U: u32 = 0x6d;
-	pub const I16X8_MUL: u32 = 0x6e;
+		pub const I16X8_NEG: u32 = 0x62;
+		pub const I16X8_ANY_TRUE: u32 = 0x63;
+		pub const I16X8_ALL_TRUE: u32 = 0x64;
+		pub const I16X8_SHL: u32 = 0x65;
+		pub const I16X8_SHR_S: u32 = 0x66;
+		pub const I16X8_SHR_U: u32 = 0x67;
+		pub const I16X8_ADD: u32 = 0x68;
+		pub const I16X8_ADD_SATURATE_S: u32 = 0x69;
+		pub const I16X8_ADD_SATURATE_U: u32 = 0x6a;
+		pub const I16X8_SUB: u32 = 0x6b;
+		pub const I16X8_SUB_SATURATE_S: u32 = 0x6c;
+		pub const I16X8_SUB_SATURATE_U: u32 = 0x6d;
+		pub const I16X8_MUL: u32 = 0x6e;
 
-	pub const I32X4_NEG: u32 = 0x73;
-	pub const I32X4_ANY_TRUE: u32 = 0x74;
-	pub const I32X4_ALL_TRUE: u32 = 0x75;
-	pub const I32X4_SHL: u32 = 0x76;
-	pub const I32X4_SHR_S: u32 = 0x77;
-	pub const I32X4_SHR_U: u32 = 0x78;
-	pub const I32X4_ADD: u32 = 0x79;
-	pub const I32X4_ADD_SATURATE_S: u32 = 0x7a;
-	pub const I32X4_ADD_SATURATE_U: u32 = 0x7b;
-	pub const I32X4_SUB: u32 = 0x7c;
-	pub const I32X4_SUB_SATURATE_S: u32 = 0x7d;
-	pub const I32X4_SUB_SATURATE_U: u32 = 0x7e;
-	pub const I32X4_MUL: u32 = 0x7f;
+		pub const I32X4_NEG: u32 = 0x73;
+		pub const I32X4_ANY_TRUE: u32 = 0x74;
+		pub const I32X4_ALL_TRUE: u32 = 0x75;
+		pub const I32X4_SHL: u32 = 0x76;
+		pub const I32X4_SHR_S: u32 = 0x77;
+		pub const I32X4_SHR_U: u32 = 0x78;
+		pub const I32X4_ADD: u32 = 0x79;
+		pub const I32X4_ADD_SATURATE_S: u32 = 0x7a;
+		pub const I32X4_ADD_SATURATE_U: u32 = 0x7b;
+		pub const I32X4_SUB: u32 = 0x7c;
+		pub const I32X4_SUB_SATURATE_S: u32 = 0x7d;
+		pub const I32X4_SUB_SATURATE_U: u32 = 0x7e;
+		pub const I32X4_MUL: u32 = 0x7f;
 
-	pub const I64X2_NEG: u32 = 0x84;
-	pub const I64X2_ANY_TRUE: u32 = 0x85;
-	pub const I64X2_ALL_TRUE: u32 = 0x86;
-	pub const I64X2_SHL: u32 = 0x87;
-	pub const I64X2_SHR_S: u32 = 0x88;
-	pub const I64X2_SHR_U: u32 = 0x89;
-	pub const I64X2_ADD: u32 = 0x8a;
-	pub const I64X2_SUB: u32 = 0x8d;
+		pub const I64X2_NEG: u32 = 0x84;
+		pub const I64X2_ANY_TRUE: u32 = 0x85;
+		pub const I64X2_ALL_TRUE: u32 = 0x86;
+		pub const I64X2_SHL: u32 = 0x87;
+		pub const I64X2_SHR_S: u32 = 0x88;
+		pub const I64X2_SHR_U: u32 = 0x89;
+		pub const I64X2_ADD: u32 = 0x8a;
+		pub const I64X2_SUB: u32 = 0x8d;
 
-	pub const F32X4_ABS: u32 = 0x95;
-	pub const F32X4_NEG: u32 = 0x96;
-	pub const F32X4_SQRT: u32 = 0x97;
-	pub const F32X4_ADD: u32 = 0x9a;
-	pub const F32X4_SUB: u32 = 0x9b;
-	pub const F32X4_MUL: u32 = 0x9c;
-	pub const F32X4_DIV: u32 = 0x9d;
-	pub const F32X4_MIN: u32 = 0x9e;
-	pub const F32X4_MAX: u32 = 0x9f;
+		pub const F32X4_ABS: u32 = 0x95;
+		pub const F32X4_NEG: u32 = 0x96;
+		pub const F32X4_SQRT: u32 = 0x97;
+		pub const F32X4_ADD: u32 = 0x9a;
+		pub const F32X4_SUB: u32 = 0x9b;
+		pub const F32X4_MUL: u32 = 0x9c;
+		pub const F32X4_DIV: u32 = 0x9d;
+		pub const F32X4_MIN: u32 = 0x9e;
+		pub const F32X4_MAX: u32 = 0x9f;
 
-	pub const F64X2_ABS: u32 = 0xa0;
-	pub const F64X2_NEG: u32 = 0xa1;
-	pub const F64X2_SQRT: u32 = 0xa2;
-	pub const F64X2_ADD: u32 = 0xa5;
-	pub const F64X2_SUB: u32 = 0xa6;
-	pub const F64X2_MUL: u32 = 0xa7;
-	pub const F64X2_DIV: u32 = 0xa8;
-	pub const F64X2_MIN: u32 = 0xa9;
-	pub const F64X2_MAX: u32 = 0xaa;
+		pub const F64X2_ABS: u32 = 0xa0;
+		pub const F64X2_NEG: u32 = 0xa1;
+		pub const F64X2_SQRT: u32 = 0xa2;
+		pub const F64X2_ADD: u32 = 0xa5;
+		pub const F64X2_SUB: u32 = 0xa6;
+		pub const F64X2_MUL: u32 = 0xa7;
+		pub const F64X2_DIV: u32 = 0xa8;
+		pub const F64X2_MIN: u32 = 0xa9;
+		pub const F64X2_MAX: u32 = 0xaa;
 
-	pub const I32X4_TRUNC_S_F32X4_SAT: u32 = 0xab;
-	pub const I32X4_TRUNC_U_F32X4_SAT: u32 = 0xac;
-	pub const I64X2_TRUNC_S_F64X2_SAT: u32 = 0xad;
-	pub const I64X2_TRUNC_U_F64X2_SAT: u32 = 0xae;
+		pub const I32X4_TRUNC_S_F32X4_SAT: u32 = 0xab;
+		pub const I32X4_TRUNC_U_F32X4_SAT: u32 = 0xac;
+		pub const I64X2_TRUNC_S_F64X2_SAT: u32 = 0xad;
+		pub const I64X2_TRUNC_U_F64X2_SAT: u32 = 0xae;
 
-	pub const F32X4_CONVERT_S_I32X4: u32 = 0xaf;
-	pub const F32X4_CONVERT_U_I32X4: u32 = 0xb0;
-	pub const F64X2_CONVERT_S_I64X2: u32 = 0xb1;
-	pub const F64X2_CONVERT_U_I64X2: u32 = 0xb2;
+		pub const F32X4_CONVERT_S_I32X4: u32 = 0xaf;
+		pub const F32X4_CONVERT_U_I32X4: u32 = 0xb0;
+		pub const F64X2_CONVERT_S_I64X2: u32 = 0xb1;
+		pub const F64X2_CONVERT_U_I64X2: u32 = 0xb2;
+	}
 
-	pub const BULK_PREFIX: u8 = 0xfc;
-	pub const MEMORY_INIT: u8 = 0x08;
-	pub const MEMORY_DROP: u8 = 0x09;
-	pub const MEMORY_COPY: u8 = 0x0a;
-	pub const MEMORY_FILL: u8 = 0x0b;
-	pub const TABLE_INIT: u8 = 0x0c;
-	pub const TABLE_DROP: u8 = 0x0d;
-	pub const TABLE_COPY: u8 = 0x0e;
+	#[cfg(feature="bulk")]
+	pub mod bulk {
+		pub const BULK_PREFIX: u8 = 0xfc;
+		pub const MEMORY_INIT: u8 = 0x08;
+		pub const MEMORY_DROP: u8 = 0x09;
+		pub const MEMORY_COPY: u8 = 0x0a;
+		pub const MEMORY_FILL: u8 = 0x0b;
+		pub const TABLE_INIT: u8 = 0x0c;
+		pub const TABLE_DROP: u8 = 0x0d;
+		pub const TABLE_COPY: u8 = 0x0e;
+	}
 }
 
 impl Deserialize for Instruction {
@@ -1046,6 +1057,9 @@ impl Deserialize for Instruction {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		use self::Instruction::*;
 		use self::opcodes::*;
+
+		#[cfg(feature="sign_ext")]
+		use self::opcodes::sign_ext::*;
 
 		let val: u8 = Uint8::deserialize(reader)?.into();
 
@@ -1348,13 +1362,13 @@ impl Deserialize for Instruction {
 				}
 
 				#[cfg(feature="atomics")]
-				ATOMIC_PREFIX => return deserialize_atomic(reader),
+				atomics::ATOMIC_PREFIX => return deserialize_atomic(reader),
 
 				#[cfg(feature="simd")]
-				SIMD_PREFIX => return deserialize_simd(reader),
+				simd::SIMD_PREFIX => return deserialize_simd(reader),
 
 				#[cfg(feature="bulk")]
-				BULK_PREFIX => return deserialize_bulk(reader),
+				bulk::BULK_PREFIX => return deserialize_bulk(reader),
 
 				_ => { return Err(Error::UnknownOpcode(val)); }
 			}
@@ -1365,7 +1379,7 @@ impl Deserialize for Instruction {
 #[cfg(feature="atomics")]
 fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	use self::AtomicsInstruction::*;
-	use self::opcodes::*;
+	use self::opcodes::atomics::*;
 
 	let val: u8 = Uint8::deserialize(reader)?.into();
 	let mem = MemArg::deserialize(reader)?;
@@ -1444,7 +1458,7 @@ fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error>
 #[cfg(feature="simd")]
 fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	use self::SimdInstruction::*;
-	use self::opcodes::*;
+	use self::opcodes::simd::*;
 
 	let val = VarUint32::deserialize(reader)?.into();
 	Ok(Instruction::Simd(match val {
@@ -1616,7 +1630,7 @@ fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 #[cfg(feature="bulk")]
 fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	use self::BulkInstruction::*;
-	use self::opcodes::*;
+	use self::opcodes::bulk::*;
 
 	let val: u8 = Uint8::deserialize(reader)?.into();
 	Ok(Instruction::Bulk(match val {
@@ -2011,11 +2025,11 @@ impl Serialize for Instruction {
 
 			#[cfg(feature="sign_ext")]
 			SignExt(ref a) => match *a {
-				SignExtInstruction::I32Extend8S => op!(writer, I32_EXTEND8_S),
-				SignExtInstruction::I32Extend16S => op!(writer, I32_EXTEND16_S),
-				SignExtInstruction::I64Extend8S => op!(writer, I64_EXTEND8_S),
-				SignExtInstruction::I64Extend16S => op!(writer, I64_EXTEND16_S),
-				SignExtInstruction::I64Extend32S => op!(writer, I64_EXTEND32_S),
+				SignExtInstruction::I32Extend8S => op!(writer, sign_ext::I32_EXTEND8_S),
+				SignExtInstruction::I32Extend16S => op!(writer, sign_ext::I32_EXTEND16_S),
+				SignExtInstruction::I64Extend8S => op!(writer, sign_ext::I64_EXTEND8_S),
+				SignExtInstruction::I64Extend16S => op!(writer, sign_ext::I64_EXTEND16_S),
+				SignExtInstruction::I64Extend32S => op!(writer, sign_ext::I64_EXTEND32_S),
 			}
 
 			#[cfg(feature="atomics")]
@@ -2038,7 +2052,7 @@ impl Serialize for AtomicsInstruction {
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		use self::AtomicsInstruction::*;
-		use self::opcodes::*;
+		use self::opcodes::atomics::*;
 
 		match self {
 			AtomicWake(m) => atomic!(writer, ATOMIC_WAKE, m),
@@ -2127,160 +2141,160 @@ impl Serialize for SimdInstruction {
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		use self::SimdInstruction::*;
-		use self::opcodes::*;
+		use self::opcodes::simd::*;
 
 		match self {
-			V128Const(ref c) => simd!(writer, opcodes::V128_CONST, writer.write(&c[..])?),
-			V128Load(m) => simd!(writer, opcodes::V128_LOAD, MemArg::serialize(m, writer)?),
-			V128Store(m) => simd!(writer, opcodes::V128_STORE, MemArg::serialize(m, writer)?),
-			I8x16Splat => simd!(writer, opcodes::I8X16_SPLAT, ()),
-			I16x8Splat => simd!(writer, opcodes::I16X8_SPLAT, ()),
-			I32x4Splat => simd!(writer, opcodes::I32X4_SPLAT, ()),
-			I64x2Splat => simd!(writer, opcodes::I64X2_SPLAT, ()),
-			F32x4Splat => simd!(writer, opcodes::F32X4_SPLAT, ()),
-			F64x2Splat => simd!(writer, opcodes::F64X2_SPLAT, ()),
-			I8x16ExtractLaneS(i) => simd!(writer, opcodes::I8X16_EXTRACT_LANE_S, writer.write(&[i])?),
-			I8x16ExtractLaneU(i) => simd!(writer, opcodes::I8X16_EXTRACT_LANE_U, writer.write(&[i])?),
-			I16x8ExtractLaneS(i) => simd!(writer, opcodes::I16X8_EXTRACT_LANE_S, writer.write(&[i])?),
-			I16x8ExtractLaneU(i) => simd!(writer, opcodes::I16X8_EXTRACT_LANE_U, writer.write(&[i])?),
-			I32x4ExtractLane(i) => simd!(writer, opcodes::I32X4_EXTRACT_LANE, writer.write(&[i])?),
-			I64x2ExtractLane(i) => simd!(writer, opcodes::I64X2_EXTRACT_LANE, writer.write(&[i])?),
-			F32x4ExtractLane(i) => simd!(writer, opcodes::F32X4_EXTRACT_LANE, writer.write(&[i])?),
-			F64x2ExtractLane(i) => simd!(writer, opcodes::F64X2_EXTRACT_LANE, writer.write(&[i])?),
-			I8x16ReplaceLane(i) => simd!(writer, opcodes::I8X16_REPLACE_LANE, writer.write(&[i])?),
-			I16x8ReplaceLane(i) => simd!(writer, opcodes::I16X8_REPLACE_LANE, writer.write(&[i])?),
-			I32x4ReplaceLane(i) => simd!(writer, opcodes::I32X4_REPLACE_LANE, writer.write(&[i])?),
-			I64x2ReplaceLane(i) => simd!(writer, opcodes::I64X2_REPLACE_LANE, writer.write(&[i])?),
-			F32x4ReplaceLane(i) => simd!(writer, opcodes::F32X4_REPLACE_LANE, writer.write(&[i])?),
-			F64x2ReplaceLane(i) => simd!(writer, opcodes::F64X2_REPLACE_LANE, writer.write(&[i])?),
-			V8x16Shuffle(ref i) => simd!(writer, opcodes::V8X16_SHUFFLE, writer.write(&i[..])?),
-			I8x16Add => simd!(writer, opcodes::I8X16_ADD, ()),
-			I16x8Add => simd!(writer, opcodes::I16X8_ADD, ()),
-			I32x4Add => simd!(writer, opcodes::I32X4_ADD, ()),
-			I64x2Add => simd!(writer, opcodes::I64X2_ADD, ()),
-			I8x16Sub => simd!(writer, opcodes::I8X16_SUB, ()),
-			I16x8Sub => simd!(writer, opcodes::I16X8_SUB, ()),
-			I32x4Sub => simd!(writer, opcodes::I32X4_SUB, ()),
-			I64x2Sub => simd!(writer, opcodes::I64X2_SUB, ()),
-			I8x16Mul => simd!(writer, opcodes::I8X16_MUL, ()),
-			I16x8Mul => simd!(writer, opcodes::I16X8_MUL, ()),
-			I32x4Mul => simd!(writer, opcodes::I32X4_MUL, ()),
-			// I64x2Mul => simd!(writer, opcodes::I64X2_MUL, ()),
-			I8x16Neg => simd!(writer, opcodes::I8X16_NEG, ()),
-			I16x8Neg => simd!(writer, opcodes::I16X8_NEG, ()),
-			I32x4Neg => simd!(writer, opcodes::I32X4_NEG, ()),
-			I64x2Neg => simd!(writer, opcodes::I64X2_NEG, ()),
-			I8x16AddSaturateS => simd!(writer, opcodes::I8X16_ADD_SATURATE_S, ()),
-			I8x16AddSaturateU => simd!(writer, opcodes::I8X16_ADD_SATURATE_U, ()),
-			I16x8AddSaturateS => simd!(writer, opcodes::I16X8_ADD_SATURATE_S, ()),
-			I16x8AddSaturateU => simd!(writer, opcodes::I16X8_ADD_SATURATE_U, ()),
-			I8x16SubSaturateS => simd!(writer, opcodes::I8X16_SUB_SATURATE_S, ()),
-			I8x16SubSaturateU => simd!(writer, opcodes::I8X16_SUB_SATURATE_U, ()),
-			I16x8SubSaturateS => simd!(writer, opcodes::I16X8_SUB_SATURATE_S, ()),
-			I16x8SubSaturateU => simd!(writer, opcodes::I16X8_SUB_SATURATE_U, ()),
-			I8x16Shl => simd!(writer, opcodes::I8X16_SHL, ()),
-			I16x8Shl => simd!(writer, opcodes::I16X8_SHL, ()),
-			I32x4Shl => simd!(writer, opcodes::I32X4_SHL, ()),
-			I64x2Shl => simd!(writer, opcodes::I64X2_SHL, ()),
-			I8x16ShrS => simd!(writer, opcodes::I8X16_SHR_S, ()),
-			I8x16ShrU => simd!(writer, opcodes::I8X16_SHR_U, ()),
-			I16x8ShrS => simd!(writer, opcodes::I16X8_SHR_S, ()),
-			I16x8ShrU => simd!(writer, opcodes::I16X8_SHR_U, ()),
-			I32x4ShrU => simd!(writer, opcodes::I32X4_SHR_U, ()),
-			I32x4ShrS => simd!(writer, opcodes::I32X4_SHR_S, ()),
-			I64x2ShrU => simd!(writer, opcodes::I64X2_SHR_U, ()),
-			I64x2ShrS => simd!(writer, opcodes::I64X2_SHR_S, ()),
-			V128And => simd!(writer, opcodes::V128_AND, ()),
-			V128Or => simd!(writer, opcodes::V128_OR, ()),
-			V128Xor => simd!(writer, opcodes::V128_XOR, ()),
-			V128Not => simd!(writer, opcodes::V128_NOT, ()),
-			V128Bitselect => simd!(writer, opcodes::V128_BITSELECT, ()),
-			I8x16AnyTrue => simd!(writer, opcodes::I8X16_ANY_TRUE, ()),
-			I16x8AnyTrue => simd!(writer, opcodes::I16X8_ANY_TRUE, ()),
-			I32x4AnyTrue => simd!(writer, opcodes::I32X4_ANY_TRUE, ()),
-			I64x2AnyTrue => simd!(writer, opcodes::I64X2_ANY_TRUE, ()),
-			I8x16AllTrue => simd!(writer, opcodes::I8X16_ALL_TRUE, ()),
-			I16x8AllTrue => simd!(writer, opcodes::I16X8_ALL_TRUE, ()),
-			I32x4AllTrue => simd!(writer, opcodes::I32X4_ALL_TRUE, ()),
-			I64x2AllTrue => simd!(writer, opcodes::I64X2_ALL_TRUE, ()),
-			I8x16Eq => simd!(writer, opcodes::I8X16_EQ, ()),
-			I16x8Eq => simd!(writer, opcodes::I16X8_EQ, ()),
-			I32x4Eq => simd!(writer, opcodes::I32X4_EQ, ()),
-			// I64x2Eq => simd!(writer, opcodes::I64X2_EQ, ()),
-			F32x4Eq => simd!(writer, opcodes::F32X4_EQ, ()),
-			F64x2Eq => simd!(writer, opcodes::F64X2_EQ, ()),
-			I8x16Ne => simd!(writer, opcodes::I8X16_NE, ()),
-			I16x8Ne => simd!(writer, opcodes::I16X8_NE, ()),
-			I32x4Ne => simd!(writer, opcodes::I32X4_NE, ()),
-			// I64x2Ne => simd!(writer, opcodes::I64X2_NE, ()),
-			F32x4Ne => simd!(writer, opcodes::F32X4_NE, ()),
-			F64x2Ne => simd!(writer, opcodes::F64X2_NE, ()),
-			I8x16LtS => simd!(writer, opcodes::I8X16_LT_S, ()),
-			I8x16LtU => simd!(writer, opcodes::I8X16_LT_U, ()),
-			I16x8LtS => simd!(writer, opcodes::I16X8_LT_S, ()),
-			I16x8LtU => simd!(writer, opcodes::I16X8_LT_U, ()),
-			I32x4LtS => simd!(writer, opcodes::I32X4_LT_S, ()),
-			I32x4LtU => simd!(writer, opcodes::I32X4_LT_U, ()),
-			// I64x2LtS => simd!(writer, opcodes::I64X2_LT_S, ()),
-			// I64x2LtU => simd!(writer, opcodes::I64X2_LT_U, ()),
-			F32x4Lt => simd!(writer, opcodes::F32X4_LT, ()),
-			F64x2Lt => simd!(writer, opcodes::F64X2_LT, ()),
-			I8x16LeS => simd!(writer, opcodes::I8X16_LE_S, ()),
-			I8x16LeU => simd!(writer, opcodes::I8X16_LE_U, ()),
-			I16x8LeS => simd!(writer, opcodes::I16X8_LE_S, ()),
-			I16x8LeU => simd!(writer, opcodes::I16X8_LE_U, ()),
-			I32x4LeS => simd!(writer, opcodes::I32X4_LE_S, ()),
-			I32x4LeU => simd!(writer, opcodes::I32X4_LE_U, ()),
-			// I64x2LeS => simd!(writer, opcodes::I64X2_LE_S, ()),
-			// I64x2LeU => simd!(writer, opcodes::I64X2_LE_U, ()),
-			F32x4Le => simd!(writer, opcodes::F32X4_LE, ()),
-			F64x2Le => simd!(writer, opcodes::F64X2_LE, ()),
-			I8x16GtS => simd!(writer, opcodes::I8X16_GT_S, ()),
-			I8x16GtU => simd!(writer, opcodes::I8X16_GT_U, ()),
-			I16x8GtS => simd!(writer, opcodes::I16X8_GT_S, ()),
-			I16x8GtU => simd!(writer, opcodes::I16X8_GT_U, ()),
-			I32x4GtS => simd!(writer, opcodes::I32X4_GT_S, ()),
-			I32x4GtU => simd!(writer, opcodes::I32X4_GT_U, ()),
-			// I64x2GtS => simd!(writer, opcodes::I64X2_GT_S, ()),
-			// I64x2GtU => simd!(writer, opcodes::I64X2_GT_U, ()),
-			F32x4Gt => simd!(writer, opcodes::F32X4_GT, ()),
-			F64x2Gt => simd!(writer, opcodes::F64X2_GT, ()),
-			I8x16GeS => simd!(writer, opcodes::I8X16_GE_S, ()),
-			I8x16GeU => simd!(writer, opcodes::I8X16_GE_U, ()),
-			I16x8GeS => simd!(writer, opcodes::I16X8_GE_S, ()),
-			I16x8GeU => simd!(writer, opcodes::I16X8_GE_U, ()),
-			I32x4GeS => simd!(writer, opcodes::I32X4_GE_S, ()),
-			I32x4GeU => simd!(writer, opcodes::I32X4_GE_U, ()),
-			// I64x2GeS => simd!(writer, opcodes::I64X2_GE_S, ()),
-			// I64x2GeU => simd!(writer, opcodes::I64X2_GE_U, ()),
-			F32x4Ge => simd!(writer, opcodes::F32X4_GE, ()),
-			F64x2Ge => simd!(writer, opcodes::F64X2_GE, ()),
-			F32x4Neg => simd!(writer, opcodes::F32X4_NEG, ()),
-			F64x2Neg => simd!(writer, opcodes::F64X2_NEG, ()),
-			F32x4Abs => simd!(writer, opcodes::F32X4_ABS, ()),
-			F64x2Abs => simd!(writer, opcodes::F64X2_ABS, ()),
-			F32x4Min => simd!(writer, opcodes::F32X4_MIN, ()),
-			F64x2Min => simd!(writer, opcodes::F64X2_MIN, ()),
-			F32x4Max => simd!(writer, opcodes::F32X4_MAX, ()),
-			F64x2Max => simd!(writer, opcodes::F64X2_MAX, ()),
-			F32x4Add => simd!(writer, opcodes::F32X4_ADD, ()),
-			F64x2Add => simd!(writer, opcodes::F64X2_ADD, ()),
-			F32x4Sub => simd!(writer, opcodes::F32X4_SUB, ()),
-			F64x2Sub => simd!(writer, opcodes::F64X2_SUB, ()),
-			F32x4Div => simd!(writer, opcodes::F32X4_DIV, ()),
-			F64x2Div => simd!(writer, opcodes::F64X2_DIV, ()),
-			F32x4Mul => simd!(writer, opcodes::F32X4_MUL, ()),
-			F64x2Mul => simd!(writer, opcodes::F64X2_MUL, ()),
-			F32x4Sqrt => simd!(writer, opcodes::F32X4_SQRT, ()),
-			F64x2Sqrt => simd!(writer, opcodes::F64X2_SQRT, ()),
-			F32x4ConvertSI32x4 => simd!(writer, opcodes::F32X4_CONVERT_S_I32X4, ()),
-			F32x4ConvertUI32x4 => simd!(writer, opcodes::F32X4_CONVERT_U_I32X4, ()),
-			F64x2ConvertSI64x2 => simd!(writer, opcodes::F64X2_CONVERT_S_I64X2, ()),
-			F64x2ConvertUI64x2 => simd!(writer, opcodes::F64X2_CONVERT_U_I64X2, ()),
-			I32x4TruncSF32x4Sat => simd!(writer, opcodes::I32X4_TRUNC_S_F32X4_SAT, ()),
-			I32x4TruncUF32x4Sat => simd!(writer, opcodes::I32X4_TRUNC_U_F32X4_SAT, ()),
-			I64x2TruncSF64x2Sat => simd!(writer, opcodes::I64X2_TRUNC_S_F64X2_SAT, ()),
-			I64x2TruncUF64x2Sat => simd!(writer, opcodes::I64X2_TRUNC_U_F64X2_SAT, ()),
+			V128Const(ref c) => simd!(writer, V128_CONST, writer.write(&c[..])?),
+			V128Load(m) => simd!(writer, V128_LOAD, MemArg::serialize(m, writer)?),
+			V128Store(m) => simd!(writer, V128_STORE, MemArg::serialize(m, writer)?),
+			I8x16Splat => simd!(writer, I8X16_SPLAT, ()),
+			I16x8Splat => simd!(writer, I16X8_SPLAT, ()),
+			I32x4Splat => simd!(writer, I32X4_SPLAT, ()),
+			I64x2Splat => simd!(writer, I64X2_SPLAT, ()),
+			F32x4Splat => simd!(writer, F32X4_SPLAT, ()),
+			F64x2Splat => simd!(writer, F64X2_SPLAT, ()),
+			I8x16ExtractLaneS(i) => simd!(writer, I8X16_EXTRACT_LANE_S, writer.write(&[i])?),
+			I8x16ExtractLaneU(i) => simd!(writer, I8X16_EXTRACT_LANE_U, writer.write(&[i])?),
+			I16x8ExtractLaneS(i) => simd!(writer, I16X8_EXTRACT_LANE_S, writer.write(&[i])?),
+			I16x8ExtractLaneU(i) => simd!(writer, I16X8_EXTRACT_LANE_U, writer.write(&[i])?),
+			I32x4ExtractLane(i) => simd!(writer, I32X4_EXTRACT_LANE, writer.write(&[i])?),
+			I64x2ExtractLane(i) => simd!(writer, I64X2_EXTRACT_LANE, writer.write(&[i])?),
+			F32x4ExtractLane(i) => simd!(writer, F32X4_EXTRACT_LANE, writer.write(&[i])?),
+			F64x2ExtractLane(i) => simd!(writer, F64X2_EXTRACT_LANE, writer.write(&[i])?),
+			I8x16ReplaceLane(i) => simd!(writer, I8X16_REPLACE_LANE, writer.write(&[i])?),
+			I16x8ReplaceLane(i) => simd!(writer, I16X8_REPLACE_LANE, writer.write(&[i])?),
+			I32x4ReplaceLane(i) => simd!(writer, I32X4_REPLACE_LANE, writer.write(&[i])?),
+			I64x2ReplaceLane(i) => simd!(writer, I64X2_REPLACE_LANE, writer.write(&[i])?),
+			F32x4ReplaceLane(i) => simd!(writer, F32X4_REPLACE_LANE, writer.write(&[i])?),
+			F64x2ReplaceLane(i) => simd!(writer, F64X2_REPLACE_LANE, writer.write(&[i])?),
+			V8x16Shuffle(ref i) => simd!(writer, V8X16_SHUFFLE, writer.write(&i[..])?),
+			I8x16Add => simd!(writer, I8X16_ADD, ()),
+			I16x8Add => simd!(writer, I16X8_ADD, ()),
+			I32x4Add => simd!(writer, I32X4_ADD, ()),
+			I64x2Add => simd!(writer, I64X2_ADD, ()),
+			I8x16Sub => simd!(writer, I8X16_SUB, ()),
+			I16x8Sub => simd!(writer, I16X8_SUB, ()),
+			I32x4Sub => simd!(writer, I32X4_SUB, ()),
+			I64x2Sub => simd!(writer, I64X2_SUB, ()),
+			I8x16Mul => simd!(writer, I8X16_MUL, ()),
+			I16x8Mul => simd!(writer, I16X8_MUL, ()),
+			I32x4Mul => simd!(writer, I32X4_MUL, ()),
+			// I64x2Mul => simd!(writer, I64X2_MUL, ()),
+			I8x16Neg => simd!(writer, I8X16_NEG, ()),
+			I16x8Neg => simd!(writer, I16X8_NEG, ()),
+			I32x4Neg => simd!(writer, I32X4_NEG, ()),
+			I64x2Neg => simd!(writer, I64X2_NEG, ()),
+			I8x16AddSaturateS => simd!(writer, I8X16_ADD_SATURATE_S, ()),
+			I8x16AddSaturateU => simd!(writer, I8X16_ADD_SATURATE_U, ()),
+			I16x8AddSaturateS => simd!(writer, I16X8_ADD_SATURATE_S, ()),
+			I16x8AddSaturateU => simd!(writer, I16X8_ADD_SATURATE_U, ()),
+			I8x16SubSaturateS => simd!(writer, I8X16_SUB_SATURATE_S, ()),
+			I8x16SubSaturateU => simd!(writer, I8X16_SUB_SATURATE_U, ()),
+			I16x8SubSaturateS => simd!(writer, I16X8_SUB_SATURATE_S, ()),
+			I16x8SubSaturateU => simd!(writer, I16X8_SUB_SATURATE_U, ()),
+			I8x16Shl => simd!(writer, I8X16_SHL, ()),
+			I16x8Shl => simd!(writer, I16X8_SHL, ()),
+			I32x4Shl => simd!(writer, I32X4_SHL, ()),
+			I64x2Shl => simd!(writer, I64X2_SHL, ()),
+			I8x16ShrS => simd!(writer, I8X16_SHR_S, ()),
+			I8x16ShrU => simd!(writer, I8X16_SHR_U, ()),
+			I16x8ShrS => simd!(writer, I16X8_SHR_S, ()),
+			I16x8ShrU => simd!(writer, I16X8_SHR_U, ()),
+			I32x4ShrU => simd!(writer, I32X4_SHR_U, ()),
+			I32x4ShrS => simd!(writer, I32X4_SHR_S, ()),
+			I64x2ShrU => simd!(writer, I64X2_SHR_U, ()),
+			I64x2ShrS => simd!(writer, I64X2_SHR_S, ()),
+			V128And => simd!(writer, V128_AND, ()),
+			V128Or => simd!(writer, V128_OR, ()),
+			V128Xor => simd!(writer, V128_XOR, ()),
+			V128Not => simd!(writer, V128_NOT, ()),
+			V128Bitselect => simd!(writer, V128_BITSELECT, ()),
+			I8x16AnyTrue => simd!(writer, I8X16_ANY_TRUE, ()),
+			I16x8AnyTrue => simd!(writer, I16X8_ANY_TRUE, ()),
+			I32x4AnyTrue => simd!(writer, I32X4_ANY_TRUE, ()),
+			I64x2AnyTrue => simd!(writer, I64X2_ANY_TRUE, ()),
+			I8x16AllTrue => simd!(writer, I8X16_ALL_TRUE, ()),
+			I16x8AllTrue => simd!(writer, I16X8_ALL_TRUE, ()),
+			I32x4AllTrue => simd!(writer, I32X4_ALL_TRUE, ()),
+			I64x2AllTrue => simd!(writer, I64X2_ALL_TRUE, ()),
+			I8x16Eq => simd!(writer, I8X16_EQ, ()),
+			I16x8Eq => simd!(writer, I16X8_EQ, ()),
+			I32x4Eq => simd!(writer, I32X4_EQ, ()),
+			// I64x2Eq => simd!(writer, I64X2_EQ, ()),
+			F32x4Eq => simd!(writer, F32X4_EQ, ()),
+			F64x2Eq => simd!(writer, F64X2_EQ, ()),
+			I8x16Ne => simd!(writer, I8X16_NE, ()),
+			I16x8Ne => simd!(writer, I16X8_NE, ()),
+			I32x4Ne => simd!(writer, I32X4_NE, ()),
+			// I64x2Ne => simd!(writer, I64X2_NE, ()),
+			F32x4Ne => simd!(writer, F32X4_NE, ()),
+			F64x2Ne => simd!(writer, F64X2_NE, ()),
+			I8x16LtS => simd!(writer, I8X16_LT_S, ()),
+			I8x16LtU => simd!(writer, I8X16_LT_U, ()),
+			I16x8LtS => simd!(writer, I16X8_LT_S, ()),
+			I16x8LtU => simd!(writer, I16X8_LT_U, ()),
+			I32x4LtS => simd!(writer, I32X4_LT_S, ()),
+			I32x4LtU => simd!(writer, I32X4_LT_U, ()),
+			// I64x2LtS => simd!(writer, I64X2_LT_S, ()),
+			// I64x2LtU => simd!(writer, I64X2_LT_U, ()),
+			F32x4Lt => simd!(writer, F32X4_LT, ()),
+			F64x2Lt => simd!(writer, F64X2_LT, ()),
+			I8x16LeS => simd!(writer, I8X16_LE_S, ()),
+			I8x16LeU => simd!(writer, I8X16_LE_U, ()),
+			I16x8LeS => simd!(writer, I16X8_LE_S, ()),
+			I16x8LeU => simd!(writer, I16X8_LE_U, ()),
+			I32x4LeS => simd!(writer, I32X4_LE_S, ()),
+			I32x4LeU => simd!(writer, I32X4_LE_U, ()),
+			// I64x2LeS => simd!(writer, I64X2_LE_S, ()),
+			// I64x2LeU => simd!(writer, I64X2_LE_U, ()),
+			F32x4Le => simd!(writer, F32X4_LE, ()),
+			F64x2Le => simd!(writer, F64X2_LE, ()),
+			I8x16GtS => simd!(writer, I8X16_GT_S, ()),
+			I8x16GtU => simd!(writer, I8X16_GT_U, ()),
+			I16x8GtS => simd!(writer, I16X8_GT_S, ()),
+			I16x8GtU => simd!(writer, I16X8_GT_U, ()),
+			I32x4GtS => simd!(writer, I32X4_GT_S, ()),
+			I32x4GtU => simd!(writer, I32X4_GT_U, ()),
+			// I64x2GtS => simd!(writer, I64X2_GT_S, ()),
+			// I64x2GtU => simd!(writer, I64X2_GT_U, ()),
+			F32x4Gt => simd!(writer, F32X4_GT, ()),
+			F64x2Gt => simd!(writer, F64X2_GT, ()),
+			I8x16GeS => simd!(writer, I8X16_GE_S, ()),
+			I8x16GeU => simd!(writer, I8X16_GE_U, ()),
+			I16x8GeS => simd!(writer, I16X8_GE_S, ()),
+			I16x8GeU => simd!(writer, I16X8_GE_U, ()),
+			I32x4GeS => simd!(writer, I32X4_GE_S, ()),
+			I32x4GeU => simd!(writer, I32X4_GE_U, ()),
+			// I64x2GeS => simd!(writer, I64X2_GE_S, ()),
+			// I64x2GeU => simd!(writer, I64X2_GE_U, ()),
+			F32x4Ge => simd!(writer, F32X4_GE, ()),
+			F64x2Ge => simd!(writer, F64X2_GE, ()),
+			F32x4Neg => simd!(writer, F32X4_NEG, ()),
+			F64x2Neg => simd!(writer, F64X2_NEG, ()),
+			F32x4Abs => simd!(writer, F32X4_ABS, ()),
+			F64x2Abs => simd!(writer, F64X2_ABS, ()),
+			F32x4Min => simd!(writer, F32X4_MIN, ()),
+			F64x2Min => simd!(writer, F64X2_MIN, ()),
+			F32x4Max => simd!(writer, F32X4_MAX, ()),
+			F64x2Max => simd!(writer, F64X2_MAX, ()),
+			F32x4Add => simd!(writer, F32X4_ADD, ()),
+			F64x2Add => simd!(writer, F64X2_ADD, ()),
+			F32x4Sub => simd!(writer, F32X4_SUB, ()),
+			F64x2Sub => simd!(writer, F64X2_SUB, ()),
+			F32x4Div => simd!(writer, F32X4_DIV, ()),
+			F64x2Div => simd!(writer, F64X2_DIV, ()),
+			F32x4Mul => simd!(writer, F32X4_MUL, ()),
+			F64x2Mul => simd!(writer, F64X2_MUL, ()),
+			F32x4Sqrt => simd!(writer, F32X4_SQRT, ()),
+			F64x2Sqrt => simd!(writer, F64X2_SQRT, ()),
+			F32x4ConvertSI32x4 => simd!(writer, F32X4_CONVERT_S_I32X4, ()),
+			F32x4ConvertUI32x4 => simd!(writer, F32X4_CONVERT_U_I32X4, ()),
+			F64x2ConvertSI64x2 => simd!(writer, F64X2_CONVERT_S_I64X2, ()),
+			F64x2ConvertUI64x2 => simd!(writer, F64X2_CONVERT_U_I64X2, ()),
+			I32x4TruncSF32x4Sat => simd!(writer, I32X4_TRUNC_S_F32X4_SAT, ()),
+			I32x4TruncUF32x4Sat => simd!(writer, I32X4_TRUNC_U_F32X4_SAT, ()),
+			I64x2TruncSF64x2Sat => simd!(writer, I64X2_TRUNC_S_F64X2_SAT, ()),
+			I64x2TruncUF64x2Sat => simd!(writer, I64X2_TRUNC_U_F64X2_SAT, ()),
 		}
 
 		Ok(())
@@ -2293,7 +2307,7 @@ impl Serialize for BulkInstruction {
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		use self::BulkInstruction::*;
-		use self::opcodes::*;
+		use self::opcodes::bulk::*;
 
 		match self {
 			MemoryInit(seg) => bulk!(writer, MEMORY_INIT, {

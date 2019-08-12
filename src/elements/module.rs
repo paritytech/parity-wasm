@@ -329,7 +329,7 @@ impl Module {
 	/// NOTE: this can return true even if the section was not parsed, hence `names_section()` may return `None`
 	///       even if this returns `true`
 	pub fn has_names_section(&self) -> bool {
-		self.sections().iter().position(|e| {
+		self.sections().iter().any(|e| {
 			match e {
 				// The default case, when the section was not parsed
 				Section::Custom(custom) => custom.name() == "name",
@@ -337,7 +337,7 @@ impl Module {
 				Section::Name(_) => true,
 				_ => false,
 			}
-		}).is_some()
+		})
 	}
 
 	/// Functions signatures section reference, if any.

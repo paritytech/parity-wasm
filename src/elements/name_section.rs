@@ -249,10 +249,7 @@ impl LocalNameSubsection {
 		module: &Module,
 		rdr: &mut R,
 	) -> Result<LocalNameSubsection, Error> {
-		let funcs = module.function_section().ok_or_else(|| {
-			Error::Other("cannot deserialize local names without a function section")
-		})?;
-		let max_entry_space = funcs.entries().len();
+		let max_entry_space = module.functions_space();
 
 		let max_signature_args = module
 			.type_section()

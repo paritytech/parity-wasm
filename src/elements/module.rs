@@ -324,6 +324,22 @@ impl Module {
 		None
 	}
 
+	/// True if a name section is present.
+	///
+	/// NOTE: this can return true even if the section was not parsed, hence `names_section()` may return `None`
+	///       even if this returns `true`
+	pub fn has_names_section(&self) -> bool {
+		self.sections().iter().any(|e| {
+			match e {
+				// The default case, when the section was not parsed
+				Section::Custom(custom) => custom.name() == "name",
+				// This is the case, when the section was parsed
+				Section::Name(_) => true,
+				_ => false,
+			}
+		})
+	}
+
 	/// Functions signatures section reference, if any.
 	///
 	/// NOTE: name section is not parsed by default so `names_section` could return None even if name section exists.
@@ -851,5 +867,37 @@ mod integration_tests {
 
         let sections = module.sections().iter().map(|s| s.order()).collect::<Vec<_>>();
         assert_eq!(sections, vec![1, 2, 3, 6, 7, 8, 9, 11, 12, 0]);
+    }
+
+    #[test]
+    fn names_section_present() {
+        let mut module = deserialize_file("./res/cases/v1/names.wasm").expect("failed to deserialize");
+
+        // Before parsing
+        assert!(module.names_section().is_none());
+        assert!(module.names_section_mut().is_none());
+        assert!(module.has_names_section());
+
+        // After parsing
+        let mut module = module.parse_names().expect("failed to parse names section");
+        assert!(module.names_section().is_some());
+        assert!(module.names_section_mut().is_some());
+        assert!(module.has_names_section());
+    }
+
+    #[test]
+    fn names_section_not_present() {
+        let mut module = deserialize_file("./res/cases/v1/test.wasm").expect("failed to deserialize");
+
+        // Before parsing
+        assert!(module.names_section().is_none());
+        assert!(module.names_section_mut().is_none());
+        assert!(!module.has_names_section());
+
+        // After parsing
+        let mut module = module.parse_names().expect("failed to parse names section");
+        assert!(module.names_section().is_none());
+        assert!(module.names_section_mut().is_none());
+        assert!(!module.has_names_section());
     }
 }

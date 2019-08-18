@@ -263,7 +263,7 @@ impl From<(Vec<(usize, Error)>, Module)> for Error {
 		let ret = err.0.iter()
 			.fold(
 				String::new(),
-				|acc, item| acc + &format!("In section {}: {}\n", item.0, item.1)
+				|mut acc, item| { acc.push_str(&format!("In section {}: {}\n", item.0, item.1)); acc }
 			);
 		Error::HeapOther(ret)
 	}

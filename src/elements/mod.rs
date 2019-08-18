@@ -257,6 +257,18 @@ impl From<io::Error> for Error {
 	}
 }
 
+// These are emitted by section parsers, such as `parse_names` and `parse_reloc`.
+impl From<(Vec<(usize, Error)>, Module)> for Error {
+	fn from(err: (Vec<(usize, Error)>, Module)) -> Self {
+		let ret = err.0.iter()
+			.fold(
+				String::new(),
+				|acc, item| acc + &format!("In section {}: {}\n", item.0, item.1)
+			);
+		Error::HeapOther(ret)
+	}
+}
+
 /// Unparsed part of the module/section.
 pub struct Unparsed(pub Vec<u8>);
 

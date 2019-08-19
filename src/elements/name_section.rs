@@ -249,10 +249,7 @@ impl LocalNameSubsection {
 		module: &Module,
 		rdr: &mut R,
 	) -> Result<LocalNameSubsection, Error> {
-		let funcs = module.function_section().ok_or_else(|| {
-			Error::Other("cannot deserialize local names without a function section")
-		})?;
-		let max_entry_space = funcs.entries().len();
+		let max_entry_space = module.functions_space();
 
 		let max_signature_args = module
 			.type_section()
@@ -349,5 +346,28 @@ mod tests {
 
 		let name_section = NameSection::new(Some(module_name_subsection), Some(function_name_subsection), Some(local_name_subsection));
 		serialize_test(name_section);
+	}
+
+	#[test]
+	fn deserialize_local_names() {
+		let module = super::super::deserialize_file("./res/cases/v1/names_with_imports.wasm")
+			.expect("Should be deserialized")
+			.parse_names()
+			.expect("Names to be parsed");
+
+		let name_section = module.names_section().expect("name_section should be present");
+		let local_names = name_section.locals().expect("local_name_section should be present");
+
+		let locals = local_names.local_names().get(0).expect("entry #0 should be present");
+		assert_eq!(
+			locals.get(0).expect("entry #0 should be present"),
+			"abc"
+		);
+
+		let locals = local_names.local_names().get(1).expect("entry #1 should be present");
+		assert_eq!(
+			locals.get(0).expect("entry #0 should be present"),
+			"def"
+		);
 	}
 }

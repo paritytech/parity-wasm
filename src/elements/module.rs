@@ -90,10 +90,8 @@ impl Module {
 		}
 
 		// Assume that the module is already well-ordered.
-		let pos = sections.iter().position(|s| section.order() < s.order());
-
-		if pos.is_some() {
-			sections.insert(pos.unwrap(), section);
+		if let Some(pos) = sections.iter().position(|s| section.order() < s.order()) {
+			sections.insert(pos, section);
 		} else {
 			sections.push(section);
 		}

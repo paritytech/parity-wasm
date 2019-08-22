@@ -276,11 +276,8 @@ impl Module {
 				return
 			}
 		}
-		let insert_before = self.sections().iter().enumerate()
-			.filter_map(|(i, s)| if s.order() > 0x8 { Some(i) } else { None })
-			.next()
-			.unwrap_or(0);
-		self.sections_mut().insert(insert_before, Section::Start(new_start));
+		// This should not fail, because we update the existing section above.
+		self.insert_section(Section::Start(new_start)).expect("insert_section should not fail");
 	}
 
 	/// Removes the module's start section.

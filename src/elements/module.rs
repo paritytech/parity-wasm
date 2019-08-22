@@ -73,6 +73,34 @@ impl Module {
 		&mut self.sections
 	}
 
+	/// Insert a section, in the correct section ordering. This will fail with an error,
+	/// if the section can only appear once.
+	pub fn insert_section(&mut self, section: Section) -> Result<(), Error> {
+		let sections = self.sections_mut();
+
+		// Custom sections can be inserted anywhere. Lets always insert them last here.
+		if section.order() == 0 {
+			sections.push(section);
+			return Ok(());
+		}
+
+		// Check if the section already exists.
+		if sections.iter().position(|s| s.order() == section.order()).is_some() {
+			return Err(Error::DuplicatedSections(section.order()));
+		}
+
+		// Assume that the module is already well-ordered.
+		let pos = sections.iter().position(|s| section.order() < s.order());
+
+		if pos.is_some() {
+			sections.insert(pos.unwrap(), section);
+		} else {
+			sections.push(section);
+		}
+
+		Ok(())
+	}
+
 	/// Code section reference, if any.
 	pub fn code_section(&self) -> Option<&CodeSection> {
 		for section in self.sections() {
@@ -609,7 +637,7 @@ pub fn peek_size(source: &[u8]) -> usize {
 
 #[cfg(test)]
 mod integration_tests {
-	use super::super::{deserialize_file, serialize, deserialize_buffer, Section};
+	use super::super::{deserialize_file, serialize, deserialize_buffer, Section, TypeSection, FunctionSection, ExportSection, CodeSection};
 	use super::Module;
 
 	#[test]
@@ -899,5 +927,30 @@ mod integration_tests {
         assert!(module.names_section().is_none());
         assert!(module.names_section_mut().is_none());
         assert!(!module.has_names_section());
+    }
+
+    #[test]
+    fn insert_sections() {
+        let mut module = Module::default();
+
+        assert!(module.insert_section(Section::Function(FunctionSection::with_entries(vec![]))).is_ok());
+        // Duplicate.
+        assert!(module.insert_section(Section::Function(FunctionSection::with_entries(vec![]))).is_err());
+
+        assert!(module.insert_section(Section::Type(TypeSection::with_types(vec![]))).is_ok());
+        // Duplicate.
+        assert!(module.insert_section(Section::Type(TypeSection::with_types(vec![]))).is_err());
+
+        assert!(module.insert_section(Section::Export(ExportSection::with_entries(vec![]))).is_ok());
+        // Duplicate.
+        assert!(module.insert_section(Section::Export(ExportSection::with_entries(vec![]))).is_err());
+
+        assert!(module.insert_section(Section::Code(CodeSection::with_bodies(vec![]))).is_ok());
+        // Duplicate.
+        assert!(module.insert_section(Section::Code(CodeSection::with_bodies(vec![]))).is_err());
+
+        // Try serialisation roundtrip to check well-orderedness.
+        let serialized = serialize(module).expect("serialization to succeed");
+        assert!(deserialize_buffer::<Module>(&serialized).is_ok());
     }
 }

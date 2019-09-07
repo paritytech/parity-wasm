@@ -52,12 +52,12 @@ impl Module {
 	}
 
 	/// Construct a module from a slice.
-	pub fn from_slice<T: AsRef<[u8]>>(input: T) -> Result<Self, Error> {
+	pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Result<Self, Error> {
 		Ok(deserialize_buffer::<Module>(input.as_ref())?)
 	}
 
 	/// Serialize a module to a vector.
-	pub fn to_vec(self) -> Result<Vec<u8>, Error> {
+	pub fn to_bytes(self) -> Result<Vec<u8>, Error> {
 		Ok(serialize::<Module>(self)?)
 	}
 
@@ -962,8 +962,8 @@ mod integration_tests {
     #[test]
     fn serialization_roundtrip() {
         let module = deserialize_file("./res/cases/v1/test.wasm").expect("failed to deserialize");
-        let module_copy = module.clone().to_vec().expect("failed to serialize");
-        let module_copy = Module::from_slice(&module_copy).expect("failed to deserialize");
+        let module_copy = module.clone().to_bytes().expect("failed to serialize");
+        let module_copy = Module::from_bytes(&module_copy).expect("failed to deserialize");
         assert_eq!(module, module_copy);
     }
 }

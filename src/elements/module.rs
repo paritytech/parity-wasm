@@ -52,8 +52,8 @@ impl Module {
 	}
 
 	/// Construct a module from a slice.
-	pub fn from_slice(input: &[u8]) -> Result<Self, Error> {
-		Ok(deserialize_buffer::<Module>(&input)?)
+	pub fn from_slice<T: AsRef<[u8]>>(input: T) -> Result<Self, Error> {
+		Ok(deserialize_buffer::<Module>(input.as_ref())?)
 	}
 
 	/// Serialize a module to a vector.

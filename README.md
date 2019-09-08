@@ -13,7 +13,7 @@ Add to Cargo.toml
 
 ```toml
 [dependencies]
-parity-wasm = "0.35"
+parity-wasm = "0.40"
 ```
 
 and then
@@ -54,7 +54,7 @@ in a `no_std` context, add the following to your `Cargo.toml` (still requires al
 
 ```toml
 [dependencies]
-parity-wasm = { version = "0.35", default-features = false }
+parity-wasm = { version = "0.40", default-features = false }
 ```
 
 Until allocator api is stabilized, this type of use is limited to nightly Rust.

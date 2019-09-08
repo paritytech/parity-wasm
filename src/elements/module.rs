@@ -109,6 +109,16 @@ impl Module {
 		Ok(())
 	}
 
+	/// Returns the index of a custom section, if found.
+	/// This will work seamlessly when some custom sections are parsed.
+	pub fn custom_section_index(&self, name: &str) -> Option<usize> {
+		self.sections().iter().position(|s| match s {
+			Section::Custom(ref section) => section.name() == name,
+			Section::Name(_) => "name" == name,
+			_ => false,
+		})
+	}
+
 	/// Code section reference, if any.
 	pub fn code_section(&self) -> Option<&CodeSection> {
 		for section in self.sections() {
@@ -860,10 +870,13 @@ mod integration_tests {
 	        assert_eq!(sections[0].payload(), &[1, 2, 3, 4]);
 	    }
 
+        assert_eq!(module.custom_section_index("mycustomsection").expect("Did not find custom section"), 9);
+
         let old_section = module.clear_custom_section("mycustomsection");
         assert_eq!(old_section.expect("Did not find custom section").payload(), &[1, 2, 3, 4]);
 
         assert!(module.custom_sections().next().is_none());
+        assert_eq!(module.custom_section_index("mycustomsection"), None);
     }
 
     #[test]
@@ -910,12 +923,14 @@ mod integration_tests {
         assert!(module.names_section().is_none());
         assert!(module.names_section_mut().is_none());
         assert!(module.has_names_section());
+        assert_eq!(module.custom_section_index("name").expect("Did not find section"), 8);
 
         // After parsing
         let mut module = module.parse_names().expect("failed to parse names section");
         assert!(module.names_section().is_some());
         assert!(module.names_section_mut().is_some());
         assert!(module.has_names_section());
+        assert_eq!(module.custom_section_index("name").expect("Did not find section"), 8);
     }
 
     #[test]

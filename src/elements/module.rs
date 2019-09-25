@@ -115,6 +115,7 @@ impl Module {
 		self.sections().iter().position(|s| match s {
 			Section::Custom(ref section) => section.name() == name,
 			Section::Name(_) => "name" == name,
+			Section::Reloc(ref reloc) => reloc.name() == name,
 			_ => false,
 		})
 	}

@@ -5,7 +5,7 @@ Low-level WebAssembly format library.
 [![Build Status](https://travis-ci.org/paritytech/parity-wasm.svg?branch=master)](https://travis-ci.org/paritytech/parity-wasm)
 [![crates.io link](https://img.shields.io/crates/v/parity-wasm.svg)](https://crates.io/crates/parity-wasm)
 
-[Documentation](https://paritytech.github.io/parity-wasm/parity_wasm/)
+[Documentation](https://docs.rs/parity-wasm/0.40.2/parity_wasm/)
 
 ## Rust WebAssembly format serializing/deserializing
 

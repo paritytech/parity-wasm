@@ -19,9 +19,6 @@ parity-wasm = "0.40"
 and then
 
 ```rust
-
-extern crate parity_wasm;
-
 let module = parity_wasm::deserialize_file("./res/cases/v1/hello.wasm").unwrap();
 assert!(module.code_section().is_some());
 

@@ -54,8 +54,6 @@ in a `no_std` context, add the following to your `Cargo.toml` (still requires al
 parity-wasm = { version = "0.40", default-features = false }
 ```
 
-Until allocator api is stabilized, this type of use is limited to nightly Rust.
-
 # License
 
 `parity-wasm` is primarily distributed under the terms of both the MIT

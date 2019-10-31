@@ -13,7 +13,7 @@ Add to Cargo.toml
 
 ```toml
 [dependencies]
-parity-wasm = "0.40"
+parity-wasm = "0.41"
 ```
 
 and then
@@ -51,7 +51,7 @@ in a `no_std` context, add the following to your `Cargo.toml` (still requires al
 
 ```toml
 [dependencies]
-parity-wasm = { version = "0.40", default-features = false }
+parity-wasm = { version = "0.41", default-features = false }
 ```
 
 # License

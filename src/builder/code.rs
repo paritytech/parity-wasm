@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use crate::elements;
 use super::{
 	invoke::{Invoke, Identity},
-	misc::{ValueTypeBuilder, ValueTypesBuilder, OptionalValueTypeBuilder},
+	misc::{ValueTypeBuilder, ValueTypesBuilder},
 };
 
 /// Signature template description
@@ -45,12 +45,6 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 		self
 	}
 
-	/// Override signature return type
-	pub fn with_return_type(mut self, return_type: Option<elements::ValueType>) -> Self {
-		*self.signature.return_type_mut() = return_type;
-		self
-	}
-
 	/// Start build new argument
 	pub fn param(self) -> ValueTypeBuilder<Self> {
 		ValueTypeBuilder::with_callback(self)
@@ -61,9 +55,14 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 		ValueTypesBuilder::with_callback(self)
 	}
 
-	/// Start building return type
-	pub fn return_type(self) -> OptionalValueTypeBuilder<Self> {
-		OptionalValueTypeBuilder::with_callback(self)
+	/// Start building new result
+	pub fn result(self) -> ValueTypeBuilder<Self> {
+		ValueTypeBuilder::with_callback(self)
+	}
+
+	/// Start building multiple results
+	pub fn results(self) -> ValueTypeBuilder<Self> {
+		ValueTypeBuilder::with_callback(self)
 	}
 
 	/// Finish current builder
@@ -77,6 +76,24 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 	}
 }
 
+#[cfg(feature="multi_value")]
+impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
+	/// Override signature results
+	pub fn with_results(mut self, results: Vec<elements::ValueType>) -> Self {
+		*self.signature.results_mut() = results;
+		self
+	}
+}
+
+#[cfg(not(feature="multi_value"))]
+impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
+	/// Override signature results
+	pub fn with_return_type(mut self, return_type: Option<elements::ValueType>) -> Self {
+		*self.signature.return_type_mut() = return_type;
+		self
+	}
+}
+
 impl<F> Invoke<Vec<elements::ValueType>> for SignatureBuilder<F>
 	where F: Invoke<elements::FunctionType>
 {
@@ -84,16 +101,6 @@ impl<F> Invoke<Vec<elements::ValueType>> for SignatureBuilder<F>
 
 	fn invoke(self, args: Vec<elements::ValueType>) -> Self {
 		self.with_params(args)
-	}
-}
-
-impl<F> Invoke<Option<elements::ValueType>> for SignatureBuilder<F>
-	where F: Invoke<elements::FunctionType>
-{
-	type Result = Self;
-
-	fn invoke(self, arg: Option<elements::ValueType>) -> Self {
-		self.with_return_type(arg)
 	}
 }
 
@@ -389,7 +396,7 @@ mod tests {
 			.signature()
 				.param().i32()
 				.param().i32()
-				.return_type().i64()
+				.result().i64()
 				.build()
 			.bind();
 
@@ -401,11 +408,28 @@ mod tests {
 		let func = function()
 			.signature()
 				.param().i32()
-				.return_type().i32()
+				.result().i32()
 				.build()
 			.body()
 				.with_instructions(elements::Instructions::empty())
 				.build()
+			.build();
+
+		assert_eq!(func.code.locals().len(), 0);
+		assert_eq!(func.code.code().elements().len(), 1);
+	}
+
+	#[test]
+	fn func_example_multi_result() {
+		let func = function()
+			.signature()
+			.param().i32()
+			.result().i32()
+			.result().i32()
+			.build()
+			.body()
+			.with_instructions(elements::Instructions::empty())
+			.build()
 			.build();
 
 		assert_eq!(func.code.locals().len(), 0);

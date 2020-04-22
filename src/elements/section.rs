@@ -950,7 +950,12 @@ mod tests {
 			&Type::Function(ref func_type) => func_type
 		};
 
+		#[cfg(feature="multi_value")]
+		assert_eq!(vec![ValueType::I64], t1.results());
+
+		#[cfg(not(feature="multi_value"))]
 		assert_eq!(Some(ValueType::I64), t1.return_type());
+
 		assert_eq!(2, t1.params().len());
 	}
 

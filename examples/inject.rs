@@ -50,7 +50,7 @@ fn main() {
 		builder::signature()
 			.param().i32()
 			.param().i32()
-			.return_type().i32()
+			.result().i32()
 			.build_sig()
 	);
 	let build = build.import()

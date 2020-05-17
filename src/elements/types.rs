@@ -146,10 +146,7 @@ impl Serialize for BlockType {
 pub struct FunctionType {
 	form: u8,
 	params: Vec<ValueType>,
-	#[cfg(feature="multi_value")]
 	results: Vec<ValueType>,
-	#[cfg(not(feature="multi_value"))]
-	return_type: Option<ValueType>,
 }
 
 impl Default for FunctionType {
@@ -157,24 +154,11 @@ impl Default for FunctionType {
 		FunctionType {
 			form: 0x60,
 			params: Vec::new(),
-			#[cfg(feature="multi_value")]
 			results: Vec::new(),
-			#[cfg(not(feature="multi_value"))]
-			return_type: None,
 		}
 	}
 }
 
-impl FunctionType {
-	/// Function form (currently only valid value is `0x60`)
-	pub fn form(&self) -> u8 { self.form }
-	/// Parameters in the function signature.
-	pub fn params(&self) -> &[ValueType] { &self.params }
-	/// Mutable parameters in the function signature.
-	pub fn params_mut(&mut self) -> &mut Vec<ValueType> { &mut self.params }
-}
-
-#[cfg(feature="multi_value")]
 impl FunctionType {
 	/// New function type given the params and results as vectors
 	pub fn new(params: Vec<ValueType>, results: Vec<ValueType>) -> Self {
@@ -184,26 +168,16 @@ impl FunctionType {
 			results,
 		}
 	}
+	/// Function form (currently only valid value is `0x60`)
+	pub fn form(&self) -> u8 { self.form }
+	/// Parameters in the function signature.
+	pub fn params(&self) -> &[ValueType] { &self.params }
+	/// Mutable parameters in the function signature.
+	pub fn params_mut(&mut self) -> &mut Vec<ValueType> { &mut self.params }
 	/// Results in the function signature, if any.
-	pub fn results(&self) -> Vec<ValueType> { self.results.clone() }
+	pub fn results(&self) -> &[ValueType] { &self.results }
 	/// Mutable type in the function signature, if any.
 	pub fn results_mut(&mut self) -> &mut Vec<ValueType> { &mut self.results }
-}
-
-#[cfg(not(feature="multi_value"))]
-impl FunctionType {
-	/// New function type given the params and results as vectors
-	pub fn new(params: Vec<ValueType>, return_type: Option<ValueType>) -> Self {
-		FunctionType {
-			form: 0,
-			params,
-			return_type,
-		}
-	}
-	/// Return type in the function signature, if any.
-	pub fn return_type(&self) -> Option<ValueType> { self.return_type }
-	/// Mutable type in the function signature, if any.
-	pub fn return_type_mut(&mut self) -> &mut Option<ValueType> { &mut self.return_type }
 }
 
 impl Deserialize for FunctionType {
@@ -217,29 +191,17 @@ impl Deserialize for FunctionType {
 		}
 
 		let params: Vec<ValueType> = CountedList::deserialize(reader)?.into_inner();
-
-		#[cfg(feature="multi_value")]
 		let results: Vec<ValueType> = CountedList::deserialize(reader)?.into_inner();
 
 		#[cfg(not(feature="multi_value"))]
-		let return_types: u32 = VarUint32::deserialize(reader)?.into();
-
-		#[cfg(not(feature="multi_value"))]
-		let return_type = if return_types == 1 {
-			Some(ValueType::deserialize(reader)?)
-		} else if return_types == 0 {
-			None
-		} else {
-			return Err(Error::Other("Enable the multi_value feature for multiple function results"));
-		};
+		if results.len() > 1 {
+			return Err(Error::Other("Enable the multi_value feature to deserialize more than one function result"));
+		}
 
 		Ok(FunctionType {
 			form,
 			params,
-			#[cfg(feature="multi_value")]
 			results,
-			#[cfg(not(feature="multi_value"))]
-			return_type
 		})
 	}
 }
@@ -256,24 +218,11 @@ impl Serialize for FunctionType {
 		);
 		params_counted_list.serialize(writer)?;
 
-		#[cfg(feature="multi_value")]
-		{
-			let results_counted_list = CountedListWriter::<ValueType, _>(
-				self.results.len(),
-				self.results.into_iter().map(Into::into),
-			);
-			results_counted_list.serialize(writer)?;
-		}
-
-		#[cfg(not(feature="multi_value"))]
-		{
-			if let Some(return_type) = self.return_type {
-				VarUint1::from(true).serialize(writer)?;
-				return_type.serialize(writer)?;
-			} else {
-				VarUint1::from(false).serialize(writer)?;
-			}
-		}
+		let results_counted_list = CountedListWriter::<ValueType, _>(
+			self.results.len(),
+			self.results.into_iter().map(Into::into),
+		);
+		results_counted_list.serialize(writer)?;
 
 		Ok(())
 	}

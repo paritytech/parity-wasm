@@ -55,6 +55,18 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 		ValueTypesBuilder::with_callback(self)
 	}
 
+	/// Add result to signature builder
+	pub fn with_result(mut self, value_type: elements::ValueType) -> Self {
+		self.signature.results_mut().push(value_type);
+		self
+	}
+
+	/// Add multiple results to signature builder
+	pub fn with_results(mut self, value_types: Vec<elements::ValueType>) -> Self {
+		self.signature.results_mut().extend(value_types);
+		self
+	}
+
 	/// Start building new result
 	pub fn result(self) -> ValueTypeBuilder<Self> {
 		ValueTypeBuilder::with_callback(self)
@@ -76,24 +88,6 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 	}
 }
 
-#[cfg(feature="multi_value")]
-impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
-	/// Override signature results
-	pub fn with_results(mut self, results: Vec<elements::ValueType>) -> Self {
-		*self.signature.results_mut() = results;
-		self
-	}
-}
-
-#[cfg(not(feature="multi_value"))]
-impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
-	/// Override signature results
-	pub fn with_return_type(mut self, return_type: Option<elements::ValueType>) -> Self {
-		*self.signature.return_type_mut() = return_type;
-		self
-	}
-}
-
 impl<F> Invoke<Vec<elements::ValueType>> for SignatureBuilder<F>
 	where F: Invoke<elements::FunctionType>
 {
@@ -110,7 +104,7 @@ impl<F> Invoke<elements::ValueType> for SignatureBuilder<F>
 	type Result = Self;
 
 	fn invoke(self, arg: elements::ValueType) -> Self {
-		self.with_param(arg)
+		self.with_result(arg)
 	}
 }
 

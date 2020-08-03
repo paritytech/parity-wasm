@@ -21,18 +21,9 @@ script:
 - cargo build --release --verbose
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml
-- cargo run --example bench-decoder --release
-after_success: |-
-  [ $TRAVIS_BRANCH = master ] &&
-  [ $TRAVIS_PULL_REQUEST = false ] &&
-  cargo doc \
-  && echo '<meta http-equiv=refresh content=0;url=parity_wasm/index.html>' > target/doc/index.html && \
-  sudo pip install ghp-import && \
-  ghp-import -n target/doc && \
-  git push -qf https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+- cargo run --example bench-decoder --releas
 env:
   global:
   - RUSTFLAGS=--cfg=slow_assertions
   - CC=/usr/bin/gcc-8
   - CXX=/usr/bin/g++-8
-  - secure: n+t7rAF58avDd1LcmNmEAN/0zlkZlSreg0EOYEz+BHY/ftUq/MWaA2Efz6fGcsZnLjFUDVZdQz/eiD6JkCthf3WBGZEyAbJuPdjXf1UG6857l5XvUkLrixXrE+gSx0y7jxp+z5Hh+wsw8AuGtRh/023VHir3+hfZU5sMRAUng3iuAQqVgzcwFPIpNUKd7RZ0T2tB+VoAPDsptdHi2HKHe9UMQmnT3z2zenC+oSaEtG421A/QNiZh7G5sUJWCmBtAnkU+Kr2R2YQZOvbr4wyHjluM/UiCAnApM5efQwqel+4HNPbbSfg2WCX4BE3gV+Hxa3yRcRX8IsgsYw13racppws3JYXPXMe8PWVu9vnVWyfudBp/kChP2VWejrPLMp5+H++4hE8G4wfygk6G0jOPd+9cG/rYAk25oRU2BvX8aPdzbLRqGtCSGHkXMRjtvmPoaajspHZLLqG4Ka839pSvBzGSQOJtQl4FqR9EP4PIfmrTvMQuFvBNGNCT3AhoQlDFoNHSpPLJqRSSS/duRzJSGe0Yw7v1h2Y85Lvx8xkHfjPGKeiZyBbqkCggxaS1qfggdw9XiMR9mijbSng3o92QDGX9QLbnPzgK7Gk0MHRdthjrKUCzhyE8rJiJefXYOGYF8YRigL4U2lHvoHrw+iOdGX3ZxHgpgvU2F5txctK3MqU=

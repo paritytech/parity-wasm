@@ -21,7 +21,7 @@ script:
 - cargo build --release --verbose
 - cargo test --release --verbose
 - cargo test --release --manifest-path=spec/Cargo.toml
-- cargo run --example bench-decoder --releas
+- cargo run --example bench-decoder --release
 env:
   global:
   - RUSTFLAGS=--cfg=slow_assertions

@@ -232,6 +232,13 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 		table_index
 	}
 
+	/// Push global.
+	pub fn push_global(&mut self, global: elements::GlobalEntry) -> u32 {
+		let entries = self.module.global.entries_mut();
+		entries.push(global);
+		entries.len() as u32 - 1
+	}
+
 	fn resolve_type_ref(&mut self, signature: code::Signature) -> u32 {
 		match signature {
 			code::Signature::Inline(func_type) => {

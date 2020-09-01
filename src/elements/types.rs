@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use crate::io;
 use super::{
 	Deserialize, Serialize, Error, VarUint7, VarInt7, CountedList,
-	CountedListWriter, VarUint32, VarUint1
+	CountedListWriter,
 };
 use core::fmt;
 

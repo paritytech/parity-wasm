@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
 use crate::io;
 use super::{
-	Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint1, CountedList,
-	CountedListWriter, VarUint32,
+	Deserialize, Serialize, Error, VarUint7, VarInt7, CountedList,
+	CountedListWriter, VarUint32, VarUint1
 };
 use core::fmt;
 
@@ -146,7 +146,7 @@ impl Serialize for BlockType {
 pub struct FunctionType {
 	form: u8,
 	params: Vec<ValueType>,
-	return_type: Option<ValueType>,
+	results: Vec<ValueType>,
 }
 
 impl Default for FunctionType {
@@ -154,18 +154,18 @@ impl Default for FunctionType {
 		FunctionType {
 			form: 0x60,
 			params: Vec::new(),
-			return_type: None,
+			results: Vec::new(),
 		}
 	}
 }
 
 impl FunctionType {
-	/// New function type given the signature in-params(`params`) and return type (`return_type`)
-	pub fn new(params: Vec<ValueType>, return_type: Option<ValueType>) -> Self {
+	/// New function type given the params and results as vectors
+	pub fn new(params: Vec<ValueType>, results: Vec<ValueType>) -> Self {
 		FunctionType {
-			params: params,
-			return_type: return_type,
-			..Default::default()
+			form: 0,
+			params,
+			results,
 		}
 	}
 	/// Function form (currently only valid value is `0x60`)
@@ -174,10 +174,10 @@ impl FunctionType {
 	pub fn params(&self) -> &[ValueType] { &self.params }
 	/// Mutable parameters in the function signature.
 	pub fn params_mut(&mut self) -> &mut Vec<ValueType> { &mut self.params }
-	/// Return type in the function signature, if any.
-	pub fn return_type(&self) -> Option<ValueType> { self.return_type }
+	/// Results in the function signature, if any.
+	pub fn results(&self) -> &[ValueType] { &self.results }
 	/// Mutable type in the function signature, if any.
-	pub fn return_type_mut(&mut self) -> &mut Option<ValueType> { &mut self.return_type }
+	pub fn results_mut(&mut self) -> &mut Vec<ValueType> { &mut self.results }
 }
 
 impl Deserialize for FunctionType {
@@ -191,21 +191,17 @@ impl Deserialize for FunctionType {
 		}
 
 		let params: Vec<ValueType> = CountedList::deserialize(reader)?.into_inner();
+		let results: Vec<ValueType> = CountedList::deserialize(reader)?.into_inner();
 
-		let return_types: u32 = VarUint32::deserialize(reader)?.into();
-
-		let return_type = if return_types == 1 {
-			Some(ValueType::deserialize(reader)?)
-		} else if return_types == 0 {
-			None
-		} else {
-			return Err(Error::Other("Return types length should be 0 or 1"));
-		};
+		#[cfg(not(feature="multi_value"))]
+		if results.len() > 1 {
+			return Err(Error::Other("Enable the multi_value feature to deserialize more than one function result"));
+		}
 
 		Ok(FunctionType {
-			form: form,
-			params: params,
-			return_type: return_type,
+			form,
+			params,
+			results,
 		})
 	}
 }
@@ -216,19 +212,17 @@ impl Serialize for FunctionType {
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		VarUint7::from(self.form).serialize(writer)?;
 
-		let data = self.params;
-		let counted_list = CountedListWriter::<ValueType, _>(
-			data.len(),
-			data.into_iter().map(Into::into),
+		let params_counted_list = CountedListWriter::<ValueType, _>(
+			self.params.len(),
+			self.params.into_iter().map(Into::into),
 		);
-		counted_list.serialize(writer)?;
+		params_counted_list.serialize(writer)?;
 
-		if let Some(return_type) = self.return_type {
-			VarUint1::from(true).serialize(writer)?;
-			return_type.serialize(writer)?;
-		} else {
-			VarUint1::from(false).serialize(writer)?;
-		}
+		let results_counted_list = CountedListWriter::<ValueType, _>(
+			self.results.len(),
+			self.results.into_iter().map(Into::into),
+		);
+		results_counted_list.serialize(writer)?;
 
 		Ok(())
 	}

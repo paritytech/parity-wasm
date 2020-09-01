@@ -950,7 +950,7 @@ mod tests {
 			&Type::Function(ref func_type) => func_type
 		};
 
-		assert_eq!(Some(ValueType::I64), t1.return_type());
+		assert_eq!(vec![ValueType::I64], t1.results());
 		assert_eq!(2, t1.params().len());
 	}
 

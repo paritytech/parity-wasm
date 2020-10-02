@@ -295,6 +295,15 @@ pub enum Instruction {
 	F32ReinterpretI32,
 	F64ReinterpretI64,
 
+	I32TruncSatSF32,
+	I32TruncSatUF32,
+	I32TruncSatSF64,
+	I32TruncSatUF64,
+	I64TruncSatSF32,
+	I64TruncSatUF32,
+	I64TruncSatSF64,
+	I64TruncSatUF64,
+
 	#[cfg(feature="atomics")]
 	Atomics(AtomicsInstruction),
 
@@ -784,6 +793,16 @@ pub mod opcodes {
 	pub const I64REINTERPRETF64: u8 = 0xbd;
 	pub const F32REINTERPRETI32: u8 = 0xbe;
 	pub const F64REINTERPRETI64: u8 = 0xbf;
+
+	pub const TRUNC_SAT_PREFIX: u8 = 0xfc;
+	pub const I32_TRUNC_SAT_F32_S: u32 = 0;
+	pub const I32_TRUNC_SAT_F32_U: u32 = 1;
+	pub const I32_TRUNC_SAT_F64_S: u32 = 2;
+	pub const I32_TRUNC_SAT_F64_U: u32 = 3;
+	pub const I64_TRUNC_SAT_F32_S: u32 = 4;
+	pub const I64_TRUNC_SAT_F32_U: u32 = 5;
+	pub const I64_TRUNC_SAT_F64_S: u32 = 6;
+	pub const I64_TRUNC_SAT_F64_U: u32 = 7;
 
 	#[cfg(feature="sign_ext")]
 	pub mod sign_ext {
@@ -1347,6 +1366,21 @@ impl Deserialize for Instruction {
 				I64REINTERPRETF64 => I64ReinterpretF64,
 				F32REINTERPRETI32 => F32ReinterpretI32,
 				F64REINTERPRETI64 => F64ReinterpretI64,
+
+				TRUNC_SAT_PREFIX => {
+					let val: u32 = Uint32::deserialize(reader)?.into();
+					match val {
+						I32_TRUNC_SAT_F32_S => I32TruncSatSF32,
+						I32_TRUNC_SAT_F32_U => I32TruncSatUF32,
+						I32_TRUNC_SAT_F64_S => I32TruncSatSF64,
+						I32_TRUNC_SAT_F64_U => I32TruncSatUF64,
+						I64_TRUNC_SAT_F32_S => I64TruncSatSF32,
+						I64_TRUNC_SAT_F32_U => I64TruncSatUF32,
+						I64_TRUNC_SAT_F64_S => I64TruncSatSF64,
+						I64_TRUNC_SAT_F64_U => I64TruncSatUF64,
+						_ => return Err(Error::UnknownOpcode(val as u8)),
+					}
+				}
 
 				#[cfg(feature="sign_ext")]
 				I32_EXTEND8_S |
@@ -2024,6 +2058,39 @@ impl Serialize for Instruction {
 			F32ReinterpretI32 => op!(writer, F32REINTERPRETI32),
 			F64ReinterpretI64 => op!(writer, F64REINTERPRETI64),
 
+			I32TruncSatSF32 => {
+				op!(writer, TRUNC_SAT_PREFIX);
+				VarUint32::from(I32_TRUNC_SAT_F32_S).serialize(writer)?;
+			}
+			I32TruncSatUF32 => {
+				op!(writer, TRUNC_SAT_PREFIX);
+				VarUint32::from(I32_TRUNC_SAT_F32_U).serialize(writer)?;
+			}
+			I32TruncSatSF64 => {
+				op!(writer, TRUNC_SAT_PREFIX);
+				VarUint32::from(I32_TRUNC_SAT_F64_S).serialize(writer)?;
+			}
+			I32TruncSatUF64 => {
+				op!(writer, TRUNC_SAT_PREFIX);
+				VarUint32::from(I32_TRUNC_SAT_F64_U).serialize(writer)?;
+			}
+			I64TruncSatSF32 => {
+				op!(writer, TRUNC_SAT_PREFIX);
+				VarUint32::from(I64_TRUNC_SAT_F32_S).serialize(writer)?;
+			}
+			I64TruncSatUF32 => {
+				op!(writer, TRUNC_SAT_PREFIX);
+				VarUint32::from(I64_TRUNC_SAT_F32_U).serialize(writer)?;
+			}
+			I64TruncSatSF64 => {
+				op!(writer, TRUNC_SAT_PREFIX);
+				VarUint32::from(I64_TRUNC_SAT_F64_S).serialize(writer)?;
+			}
+			I64TruncSatUF64 => {
+				op!(writer, TRUNC_SAT_PREFIX);
+				VarUint32::from(I64_TRUNC_SAT_F64_U).serialize(writer)?;
+			}
+
 			#[cfg(feature="sign_ext")]
 			SignExt(ref a) => match *a {
 				SignExtInstruction::I32Extend8S => op!(writer, sign_ext::I32_EXTEND8_S),
@@ -2595,6 +2662,15 @@ impl fmt::Display for Instruction {
 			I64ReinterpretF64 => write!(f, "i64.reinterpret/f64"),
 			F32ReinterpretI32 => write!(f, "f32.reinterpret/i32"),
 			F64ReinterpretI64 => write!(f, "f64.reinterpret/i64"),
+
+			I32TruncSatUF32 => write!(f, "i32.trunc_sat_f32_u"),
+			I32TruncSatSF32 => write!(f, "i32.trunc_sat_f32_s"),
+			I32TruncSatUF64 => write!(f, "i32.trunc_sat_f64_u"),
+			I32TruncSatSF64 => write!(f, "i32.trunc_sat_f64_s"),
+			I64TruncSatUF32 => write!(f, "i64.trunc_sat_f32_u"),
+			I64TruncSatSF32 => write!(f, "i64.trunc_sat_f32_s"),
+			I64TruncSatUF64 => write!(f, "i64.trunc_sat_f64_u"),
+			I64TruncSatSF64 => write!(f, "i64.trunc_sat_f64_s"),
 
 			#[cfg(feature="sign_ext")]
 			SignExt(ref i) => match i {

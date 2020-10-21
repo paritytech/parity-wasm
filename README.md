@@ -13,7 +13,7 @@ Add to Cargo.toml
 
 ```toml
 [dependencies]
-parity-wasm = "0.41"
+parity-wasm = "0.42"
 ```
 
 and then

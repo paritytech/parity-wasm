@@ -55,6 +55,7 @@ impl From<elements::Module> for ModuleScaffold {
 		let mut code: Option<elements::CodeSection> = None;
 		let mut data: Option<elements::DataSection> = None;
 
+        let mut other = Vec::new();
 		let mut sections = module.into_sections();
 		while let Some(section) = sections.pop() {
 			match section {
@@ -69,7 +70,7 @@ impl From<elements::Module> for ModuleScaffold {
 				elements::Section::Element(sect) => { element = Some(sect); }
 				elements::Section::Code(sect) => { code = Some(sect); }
 				elements::Section::Data(sect) => { data = Some(sect); }
-				_ => {}
+				section => other.push(section)
 			}
 		}
 
@@ -85,7 +86,7 @@ impl From<elements::Module> for ModuleScaffold {
 			element: element.unwrap_or_default(),
 			code: code.unwrap_or_default(),
 			data: data.unwrap_or_default(),
-			other: sections,
+			other,
 		}
 	}
 }

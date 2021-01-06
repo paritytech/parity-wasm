@@ -264,16 +264,16 @@ impl LocalNameSubsection {
 		let max_locals = module
 			.code_section()
 			.map(|cs|
-                cs.bodies()
-                    .iter()
-                    .map(|f|
-                        f.locals()
-                            .iter()
-                            .map(|l| l.count() as usize)
-                           .max()
-                          .unwrap_or(0))
-                    .max()
-                    .unwrap_or(0))
+				cs.bodies()
+					.iter()
+					.map(|f|
+						f.locals()
+						   .iter()
+						   .map(|l| l.count() as usize)
+						   .max()
+						   .unwrap_or(0))
+					.max()
+					.unwrap_or(0))
 			.unwrap_or(0);
 
 		let max_space = max_signature_args + max_locals;

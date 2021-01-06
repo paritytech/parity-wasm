@@ -55,7 +55,7 @@ impl From<elements::Module> for ModuleScaffold {
 		let mut code: Option<elements::CodeSection> = None;
 		let mut data: Option<elements::DataSection> = None;
 
-        let mut other = Vec::new();
+		let mut other = Vec::new();
 		let mut sections = module.into_sections();
 		while let Some(section) = sections.pop() {
 			match section {

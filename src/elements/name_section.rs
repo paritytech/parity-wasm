@@ -270,8 +270,7 @@ impl LocalNameSubsection {
 						f.locals()
 						   .iter()
 						   .map(|l| l.count() as usize)
-						   .max()
-						   .unwrap_or(0))
+						   .sum())
 					.max()
 					.unwrap_or(0))
 			.unwrap_or(0);

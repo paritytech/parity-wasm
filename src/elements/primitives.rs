@@ -2,6 +2,13 @@ use alloc::{string::String, vec::Vec};
 use crate::{io, elements};
 use super::{Error, Deserialize, Serialize};
 
+
+#[cfg(feature = "reduced-stack-buffer")]
+const PRIMITIVES_BUFFER_LENGTH: usize = 256;
+
+#[cfg(not(feature = "reduced-stack-buffer"))]
+const PRIMITIVES_BUFFER_LENGTH: usize = 1024;
+
 /// Unsigned variable-length integer, limited to 32 bits,
 /// represented by at most 5 bytes that may contain padding 0x80 bytes.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -520,7 +527,7 @@ impl Deserialize for String {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
 		if length > 0 {
-			String::from_utf8(buffered_read!(1024, length, reader)).map_err(|_| Error::NonUtf8String)
+			String::from_utf8(buffered_read!(PRIMITIVES_BUFFER_LENGTH, length, reader)).map_err(|_| Error::NonUtf8String)
 		}
 		else {
 			Ok(String::new())

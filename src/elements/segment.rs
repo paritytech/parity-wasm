@@ -9,6 +9,12 @@ const FLAG_PASSIVE: u32 = 1;
 #[cfg(feature="bulk")]
 const FLAG_MEM_NONZERO: u32 = 2;
 
+#[cfg(feature = "reduced-stack-buffer")]
+const VALUES_BUFFER_LENGTH: usize = 256;
+
+#[cfg(not(feature = "reduced-stack-buffer"))]
+const VALUES_BUFFER_LENGTH: usize = 16384;
+
 /// Entry in the element section.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementSegment {
@@ -217,7 +223,7 @@ impl Deserialize for DataSegment {
 		let index = VarUint32::deserialize(reader)?;
 		let offset = InitExpr::deserialize(reader)?;
 		let value_len = u32::from(VarUint32::deserialize(reader)?) as usize;
-		let value_buf = buffered_read!(65536, value_len, reader);
+		let value_buf = buffered_read!(VALUES_BUFFER_LENGTH, value_len, reader);
 
 		Ok(DataSegment {
 			index: index.into(),
@@ -242,7 +248,7 @@ impl Deserialize for DataSegment {
 			Some(InitExpr::deserialize(reader)?)
 		};
 		let value_len = u32::from(VarUint32::deserialize(reader)?) as usize;
-		let value_buf = buffered_read!(65536, value_len, reader);
+		let value_buf = buffered_read!(VALUES_BUFFER_LENGTH, value_len, reader);
 
 		Ok(DataSegment {
 			index: index,

@@ -21,5 +21,5 @@ pub use self::global::{global, GlobalBuilder};
 pub use self::import::{import, ImportBuilder};
 pub use self::invoke::Identity;
 pub use self::memory::MemoryBuilder;
-pub use self::module::{module, from_module, ModuleBuilder};
+pub use self::module::{module, from_module, ModuleBuilder, CodeLocation};
 pub use self::table::{TableBuilder, TableDefinition, TableEntryDefinition};

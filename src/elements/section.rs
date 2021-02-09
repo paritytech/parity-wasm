@@ -26,6 +26,10 @@ use super::types::Type;
 use super::name_section::NameSection;
 use super::reloc_section::RelocSection;
 
+#[cfg(feature = "reduced-stack-buffer")]
+const ENTRIES_BUFFER_LENGTH: usize = 256;
+
+#[cfg(not(feature = "reduced-stack-buffer"))]
 const ENTRIES_BUFFER_LENGTH: usize = 16384;
 
 /// Section in the WebAssembly module.
@@ -331,7 +335,7 @@ impl Deserialize for CustomSection {
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let section_length: usize = u32::from(VarUint32::deserialize(reader)?) as usize;
-		let buf = buffered_read!(16384, section_length, reader);
+		let buf = buffered_read!(ENTRIES_BUFFER_LENGTH, section_length, reader);
 		let mut cursor = io::Cursor::new(&buf[..]);
 		let name = String::deserialize(&mut cursor)?;
 		let payload = buf[cursor.position() as usize..].to_vec();

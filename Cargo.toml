@@ -20,6 +20,11 @@ time = "0.1"
 default = ["std"]
 std = []
 
+# Reduce stack usage for buffered read operations.
+# This feature is useful when integrating on resource constrained devices such as microcontroler
+# where the stack size is fixed (stacks do not grow) and limited to a few (k)bytes.
+reduced-stack-buffer = []
+
 #
 # Features for enabling non-MVP proposals.
 # These features should be tested as part of Travis CI build.

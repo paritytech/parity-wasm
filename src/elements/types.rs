@@ -163,7 +163,7 @@ impl FunctionType {
 	/// New function type given the params and results as vectors
 	pub fn new(params: Vec<ValueType>, results: Vec<ValueType>) -> Self {
 		FunctionType {
-			form: 0,
+			form: 0x60,
 			params,
 			results,
 		}

@@ -46,6 +46,10 @@ sign_ext = []
 # https://github.com/WebAssembly/bulk-memory-operations/
 bulk = []
 
+#multi-memory
+#https://github.com/WebAssembly/multi-memory
+multi_memory = []
+
 # Multi-value
 # https://github.com/WebAssembly/multi-value/
 multi_value = []

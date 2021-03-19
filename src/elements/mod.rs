@@ -67,6 +67,8 @@ pub use self::ops::BulkInstruction;
 #[cfg(any(feature="simd", feature="atomics"))]
 pub use self::ops::MemArg;
 
+pub use self::ops::MultiMemArg;
+
 pub use self::func::{Func, FuncBody, Local};
 pub use self::segment::{ElementSegment, DataSegment};
 pub use self::index_map::IndexMap;

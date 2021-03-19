@@ -646,6 +646,7 @@ pub fn peek_size(source: &[u8]) -> usize {
 mod integration_tests {
 	use super::super::{deserialize_file, serialize, deserialize_buffer, Section, TypeSection, FunctionSection, ExportSection, CodeSection};
 	use super::Module;
+	use super::super::MultiMemArg;
 
 	#[test]
 	fn hello() {
@@ -757,7 +758,11 @@ mod integration_tests {
 		let func = &module.code_section().expect("Code section to exist").bodies()[0];
 
 		assert_eq!(func.code().elements().len(), 5);
-		assert_eq!(I64Store(0, 32), func.code().elements()[2]);
+		assert_eq!(I64Store(MultiMemArg{
+			offset: 32,
+			align: 0,
+			memory_index: 0
+		}), func.code().elements()[2]);
 	}
 
 	#[test]

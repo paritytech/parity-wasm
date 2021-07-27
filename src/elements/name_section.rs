@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use crate::io;
 
 use super::{Deserialize, Error, Module, Serialize, VarUint32, VarUint7, Type};
@@ -317,7 +317,7 @@ mod tests {
 	fn serialize_module_name() {
 		let module_name_subsection = ModuleNameSubsection::new("my_mod");
 		let original = NameSection::new(Some(module_name_subsection), None, None);
-		serialize_test(original.clone());
+		serialize_test(original);
 	}
 
 	#[test]

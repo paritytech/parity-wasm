@@ -10,10 +10,7 @@ pub fn inject_nop(instructions: &mut elements::Instructions) {
 	let instructions = instructions.elements_mut();
 	let mut position = 0;
 	loop {
-		let need_inject = match &instructions[position] {
-			&Block(_) | &If(_) => true,
-			_ => false,
-		};
+		let need_inject = matches!(&instructions[position], &Block(_) | &If(_));
 		if need_inject {
 			instructions.insert(position + 1, Nop);
 		}

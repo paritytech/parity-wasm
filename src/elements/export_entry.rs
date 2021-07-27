@@ -57,10 +57,10 @@ pub struct ExportEntry {
 
 impl ExportEntry {
 	/// New export entry.
-	pub fn new(field: String, internal: Internal) -> Self {
+	pub fn new(field_str: String, internal: Internal) -> Self {
 		ExportEntry {
-			field_str: field,
-			internal: internal
+			field_str,
+			internal
 		}
 	}
 
@@ -85,8 +85,8 @@ impl Deserialize for ExportEntry {
 		let internal = Internal::deserialize(reader)?;
 
 		Ok(ExportEntry {
-			field_str: field_str,
-			internal: internal,
+			field_str,
+			internal,
 		})
 	}
 }

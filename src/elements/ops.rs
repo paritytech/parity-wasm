@@ -587,20 +587,14 @@ pub struct BrTableData {
 impl Instruction {
 	/// Is this instruction starts the new block (which should end with terminal instruction).
 	pub fn is_block(&self) -> bool {
-		match self {
-			&Instruction::Block(_) | &Instruction::Loop(_) | &Instruction::If(_) => true,
-			_ => false,
-		}
+		matches!(self, &Instruction::Block(_) | &Instruction::Loop(_) | &Instruction::If(_))
 	}
 
 	/// Is this instruction determines the termination of instruction sequence?
 	///
 	/// `true` for `Instruction::End`
 	pub fn is_terminal(&self) -> bool {
-		match self {
-			&Instruction::End => true,
-			_ => false,
-		}
+		matches!(self, &Instruction::End)
 	}
 }
 

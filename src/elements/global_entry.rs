@@ -12,8 +12,8 @@ impl GlobalEntry {
 	/// New global entry.
 	pub fn new(global_type: GlobalType, init_expr: InitExpr) -> Self {
 		GlobalEntry {
-			global_type: global_type,
-			init_expr: init_expr,
+			global_type,
+			init_expr,
 		}
 	}
 	/// Global type.
@@ -34,8 +34,8 @@ impl Deserialize for GlobalEntry {
 		let init_expr = InitExpr::deserialize(reader)?;
 
 		Ok(GlobalEntry {
-			global_type: global_type,
-			init_expr: init_expr,
+			global_type,
+			init_expr,
 		})
 	}
 }

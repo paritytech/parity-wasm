@@ -49,7 +49,7 @@ impl Module {
 	/// New module with sections
 	pub fn new(sections: Vec<Section>) -> Self {
 		Module {
-			sections: sections, ..Default::default()
+			sections, ..Default::default()
 		}
 	}
 
@@ -554,8 +554,8 @@ impl Deserialize for Module {
 
 		let module = Module {
 			magic: u32::from_le_bytes(magic),
-			version: version,
-			sections: sections,
+			version,
+			sections,
 		};
 
 		if module.code_section().map(|cs| cs.bodies().len()).unwrap_or(0) !=

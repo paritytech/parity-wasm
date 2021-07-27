@@ -30,9 +30,9 @@ impl ElementSegment {
 	/// New element segment.
 	pub fn new(index: u32, offset: Option<InitExpr>, members: Vec<u32>) -> Self {
 		ElementSegment {
-			index: index,
-			offset: offset,
-			members: members,
+			index,
+			offset,
+			members,
 
 			#[cfg(feature="bulk")]
 			passive: false,
@@ -172,9 +172,9 @@ impl DataSegment {
 	/// New data segments.
 	pub fn new(index: u32, offset: Option<InitExpr>, value: Vec<u8>) -> Self {
 		DataSegment {
-			index: index,
-			offset: offset,
-			value: value,
+			index,
+			offset,
+			value,
 
 			#[cfg(feature="bulk")]
 			passive: false,

@@ -50,7 +50,7 @@ pub struct Local {
 impl Local {
 	/// New local with `count` and `value_type`.
 	pub fn new(count: u32, value_type: ValueType) -> Self {
-		Local { count: count, value_type: value_type }
+		Local { count, value_type }
 	}
 
 	/// Number of locals with the shared type.
@@ -66,7 +66,7 @@ impl Deserialize for Local {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let count = VarUint32::deserialize(reader)?;
 		let value_type = ValueType::deserialize(reader)?;
-		Ok(Local { count: count.into(), value_type: value_type })
+		Ok(Local { count: count.into(), value_type })
 	}
 }
 
@@ -90,7 +90,7 @@ pub struct FuncBody {
 impl FuncBody {
 	/// New function body with given `locals` and `instructions`.
 	pub fn new(locals: Vec<Local>, instructions: Instructions) -> Self {
-		FuncBody { locals: locals, instructions: instructions }
+		FuncBody { locals, instructions }
 	}
 
 	/// List of individual instructions.
@@ -129,7 +129,7 @@ impl Deserialize for FuncBody {
 
 		let instructions = Instructions::deserialize(&mut body_reader)?;
 		body_reader.close()?;
-		Ok(FuncBody { locals: locals, instructions: instructions })
+		Ok(FuncBody { locals, instructions })
 	}
 }
 

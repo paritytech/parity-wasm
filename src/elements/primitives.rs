@@ -578,7 +578,7 @@ impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
 	/// New counted writer on top of the given serial writer.
 	pub fn new(writer: &'a mut W) -> Self {
 		CountedWriter {
-			writer: writer,
+			writer,
 			data: Vec::new(),
 		}
 	}

@@ -259,12 +259,12 @@ impl SectionReader {
 	pub fn new<R: io::Read>(reader: &mut R) -> Result<Self, elements::Error> {
 		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
 		let inner_buffer = buffered_read!(ENTRIES_BUFFER_LENGTH, length, reader);
-		let buf_length = inner_buffer.len();
+		let declared_length = inner_buffer.len();
 		let cursor = io::Cursor::new(inner_buffer);
 
 		Ok(SectionReader {
-			cursor: cursor,
-			declared_length: buf_length,
+			cursor,
+			declared_length,
 		})
 	}
 
@@ -339,7 +339,7 @@ impl Deserialize for CustomSection {
 		let mut cursor = io::Cursor::new(&buf[..]);
 		let name = String::deserialize(&mut cursor)?;
 		let payload = buf[cursor.position() as usize..].to_vec();
-		Ok(CustomSection { name: name, payload: payload })
+		Ok(CustomSection { name, payload })
 	}
 }
 
@@ -425,14 +425,14 @@ impl ImportSection {
 	/// Returns number of functions.
 	pub fn functions(&self) -> usize {
 		self.0.iter()
-			.filter(|entry| match entry.external() { &External::Function(_) => true, _ => false })
+			.filter(|entry| match *entry.external() { External::Function(_) => true, _ => false })
 			.count()
 	}
 
 	/// Returns number of globals
 	pub fn globals(&self) -> usize {
 		self.0.iter()
-			.filter(|entry| match entry.external() { &External::Global(_) => true, _ => false })
+			.filter(|entry| matches!(entry.external(), &External::Global(_)))
 			.count()
 	}
 }

@@ -82,7 +82,7 @@ impl From<elements::Module> for ModuleScaffold {
 			memory: memory.unwrap_or_default(),
 			global: global.unwrap_or_default(),
 			export: export.unwrap_or_default(),
-			start: start,
+			start,
 			element: element.unwrap_or_default(),
 			code: code.unwrap_or_default(),
 			data: data.unwrap_or_default(),

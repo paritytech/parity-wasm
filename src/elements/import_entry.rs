@@ -20,8 +20,8 @@ impl GlobalType {
 	/// New global type
 	pub fn new(content_type: ValueType, is_mutable: bool) -> Self {
 		GlobalType {
-			content_type: content_type,
-			is_mutable: is_mutable,
+			content_type,
+			is_mutable,
 		}
 	}
 
@@ -39,7 +39,7 @@ impl Deserialize for GlobalType {
 		let content_type = ValueType::deserialize(reader)?;
 		let is_mutable = VarUint1::deserialize(reader)?;
 		Ok(GlobalType {
-			content_type: content_type,
+			content_type,
 			is_mutable: is_mutable.into(),
 		})
 	}
@@ -85,8 +85,8 @@ impl Deserialize for TableType {
 		let elem_type = TableElementType::deserialize(reader)?;
 		let limits = ResizableLimits::deserialize(reader)?;
 		Ok(TableType {
-			elem_type: elem_type,
-			limits: limits,
+			elem_type,
+			limits,
 		})
 	}
 }
@@ -155,7 +155,7 @@ impl Deserialize for ResizableLimits {
 
 		Ok(ResizableLimits {
 			initial: initial.into(),
-			maximum: maximum,
+			maximum,
 
 			#[cfg(feature="atomics")]
 			shared: flags & FLAG_SHARED != 0,
@@ -300,9 +300,9 @@ impl ImportEntry {
 	/// New import entry.
 	pub fn new(module_str: String, field_str: String, external: External) -> Self {
 		ImportEntry {
-			module_str: module_str,
-			field_str: field_str,
-			external: external,
+			module_str,
+			field_str,
+			external,
 		}
 	}
 
@@ -338,9 +338,9 @@ impl Deserialize for ImportEntry {
 		let external = External::deserialize(reader)?;
 
 		Ok(ImportEntry {
-			module_str: module_str,
-			field_str: field_str,
-			external: external,
+			module_str,
+			field_str,
+			external,
 		})
 	}
 }

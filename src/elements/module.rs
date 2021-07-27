@@ -189,7 +189,7 @@ impl Module {
 	/// Exports section reference, if any.
 	pub fn export_section(&self) -> Option<&ExportSection> {
 		for section in self.sections() {
-			if let &Section::Export(ref export_section) = section {
+			if let Section::Export(ref export_section) = *section {
 				return Some(export_section);
 			}
 		}
@@ -209,7 +209,7 @@ impl Module {
 	/// Table section reference, if any.
 	pub fn table_section(&self) -> Option<&TableSection> {
 		for section in self.sections() {
-			if let &Section::Table(ref section) = section {
+			if let Section::Table(ref section) = *section {
 				return Some(section);
 			}
 		}
@@ -229,7 +229,7 @@ impl Module {
 	/// Data section reference, if any.
 	pub fn data_section(&self) -> Option<&DataSection> {
 		for section in self.sections() {
-			if let &Section::Data(ref section) = section {
+			if let Section::Data(ref section) = *section {
 				return Some(section);
 			}
 		}
@@ -249,7 +249,7 @@ impl Module {
 	/// Element section reference, if any.
 	pub fn elements_section(&self) -> Option<&ElementSection> {
 		for section in self.sections() {
-			if let &Section::Element(ref section) = section {
+			if let Section::Element(ref section) = *section {
 				return Some(section);
 			}
 		}
@@ -269,7 +269,7 @@ impl Module {
 	/// Memory section reference, if any.
 	pub fn memory_section(&self) -> Option<&MemorySection> {
 		for section in self.sections() {
-			if let &Section::Memory(ref section) = section {
+			if let Section::Memory(ref section) = *section {
 				return Some(section);
 			}
 		}
@@ -289,7 +289,7 @@ impl Module {
 	/// Functions signatures section reference, if any.
 	pub fn function_section(&self) -> Option<&FunctionSection> {
 		for section in self.sections() {
-			if let &Section::Function(ref sect) = section {
+			if let Section::Function(ref sect) = *section {
 				return Some(sect);
 			}
 		}
@@ -309,7 +309,7 @@ impl Module {
 	/// Start section, if any.
 	pub fn start_section(&self) -> Option<u32> {
 		for section in self.sections() {
-			if let &Section::Start(sect) = section {
+			if let Section::Start(sect) = *section {
 				return Some(sect);
 			}
 		}
@@ -319,7 +319,7 @@ impl Module {
 	/// Changes the module's start section.
 	pub fn set_start_section(&mut self, new_start: u32) {
 		for section in self.sections_mut().iter_mut() {
-			if let &mut Section::Start(_sect) = section {
+			if let Section::Start(_sect) = *section {
 				*section = Section::Start(new_start);
 				return;
 			}
@@ -353,7 +353,7 @@ impl Module {
 	pub fn set_custom_section(&mut self, name: impl Into<String>, payload: Vec<u8>) {
 		let name: String = name.into();
 		for section in self.sections_mut() {
-			if let &mut Section::Custom(ref mut sect) = section {
+			if let Section::Custom(ref mut sect) = *section {
 				if sect.name() == name {
 					*sect = CustomSection::new(name, payload);
 					return;
@@ -583,11 +583,12 @@ impl Deserialize for Module {
 				Err(e) => return Err(e),
 				Ok(section) => {
 					if section.order() != 0 {
-						if last_section_order > section.order() {
-							return Err(Error::SectionsOutOfOrder);
-						} else if last_section_order == section.order() {
-							return Err(Error::DuplicatedSections(last_section_order));
-						}
+						match last_section_order {
+							x if x > section.order() => return Err(Error::SectionsOutOfOrder),
+							x if x == section.order() => return Err(Error::DuplicatedSections(last_section_order)),
+							_ =>  {},
+						};
+
 						last_section_order = section.order();
 					}
 					sections.push(section);

@@ -1753,7 +1753,7 @@ impl Serialize for Instruction {
 			BrTable(ref table) => op!(writer, BRTABLE, {
 				let list_writer = CountedListWriter::<VarUint32, _>(
 					table.table.len(),
-					table.table.into_iter().map(|x| VarUint32::from(*x)),
+					table.table.iter().map(|x| VarUint32::from(*x)),
 				);
 				list_writer.serialize(writer)?;
 				VarUint32::from(table.default).serialize(writer)?;

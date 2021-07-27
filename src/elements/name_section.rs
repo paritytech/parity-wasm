@@ -86,21 +86,21 @@ impl NameSection {
 
 			match subsection_type {
 				NAME_TYPE_MODULE => {
-					if let Some(_) = module_name {
+					if module_name.is_some() {
 						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION));
 					}
 					module_name = Some(ModuleNameSubsection::deserialize(rdr)?);
 				},
 
 				NAME_TYPE_FUNCTION => {
-					if let Some(_) = function_names {
+					if function_names.is_some() {
 						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION));
 					}
 					function_names = Some(FunctionNameSubsection::deserialize(module, rdr)?);
 				},
 
 				NAME_TYPE_LOCAL => {
-					if let Some(_) = local_names {
+					if local_names.is_some() {
 						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_LOCAL));
 					}
 					local_names = Some(LocalNameSubsection::deserialize(module, rdr)?);
@@ -122,7 +122,7 @@ impl Serialize for NameSection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
-		fn serialize_subsection<W: io::Write>(wtr: &mut W, name_type: u8, name_payload: &Vec<u8>) -> Result<(), Error> {
+		fn serialize_subsection<W: io::Write>(wtr: &mut W, name_type: u8, name_payload: &[u8]) -> Result<(), Error> {
 			VarUint7::from(name_type).serialize(wtr)?;
 			VarUint32::from(name_payload.len()).serialize(wtr)?;
 			wtr.write(name_payload).map_err(Into::into)

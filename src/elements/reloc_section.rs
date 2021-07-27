@@ -51,7 +51,7 @@ impl RelocSection {
 
 	/// Name of the section containing the relocations described in this section.
 	pub fn relocation_section_name(&self) -> Option<&str> {
-		self.relocation_section_name.as_ref().map(String::as_str)
+		self.relocation_section_name.as_deref()
 	}
 
 	/// Name of the section containing the relocations described in this section (mutable).

@@ -248,7 +248,7 @@ impl<T> Iterator for IntoIter<T> {
 		if self.remaining_len == 0 {
 			return None;
 		}
-		while let Some(value_opt) = self.iter.next() {
+		for value_opt in &mut self.iter {
 			let idx = self.next_idx;
 			self.next_idx += 1;
 			if let Some(value) = value_opt {
@@ -295,7 +295,7 @@ impl<'a, T: 'static> Iterator for Iter<'a, T> {
 		if self.remaining_len == 0 {
 			return None;
 		}
-		while let Some(value_opt) = self.iter.next() {
+		for value_opt in &mut self.iter {
 			let idx = self.next_idx;
 			self.next_idx += 1;
 			if let &Some(ref value) = value_opt {

@@ -17,6 +17,12 @@ impl ImportBuilder {
 	}
 }
 
+impl Default for ImportBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<F> ImportBuilder<F> {
 	/// New import builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {

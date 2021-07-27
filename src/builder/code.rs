@@ -24,6 +24,11 @@ impl SignatureBuilder {
 	}
 }
 
+impl Default for SignatureBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
 impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 	/// New builder with callback function specified
 	pub fn with_callback(callback: F) -> Self {
@@ -143,6 +148,12 @@ impl SignaturesBuilder {
 	/// New empty functions section builder
 	pub fn new() -> Self {
 		SignaturesBuilder::with_callback(Identity)
+	}
+}
+
+impl Default for SignaturesBuilder {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 
@@ -287,6 +298,12 @@ impl FunctionBuilder {
 	/// New function builder
 	pub fn new() -> Self {
 		FunctionBuilder::with_callback(Identity)
+	}
+}
+
+impl Default for FunctionBuilder {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 

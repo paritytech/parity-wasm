@@ -20,6 +20,12 @@ impl GlobalBuilder {
 	}
 }
 
+impl Default for GlobalBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<F> GlobalBuilder<F> {
 	/// New global builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {

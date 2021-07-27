@@ -35,6 +35,12 @@ impl MemoryBuilder {
 	}
 }
 
+impl Default for MemoryBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<F> MemoryBuilder<F> where F: Invoke<MemoryDefinition> {
 	/// New memory builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {

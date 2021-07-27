@@ -55,12 +55,12 @@ impl Module {
 
 	/// Construct a module from a slice.
 	pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Result<Self, Error> {
-		Ok(deserialize_buffer::<Module>(input.as_ref())?)
+		deserialize_buffer::<Module>(input.as_ref())
 	}
 
 	/// Serialize a module to a vector.
 	pub fn to_bytes(self) -> Result<Vec<u8>, Error> {
-		Ok(serialize::<Module>(self)?)
+		serialize::<Module>(self)
 	}
 
 	/// Destructure the module, yielding sections
@@ -97,7 +97,7 @@ impl Module {
 		}
 
 		// Check if the section already exists.
-		if sections.iter().position(|s| s.order() == section.order()).is_some() {
+		if sections.iter().any(|s| s.order() == section.order()) {
 			return Err(Error::DuplicatedSections(section.order()));
 		}
 
@@ -114,7 +114,7 @@ impl Module {
 	/// Code section reference, if any.
 	pub fn code_section(&self) -> Option<&CodeSection> {
 		for section in self.sections() {
-			if let &Section::Code(ref code_section) = section { return Some(code_section); }
+			if let Section::Code(ref code_section) = *section { return Some(code_section); }
 		}
 		None
 	}
@@ -130,7 +130,7 @@ impl Module {
 	/// Types section reference, if any.
 	pub fn type_section(&self) -> Option<&TypeSection> {
 		for section in self.sections() {
-			if let &Section::Type(ref type_section) = section { return Some(type_section); }
+			if let Section::Type(ref type_section) = *section { return Some(type_section); }
 		}
 		None
 	}
@@ -146,7 +146,7 @@ impl Module {
 	/// Imports section reference, if any.
 	pub fn import_section(&self) -> Option<&ImportSection> {
 		for section in self.sections() {
-			if let &Section::Import(ref import_section) = section { return Some(import_section); }
+			if let Section::Import(ref import_section) = *section { return Some(import_section); }
 		}
 		None
 	}
@@ -162,7 +162,7 @@ impl Module {
 	/// Globals section reference, if any.
 	pub fn global_section(&self) -> Option<&GlobalSection> {
 		for section in self.sections() {
-			if let &Section::Global(ref section) = section { return Some(section); }
+			if let Section::Global(ref section) = *section { return Some(section); }
 		}
 		None
 	}

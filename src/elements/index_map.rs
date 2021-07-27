@@ -298,7 +298,7 @@ impl<'a, T: 'static> Iterator for Iter<'a, T> {
 		for value_opt in &mut self.iter {
 			let idx = self.next_idx;
 			self.next_idx += 1;
-			if let &Some(ref value) = value_opt {
+			if let Some(ref value) = *value_opt {
 				self.remaining_len -= 1;
 				return Some((idx, value));
 			}

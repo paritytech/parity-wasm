@@ -93,7 +93,7 @@ impl Deserialize for Section {
 		Ok(
 			match id.into() {
 				0 => {
-					Section::Custom(CustomSection::deserialize(reader)?.into())
+					Section::Custom(CustomSection::deserialize(reader)?)
 				},
 				1 => {
 					Section::Type(TypeSection::deserialize(reader)?)
@@ -425,7 +425,7 @@ impl ImportSection {
 	/// Returns number of functions.
 	pub fn functions(&self) -> usize {
 		self.0.iter()
-			.filter(|entry| match *entry.external() { External::Function(_) => true, _ => false })
+			.filter(|entry| matches!(*entry.external(), External::Function(_)))
 			.count()
 	}
 

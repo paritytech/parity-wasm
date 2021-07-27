@@ -505,7 +505,7 @@ impl Deserialize for VarUint1 {
 		match u8buf[0] {
 			0 => Ok(VarUint1(false)),
 			1 => Ok(VarUint1(true)),
-			v @ _ => Err(Error::InvalidVarUint1(v)),
+			v => Err(Error::InvalidVarUint1(v)),
 		}
 	}
 }

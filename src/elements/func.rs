@@ -124,8 +124,7 @@ impl Deserialize for FuncBody {
 		// decoding the binary format.
 		locals
 			.iter()
-			.try_fold(0u32, |acc, &Local { count, .. }| acc.checked_add(count))
-			.ok_or_else(|| Error::TooManyLocals)?;
+			.try_fold(0u32, |acc, &Local { count, .. }| acc.checked_add(count)).ok_or(Error::TooManyLocals)?;
 
 		let instructions = Instructions::deserialize(&mut body_reader)?;
 		body_reader.close()?;

@@ -367,8 +367,8 @@ mod tests {
 		let map = IndexMap::<String>::default();
 		assert_eq!(map.len(), 0);
 		assert!(map.is_empty());
-		assert_eq!(map.iter().collect::<Vec<_>>().len(), 0);
-		assert_eq!(map.into_iter().collect::<Vec<_>>().len(), 0);
+		assert_eq!(map.iter().count(), 0);
+		assert_eq!(map.into_iter().count(), 0);
 	}
 
 	#[test]

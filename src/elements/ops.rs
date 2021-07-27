@@ -2903,15 +2903,15 @@ fn ifelse() {
 	let instruction_list = super::deserialize_buffer::<Instructions>(&[0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B])
 		.expect("valid hex of if instruction");
 	let instructions = instruction_list.elements();
-	match &instructions[0] {
-		&Instruction::If(_) => (),
+	match instructions[0] {
+		Instruction::If(_) => (),
 		_ => panic!("Should be deserialized as if instruction"),
 	}
 	let before_else = instructions.iter().skip(1)
-		.take_while(|op| match **op { Instruction::Else => false, _ => true }).count();
+		.take_while(|op| !matches!(**op, Instruction::Else)).count();
 	let after_else = instructions.iter().skip(1)
-		.skip_while(|op| match **op { Instruction::Else => false, _ => true })
-		.take_while(|op| match **op { Instruction::End => false, _ => true })
+		.skip_while(|op| !matches!(**op, Instruction::Else))
+		.take_while(|op| !matches!(**op, Instruction::End))
 		.count()
 		- 1; // minus Instruction::Else itself
 	assert_eq!(before_else, after_else);

@@ -27,7 +27,7 @@ fn main() {
 	// Printing the total count of data segments
 	println!("Data segments: {}", data_section.entries().len());
 
-	for (index, entry) in data_section.entries().into_iter().enumerate() {
+	for (index, entry) in data_section.entries().iter().enumerate() {
 		// Printing the details info of each data segment
 		// see `elements::DataSegment` for more properties
 		// you can query

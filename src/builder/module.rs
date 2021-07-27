@@ -150,6 +150,12 @@ impl ModuleBuilder {
 	}
 }
 
+impl Default for ModuleBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 	/// New module builder with bound callback
 	pub fn with_callback(callback: F) -> Self {

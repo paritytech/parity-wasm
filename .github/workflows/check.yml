@@ -1,0 +1,93 @@
+name: Check
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  clippy:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy
+
+      - uses: actions/checkout@v2
+
+      - name: Cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: clippy
+          args: --all-targets --all-features -- -D warnings
+
+  spec:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: test
+          args: --manifest-path=spec/Cargo.toml
+
+  test:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+        toolchain: ["stable", "nightly"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          target: wasm32-unknown-unknown
+          toolchain: ${{ matrix.toolchain }}
+
+      - uses: actions/checkout@v2
+
+      - name: Cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          command: build
+
+      - name: Cargo build (no_std)
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          command: build
+          args: --no-default-features
+
+      - name: Cargo build (wasm)
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          command: build
+          args: --no-default-features --target wasm32-unknown-unknown
+
+      - name: Cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          command: test
+          args: --all-features

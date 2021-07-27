@@ -522,13 +522,7 @@ impl Module {
 			.map(|is| {
 				is.entries()
 					.iter()
-					.filter(|import| match (count_type, *import.external()) {
-						(ImportCountType::Function, External::Function(_)) => true,
-						(ImportCountType::Global, External::Global(_)) => true,
-						(ImportCountType::Table, External::Table(_)) => true,
-						(ImportCountType::Memory, External::Memory(_)) => true,
-						_ => false,
-					})
+					.filter(|import| matches!((count_type, *import.external()), (ImportCountType::Function, External::Function(_)) | (ImportCountType::Global, External::Global(_)) | (ImportCountType::Table, External::Table(_)) | (ImportCountType::Memory, External::Memory(_))))
 					.count()
 			})
 			.unwrap_or(0)

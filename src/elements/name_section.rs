@@ -74,13 +74,8 @@ impl NameSection {
 		let mut function_names: Option<FunctionNameSubsection> = None;
 		let mut local_names: Option<LocalNameSubsection> = None;
 
-		loop {
-			let subsection_type: u8 = match VarUint7::deserialize(rdr) {
-				Ok(raw_subsection_type) => raw_subsection_type.into(),
-				// todo: be more selective detecting no more subsection
-				Err(_) => { break; },
-			};
-
+		while let Ok(raw_subsection_type) = VarUint7::deserialize(rdr) {
+			let subsection_type =  raw_subsection_type.into();
 			// deserialize the section size
 			VarUint32::deserialize(rdr)?;
 

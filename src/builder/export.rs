@@ -16,12 +16,18 @@ impl ExportBuilder {
 	}
 }
 
+impl Default for ExportBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<F> ExportBuilder<F> {
 
 	/// New export entry builder in the specified chained context
 	pub fn with_callback(callback: F) -> Self {
 		ExportBuilder {
-			callback: callback,
+			callback,
 			field: String::new(),
 			binding: elements::Internal::Function(0),
 		}
@@ -69,7 +75,7 @@ impl<F> ExportInternalBuilder<F> where F: Invoke<elements::Internal> {
 	/// New export entry internal mapping for the chained context
 	pub fn with_callback(callback: F) -> Self {
 		ExportInternalBuilder{
-			callback: callback,
+			callback,
 			binding: elements::Internal::Function(0),
 		}
 	}

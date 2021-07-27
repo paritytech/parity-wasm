@@ -39,7 +39,7 @@ impl<F> MemoryBuilder<F> where F: Invoke<MemoryDefinition> {
 	/// New memory builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {
 		MemoryBuilder {
-			callback: callback,
+			callback,
 			memory: Default::default(),
 		}
 	}
@@ -63,7 +63,7 @@ impl<F> MemoryBuilder<F> where F: Invoke<MemoryDefinition> {
 				elements::Instruction::I32Const(index as i32),
 				elements::Instruction::End,
 			]),
-			values: values,
+			values,
 		});
 		self
 	}

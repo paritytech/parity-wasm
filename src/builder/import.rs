@@ -21,7 +21,7 @@ impl<F> ImportBuilder<F> {
 	/// New import builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {
 		ImportBuilder {
-			callback: callback,
+			callback,
 			module: String::new(),
 			field: String::new(),
 			binding: elements::External::Function(0),
@@ -81,7 +81,7 @@ impl<F> ImportExternalBuilder<F> where F: Invoke<elements::External> {
 	/// New import to external mapping builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {
 		ImportExternalBuilder{
-			callback: callback,
+			callback,
 			binding: elements::External::Function(0),
 		}
 	}

@@ -24,7 +24,7 @@ impl<F> GlobalBuilder<F> {
 	/// New global builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {
 		GlobalBuilder {
-			callback: callback,
+			callback,
 			value_type: elements::ValueType::I32,
 			init_expr: elements::InitExpr::empty(),
 			is_mutable: false,

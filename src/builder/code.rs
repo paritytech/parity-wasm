@@ -28,7 +28,7 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 	/// New builder with callback function specified
 	pub fn with_callback(callback: F) -> Self {
 		SignatureBuilder {
-			callback: callback,
+			callback,
 			signature: elements::FunctionType::default(),
 		}
 	}
@@ -118,7 +118,7 @@ impl<F> TypeRefBuilder<F> where F: Invoke<u32> {
 	/// New builder chained with specified callback
 	pub fn with_callback(callback: F) -> Self {
 		TypeRefBuilder {
-			callback: callback,
+			callback,
 			type_ref: 0
 		}
 	}
@@ -150,7 +150,7 @@ impl<F> SignaturesBuilder<F> {
 	/// New builder chained with specified callback
 	pub fn with_callback(callback: F) -> Self {
 		SignaturesBuilder {
-			callback: callback,
+			callback,
 			section: Vec::new(),
 		}
 	}
@@ -226,7 +226,7 @@ impl<F> FuncBodyBuilder<F> {
 	/// New body (code) builder given the chain callback
 	pub fn with_callback(callback: F) -> Self {
 		FuncBodyBuilder {
-			callback: callback,
+			callback,
 			body: elements::FuncBody::new(Vec::new(), elements::Instructions::empty()),
 		}
 	}
@@ -294,7 +294,7 @@ impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
 	/// New function builder with chained callback
 	pub fn with_callback(callback: F) -> Self {
 		FunctionBuilder {
-			callback: callback,
+			callback,
 			func: Default::default(),
 		}
 	}

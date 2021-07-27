@@ -35,11 +35,17 @@ impl TableBuilder {
 	}
 }
 
+impl Default for TableBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<F> TableBuilder<F> where F: Invoke<TableDefinition> {
 	/// New table builder with callback in chained context
 	pub fn with_callback(callback: F) -> Self {
 		TableBuilder {
-			callback: callback,
+			callback,
 			table: Default::default(),
 		}
 	}
@@ -63,7 +69,7 @@ impl<F> TableBuilder<F> where F: Invoke<TableDefinition> {
 				elements::Instruction::I32Const(index as i32),
 				elements::Instruction::End,
 			]),
-			values: values,
+			values,
 		});
 		self
 	}

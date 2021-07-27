@@ -22,7 +22,7 @@ impl<F> DataSegmentBuilder<F> {
 	/// New data segment builder inside the chain context
 	pub fn with_callback(callback: F) -> Self {
 		DataSegmentBuilder {
-			callback: callback,
+			callback,
 			mem_index: 0,
 			offset: elements::InitExpr::empty(),
 			value: Vec::new(),

@@ -19,7 +19,7 @@ pub enum Error {
 	InvalidData,
 
 	#[cfg(feature = "std")]
-	IoError(std::io::Error),
+	Io(std::io::Error),
 }
 
 /// IO specific Result.
@@ -84,14 +84,14 @@ impl Write for alloc::vec::Vec<u8> {
 impl<T: io::Read> Read for T {
 	fn read(&mut self, buf: &mut [u8]) -> Result<()> {
 		self.read_exact(buf)
-			.map_err(Error::IoError)
+			.map_err(Error::Io)
 	}
 }
 
 #[cfg(feature = "std")]
 impl<T: io::Write> Write for T {
 	fn write(&mut self, buf: &[u8]) -> Result<()> {
-		self.write_all(buf).map_err(Error::IoError)
+		self.write_all(buf).map_err(Error::Io)
 	}
 }
 

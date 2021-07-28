@@ -1,6 +1,6 @@
-use alloc::vec::Vec;
+use super::invoke::{Identity, Invoke};
 use crate::elements;
-use super::invoke::{Invoke, Identity};
+use alloc::vec::Vec;
 
 /// Table definition
 #[derive(Debug, PartialEq)]
@@ -23,7 +23,7 @@ pub struct TableEntryDefinition {
 }
 
 /// Table builder
-pub struct TableBuilder<F=Identity> {
+pub struct TableBuilder<F = Identity> {
 	callback: F,
 	table: TableDefinition,
 }
@@ -41,13 +41,13 @@ impl Default for TableBuilder {
 	}
 }
 
-impl<F> TableBuilder<F> where F: Invoke<TableDefinition> {
+impl<F> TableBuilder<F>
+where
+	F: Invoke<TableDefinition>,
+{
 	/// New table builder with callback in chained context
 	pub fn with_callback(callback: F) -> Self {
-		TableBuilder {
-			callback,
-			table: Default::default(),
-		}
+		TableBuilder { callback, table: Default::default() }
 	}
 
 	/// Set/override minimum length
@@ -82,10 +82,6 @@ impl<F> TableBuilder<F> where F: Invoke<TableDefinition> {
 
 impl Default for TableDefinition {
 	fn default() -> Self {
-		TableDefinition {
-			min: 0,
-			max: None,
-			elements: Vec::new(),
-		}
+		TableDefinition { min: 0, max: None, elements: Vec::new() }
 	}
 }

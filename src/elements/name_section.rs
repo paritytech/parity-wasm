@@ -1,8 +1,9 @@
-use alloc::string::String;
 use crate::io;
+use alloc::string::String;
 
-use super::{Deserialize, Error, Module, Serialize, VarUint32, VarUint7, Type};
-use super::index_map::IndexMap;
+use super::{
+	index_map::IndexMap, Deserialize, Error, Module, Serialize, Type, VarUint32, VarUint7,
+};
 
 const NAME_TYPE_MODULE: u8 = 0;
 const NAME_TYPE_FUNCTION: u8 = 1;
@@ -23,14 +24,12 @@ pub struct NameSection {
 
 impl NameSection {
 	/// Creates a new name section.
-	pub fn new(module: Option<ModuleNameSubsection>,
-                  functions: Option<FunctionNameSubsection>,
-                  locals: Option<LocalNameSubsection>) -> Self {
-		Self {
-			module,
-			functions,
-			locals,
-		}
+	pub fn new(
+		module: Option<ModuleNameSubsection>,
+		functions: Option<FunctionNameSubsection>,
+		locals: Option<LocalNameSubsection>,
+	) -> Self {
+		Self { module, functions, locals }
 	}
 
 	/// Module name subsection of this section.
@@ -66,50 +65,43 @@ impl NameSection {
 
 impl NameSection {
 	/// Deserialize a name section.
-	pub fn deserialize<R: io::Read>(
-		module: &Module,
-		rdr: &mut R,
-	) -> Result<Self, Error> {
+	pub fn deserialize<R: io::Read>(module: &Module, rdr: &mut R) -> Result<Self, Error> {
 		let mut module_name: Option<ModuleNameSubsection> = None;
 		let mut function_names: Option<FunctionNameSubsection> = None;
 		let mut local_names: Option<LocalNameSubsection> = None;
 
 		while let Ok(raw_subsection_type) = VarUint7::deserialize(rdr) {
-			let subsection_type =  raw_subsection_type.into();
+			let subsection_type = raw_subsection_type.into();
 			// deserialize the section size
 			VarUint32::deserialize(rdr)?;
 
 			match subsection_type {
 				NAME_TYPE_MODULE => {
 					if module_name.is_some() {
-						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION));
+						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION))
 					}
 					module_name = Some(ModuleNameSubsection::deserialize(rdr)?);
 				},
 
 				NAME_TYPE_FUNCTION => {
 					if function_names.is_some() {
-						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION));
+						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_FUNCTION))
 					}
 					function_names = Some(FunctionNameSubsection::deserialize(module, rdr)?);
 				},
 
 				NAME_TYPE_LOCAL => {
 					if local_names.is_some() {
-						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_LOCAL));
+						return Err(Error::DuplicatedNameSubsections(NAME_TYPE_LOCAL))
 					}
 					local_names = Some(LocalNameSubsection::deserialize(module, rdr)?);
 				},
 
-				_ => return Err(Error::UnknownNameSubsectionType(subsection_type))
+				_ => return Err(Error::UnknownNameSubsectionType(subsection_type)),
 			};
 		}
 
-		Ok(Self {
-			module: module_name,
-			functions: function_names,
-			locals: local_names,
-		})
+		Ok(Self { module: module_name, functions: function_names, locals: local_names })
 	}
 }
 
@@ -117,7 +109,11 @@ impl Serialize for NameSection {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, wtr: &mut W) -> Result<(), Error> {
-		fn serialize_subsection<W: io::Write>(wtr: &mut W, name_type: u8, name_payload: &[u8]) -> Result<(), Error> {
+		fn serialize_subsection<W: io::Write>(
+			wtr: &mut W,
+			name_type: u8,
+			name_payload: &[u8],
+		) -> Result<(), Error> {
 			VarUint7::from(name_type).serialize(wtr)?;
 			VarUint32::from(name_payload.len()).serialize(wtr)?;
 			wtr.write(name_payload).map_err(Into::into)
@@ -248,39 +244,37 @@ impl LocalNameSubsection {
 
 		let max_signature_args = module
 			.type_section()
-			.map(|ts|
+			.map(|ts| {
 				ts.types()
 					.iter()
-					.map(|x| { let Type::Function(ref func) = *x; func.params().len() })
+					.map(|x| {
+						let Type::Function(ref func) = *x;
+						func.params().len()
+					})
 					.max()
-					.unwrap_or(0))
+					.unwrap_or(0)
+			})
 			.unwrap_or(0);
 
 		let max_locals = module
 			.code_section()
-			.map(|cs|
+			.map(|cs| {
 				cs.bodies()
 					.iter()
-					.map(|f|
-						f.locals()
-						   .iter()
-						   .map(|l| l.count() as usize)
-						   .sum())
+					.map(|f| f.locals().iter().map(|l| l.count() as usize).sum())
 					.max()
-					.unwrap_or(0))
+					.unwrap_or(0)
+			})
 			.unwrap_or(0);
 
 		let max_space = max_signature_args + max_locals;
 
 		let deserialize_locals = |_: u32, rdr: &mut R| IndexMap::deserialize(max_space, rdr);
 
-		let local_names = IndexMap::deserialize_with(
-			max_entry_space,
-			&deserialize_locals,
-			rdr,
-		)?;
+		let local_names = IndexMap::deserialize_with(max_entry_space, &deserialize_locals, rdr)?;
 		Ok(LocalNameSubsection { local_names })
-	}}
+	}
+}
 
 impl Serialize for LocalNameSubsection {
 	type Error = Error;
@@ -301,9 +295,7 @@ mod tests {
 	// and make sure it matches the original.
 	fn serialize_test(original: NameSection) -> Vec<u8> {
 		let mut buffer = vec![];
-		original
-			.serialize(&mut buffer)
-			.expect("serialize error");
+		original.serialize(&mut buffer).expect("serialize error");
 		buffer
 		// todo: add deserialization to this test
 	}
@@ -348,7 +340,11 @@ mod tests {
 		locals.insert(1, "msg2".to_string());
 		local_name_subsection.local_names_mut().insert(0, locals);
 
-		let name_section = NameSection::new(Some(module_name_subsection), Some(function_name_subsection), Some(local_name_subsection));
+		let name_section = NameSection::new(
+			Some(module_name_subsection),
+			Some(function_name_subsection),
+			Some(local_name_subsection),
+		);
 		serialize_test(name_section);
 	}
 
@@ -363,15 +359,9 @@ mod tests {
 		let local_names = name_section.locals().expect("local_name_section should be present");
 
 		let locals = local_names.local_names().get(0).expect("entry #0 should be present");
-		assert_eq!(
-			locals.get(0).expect("entry #0 should be present"),
-			"abc"
-		);
+		assert_eq!(locals.get(0).expect("entry #0 should be present"), "abc");
 
 		let locals = local_names.local_names().get(1).expect("entry #1 should be present");
-		assert_eq!(
-			locals.get(0).expect("entry #0 should be present"),
-			"def"
-		);
+		assert_eq!(locals.get(0).expect("entry #0 should be present"), "def");
 	}
 }

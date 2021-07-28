@@ -1,85 +1,87 @@
 //! Elements of the WebAssembly binary format.
 
-use alloc::{string::String, vec::Vec};
 use crate::io;
+use alloc::{string::String, vec::Vec};
 
 use core::fmt;
 
 macro_rules! buffered_read {
-	($buffer_size: expr, $length: expr, $reader: expr) => {
-		{
-			let mut vec_buf = Vec::new();
-			let mut total_read = 0;
-			let mut buf = [0u8; $buffer_size];
-			while total_read < $length {
-				let next_to_read = if $length - total_read > $buffer_size { $buffer_size } else { $length - total_read };
-				$reader.read(&mut buf[0..next_to_read])?;
-				vec_buf.extend_from_slice(&buf[0..next_to_read]);
-				total_read += next_to_read;
-			}
-			vec_buf
+	($buffer_size: expr, $length: expr, $reader: expr) => {{
+		let mut vec_buf = Vec::new();
+		let mut total_read = 0;
+		let mut buf = [0u8; $buffer_size];
+		while total_read < $length {
+			let next_to_read = if $length - total_read > $buffer_size {
+				$buffer_size
+			} else {
+				$length - total_read
+			};
+			$reader.read(&mut buf[0..next_to_read])?;
+			vec_buf.extend_from_slice(&buf[0..next_to_read]);
+			total_read += next_to_read;
 		}
-	}
+		vec_buf
+	}};
 }
 
-mod primitives;
-mod module;
-mod section;
-mod types;
-mod import_entry;
 mod export_entry;
-mod global_entry;
-mod ops;
 mod func;
-mod segment;
+mod global_entry;
+mod import_entry;
 mod index_map;
+mod module;
 mod name_section;
+mod ops;
+mod primitives;
 mod reloc_section;
+mod section;
+mod segment;
+mod types;
 
-pub use self::module::{Module, peek_size, ImportCountType};
-pub use self::section::{
-	Section, FunctionSection, CodeSection, MemorySection, DataSection,
-	ImportSection, ExportSection, GlobalSection, TypeSection, ElementSection,
-	TableSection, CustomSection,
+pub use self::{
+	export_entry::{ExportEntry, Internal},
+	global_entry::GlobalEntry,
+	import_entry::{External, GlobalType, ImportEntry, MemoryType, ResizableLimits, TableType},
+	module::{peek_size, ImportCountType, Module},
+	ops::{opcodes, BrTableData, InitExpr, Instruction, Instructions},
+	primitives::{
+		CountedList, CountedListWriter, CountedWriter, Uint32, Uint64, Uint8, VarInt32, VarInt64,
+		VarInt7, VarUint1, VarUint32, VarUint64, VarUint7,
+	},
+	section::{
+		CodeSection, CustomSection, DataSection, ElementSection, ExportSection, FunctionSection,
+		GlobalSection, ImportSection, MemorySection, Section, TableSection, TypeSection,
+	},
+	types::{BlockType, FunctionType, TableElementType, Type, ValueType},
 };
-pub use self::import_entry::{ImportEntry, ResizableLimits, MemoryType, TableType, GlobalType, External};
-pub use self::export_entry::{ExportEntry, Internal};
-pub use self::global_entry::GlobalEntry;
-pub use self::primitives::{
-	VarUint32, VarUint7, Uint8, VarUint1, VarInt7, Uint32, VarInt32, VarInt64,
-	Uint64, VarUint64, CountedList, CountedWriter, CountedListWriter,
-};
-pub use self::types::{Type, ValueType, BlockType, FunctionType, TableElementType};
-pub use self::ops::{Instruction, Instructions, InitExpr, opcodes, BrTableData};
 
-#[cfg(feature="atomics")]
+#[cfg(feature = "atomics")]
 pub use self::ops::AtomicsInstruction;
 
-#[cfg(feature="simd")]
+#[cfg(feature = "simd")]
 pub use self::ops::SimdInstruction;
 
-#[cfg(feature="sign_ext")]
+#[cfg(feature = "sign_ext")]
 pub use self::ops::SignExtInstruction;
 
-#[cfg(feature="bulk")]
+#[cfg(feature = "bulk")]
 pub use self::ops::BulkInstruction;
 
-#[cfg(any(feature="simd", feature="atomics"))]
+#[cfg(any(feature = "simd", feature = "atomics"))]
 pub use self::ops::MemArg;
 
-pub use self::func::{Func, FuncBody, Local};
-pub use self::segment::{ElementSegment, DataSegment};
-pub use self::index_map::IndexMap;
-pub use self::name_section::{
-	NameMap, NameSection, ModuleNameSubsection, FunctionNameSubsection,
-	LocalNameSubsection,
-};
-pub use self::reloc_section::{
-	RelocSection, RelocationEntry,
+pub use self::{
+	func::{Func, FuncBody, Local},
+	index_map::IndexMap,
+	name_section::{
+		FunctionNameSubsection, LocalNameSubsection, ModuleNameSubsection, NameMap, NameSection,
+	},
+	reloc_section::{RelocSection, RelocationEntry},
+	segment::{DataSegment, ElementSegment},
 };
 
 /// Deserialization from serial i/o.
-pub trait Deserialize : Sized {
+pub trait Deserialize: Sized {
 	/// Serialization error produced by deserialization routine.
 	type Error: From<io::Error>;
 	/// Deserialize type from serial i/o
@@ -109,7 +111,7 @@ pub enum Error {
 		/// Expected length of the definition.
 		expected: usize,
 		/// Actual length of the definition.
-		actual: usize
+		actual: usize,
 	},
 	/// Other static error.
 	Other(&'static str),
@@ -127,7 +129,7 @@ pub enum Error {
 	UnknownInternalKind(u8),
 	/// Unknown opcode encountered.
 	UnknownOpcode(u8),
-	#[cfg(feature="simd")]
+	#[cfg(feature = "simd")]
 	/// Unknown SIMD opcode encountered.
 	UnknownSimdOpcode(u32),
 	/// Invalid VarUint1 value.
@@ -178,7 +180,7 @@ impl fmt::Display for Error {
 			Error::UnsupportedVersion(v) => write!(f, "Unsupported wasm version {}", v),
 			Error::InconsistentLength { expected, actual } => {
 				write!(f, "Expected length {}, found {}", expected, actual)
-			}
+			},
 			Error::Other(msg) => write!(f, "{}", msg),
 			Error::HeapOther(ref msg) => write!(f, "{}", msg),
 			Error::UnknownValueType(ty) => write!(f, "Invalid or unknown value type {}", ty),
@@ -187,7 +189,7 @@ impl fmt::Display for Error {
 			Error::UnknownExternalKind(kind) => write!(f, "Unknown external kind {}", kind),
 			Error::UnknownInternalKind(kind) => write!(f, "Unknown internal kind {}", kind),
 			Error::UnknownOpcode(opcode) => write!(f, "Unknown opcode {}", opcode),
-			#[cfg(feature="simd")]
+			#[cfg(feature = "simd")]
 			Error::UnknownSimdOpcode(opcode) => write!(f, "Unknown SIMD opcode {}", opcode),
 			Error::InvalidVarUint1(val) => write!(f, "Not an unsigned 1-bit integer: {}", val),
 			Error::InvalidVarInt7(val) => write!(f, "Not a signed 7-bit integer: {}", val),
@@ -195,18 +197,21 @@ impl fmt::Display for Error {
 			Error::InvalidVarUint32 => write!(f, "Not an unsigned 32-bit integer"),
 			Error::InvalidVarInt64 => write!(f, "Not a signed 64-bit integer"),
 			Error::InvalidVarUint64 => write!(f, "Not an unsigned 64-bit integer"),
-			Error::InconsistentMetadata =>  write!(f, "Inconsistent metadata"),
-			Error::InvalidSectionId(ref id) =>  write!(f, "Invalid section id: {}", id),
-			Error::SectionsOutOfOrder =>  write!(f, "Sections out of order"),
-			Error::DuplicatedSections(ref id) =>  write!(f, "Duplicated sections ({})", id),
-			Error::InvalidMemoryReference(ref mem_ref) =>  write!(f, "Invalid memory reference ({})", mem_ref),
-			Error::InvalidTableReference(ref table_ref) =>  write!(f, "Invalid table reference ({})", table_ref),
-			Error::InvalidLimitsFlags(ref flags) =>  write!(f, "Invalid limits flags ({})", flags),
-			Error::UnknownFunctionForm(ref form) =>  write!(f, "Unknown function form ({})", form),
-			Error::InconsistentCode =>  write!(f, "Number of function body entries and signatures does not match"),
-			Error::InvalidSegmentFlags(n) =>  write!(f, "Invalid segment flags: {}", n),
+			Error::InconsistentMetadata => write!(f, "Inconsistent metadata"),
+			Error::InvalidSectionId(ref id) => write!(f, "Invalid section id: {}", id),
+			Error::SectionsOutOfOrder => write!(f, "Sections out of order"),
+			Error::DuplicatedSections(ref id) => write!(f, "Duplicated sections ({})", id),
+			Error::InvalidMemoryReference(ref mem_ref) =>
+				write!(f, "Invalid memory reference ({})", mem_ref),
+			Error::InvalidTableReference(ref table_ref) =>
+				write!(f, "Invalid table reference ({})", table_ref),
+			Error::InvalidLimitsFlags(ref flags) => write!(f, "Invalid limits flags ({})", flags),
+			Error::UnknownFunctionForm(ref form) => write!(f, "Unknown function form ({})", form),
+			Error::InconsistentCode =>
+				write!(f, "Number of function body entries and signatures does not match"),
+			Error::InvalidSegmentFlags(n) => write!(f, "Invalid segment flags: {}", n),
 			Error::TooManyLocals => write!(f, "Too many locals"),
-			Error::DuplicatedNameSubsections(n) =>  write!(f, "Duplicated name subsections: {}", n),
+			Error::DuplicatedNameSubsections(n) => write!(f, "Duplicated name subsections: {}", n),
 			Error::UnknownNameSubsectionType(n) => write!(f, "Unknown subsection type: {}", n),
 		}
 	}
@@ -228,7 +233,7 @@ impl ::std::error::Error for Error {
 			Error::UnknownExternalKind(_) => "Unknown external kind",
 			Error::UnknownInternalKind(_) => "Unknown internal kind",
 			Error::UnknownOpcode(_) => "Unknown opcode",
-			#[cfg(feature="simd")]
+			#[cfg(feature = "simd")]
 			Error::UnknownSimdOpcode(_) => "Unknown SIMD opcode",
 			Error::InvalidVarUint1(_) => "Not an unsigned 1-bit integer",
 			Error::InvalidVarInt32 => "Not a signed 32-bit integer",
@@ -237,17 +242,18 @@ impl ::std::error::Error for Error {
 			Error::InvalidVarInt64 => "Not a signed 64-bit integer",
 			Error::InvalidVarUint64 => "Not an unsigned 64-bit integer",
 			Error::InconsistentMetadata => "Inconsistent metadata",
-			Error::InvalidSectionId(_) =>  "Invalid section id",
-			Error::SectionsOutOfOrder =>  "Sections out of order",
-			Error::DuplicatedSections(_) =>  "Duplicated section",
-			Error::InvalidMemoryReference(_) =>  "Invalid memory reference",
-			Error::InvalidTableReference(_) =>  "Invalid table reference",
+			Error::InvalidSectionId(_) => "Invalid section id",
+			Error::SectionsOutOfOrder => "Sections out of order",
+			Error::DuplicatedSections(_) => "Duplicated section",
+			Error::InvalidMemoryReference(_) => "Invalid memory reference",
+			Error::InvalidTableReference(_) => "Invalid table reference",
 			Error::InvalidLimitsFlags(_) => "Invalid limits flags",
-			Error::UnknownFunctionForm(_) =>  "Unknown function form",
-			Error::InconsistentCode =>  "Number of function body entries and signatures does not match",
-			Error::InvalidSegmentFlags(_) =>  "Invalid segment flags",
+			Error::UnknownFunctionForm(_) => "Unknown function form",
+			Error::InconsistentCode =>
+				"Number of function body entries and signatures does not match",
+			Error::InvalidSegmentFlags(_) => "Invalid segment flags",
 			Error::TooManyLocals => "Too many locals",
-			Error::DuplicatedNameSubsections(_) =>  "Duplicated name subsections",
+			Error::DuplicatedNameSubsections(_) => "Duplicated name subsections",
 			Error::UnknownNameSubsectionType(_) => "Unknown name subsections type",
 		}
 	}
@@ -262,11 +268,10 @@ impl From<io::Error> for Error {
 // These are emitted by section parsers, such as `parse_names` and `parse_reloc`.
 impl From<(Vec<(usize, Error)>, Module)> for Error {
 	fn from(err: (Vec<(usize, Error)>, Module)) -> Self {
-		let ret = err.0.iter()
-			.fold(
-				String::new(),
-				|mut acc, item| { acc.push_str(&format!("In section {}: {}\n", item.0, item.1)); acc }
-			);
+		let ret = err.0.iter().fold(String::new(), |mut acc, item| {
+			acc.push_str(&format!("In section {}: {}\n", item.0, item.1));
+			acc
+		});
 		Error::HeapOther(ret)
 	}
 }
@@ -323,9 +328,7 @@ pub fn deserialize_file<P: AsRef<::std::path::Path>>(p: P) -> Result<Module, Err
 #[cfg(feature = "std")]
 pub fn serialize_to_file<P: AsRef<::std::path::Path>>(p: P, module: Module) -> Result<(), Error> {
 	let mut io = ::std::fs::File::create(p)
-		.map_err(|e|
-			Error::HeapOther(format!("Can't create the file: {:?}", e))
-		)?;
+		.map_err(|e| Error::HeapOther(format!("Can't create the file: {:?}", e)))?;
 
 	module.serialize(&mut io)?;
 	Ok(())

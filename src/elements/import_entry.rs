@@ -1,12 +1,12 @@
-use alloc::string::String;
-use crate::io;
 use super::{
-	Deserialize, Serialize, Error, VarUint7, VarInt7, VarUint32, VarUint1, Uint8,
-	ValueType, TableElementType
+	Deserialize, Error, Serialize, TableElementType, Uint8, ValueType, VarInt7, VarUint1,
+	VarUint32, VarUint7,
 };
+use crate::io;
+use alloc::string::String;
 
 const FLAG_HAS_MAX: u8 = 0x01;
-#[cfg(feature="atomics")]
+#[cfg(feature = "atomics")]
 const FLAG_SHARED: u8 = 0x02;
 
 /// Global definition struct
@@ -19,17 +19,18 @@ pub struct GlobalType {
 impl GlobalType {
 	/// New global type
 	pub fn new(content_type: ValueType, is_mutable: bool) -> Self {
-		GlobalType {
-			content_type,
-			is_mutable,
-		}
+		GlobalType { content_type, is_mutable }
 	}
 
 	/// Type of the global entry
-	pub fn content_type(&self) -> ValueType { self.content_type }
+	pub fn content_type(&self) -> ValueType {
+		self.content_type
+	}
 
 	/// Is global entry is declared as mutable
-	pub fn is_mutable(&self) -> bool { self.is_mutable }
+	pub fn is_mutable(&self) -> bool {
+		self.is_mutable
+	}
 }
 
 impl Deserialize for GlobalType {
@@ -38,10 +39,7 @@ impl Deserialize for GlobalType {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let content_type = ValueType::deserialize(reader)?;
 		let is_mutable = VarUint1::deserialize(reader)?;
-		Ok(GlobalType {
-			content_type,
-			is_mutable: is_mutable.into(),
-		})
+		Ok(GlobalType { content_type, is_mutable: is_mutable.into() })
 	}
 }
 
@@ -65,17 +63,18 @@ pub struct TableType {
 impl TableType {
 	/// New table definition
 	pub fn new(min: u32, max: Option<u32>) -> Self {
-		TableType {
-			elem_type: TableElementType::AnyFunc,
-			limits: ResizableLimits::new(min, max),
-		}
+		TableType { elem_type: TableElementType::AnyFunc, limits: ResizableLimits::new(min, max) }
 	}
 
 	/// Table memory specification
-	pub fn limits(&self) -> &ResizableLimits { &self.limits }
+	pub fn limits(&self) -> &ResizableLimits {
+		&self.limits
+	}
 
 	/// Table element type
-	pub fn elem_type(&self) -> TableElementType { self.elem_type }
+	pub fn elem_type(&self) -> TableElementType {
+		self.elem_type
+	}
 }
 
 impl Deserialize for TableType {
@@ -84,10 +83,7 @@ impl Deserialize for TableType {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let elem_type = TableElementType::deserialize(reader)?;
 		let limits = ResizableLimits::deserialize(reader)?;
-		Ok(TableType {
-			elem_type,
-			limits,
-		})
+		Ok(TableType { elem_type, limits })
 	}
 }
 
@@ -120,13 +116,19 @@ impl ResizableLimits {
 		}
 	}
 	/// Initial size.
-	pub fn initial(&self) -> u32 { self.initial }
+	pub fn initial(&self) -> u32 {
+		self.initial
+	}
 	/// Maximum size.
-	pub fn maximum(&self) -> Option<u32> { self.maximum }
+	pub fn maximum(&self) -> Option<u32> {
+		self.maximum
+	}
 
 	#[cfg(feature = "atomics")]
 	/// Whether or not this is a shared array buffer.
-	pub fn shared(&self) -> bool { self.shared }
+	pub fn shared(&self) -> bool {
+		self.shared
+	}
 }
 
 impl Deserialize for ResizableLimits {
@@ -140,7 +142,7 @@ impl Deserialize for ResizableLimits {
 
 			// Atomics proposal introduce FLAG_SHARED (0x02). Shared memories can be used only
 			// together with FLAG_HAS_MAX (0x01), hence 0x03.
-			#[cfg(feature="atomics")]
+			#[cfg(feature = "atomics")]
 			0x03 => {},
 
 			_ => return Err(Error::InvalidLimitsFlags(flags)),
@@ -157,7 +159,7 @@ impl Deserialize for ResizableLimits {
 			initial: initial.into(),
 			maximum,
 
-			#[cfg(feature="atomics")]
+			#[cfg(feature = "atomics")]
 			shared: flags & FLAG_SHARED != 0,
 		})
 	}
@@ -172,7 +174,7 @@ impl Serialize for ResizableLimits {
 			flags |= FLAG_HAS_MAX;
 		}
 
-		#[cfg(feature="atomics")]
+		#[cfg(feature = "atomics")]
 		{
 			// If the atomics feature is enabled and if the shared flag is set, add logically
 			// it to the flags.
@@ -299,15 +301,13 @@ pub struct ImportEntry {
 impl ImportEntry {
 	/// New import entry.
 	pub fn new(module_str: String, field_str: String, external: External) -> Self {
-		ImportEntry {
-			module_str,
-			field_str,
-			external,
-		}
+		ImportEntry { module_str, field_str, external }
 	}
 
 	/// Module reference of the import entry.
-	pub fn module(&self) -> &str { &self.module_str }
+	pub fn module(&self) -> &str {
+		&self.module_str
+	}
 
 	/// Module reference of the import entry (mutable).
 	pub fn module_mut(&mut self) -> &mut String {
@@ -315,7 +315,9 @@ impl ImportEntry {
 	}
 
 	/// Field reference of the import entry.
-	pub fn field(&self) -> &str { &self.field_str }
+	pub fn field(&self) -> &str {
+		&self.field_str
+	}
 
 	/// Field reference of the import entry (mutable)
 	pub fn field_mut(&mut self) -> &mut String {
@@ -323,10 +325,14 @@ impl ImportEntry {
 	}
 
 	/// Local binidng of the import entry.
-	pub fn external(&self) -> &External { &self.external }
+	pub fn external(&self) -> &External {
+		&self.external
+	}
 
 	/// Local binidng of the import entry (mutable)
-	pub fn external_mut(&mut self) -> &mut External { &mut self.external }
+	pub fn external_mut(&mut self) -> &mut External {
+		&mut self.external
+	}
 }
 
 impl Deserialize for ImportEntry {
@@ -337,11 +343,7 @@ impl Deserialize for ImportEntry {
 		let field_str = String::deserialize(reader)?;
 		let external = External::deserialize(reader)?;
 
-		Ok(ImportEntry {
-			module_str,
-			field_str,
-			external,
-		})
+		Ok(ImportEntry { module_str, field_str, external })
 	}
 }
 

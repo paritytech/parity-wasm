@@ -1,9 +1,9 @@
-use alloc::vec::Vec;
 use super::invoke::{Identity, Invoke};
 use crate::elements;
+use alloc::vec::Vec;
 
 /// Data segment builder
-pub struct DataSegmentBuilder<F=Identity> {
+pub struct DataSegmentBuilder<F = Identity> {
 	callback: F,
 	// todo: add mapper once multiple memory refs possible
 	mem_index: u32,
@@ -48,15 +48,16 @@ impl<F> DataSegmentBuilder<F> {
 	}
 }
 
-impl<F> DataSegmentBuilder<F> where F: Invoke<elements::DataSegment> {
+impl<F> DataSegmentBuilder<F>
+where
+	F: Invoke<elements::DataSegment>,
+{
 	/// Finish current builder, spawning resulting struct
 	pub fn build(self) -> F::Result {
-		self.callback.invoke(
-			elements::DataSegment::new(
-				self.mem_index,
-				Some(self.offset),
-				self.value,
-			)
-		)
+		self.callback.invoke(elements::DataSegment::new(
+			self.mem_index,
+			Some(self.offset),
+			self.value,
+		))
 	}
 }

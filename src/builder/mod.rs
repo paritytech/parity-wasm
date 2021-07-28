@@ -1,25 +1,27 @@
 //! Various builders to generate/alter wasm components
 
-mod invoke;
-mod module;
 mod code;
-mod misc;
-mod import;
-mod memory;
-mod table;
+mod data;
 mod export;
 mod global;
-mod data;
+mod import;
+mod invoke;
+mod memory;
+mod misc;
+mod module;
+mod table;
 
-pub use self::code::{
-	signatures, signature, function, SignatureBuilder, SignaturesBuilder,
-	FunctionBuilder, TypeRefBuilder, FuncBodyBuilder, FunctionDefinition,
+pub use self::{
+	code::{
+		function, signature, signatures, FuncBodyBuilder, FunctionBuilder, FunctionDefinition,
+		SignatureBuilder, SignaturesBuilder, TypeRefBuilder,
+	},
+	data::DataSegmentBuilder,
+	export::{export, ExportBuilder, ExportInternalBuilder},
+	global::{global, GlobalBuilder},
+	import::{import, ImportBuilder},
+	invoke::Identity,
+	memory::MemoryBuilder,
+	module::{from_module, module, CodeLocation, ModuleBuilder},
+	table::{TableBuilder, TableDefinition, TableEntryDefinition},
 };
-pub use self::data::DataSegmentBuilder;
-pub use self::export::{export, ExportBuilder, ExportInternalBuilder};
-pub use self::global::{global, GlobalBuilder};
-pub use self::import::{import, ImportBuilder};
-pub use self::invoke::Identity;
-pub use self::memory::MemoryBuilder;
-pub use self::module::{module, from_module, ModuleBuilder, CodeLocation};
-pub use self::table::{TableBuilder, TableDefinition, TableEntryDefinition};

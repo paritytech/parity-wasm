@@ -1,12 +1,15 @@
-use alloc::vec::Vec;
-use super::invoke::{Invoke, Identity};
+use super::invoke::{Identity, Invoke};
 use crate::elements;
+use alloc::vec::Vec;
 
-pub struct ValueTypeBuilder<F=Identity> {
+pub struct ValueTypeBuilder<F = Identity> {
 	callback: F,
 }
 
-impl<F> ValueTypeBuilder<F> where F: Invoke<elements::ValueType> {
+impl<F> ValueTypeBuilder<F>
+where
+	F: Invoke<elements::ValueType>,
+{
 	pub fn with_callback(callback: F) -> Self {
 		ValueTypeBuilder { callback }
 	}
@@ -28,17 +31,17 @@ impl<F> ValueTypeBuilder<F> where F: Invoke<elements::ValueType> {
 	}
 }
 
-pub struct ValueTypesBuilder<F=Identity> {
+pub struct ValueTypesBuilder<F = Identity> {
 	callback: F,
 	value_types: Vec<elements::ValueType>,
 }
 
-impl<F> ValueTypesBuilder<F> where F: Invoke<Vec<elements::ValueType>> {
+impl<F> ValueTypesBuilder<F>
+where
+	F: Invoke<Vec<elements::ValueType>>,
+{
 	pub fn with_callback(callback: F) -> Self {
-		ValueTypesBuilder {
-			callback,
-			value_types: Vec::new(),
-		}
+		ValueTypesBuilder { callback, value_types: Vec::new() }
 	}
 
 	pub fn i32(mut self) -> Self {

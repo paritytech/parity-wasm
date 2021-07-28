@@ -1,9 +1,9 @@
-use alloc::{borrow::ToOwned, string::String};
-use super::invoke::{Invoke, Identity};
+use super::invoke::{Identity, Invoke};
 use crate::elements;
+use alloc::{borrow::ToOwned, string::String};
 
 /// Export entry builder
-pub struct ExportBuilder<F=Identity> {
+pub struct ExportBuilder<F = Identity> {
 	callback: F,
 	field: String,
 	binding: elements::Internal,
@@ -23,14 +23,9 @@ impl Default for ExportBuilder {
 }
 
 impl<F> ExportBuilder<F> {
-
 	/// New export entry builder in the specified chained context
 	pub fn with_callback(callback: F) -> Self {
-		ExportBuilder {
-			callback,
-			field: String::new(),
-			binding: elements::Internal::Function(0),
-		}
+		ExportBuilder { callback, field: String::new(), binding: elements::Internal::Function(0) }
 	}
 
 	/// Set the field name of the export entry
@@ -51,7 +46,10 @@ impl<F> ExportBuilder<F> {
 	}
 }
 
-impl<F> ExportBuilder<F> where F: Invoke<elements::ExportEntry> {
+impl<F> ExportBuilder<F>
+where
+	F: Invoke<elements::ExportEntry>,
+{
 	/// Finalize export entry builder spawning the resulting struct
 	pub fn build(self) -> F::Result {
 		self.callback.invoke(elements::ExportEntry::new(self.field, self.binding))
@@ -66,18 +64,18 @@ impl<F> Invoke<elements::Internal> for ExportBuilder<F> {
 }
 
 /// Internal mapping builder for export entry
-pub struct ExportInternalBuilder<F=Identity> {
+pub struct ExportInternalBuilder<F = Identity> {
 	callback: F,
 	binding: elements::Internal,
 }
 
-impl<F> ExportInternalBuilder<F> where F: Invoke<elements::Internal> {
+impl<F> ExportInternalBuilder<F>
+where
+	F: Invoke<elements::Internal>,
+{
 	/// New export entry internal mapping for the chained context
 	pub fn with_callback(callback: F) -> Self {
-		ExportInternalBuilder{
-			callback,
-			binding: elements::Internal::Function(0),
-		}
+		ExportInternalBuilder { callback, binding: elements::Internal::Function(0) }
 	}
 
 	/// Map to function by index

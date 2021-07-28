@@ -1,6 +1,6 @@
-use alloc::vec::Vec;
+use super::invoke::{Identity, Invoke};
 use crate::elements;
-use super::invoke::{Invoke, Identity};
+use alloc::vec::Vec;
 
 /// Memory definition struct
 #[derive(Debug, PartialEq)]
@@ -23,7 +23,7 @@ pub struct MemoryDataDefinition {
 }
 
 /// Memory and static regions builder
-pub struct MemoryBuilder<F=Identity> {
+pub struct MemoryBuilder<F = Identity> {
 	callback: F,
 	memory: MemoryDefinition,
 }
@@ -41,13 +41,13 @@ impl Default for MemoryBuilder {
 	}
 }
 
-impl<F> MemoryBuilder<F> where F: Invoke<MemoryDefinition> {
+impl<F> MemoryBuilder<F>
+where
+	F: Invoke<MemoryDefinition>,
+{
 	/// New memory builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {
-		MemoryBuilder {
-			callback,
-			memory: Default::default(),
-		}
+		MemoryBuilder { callback, memory: Default::default() }
 	}
 
 	/// Set/override minimum size
@@ -82,10 +82,6 @@ impl<F> MemoryBuilder<F> where F: Invoke<MemoryDefinition> {
 
 impl Default for MemoryDefinition {
 	fn default() -> Self {
-		MemoryDefinition {
-			min: 1,
-			max: None,
-			data: Vec::new(),
-		}
+		MemoryDefinition { min: 1, max: None, data: Vec::new() }
 	}
 }

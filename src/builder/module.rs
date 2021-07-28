@@ -1,18 +1,15 @@
-use alloc::vec::Vec;
-use crate::elements;
 use super::{
-	import,
-	export,
-	global,
-	data,
-	invoke::{Invoke, Identity},
-	code::{self, SignaturesBuilder, FunctionBuilder},
+	code::{self, FunctionBuilder, SignaturesBuilder},
+	data, export, global, import,
+	invoke::{Identity, Invoke},
 	memory::{self, MemoryBuilder},
 	table::{self, TableBuilder},
 };
+use crate::elements;
+use alloc::vec::Vec;
 
 /// Module builder
-pub struct ModuleBuilder<F=Identity> {
+pub struct ModuleBuilder<F = Identity> {
 	callback: F,
 	module: ModuleScaffold,
 }
@@ -59,18 +56,40 @@ impl From<elements::Module> for ModuleScaffold {
 		let mut sections = module.into_sections();
 		while let Some(section) = sections.pop() {
 			match section {
-				elements::Section::Type(sect) => { types = Some(sect); }
-				elements::Section::Import(sect) => { import = Some(sect); }
-				elements::Section::Function(sect) => { funcs = Some(sect); }
-				elements::Section::Table(sect) => { table = Some(sect); }
-				elements::Section::Memory(sect) => { memory = Some(sect); }
-				elements::Section::Global(sect) => { global = Some(sect); }
-				elements::Section::Export(sect) => { export = Some(sect); }
-				elements::Section::Start(index) => { start = Some(index); }
-				elements::Section::Element(sect) => { element = Some(sect); }
-				elements::Section::Code(sect) => { code = Some(sect); }
-				elements::Section::Data(sect) => { data = Some(sect); }
-				section => other.push(section)
+				elements::Section::Type(sect) => {
+					types = Some(sect);
+				},
+				elements::Section::Import(sect) => {
+					import = Some(sect);
+				},
+				elements::Section::Function(sect) => {
+					funcs = Some(sect);
+				},
+				elements::Section::Table(sect) => {
+					table = Some(sect);
+				},
+				elements::Section::Memory(sect) => {
+					memory = Some(sect);
+				},
+				elements::Section::Global(sect) => {
+					global = Some(sect);
+				},
+				elements::Section::Export(sect) => {
+					export = Some(sect);
+				},
+				elements::Section::Start(index) => {
+					start = Some(index);
+				},
+				elements::Section::Element(sect) => {
+					element = Some(sect);
+				},
+				elements::Section::Code(sect) => {
+					code = Some(sect);
+				},
+				elements::Section::Data(sect) => {
+					data = Some(sect);
+				},
+				section => other.push(section),
 			}
 		}
 
@@ -156,13 +175,13 @@ impl Default for ModuleBuilder {
 	}
 }
 
-impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
+impl<F> ModuleBuilder<F>
+where
+	F: Invoke<elements::Module>,
+{
 	/// New module builder with bound callback
 	pub fn with_callback(callback: F) -> Self {
-		ModuleBuilder {
-			callback,
-			module: Default::default(),
-		}
+		ModuleBuilder { callback, module: Default::default() }
 	}
 
 	/// Builder from raw module
@@ -173,7 +192,8 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 
 	/// Fill module with sections from iterator
 	pub fn with_sections<I>(mut self, sections: I) -> Self
-		where I: IntoIterator<Item=elements::Section>
+	where
+		I: IntoIterator<Item = elements::Section>,
 	{
 		self.module.other.extend(sections);
 		self
@@ -209,10 +229,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 			self.module.start = Some(body_index);
 		}
 
-		CodeLocation {
-			signature: signature_index,
-			body: body_index,
-		}
+		CodeLocation { signature: signature_index, body: body_index }
 	}
 
 	/// Push linear memory region
@@ -221,8 +238,11 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 		entries.push(elements::MemoryType::new(memory.min, memory.max));
 		let memory_index = (entries.len() - 1) as u32;
 		for data in memory.data.drain(..) {
-			self.module.data.entries_mut()
-				.push(elements::DataSegment::new(memory_index, Some(data.offset), data.values))
+			self.module.data.entries_mut().push(elements::DataSegment::new(
+				memory_index,
+				Some(data.offset),
+				data.values,
+			))
 		}
 		memory_index
 	}
@@ -233,8 +253,11 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 		entries.push(elements::TableType::new(table.min, table.max));
 		let table_index = (entries.len() - 1) as u32;
 		for entry in table.elements.drain(..) {
-			self.module.element.entries_mut()
-				.push(elements::ElementSegment::new(table_index, Some(entry.offset), entry.values))
+			self.module.element.entries_mut().push(elements::ElementSegment::new(
+				table_index,
+				Some(entry.offset),
+				entry.values,
+			))
 		}
 		table_index
 	}
@@ -249,18 +272,17 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 	fn resolve_type_ref(&mut self, signature: code::Signature) -> u32 {
 		match signature {
 			code::Signature::Inline(func_type) => {
-				if let Some(existing_entry) = self.module.types.types().iter().enumerate().find(|(_idx, t)| {
-					let elements::Type::Function(ref existing) = t;
-					*existing == func_type
-				}) {
+				if let Some(existing_entry) =
+					self.module.types.types().iter().enumerate().find(|(_idx, t)| {
+						let elements::Type::Function(ref existing) = t;
+						*existing == func_type
+					}) {
 					return existing_entry.0 as u32
 				}
 				self.module.types.types_mut().push(elements::Type::Function(func_type));
 				self.module.types.types().len() as u32 - 1
-			}
-			code::Signature::TypeReference(type_ref) => {
-				type_ref
-			}
+			},
+			code::Signature::TypeReference(type_ref) => type_ref,
 		}
 	}
 
@@ -272,9 +294,7 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 
 	/// Push signatures in the module, returning corresponding indices of pushed signatures
 	pub fn push_signatures(&mut self, signatures: code::SignatureBindings) -> Vec<u32> {
-		signatures.into_iter().map(|binding|
-			self.resolve_type_ref(binding)
-		).collect()
+		signatures.into_iter().map(|binding| self.resolve_type_ref(binding)).collect()
 	}
 
 	/// Push import entry to module. Note that this does not update calling indices in
@@ -416,7 +436,8 @@ impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 }
 
 impl<F> Invoke<elements::FunctionSection> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -426,7 +447,8 @@ impl<F> Invoke<elements::FunctionSection> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<code::SignatureBindings> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -435,9 +457,9 @@ impl<F> Invoke<code::SignatureBindings> for ModuleBuilder<F>
 	}
 }
 
-
 impl<F> Invoke<code::FunctionDefinition> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -449,7 +471,8 @@ impl<F> Invoke<code::FunctionDefinition> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<memory::MemoryDefinition> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -461,7 +484,8 @@ impl<F> Invoke<memory::MemoryDefinition> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<table::TableDefinition> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -473,7 +497,8 @@ impl<F> Invoke<table::TableDefinition> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<elements::ImportEntry> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -483,7 +508,8 @@ impl<F> Invoke<elements::ImportEntry> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<elements::ExportEntry> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -493,7 +519,8 @@ impl<F> Invoke<elements::ExportEntry> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<elements::GlobalEntry> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -503,7 +530,8 @@ impl<F> Invoke<elements::GlobalEntry> for ModuleBuilder<F>
 }
 
 impl<F> Invoke<elements::DataSegment> for ModuleBuilder<F>
-	where F: Invoke<elements::Module>
+where
+	F: Invoke<elements::Module>,
 {
 	type Result = Self;
 
@@ -541,8 +569,8 @@ pub fn from_module(module: elements::Module) -> ModuleBuilder {
 #[cfg(test)]
 mod tests {
 
-	use crate::elements;
 	use super::module;
+	use crate::elements;
 
 	#[test]
 	fn smoky() {
@@ -554,21 +582,26 @@ mod tests {
 	fn functions() {
 		let module = module()
 			.function()
-				.signature().param().i32().build()
-				.body().build()
-				.build()
+			.signature()
+			.param()
+			.i32()
+			.build()
+			.body()
+			.build()
+			.build()
 			.build();
 
 		assert_eq!(module.type_section().expect("type section to exist").types().len(), 1);
-		assert_eq!(module.function_section().expect("function section to exist").entries().len(), 1);
+		assert_eq!(
+			module.function_section().expect("function section to exist").entries().len(),
+			1
+		);
 		assert_eq!(module.code_section().expect("code section to exist").bodies().len(), 1);
 	}
 
 	#[test]
 	fn export() {
-		let module = module()
-			.export().field("call").internal().func(0).build()
-			.build();
+		let module = module().export().field("call").internal().func(0).build().build();
 
 		assert_eq!(module.export_section().expect("export section to exist").entries().len(), 1);
 	}
@@ -576,7 +609,12 @@ mod tests {
 	#[test]
 	fn global() {
 		let module = module()
-			.global().value_type().i64().mutable().init_expr(elements::Instruction::I64Const(5)).build()
+			.global()
+			.value_type()
+			.i64()
+			.mutable()
+			.init_expr(elements::Instruction::I64Const(5))
+			.build()
 			.build();
 
 		assert_eq!(module.global_section().expect("global section to exist").entries().len(), 1);
@@ -586,9 +624,9 @@ mod tests {
 	fn data() {
 		let module = module()
 			.data()
-				.offset(elements::Instruction::I32Const(16))
-				.value(vec![0u8, 15, 10, 5, 25])
-				.build()
+			.offset(elements::Instruction::I32Const(16))
+			.value(vec![0u8, 15, 10, 5, 25])
+			.build()
 			.build();
 
 		assert_eq!(module.data_section().expect("data section to exist").entries().len(), 1);
@@ -598,15 +636,23 @@ mod tests {
 	fn reuse_types() {
 		let module = module()
 			.function()
-				.signature().param().i32().build()
-				.body().build()
-				.build()
+			.signature()
+			.param()
+			.i32()
+			.build()
+			.body()
+			.build()
+			.build()
 			.function()
-				.signature().param().i32().build()
-				.body().build()
-				.build()
+			.signature()
+			.param()
+			.i32()
+			.build()
+			.body()
+			.build()
+			.build()
 			.build();
 
 		assert_eq!(module.type_section().expect("type section failed").types().len(), 1);
 	}
- }
+}

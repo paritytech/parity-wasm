@@ -1,5 +1,5 @@
-use alloc::vec::Vec;
 use crate::io;
+use alloc::vec::Vec;
 
 use super::{Deserialize, Error, Serialize, VarUint32};
 
@@ -7,7 +7,7 @@ use alloc::vec;
 use core::{
 	cmp::min,
 	iter::{FromIterator, IntoIterator},
-	mem, slice
+	mem, slice,
 };
 
 /// A map from non-contiguous `u32` keys to values of type `T`, which is
@@ -31,10 +31,7 @@ impl<T> IndexMap<T> {
 	/// Create an empty `IndexMap`, preallocating enough space to store
 	/// `capacity` entries without needing to reallocate the underlying memory.
 	pub fn with_capacity(capacity: usize) -> IndexMap<T> {
-		IndexMap {
-			len: 0,
-			entries: Vec::with_capacity(capacity),
-		}
+		IndexMap { len: 0, entries: Vec::with_capacity(capacity) }
 	}
 
 	/// Clear the map.
@@ -101,7 +98,7 @@ impl<T> IndexMap<T> {
 			Some(value @ &mut Some(_)) => {
 				self.len -= 1;
 				value.take()
-			}
+			},
 			Some(&mut None) | None => None,
 		};
 		#[cfg(slow_assertions)]
@@ -162,32 +159,28 @@ impl<T> IndexMap<T> {
 		for _ in 0..len {
 			let idx: u32 = VarUint32::deserialize(rdr)?.into();
 			if idx as usize >= max_entry_space {
-				return Err(Error::Other("index is larger than expected"));
+				return Err(Error::Other("index is larger than expected"))
 			}
 			match prev_idx {
 				Some(prev) if prev >= idx => {
 					// Supposedly these names must be "sorted by index", so
 					// let's try enforcing that and seeing what happens.
-					return Err(Error::Other("indices are out of order"));
-				}
+					return Err(Error::Other("indices are out of order"))
+				},
 				_ => {
 					prev_idx = Some(idx);
-				}
+				},
 			}
 			let val = deserialize_value(idx, rdr)?;
 			map.insert(idx, val);
 		}
 		Ok(map)
 	}
-
 }
 
 impl<T: Clone> Clone for IndexMap<T> {
 	fn clone(&self) -> IndexMap<T> {
-		IndexMap {
-			len: self.len,
-			entries: self.entries.clone(),
-		}
+		IndexMap { len: self.len, entries: self.entries.clone() }
 	}
 }
 
@@ -246,14 +239,14 @@ impl<T> Iterator for IntoIter<T> {
 		// from repeatedly calling `self.iter.next()` once it has been
 		// exhausted, which is not guaranteed to keep returning `None`.
 		if self.remaining_len == 0 {
-			return None;
+			return None
 		}
 		for value_opt in &mut self.iter {
 			let idx = self.next_idx;
 			self.next_idx += 1;
 			if let Some(value) = value_opt {
 				self.remaining_len -= 1;
-				return Some((idx, value));
+				return Some((idx, value))
 			}
 		}
 		debug_assert_eq!(self.remaining_len, 0);
@@ -266,11 +259,7 @@ impl<T> IntoIterator for IndexMap<T> {
 	type IntoIter = IntoIter<T>;
 
 	fn into_iter(self) -> IntoIter<T> {
-		IntoIter {
-			next_idx: 0,
-			remaining_len: self.len,
-			iter: self.entries.into_iter(),
-		}
+		IntoIter { next_idx: 0, remaining_len: self.len, iter: self.entries.into_iter() }
 	}
 }
 
@@ -293,14 +282,14 @@ impl<'a, T: 'static> Iterator for Iter<'a, T> {
 		// from repeatedly calling `self.iter.next()` once it has been
 		// exhausted, which is not guaranteed to keep returning `None`.
 		if self.remaining_len == 0 {
-			return None;
+			return None
 		}
 		for value_opt in &mut self.iter {
 			let idx = self.next_idx;
 			self.next_idx += 1;
 			if let Some(ref value) = *value_opt {
 				self.remaining_len -= 1;
-				return Some((idx, value));
+				return Some((idx, value))
 			}
 		}
 		debug_assert_eq!(self.remaining_len, 0);
@@ -313,11 +302,7 @@ impl<'a, T: 'static> IntoIterator for &'a IndexMap<T> {
 	type IntoIter = Iter<'a, T>;
 
 	fn into_iter(self) -> Iter<'a, T> {
-		Iter {
-			next_idx: 0,
-			remaining_len: self.len,
-			iter: self.entries.iter(),
-		}
+		Iter { next_idx: 0, remaining_len: self.len, iter: self.entries.iter() }
 	}
 }
 
@@ -346,21 +331,17 @@ where
 	/// Deserialize a map containing simple values that support `Deserialize`.
 	/// We will allocate an underlying array no larger than `max_entry_space` to
 	/// hold the data, so the maximum index must be less than `max_entry_space`.
-	pub fn deserialize<R: io::Read>(
-		max_entry_space: usize,
-		rdr: &mut R,
-	) -> Result<Self, Error> {
-		let deserialize_value: fn(u32, &mut R) -> Result<T, Error> = |_idx, rdr| {
-			T::deserialize(rdr).map_err(Error::from)
-		};
+	pub fn deserialize<R: io::Read>(max_entry_space: usize, rdr: &mut R) -> Result<Self, Error> {
+		let deserialize_value: fn(u32, &mut R) -> Result<T, Error> =
+			|_idx, rdr| T::deserialize(rdr).map_err(Error::from);
 		Self::deserialize_with(max_entry_space, &deserialize_value, rdr)
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use crate::io;
 	use super::*;
+	use crate::io;
 
 	#[test]
 	fn default_is_empty_no_matter_how_we_look_at_it() {
@@ -420,10 +401,7 @@ mod tests {
 		assert!(map.contains_key(0));
 
 		// Insert a key which replaces an existing key.
-		assert_eq!(
-			map.insert(1, "val 1.1".to_string()),
-			Some("val 1".to_string())
-		);
+		assert_eq!(map.insert(1, "val 1.1".to_string()), Some("val 1".to_string()));
 		assert_eq!(map.len(), 2);
 		assert!(map.contains_key(1));
 		assert_eq!(map.get(1), Some(&"val 1.1".to_string()));
@@ -548,9 +526,7 @@ mod tests {
 		map.insert(1, "val 1".to_string());
 
 		let mut output = vec![];
-		map.clone()
-			.serialize(&mut output)
-			.expect("serialize failed");
+		map.clone().serialize(&mut output).expect("serialize failed");
 
 		let mut input = io::Cursor::new(&output);
 		let deserialized = IndexMap::deserialize(2, &mut input).expect("deserialize failed");

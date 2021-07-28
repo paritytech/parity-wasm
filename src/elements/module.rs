@@ -1,13 +1,16 @@
 use crate::io;
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
-use super::name_section::NameSection;
-use super::reloc_section::RelocSection;
-use super::section::{
-	CodeSection, CustomSection, DataSection, ElementSection, ExportSection, FunctionSection, GlobalSection,
-	ImportSection, MemorySection, Section, TableSection, TypeSection,
+use super::{
+	deserialize_buffer,
+	name_section::NameSection,
+	reloc_section::RelocSection,
+	section::{
+		CodeSection, CustomSection, DataSection, ElementSection, ExportSection, FunctionSection,
+		GlobalSection, ImportSection, MemorySection, Section, TableSection, TypeSection,
+	},
+	serialize, Deserialize, Error, External, Serialize, Uint32,
 };
-use super::{deserialize_buffer, serialize, Deserialize, Error, External, Serialize, Uint32};
 
 use core::cmp;
 
@@ -36,7 +39,11 @@ pub enum ImportCountType {
 
 impl Default for Module {
 	fn default() -> Self {
-		Module { magic: u32::from_le_bytes(WASM_MAGIC_NUMBER), version: 1, sections: Vec::with_capacity(16) }
+		Module {
+			magic: u32::from_le_bytes(WASM_MAGIC_NUMBER),
+			version: 1,
+			sections: Vec::with_capacity(16),
+		}
 	}
 }
 
@@ -88,12 +95,12 @@ impl Module {
 		// Custom sections can be inserted anywhere. Lets always insert them last here.
 		if section.order() == 0 {
 			sections.push(section);
-			return Ok(());
+			return Ok(())
 		}
 
 		// Check if the section already exists.
 		if sections.iter().any(|s| s.order() == section.order()) {
-			return Err(Error::DuplicatedSections(section.order()));
+			return Err(Error::DuplicatedSections(section.order()))
 		}
 
 		// Assume that the module is already well-ordered.
@@ -110,7 +117,7 @@ impl Module {
 	pub fn code_section(&self) -> Option<&CodeSection> {
 		for section in self.sections() {
 			if let Section::Code(ref code_section) = *section {
-				return Some(code_section);
+				return Some(code_section)
 			}
 		}
 		None
@@ -120,7 +127,7 @@ impl Module {
 	pub fn code_section_mut(&mut self) -> Option<&mut CodeSection> {
 		for section in self.sections_mut() {
 			if let Section::Code(ref mut code_section) = *section {
-				return Some(code_section);
+				return Some(code_section)
 			}
 		}
 		None
@@ -130,7 +137,7 @@ impl Module {
 	pub fn type_section(&self) -> Option<&TypeSection> {
 		for section in self.sections() {
 			if let Section::Type(ref type_section) = *section {
-				return Some(type_section);
+				return Some(type_section)
 			}
 		}
 		None
@@ -140,7 +147,7 @@ impl Module {
 	pub fn type_section_mut(&mut self) -> Option<&mut TypeSection> {
 		for section in self.sections_mut() {
 			if let Section::Type(ref mut type_section) = *section {
-				return Some(type_section);
+				return Some(type_section)
 			}
 		}
 		None
@@ -150,7 +157,7 @@ impl Module {
 	pub fn import_section(&self) -> Option<&ImportSection> {
 		for section in self.sections() {
 			if let Section::Import(ref import_section) = *section {
-				return Some(import_section);
+				return Some(import_section)
 			}
 		}
 		None
@@ -160,7 +167,7 @@ impl Module {
 	pub fn import_section_mut(&mut self) -> Option<&mut ImportSection> {
 		for section in self.sections_mut() {
 			if let Section::Import(ref mut import_section) = *section {
-				return Some(import_section);
+				return Some(import_section)
 			}
 		}
 		None
@@ -170,7 +177,7 @@ impl Module {
 	pub fn global_section(&self) -> Option<&GlobalSection> {
 		for section in self.sections() {
 			if let Section::Global(ref section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -180,7 +187,7 @@ impl Module {
 	pub fn global_section_mut(&mut self) -> Option<&mut GlobalSection> {
 		for section in self.sections_mut() {
 			if let Section::Global(ref mut section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -190,7 +197,7 @@ impl Module {
 	pub fn export_section(&self) -> Option<&ExportSection> {
 		for section in self.sections() {
 			if let Section::Export(ref export_section) = *section {
-				return Some(export_section);
+				return Some(export_section)
 			}
 		}
 		None
@@ -200,7 +207,7 @@ impl Module {
 	pub fn export_section_mut(&mut self) -> Option<&mut ExportSection> {
 		for section in self.sections_mut() {
 			if let Section::Export(ref mut export_section) = *section {
-				return Some(export_section);
+				return Some(export_section)
 			}
 		}
 		None
@@ -210,7 +217,7 @@ impl Module {
 	pub fn table_section(&self) -> Option<&TableSection> {
 		for section in self.sections() {
 			if let Section::Table(ref section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -220,7 +227,7 @@ impl Module {
 	pub fn table_section_mut(&mut self) -> Option<&mut TableSection> {
 		for section in self.sections_mut() {
 			if let Section::Table(ref mut section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -230,7 +237,7 @@ impl Module {
 	pub fn data_section(&self) -> Option<&DataSection> {
 		for section in self.sections() {
 			if let Section::Data(ref section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -240,7 +247,7 @@ impl Module {
 	pub fn data_section_mut(&mut self) -> Option<&mut DataSection> {
 		for section in self.sections_mut() {
 			if let Section::Data(ref mut section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -250,7 +257,7 @@ impl Module {
 	pub fn elements_section(&self) -> Option<&ElementSection> {
 		for section in self.sections() {
 			if let Section::Element(ref section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -260,7 +267,7 @@ impl Module {
 	pub fn elements_section_mut(&mut self) -> Option<&mut ElementSection> {
 		for section in self.sections_mut() {
 			if let Section::Element(ref mut section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -270,7 +277,7 @@ impl Module {
 	pub fn memory_section(&self) -> Option<&MemorySection> {
 		for section in self.sections() {
 			if let Section::Memory(ref section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -280,7 +287,7 @@ impl Module {
 	pub fn memory_section_mut(&mut self) -> Option<&mut MemorySection> {
 		for section in self.sections_mut() {
 			if let Section::Memory(ref mut section) = *section {
-				return Some(section);
+				return Some(section)
 			}
 		}
 		None
@@ -290,7 +297,7 @@ impl Module {
 	pub fn function_section(&self) -> Option<&FunctionSection> {
 		for section in self.sections() {
 			if let Section::Function(ref sect) = *section {
-				return Some(sect);
+				return Some(sect)
 			}
 		}
 		None
@@ -300,7 +307,7 @@ impl Module {
 	pub fn function_section_mut(&mut self) -> Option<&mut FunctionSection> {
 		for section in self.sections_mut() {
 			if let Section::Function(ref mut sect) = *section {
-				return Some(sect);
+				return Some(sect)
 			}
 		}
 		None
@@ -310,7 +317,7 @@ impl Module {
 	pub fn start_section(&self) -> Option<u32> {
 		for section in self.sections() {
 			if let Section::Start(sect) = *section {
-				return Some(sect);
+				return Some(sect)
 			}
 		}
 		None
@@ -321,11 +328,12 @@ impl Module {
 		for section in self.sections_mut().iter_mut() {
 			if let Section::Start(_sect) = *section {
 				*section = Section::Start(new_start);
-				return;
+				return
 			}
 		}
 		// This should not fail, because we update the existing section above.
-		self.insert_section(Section::Start(new_start)).expect("insert_section should not fail");
+		self.insert_section(Section::Start(new_start))
+			.expect("insert_section should not fail");
 	}
 
 	/// Removes the module's start section.
@@ -335,7 +343,7 @@ impl Module {
 		for (index, section) in sections.iter_mut().enumerate() {
 			if let Section::Start(_sect) = section {
 				rmidx = index;
-				break;
+				break
 			}
 		}
 		if rmidx < sections.len() {
@@ -345,7 +353,9 @@ impl Module {
 
 	/// Returns an iterator over the module's custom sections
 	pub fn custom_sections(&self) -> impl Iterator<Item = &CustomSection> {
-		self.sections().iter().filter_map(|s| if let Section::Custom(s) = s { Some(s) } else { None })
+		self.sections()
+			.iter()
+			.filter_map(|s| if let Section::Custom(s) = s { Some(s) } else { None })
 	}
 
 	/// Sets the payload associated with the given custom section, or adds a new custom section,
@@ -356,7 +366,7 @@ impl Module {
 			if let Section::Custom(ref mut sect) = *section {
 				if sect.name() == name {
 					*sect = CustomSection::new(name, payload);
-					return;
+					return
 				}
 			}
 		}
@@ -412,7 +422,7 @@ impl Module {
 	pub fn names_section(&self) -> Option<&NameSection> {
 		for section in self.sections() {
 			if let Section::Name(ref sect) = *section {
-				return Some(sect);
+				return Some(sect)
 			}
 		}
 		None
@@ -425,7 +435,7 @@ impl Module {
 	pub fn names_section_mut(&mut self) -> Option<&mut NameSection> {
 		for section in self.sections_mut() {
 			if let Section::Name(ref mut sect) = *section {
-				return Some(sect);
+				return Some(sect)
 			}
 		}
 		None
@@ -441,7 +451,8 @@ impl Module {
 
 		for i in 0..self.sections.len() {
 			if let Some(name_section) = {
-				let section = self.sections.get(i).expect("cannot fail because i in range 0..len; qed");
+				let section =
+					self.sections.get(i).expect("cannot fail because i in range 0..len; qed");
 				if let Section::Custom(ref custom) = *section {
 					if custom.name() == "name" {
 						let mut rdr = io::Cursor::new(custom.payload());
@@ -449,8 +460,8 @@ impl Module {
 							Ok(ns) => ns,
 							Err(e) => {
 								parse_errors.push((i, e));
-								continue;
-							}
+								continue
+							},
 						};
 						Some(name_section)
 					} else {
@@ -486,16 +497,17 @@ impl Module {
 				if let Section::Custom(ref custom) = *section {
 					if custom.name().starts_with("reloc.") {
 						let mut rdr = io::Cursor::new(custom.payload());
-						let reloc_section = match RelocSection::deserialize(custom.name().to_owned(), &mut rdr) {
-							Ok(reloc_section) => reloc_section,
-							Err(e) => {
-								parse_errors.push((i, e));
-								continue;
-							}
-						};
+						let reloc_section =
+							match RelocSection::deserialize(custom.name().to_owned(), &mut rdr) {
+								Ok(reloc_section) => reloc_section,
+								Err(e) => {
+									parse_errors.push((i, e));
+									continue
+								},
+							};
 						if rdr.position() != custom.payload().len() {
 							parse_errors.push((i, io::Error::InvalidData.into()));
-							continue;
+							continue
 						}
 						Some(Section::Reloc(reloc_section))
 					} else {
@@ -522,7 +534,15 @@ impl Module {
 			.map(|is| {
 				is.entries()
 					.iter()
-					.filter(|import| matches!((count_type, *import.external()), (ImportCountType::Function, External::Function(_)) | (ImportCountType::Global, External::Global(_)) | (ImportCountType::Table, External::Table(_)) | (ImportCountType::Memory, External::Memory(_))))
+					.filter(|import| {
+						matches!(
+							(count_type, *import.external()),
+							(ImportCountType::Function, External::Function(_)) |
+								(ImportCountType::Global, External::Global(_)) |
+								(ImportCountType::Table, External::Table(_)) |
+								(ImportCountType::Memory, External::Memory(_))
+						)
+					})
 					.count()
 			})
 			.unwrap_or(0)
@@ -530,22 +550,26 @@ impl Module {
 
 	/// Query functions space.
 	pub fn functions_space(&self) -> usize {
-		self.import_count(ImportCountType::Function) + self.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
+		self.import_count(ImportCountType::Function) +
+			self.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
 	}
 
 	/// Query globals space.
 	pub fn globals_space(&self) -> usize {
-		self.import_count(ImportCountType::Global) + self.global_section().map(|gs| gs.entries().len()).unwrap_or(0)
+		self.import_count(ImportCountType::Global) +
+			self.global_section().map(|gs| gs.entries().len()).unwrap_or(0)
 	}
 
 	/// Query table space.
 	pub fn table_space(&self) -> usize {
-		self.import_count(ImportCountType::Table) + self.table_section().map(|ts| ts.entries().len()).unwrap_or(0)
+		self.import_count(ImportCountType::Table) +
+			self.table_section().map(|ts| ts.entries().len()).unwrap_or(0)
 	}
 
 	/// Query memory space.
 	pub fn memory_space(&self) -> usize {
-		self.import_count(ImportCountType::Memory) + self.memory_section().map(|ms| ms.entries().len()).unwrap_or(0)
+		self.import_count(ImportCountType::Memory) +
+			self.memory_section().map(|ms| ms.entries().len()).unwrap_or(0)
 	}
 }
 
@@ -558,44 +582,43 @@ impl Deserialize for Module {
 		let mut magic = [0u8; 4];
 		reader.read(&mut magic)?;
 		if magic != WASM_MAGIC_NUMBER {
-			return Err(Error::InvalidMagic);
+			return Err(Error::InvalidMagic)
 		}
 
 		let version: u32 = Uint32::deserialize(reader)?.into();
 
 		if version != 1 {
-			return Err(Error::UnsupportedVersion(version));
+			return Err(Error::UnsupportedVersion(version))
 		}
 
 		let mut last_section_order = 0;
 
 		loop {
 			match Section::deserialize(reader) {
-				Err(Error::UnexpectedEof) => {
-					break;
-				}
+				Err(Error::UnexpectedEof) => break,
 				Err(e) => return Err(e),
 				Ok(section) => {
 					if section.order() != 0 {
 						match last_section_order {
 							x if x > section.order() => return Err(Error::SectionsOutOfOrder),
-							x if x == section.order() => return Err(Error::DuplicatedSections(last_section_order)),
-							_ =>  {},
+							x if x == section.order() =>
+								return Err(Error::DuplicatedSections(last_section_order)),
+							_ => {},
 						};
 
 						last_section_order = section.order();
 					}
 					sections.push(section);
-				}
+				},
 			}
 		}
 
 		let module = Module { magic: u32::from_le_bytes(magic), version, sections };
 
-		if module.code_section().map(|cs| cs.bodies().len()).unwrap_or(0)
-			!= module.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
+		if module.code_section().map(|cs| cs.bodies().len()).unwrap_or(0) !=
+			module.function_section().map(|fs| fs.entries().len()).unwrap_or(0)
 		{
-			return Err(Error::InconsistentCode);
+			return Err(Error::InconsistentCode)
 		}
 
 		Ok(module)
@@ -626,7 +649,7 @@ impl<'a> io::Read for PeekSection<'a> {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<()> {
 		let available = cmp::min(buf.len(), self.region.len() - self.cursor);
 		if available < buf.len() {
-			return Err(io::Error::UnexpectedEof);
+			return Err(io::Error::UnexpectedEof)
 		}
 
 		let range = self.cursor..self.cursor + buf.len();
@@ -640,7 +663,7 @@ impl<'a> io::Read for PeekSection<'a> {
 /// Returns size of the module in the provided stream.
 pub fn peek_size(source: &[u8]) -> usize {
 	if source.len() < 9 {
-		return 0;
+		return 0
 	}
 
 	let mut cursor = 8;
@@ -649,15 +672,11 @@ pub fn peek_size(source: &[u8]) -> usize {
 			let mut peek_section = PeekSection { cursor: 0, region: &source[cursor..] };
 			let section_id: u8 = match super::VarUint7::deserialize(&mut peek_section) {
 				Ok(res) => res.into(),
-				Err(_) => {
-					break;
-				}
+				Err(_) => break,
 			};
 			let section_len: u32 = match super::VarUint32::deserialize(&mut peek_section) {
 				Ok(res) => res.into(),
-				Err(_) => {
-					break;
-				}
+				Err(_) => break,
 			};
 
 			(peek_section.cursor, section_id, section_len)
@@ -670,13 +689,13 @@ pub fn peek_size(source: &[u8]) -> usize {
 				x if x > source.len() => break,
 				x if x == source.len() => {
 					cursor = next_cursor;
-					break;
-				}
-				_ => {}
+					break
+				},
+				_ => {},
 			}
 			cursor = next_cursor;
 		} else {
-			break;
+			break
 		}
 	}
 
@@ -685,11 +704,13 @@ pub fn peek_size(source: &[u8]) -> usize {
 
 #[cfg(test)]
 mod integration_tests {
-	use super::super::{
-		deserialize_buffer, deserialize_file, serialize, CodeSection, ExportSection, FunctionSection, Section,
-		TypeSection,
+	use super::{
+		super::{
+			deserialize_buffer, deserialize_file, serialize, CodeSection, ExportSection,
+			FunctionSection, Section, TypeSection,
+		},
+		Module,
 	};
-	use super::Module;
 
 	#[test]
 	fn hello() {
@@ -705,20 +726,23 @@ mod integration_tests {
 		let buf = serialize(module).expect("serialization to succeed");
 
 		let module_new: Module = deserialize_buffer(&buf).expect("deserialization to succeed");
-		let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+		let module_old =
+			deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 
 		assert_eq!(module_old.sections().len(), module_new.sections().len());
 	}
 
 	#[test]
 	fn serde_type() {
-		let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+		let mut module =
+			deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		module.sections_mut().retain(|x| matches!(x, &Section::Type(_)));
 
 		let buf = serialize(module).expect("serialization to succeed");
 
 		let module_new: Module = deserialize_buffer(&buf).expect("deserialization to succeed");
-		let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+		let module_old =
+			deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		assert_eq!(
 			module_old.type_section().expect("type section exists").types().len(),
 			module_new.type_section().expect("type section exists").types().len(),
@@ -728,13 +752,15 @@ mod integration_tests {
 
 	#[test]
 	fn serde_import() {
-		let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+		let mut module =
+			deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		module.sections_mut().retain(|x| matches!(x, &Section::Import(_)));
 
 		let buf = serialize(module).expect("serialization to succeed");
 
 		let module_new: Module = deserialize_buffer(&buf).expect("deserialization to succeed");
-		let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+		let module_old =
+			deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		assert_eq!(
 			module_old.import_section().expect("import section exists").entries().len(),
 			module_new.import_section().expect("import section exists").entries().len(),
@@ -744,10 +770,11 @@ mod integration_tests {
 
 	#[test]
 	fn serde_code() {
-		let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+		let mut module =
+			deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		module.sections_mut().retain(|x| {
 			if let Section::Code(_) = *x {
-				return true;
+				return true
 			}
 			matches!(*x, Section::Function(_))
 		});
@@ -755,7 +782,8 @@ mod integration_tests {
 		let buf = serialize(module).expect("serialization to succeed");
 
 		let module_new: Module = deserialize_buffer(&buf).expect("deserialization to succeed");
-		let module_old = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
+		let module_old =
+			deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		assert_eq!(
 			module_old.code_section().expect("code section exists").bodies().len(),
 			module_new.code_section().expect("code section exists").bodies().len(),
@@ -795,7 +823,8 @@ mod integration_tests {
 	fn store() {
 		use super::super::Instruction::*;
 
-		let module = deserialize_file("./res/cases/v1/offset.wasm").expect("Should be deserialized");
+		let module =
+			deserialize_file("./res/cases/v1/offset.wasm").expect("Should be deserialized");
 		let func = &module.code_section().expect("Code section to exist").bodies()[0];
 
 		assert_eq!(func.code().elements().len(), 5);
@@ -818,7 +847,8 @@ mod integration_tests {
 	fn peek_2() {
 		use super::peek_size;
 
-		let module = deserialize_file("./res/cases/v1/offset.wasm").expect("Should be deserialized");
+		let module =
+			deserialize_file("./res/cases/v1/offset.wasm").expect("Should be deserialized");
 		let mut buf = serialize(module).expect("serialization to succeed");
 
 		buf.extend_from_slice(&[0, 0, 0, 0, 0, 1, 5, 12, 17]);
@@ -830,7 +860,8 @@ mod integration_tests {
 	fn peek_3() {
 		use super::peek_size;
 
-		let module = deserialize_file("./res/cases/v1/peek_sample.wasm").expect("Should be deserialized");
+		let module =
+			deserialize_file("./res/cases/v1/peek_sample.wasm").expect("Should be deserialized");
 		let buf = serialize(module).expect("serialization to succeed");
 
 		assert_eq!(peek_size(&buf), buf.len());
@@ -857,7 +888,10 @@ mod integration_tests {
 			if let Section::Name(ref name_section) = *section {
 				let function_name_subsection =
 					name_section.functions().expect("function_name_subsection should be present");
-				assert_eq!(function_name_subsection.names().get(0).expect("Should be entry #0"), "elog");
+				assert_eq!(
+					function_name_subsection.names().get(0).expect("Should be entry #0"),
+					"elog"
+				);
 				assert_eq!(
 					function_name_subsection.names().get(11).expect("Should be entry #0"),
 					"_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
@@ -879,13 +913,15 @@ mod integration_tests {
 
 	#[test]
 	fn memory_space() {
-		let module = deserialize_file("./res/cases/v1/two-mems.wasm").expect("failed to deserialize");
+		let module =
+			deserialize_file("./res/cases/v1/two-mems.wasm").expect("failed to deserialize");
 		assert_eq!(module.memory_space(), 2);
 	}
 
 	#[test]
 	fn add_custom_section() {
-		let mut module = deserialize_file("./res/cases/v1/start_mut.wasm").expect("failed to deserialize");
+		let mut module =
+			deserialize_file("./res/cases/v1/start_mut.wasm").expect("failed to deserialize");
 		assert!(module.custom_sections().next().is_none());
 		module.set_custom_section("mycustomsection".to_string(), vec![1, 2, 3, 4]);
 		{
@@ -903,7 +939,8 @@ mod integration_tests {
 
 	#[test]
 	fn mut_start() {
-		let mut module = deserialize_file("./res/cases/v1/start_mut.wasm").expect("failed to deserialize");
+		let mut module =
+			deserialize_file("./res/cases/v1/start_mut.wasm").expect("failed to deserialize");
 		assert_eq!(module.start_section().expect("Did not find any start section"), 1);
 		module.set_start_section(0);
 		assert_eq!(module.start_section().expect("Did not find any start section"), 0);
@@ -913,7 +950,8 @@ mod integration_tests {
 
 	#[test]
 	fn add_start() {
-		let mut module = deserialize_file("./res/cases/v1/start_add.wasm").expect("failed to deserialize");
+		let mut module =
+			deserialize_file("./res/cases/v1/start_add.wasm").expect("failed to deserialize");
 		assert!(module.start_section().is_none());
 		module.set_start_section(0);
 		assert_eq!(module.start_section().expect("Did not find any start section"), 0);
@@ -924,7 +962,8 @@ mod integration_tests {
 
 	#[test]
 	fn add_start_custom() {
-		let mut module = deserialize_file("./res/cases/v1/start_add_custom.wasm").expect("failed to deserialize");
+		let mut module = deserialize_file("./res/cases/v1/start_add_custom.wasm")
+			.expect("failed to deserialize");
 
 		let sections = module.sections().iter().map(|s| s.order()).collect::<Vec<_>>();
 		assert_eq!(sections, vec![1, 2, 3, 6, 7, 9, 11, 12, 0]);
@@ -939,7 +978,8 @@ mod integration_tests {
 
 	#[test]
 	fn names_section_present() {
-		let mut module = deserialize_file("./res/cases/v1/names.wasm").expect("failed to deserialize");
+		let mut module =
+			deserialize_file("./res/cases/v1/names.wasm").expect("failed to deserialize");
 
 		// Before parsing
 		assert!(module.names_section().is_none());
@@ -955,7 +995,8 @@ mod integration_tests {
 
 	#[test]
 	fn names_section_not_present() {
-		let mut module = deserialize_file("./res/cases/v1/test.wasm").expect("failed to deserialize");
+		let mut module =
+			deserialize_file("./res/cases/v1/test.wasm").expect("failed to deserialize");
 
 		// Before parsing
 		assert!(module.names_section().is_none());
@@ -973,17 +1014,25 @@ mod integration_tests {
 	fn insert_sections() {
 		let mut module = Module::default();
 
-		assert!(module.insert_section(Section::Function(FunctionSection::with_entries(vec![]))).is_ok());
+		assert!(module
+			.insert_section(Section::Function(FunctionSection::with_entries(vec![])))
+			.is_ok());
 		// Duplicate.
-		assert!(module.insert_section(Section::Function(FunctionSection::with_entries(vec![]))).is_err());
+		assert!(module
+			.insert_section(Section::Function(FunctionSection::with_entries(vec![])))
+			.is_err());
 
 		assert!(module.insert_section(Section::Type(TypeSection::with_types(vec![]))).is_ok());
 		// Duplicate.
 		assert!(module.insert_section(Section::Type(TypeSection::with_types(vec![]))).is_err());
 
-		assert!(module.insert_section(Section::Export(ExportSection::with_entries(vec![]))).is_ok());
+		assert!(module
+			.insert_section(Section::Export(ExportSection::with_entries(vec![])))
+			.is_ok());
 		// Duplicate.
-		assert!(module.insert_section(Section::Export(ExportSection::with_entries(vec![]))).is_err());
+		assert!(module
+			.insert_section(Section::Export(ExportSection::with_entries(vec![])))
+			.is_err());
 
 		assert!(module.insert_section(Section::Code(CodeSection::with_bodies(vec![]))).is_ok());
 		// Duplicate.

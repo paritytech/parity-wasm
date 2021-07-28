@@ -2,17 +2,18 @@ extern crate parity_wasm;
 extern crate time;
 
 use std::fs;
+use time::Instant;
 
 fn rate(file_name: &'static str, iterations: u64) {
 	let file_size = fs::metadata(file_name).unwrap_or_else(|_| panic!("{} to exist", file_name)).len();
 	let mut total_ms = 0;
 
 	for _ in 0..iterations {
-		let start = time::PreciseTime::now();
+		let start = Instant::now();
 		let _module = parity_wasm::deserialize_file(file_name);
-		let end = time::PreciseTime::now();
+		let end = Instant::now();
 
-		total_ms += start.to(end).num_milliseconds();
+		total_ms += (end - start).whole_milliseconds();
 	}
 
 	println!("Rate for {}: {} MB/s", file_name,

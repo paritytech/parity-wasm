@@ -52,7 +52,7 @@ impl Module {
 	}
 
 	/// Serialize a module to a vector.
-	pub fn to_bytes(self) -> Result<Vec<u8>, Error> {
+	pub fn into_bytes(self) -> Result<Vec<u8>, Error> {
 		serialize::<Module>(self)
 	}
 
@@ -997,7 +997,7 @@ mod integration_tests {
 	#[test]
 	fn serialization_roundtrip() {
 		let module = deserialize_file("./res/cases/v1/test.wasm").expect("failed to deserialize");
-		let module_copy = module.clone().to_bytes().expect("failed to serialize");
+		let module_copy = module.clone().into_bytes().expect("failed to serialize");
 		let module_copy = Module::from_bytes(&module_copy).expect("failed to deserialize");
 		assert_eq!(module, module_copy);
 	}

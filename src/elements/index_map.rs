@@ -498,7 +498,7 @@ mod tests {
 			(5, "val 5"),
 		];
 		let iter = data.iter().map(|&(idx, val)| (idx, val.to_string()));
-		let map = IndexMap::from_iter(iter);
+		let map = iter.collect::<IndexMap<_>>();
 		assert_eq!(map.len(), 3);
 		assert_eq!(map.get(2), Some(&"val 2".to_string()));
 		assert_eq!(map.get(3), Some(&"val 3".to_string()));
@@ -512,7 +512,7 @@ mod tests {
 		// missing elements at the end.
 		let data = &[(3, "val 3"), (2, "val 2"), (5, "val 5")];
 		let src_iter = data.iter().map(|&(idx, val)| (idx, val.to_string()));
-		let mut map = IndexMap::from_iter(src_iter);
+		let mut map = src_iter.collect::<IndexMap<_>>();
 		map.remove(5);
 
 		// Make sure `size_hint` and `next` behave as we expect at each step.

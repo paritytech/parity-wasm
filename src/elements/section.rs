@@ -937,10 +937,7 @@ mod tests {
 		let type_section: TypeSection =
 			deserialize_buffer(types_test_payload()).expect("type_section be deserialized");
 
-		let t1 = match type_section.types()[1] {
-			Type::Function(ref func_type) => func_type
-		};
-
+		let Type::Function(ref t1) = type_section.types()[1];
 		assert_eq!(vec![ValueType::I64], t1.results());
 		assert_eq!(2, t1.params().len());
 	}

@@ -854,19 +854,16 @@ mod integration_tests {
 
 		let mut found_section = false;
 		for section in module.sections() {
-			match *section {
-				Section::Name(ref name_section) => {
-					let function_name_subsection =
-						name_section.functions().expect("function_name_subsection should be present");
-					assert_eq!(function_name_subsection.names().get(0).expect("Should be entry #0"), "elog");
-					assert_eq!(
-						function_name_subsection.names().get(11).expect("Should be entry #0"),
-						"_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
-					);
+			if let Section::Name(ref name_section) = *section {
+				let function_name_subsection =
+					name_section.functions().expect("function_name_subsection should be present");
+				assert_eq!(function_name_subsection.names().get(0).expect("Should be entry #0"), "elog");
+				assert_eq!(
+					function_name_subsection.names().get(11).expect("Should be entry #0"),
+					"_ZN48_$LT$pwasm_token_contract..Endpoint$LT$T$GT$$GT$3new17hc3ace6dea0978cd9E"
+				);
 
-					found_section = true;
-				}
-				_ => {}
+				found_section = true;
 			}
 		}
 

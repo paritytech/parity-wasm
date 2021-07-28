@@ -2,8 +2,7 @@ extern crate parity_wasm;
 
 use std::env;
 
-use parity_wasm::elements;
-use parity_wasm::builder;
+use parity_wasm::{builder, elements};
 
 pub fn inject_nop(instructions: &mut elements::Instructions) {
 	use parity_wasm::elements::Instruction::*;
@@ -17,7 +16,7 @@ pub fn inject_nop(instructions: &mut elements::Instructions) {
 
 		position += 1;
 		if position >= instructions.len() {
-			break;
+			break
 		}
 	}
 }
@@ -26,7 +25,7 @@ fn main() {
 	let args = env::args().collect::<Vec<_>>();
 	if args.len() != 3 {
 		println!("Usage: {} input_file.wasm output_file.wasm", args[0]);
-		return;
+		return
 	}
 
 	let mut module = parity_wasm::deserialize_file(&args[1]).unwrap();
@@ -41,17 +40,9 @@ fn main() {
 
 	let mut build = builder::from_module(module);
 	let import_sig = build.push_signature(
-		builder::signature()
-			.param().i32()
-			.param().i32()
-			.result().i32()
-			.build_sig()
+		builder::signature().param().i32().param().i32().result().i32().build_sig(),
 	);
-	let build = build.import()
-		.module("env")
-		.field("log")
-		.external().func(import_sig)
-		.build();
+	let build = build.import().module("env").field("log").external().func(import_sig).build();
 
 	parity_wasm::serialize_to_file(&args[2], build.build()).unwrap();
 }

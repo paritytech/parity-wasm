@@ -1,7 +1,10 @@
-use alloc::{string::String, vec::Vec};
 use crate::io;
+use alloc::{string::String, vec::Vec};
 
-use super::{CountedList, CountedListWriter, CountedWriter, Deserialize, Error, Serialize, VarInt32, VarUint32, VarUint7};
+use super::{
+	CountedList, CountedListWriter, CountedWriter, Deserialize, Error, Serialize, VarInt32,
+	VarUint32, VarUint7,
+};
 
 const FUNCTION_INDEX_LEB: u8 = 0;
 const TABLE_INDEX_SLEB: u8 = 1;
@@ -72,28 +75,15 @@ impl RelocSection {
 
 impl RelocSection {
 	/// Deserialize a reloc section.
-	pub fn deserialize<R: io::Read>(
-		name: String,
-		rdr: &mut R,
-	) -> Result<Self, Error> {
+	pub fn deserialize<R: io::Read>(name: String, rdr: &mut R) -> Result<Self, Error> {
 		let section_id = VarUint32::deserialize(rdr)?.into();
 
 		let relocation_section_name =
-			if section_id == 0 {
-				Some(String::deserialize(rdr)?)
-			}
-			else {
-				None
-			};
+			if section_id == 0 { Some(String::deserialize(rdr)?) } else { None };
 
 		let entries = CountedList::deserialize(rdr)?.into_inner();
 
-		Ok(RelocSection {
-			name,
-			section_id,
-			relocation_section_name,
-			entries,
-		})
+		Ok(RelocSection { name, section_id, relocation_section_name, entries })
 	}
 }
 
@@ -321,21 +311,27 @@ impl Serialize for RelocationEntry {
 
 #[cfg(test)]
 mod tests {
-	use super::super::{Section, deserialize_file};
-	use super::RelocationEntry;
+	use super::{
+		super::{deserialize_file, Section},
+		RelocationEntry,
+	};
 
 	#[test]
 	fn reloc_section() {
-		let module =
-			deserialize_file("./res/cases/v1/relocatable.wasm").expect("Module should be deserialized")
-			.parse_reloc().expect("Reloc section should be deserialized");
+		let module = deserialize_file("./res/cases/v1/relocatable.wasm")
+			.expect("Module should be deserialized")
+			.parse_reloc()
+			.expect("Reloc section should be deserialized");
 		let mut found = false;
 		for section in module.sections() {
 			if let Section::Reloc(ref reloc_section) = *section {
-				assert_eq!(vec![
-					RelocationEntry::MemoryAddressSleb { offset: 4, index: 0, addend: 0 },
-					RelocationEntry::FunctionIndexLeb { offset: 12, index: 0 },
-				], reloc_section.entries());
+				assert_eq!(
+					vec![
+						RelocationEntry::MemoryAddressSleb { offset: 4, index: 0, addend: 0 },
+						RelocationEntry::FunctionIndexLeb { offset: 12, index: 0 },
+					],
+					reloc_section.entries()
+				);
 				found = true
 			}
 		}

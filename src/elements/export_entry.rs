@@ -1,6 +1,6 @@
-use alloc::string::String;
-use super::{Deserialize, Serialize, Error, VarUint7, VarUint32};
+use super::{Deserialize, Error, Serialize, VarUint32, VarUint7};
 use crate::io;
+use alloc::string::String;
 
 /// Internal reference of the exported entry.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -58,23 +58,28 @@ pub struct ExportEntry {
 impl ExportEntry {
 	/// New export entry.
 	pub fn new(field_str: String, internal: Internal) -> Self {
-		ExportEntry {
-			field_str,
-			internal
-		}
+		ExportEntry { field_str, internal }
 	}
 
 	/// Public name.
-	pub fn field(&self) -> &str { &self.field_str }
+	pub fn field(&self) -> &str {
+		&self.field_str
+	}
 
 	/// Public name (mutable).
-	pub fn field_mut(&mut self) -> &mut String { &mut self.field_str }
+	pub fn field_mut(&mut self) -> &mut String {
+		&mut self.field_str
+	}
 
 	/// Internal reference of the export entry.
-	pub fn internal(&self) -> &Internal { &self.internal }
+	pub fn internal(&self) -> &Internal {
+		&self.internal
+	}
 
 	/// Internal reference of the export entry (mutable).
-	pub fn internal_mut(&mut self) -> &mut Internal { &mut self.internal }
+	pub fn internal_mut(&mut self) -> &mut Internal {
+		&mut self.internal
+	}
 }
 
 impl Deserialize for ExportEntry {
@@ -84,10 +89,7 @@ impl Deserialize for ExportEntry {
 		let field_str = String::deserialize(reader)?;
 		let internal = Internal::deserialize(reader)?;
 
-		Ok(ExportEntry {
-			field_str,
-			internal,
-		})
+		Ok(ExportEntry { field_str, internal })
 	}
 }
 

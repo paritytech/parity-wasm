@@ -3,7 +3,7 @@
 //! Basically it just a replacement for the std::io that is usable from
 //! the `no_std` environment.
 
-#[cfg(feature="std")]
+#[cfg(feature = "std")]
 use std::io;
 
 /// IO specific error.
@@ -47,10 +47,7 @@ pub struct Cursor<T> {
 
 impl<T> Cursor<T> {
 	pub fn new(inner: T) -> Cursor<T> {
-		Cursor {
-			inner,
-			pos: 0,
-		}
+		Cursor { inner, pos: 0 }
 	}
 
 	pub fn position(&self) -> usize {
@@ -64,7 +61,7 @@ impl<T: AsRef<[u8]>> Read for Cursor<T> {
 		let remainder = slice.len() - self.pos;
 		let requested = buf.len();
 		if requested > remainder {
-			return Err(Error::UnexpectedEof);
+			return Err(Error::UnexpectedEof)
 		}
 		buf.copy_from_slice(&slice[self.pos..(self.pos + requested)]);
 		self.pos += requested;
@@ -83,8 +80,7 @@ impl Write for alloc::vec::Vec<u8> {
 #[cfg(feature = "std")]
 impl<T: io::Read> Read for T {
 	fn read(&mut self, buf: &mut [u8]) -> Result<()> {
-		self.read_exact(buf)
-			.map_err(Error::Io)
+		self.read_exact(buf).map_err(Error::Io)
 	}
 }
 

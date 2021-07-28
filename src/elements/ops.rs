@@ -1,11 +1,9 @@
-use alloc::{boxed::Box, vec::Vec};
-use crate::io;
 use super::{
-	Serialize, Deserialize, Error,
-	Uint8, VarUint32, CountedList, BlockType,
-	Uint32, Uint64, CountedListWriter,
-	VarInt32, VarInt64,
+	BlockType, CountedList, CountedListWriter, Deserialize, Error, Serialize, Uint32, Uint64,
+	Uint8, VarInt32, VarInt64, VarUint32,
 };
+use crate::io;
+use alloc::{boxed::Box, vec::Vec};
 use core::fmt;
 
 /// List of instructions (usually inside a block section).
@@ -24,10 +22,14 @@ impl Instructions {
 	}
 
 	/// List of individual instructions.
-	pub fn elements(&self) -> &[Instruction] { &self.0 }
+	pub fn elements(&self) -> &[Instruction] {
+		&self.0
+	}
 
 	/// Individual instructions, mutable.
-	pub fn elements_mut(&mut self) -> &mut Vec<Instruction> { &mut self.0 }
+	pub fn elements_mut(&mut self) -> &mut Vec<Instruction> {
+		&mut self.0
+	}
 }
 
 impl Deserialize for Instructions {
@@ -42,12 +44,13 @@ impl Deserialize for Instructions {
 			if instruction.is_terminal() {
 				block_count -= 1;
 			} else if instruction.is_block() {
-				block_count = block_count.checked_add(1).ok_or(Error::Other("too many instructions"))?;
+				block_count =
+					block_count.checked_add(1).ok_or(Error::Other("too many instructions"))?;
 			}
 
 			instructions.push(instruction);
 			if block_count == 0 {
-				break;
+				break
 			}
 		}
 
@@ -94,7 +97,7 @@ impl Deserialize for InitExpr {
 			let is_terminal = instruction.is_terminal();
 			instructions.push(instruction);
 			if is_terminal {
-				break;
+				break
 			}
 		}
 
@@ -295,21 +298,21 @@ pub enum Instruction {
 	F32ReinterpretI32,
 	F64ReinterpretI64,
 
-	#[cfg(feature="atomics")]
+	#[cfg(feature = "atomics")]
 	Atomics(AtomicsInstruction),
 
-	#[cfg(feature="simd")]
+	#[cfg(feature = "simd")]
 	Simd(SimdInstruction),
 
-	#[cfg(feature="sign_ext")]
+	#[cfg(feature = "sign_ext")]
 	SignExt(SignExtInstruction),
 
-	#[cfg(feature="bulk")]
+	#[cfg(feature = "bulk")]
 	Bulk(BulkInstruction),
 }
 
 #[allow(missing_docs)]
-#[cfg(feature="atomics")]
+#[cfg(feature = "atomics")]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AtomicsInstruction {
 	AtomicWake(MemArg),
@@ -389,7 +392,7 @@ pub enum AtomicsInstruction {
 }
 
 #[allow(missing_docs)]
-#[cfg(feature="simd")]
+#[cfg(feature = "simd")]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SimdInstruction {
 	V128Const(Box<[u8; 16]>),
@@ -546,7 +549,7 @@ pub enum SimdInstruction {
 }
 
 #[allow(missing_docs)]
-#[cfg(feature="sign_ext")]
+#[cfg(feature = "sign_ext")]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SignExtInstruction {
 	I32Extend8S,
@@ -557,7 +560,7 @@ pub enum SignExtInstruction {
 }
 
 #[allow(missing_docs)]
-#[cfg(feature="bulk")]
+#[cfg(feature = "bulk")]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum BulkInstruction {
 	MemoryInit(u32),
@@ -569,7 +572,7 @@ pub enum BulkInstruction {
 	TableCopy,
 }
 
-#[cfg(any(feature="simd", feature="atomics"))]
+#[cfg(any(feature = "simd", feature = "atomics"))]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub struct MemArg {
@@ -779,7 +782,7 @@ pub mod opcodes {
 	pub const F32REINTERPRETI32: u8 = 0xbe;
 	pub const F64REINTERPRETI64: u8 = 0xbf;
 
-	#[cfg(feature="sign_ext")]
+	#[cfg(feature = "sign_ext")]
 	pub mod sign_ext {
 		pub const I32_EXTEND8_S: u8 = 0xc0;
 		pub const I32_EXTEND16_S: u8 = 0xc1;
@@ -788,7 +791,7 @@ pub mod opcodes {
 		pub const I64_EXTEND32_S: u8 = 0xc4;
 	}
 
-	#[cfg(feature="atomics")]
+	#[cfg(feature = "atomics")]
 	pub mod atomics {
 		pub const ATOMIC_PREFIX: u8 = 0xfe;
 		pub const ATOMIC_WAKE: u8 = 0x00;
@@ -867,7 +870,7 @@ pub mod opcodes {
 		pub const I64_ATOMIC_RMW_CMPXCHG32U: u8 = 0x4e;
 	}
 
-	#[cfg(feature="simd")]
+	#[cfg(feature = "simd")]
 	pub mod simd {
 		// https://github.com/WebAssembly/simd/blob/master/proposals/simd/BinarySIMD.md
 		pub const SIMD_PREFIX: u8 = 0xfd;
@@ -1033,7 +1036,7 @@ pub mod opcodes {
 		pub const F64X2_CONVERT_U_I64X2: u32 = 0xb2;
 	}
 
-	#[cfg(feature="bulk")]
+	#[cfg(feature = "bulk")]
 	pub mod bulk {
 		pub const BULK_PREFIX: u8 = 0xfc;
 		pub const MEMORY_INIT: u8 = 0x08;
@@ -1050,331 +1053,348 @@ impl Deserialize for Instruction {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		use self::Instruction::*;
-		use self::opcodes::*;
+		use self::{opcodes::*, Instruction::*};
 
-		#[cfg(feature="sign_ext")]
+		#[cfg(feature = "sign_ext")]
 		use self::opcodes::sign_ext::*;
 
 		let val: u8 = Uint8::deserialize(reader)?.into();
 
-		Ok(
-			match val {
-				UNREACHABLE => Unreachable,
-				NOP => Nop,
-				BLOCK => Block(BlockType::deserialize(reader)?),
-				LOOP => Loop(BlockType::deserialize(reader)?),
-				IF => If(BlockType::deserialize(reader)?),
-				ELSE => Else,
-				END => End,
+		Ok(match val {
+			UNREACHABLE => Unreachable,
+			NOP => Nop,
+			BLOCK => Block(BlockType::deserialize(reader)?),
+			LOOP => Loop(BlockType::deserialize(reader)?),
+			IF => If(BlockType::deserialize(reader)?),
+			ELSE => Else,
+			END => End,
 
-				BR => Br(VarUint32::deserialize(reader)?.into()),
-				BRIF => BrIf(VarUint32::deserialize(reader)?.into()),
-				BRTABLE => {
-					let t1: Vec<u32> = CountedList::<VarUint32>::deserialize(reader)?
-						.into_inner()
-						.into_iter()
-						.map(Into::into)
-						.collect();
+			BR => Br(VarUint32::deserialize(reader)?.into()),
+			BRIF => BrIf(VarUint32::deserialize(reader)?.into()),
+			BRTABLE => {
+				let t1: Vec<u32> = CountedList::<VarUint32>::deserialize(reader)?
+					.into_inner()
+					.into_iter()
+					.map(Into::into)
+					.collect();
 
-					BrTable(Box::new(BrTableData {
-						table: t1.into_boxed_slice(),
-						default: VarUint32::deserialize(reader)?.into(),
-					}))
-				},
-				RETURN => Return,
-				CALL => Call(VarUint32::deserialize(reader)?.into()),
-				CALLINDIRECT => {
-					let signature: u32 = VarUint32::deserialize(reader)?.into();
-					let table_ref: u8 = Uint8::deserialize(reader)?.into();
-					if table_ref != 0 { return Err(Error::InvalidTableReference(table_ref)); }
-
-					CallIndirect(
-						signature,
-						table_ref,
-					)
-				},
-				DROP => Drop,
-				SELECT => Select,
-
-				GETLOCAL => GetLocal(VarUint32::deserialize(reader)?.into()),
-				SETLOCAL => SetLocal(VarUint32::deserialize(reader)?.into()),
-				TEELOCAL => TeeLocal(VarUint32::deserialize(reader)?.into()),
-				GETGLOBAL => GetGlobal(VarUint32::deserialize(reader)?.into()),
-				SETGLOBAL => SetGlobal(VarUint32::deserialize(reader)?.into()),
-
-				I32LOAD => I32Load(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64LOAD => I64Load(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				F32LOAD => F32Load(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				F64LOAD => F64Load(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I32LOAD8S => I32Load8S(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I32LOAD8U => I32Load8U(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I32LOAD16S => I32Load16S(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I32LOAD16U => I32Load16U(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64LOAD8S => I64Load8S(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64LOAD8U => I64Load8U(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64LOAD16S => I64Load16S(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64LOAD16U => I64Load16U(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64LOAD32S => I64Load32S(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64LOAD32U => I64Load32U(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I32STORE => I32Store(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64STORE => I64Store(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				F32STORE => F32Store(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				F64STORE => F64Store(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I32STORE8 => I32Store8(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I32STORE16 => I32Store16(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64STORE8 => I64Store8(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64STORE16 => I64Store16(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-				I64STORE32 => I64Store32(
-					VarUint32::deserialize(reader)?.into(),
-					VarUint32::deserialize(reader)?.into()),
-
-
-				CURRENTMEMORY => {
-					let mem_ref: u8 = Uint8::deserialize(reader)?.into();
-					if mem_ref != 0 { return Err(Error::InvalidMemoryReference(mem_ref)); }
-					CurrentMemory(mem_ref)
-				},
-				GROWMEMORY => {
-					let mem_ref: u8 = Uint8::deserialize(reader)?.into();
-					if mem_ref != 0 { return Err(Error::InvalidMemoryReference(mem_ref)); }
-					GrowMemory(mem_ref)
+				BrTable(Box::new(BrTableData {
+					table: t1.into_boxed_slice(),
+					default: VarUint32::deserialize(reader)?.into(),
+				}))
+			},
+			RETURN => Return,
+			CALL => Call(VarUint32::deserialize(reader)?.into()),
+			CALLINDIRECT => {
+				let signature: u32 = VarUint32::deserialize(reader)?.into();
+				let table_ref: u8 = Uint8::deserialize(reader)?.into();
+				if table_ref != 0 {
+					return Err(Error::InvalidTableReference(table_ref))
 				}
 
-				I32CONST => I32Const(VarInt32::deserialize(reader)?.into()),
-				I64CONST => I64Const(VarInt64::deserialize(reader)?.into()),
-				F32CONST => F32Const(Uint32::deserialize(reader)?.into()),
-				F64CONST => F64Const(Uint64::deserialize(reader)?.into()),
-				I32EQZ => I32Eqz,
-				I32EQ => I32Eq,
-				I32NE => I32Ne,
-				I32LTS => I32LtS,
-				I32LTU => I32LtU,
-				I32GTS => I32GtS,
-				I32GTU => I32GtU,
-				I32LES => I32LeS,
-				I32LEU => I32LeU,
-				I32GES => I32GeS,
-				I32GEU => I32GeU,
+				CallIndirect(signature, table_ref)
+			},
+			DROP => Drop,
+			SELECT => Select,
 
-				I64EQZ => I64Eqz,
-				I64EQ => I64Eq,
-				I64NE => I64Ne,
-				I64LTS => I64LtS,
-				I64LTU => I64LtU,
-				I64GTS => I64GtS,
-				I64GTU => I64GtU,
-				I64LES => I64LeS,
-				I64LEU => I64LeU,
-				I64GES => I64GeS,
-				I64GEU => I64GeU,
+			GETLOCAL => GetLocal(VarUint32::deserialize(reader)?.into()),
+			SETLOCAL => SetLocal(VarUint32::deserialize(reader)?.into()),
+			TEELOCAL => TeeLocal(VarUint32::deserialize(reader)?.into()),
+			GETGLOBAL => GetGlobal(VarUint32::deserialize(reader)?.into()),
+			SETGLOBAL => SetGlobal(VarUint32::deserialize(reader)?.into()),
 
-				F32EQ => F32Eq,
-				F32NE => F32Ne,
-				F32LT => F32Lt,
-				F32GT => F32Gt,
-				F32LE => F32Le,
-				F32GE => F32Ge,
+			I32LOAD => I32Load(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
 
-				F64EQ => F64Eq,
-				F64NE => F64Ne,
-				F64LT => F64Lt,
-				F64GT => F64Gt,
-				F64LE => F64Le,
-				F64GE => F64Ge,
+			I64LOAD => I64Load(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
 
-				I32CLZ => I32Clz,
-				I32CTZ => I32Ctz,
-				I32POPCNT => I32Popcnt,
-				I32ADD => I32Add,
-				I32SUB => I32Sub,
-				I32MUL => I32Mul,
-				I32DIVS => I32DivS,
-				I32DIVU => I32DivU,
-				I32REMS => I32RemS,
-				I32REMU => I32RemU,
-				I32AND => I32And,
-				I32OR => I32Or,
-				I32XOR => I32Xor,
-				I32SHL => I32Shl,
-				I32SHRS => I32ShrS,
-				I32SHRU => I32ShrU,
-				I32ROTL => I32Rotl,
-				I32ROTR => I32Rotr,
+			F32LOAD => F32Load(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
 
-				I64CLZ => I64Clz,
-				I64CTZ => I64Ctz,
-				I64POPCNT => I64Popcnt,
-				I64ADD => I64Add,
-				I64SUB => I64Sub,
-				I64MUL => I64Mul,
-				I64DIVS => I64DivS,
-				I64DIVU => I64DivU,
-				I64REMS => I64RemS,
-				I64REMU => I64RemU,
-				I64AND => I64And,
-				I64OR => I64Or,
-				I64XOR => I64Xor,
-				I64SHL => I64Shl,
-				I64SHRS => I64ShrS,
-				I64SHRU => I64ShrU,
-				I64ROTL => I64Rotl,
-				I64ROTR => I64Rotr,
-				F32ABS => F32Abs,
-				F32NEG => F32Neg,
-				F32CEIL => F32Ceil,
-				F32FLOOR => F32Floor,
-				F32TRUNC => F32Trunc,
-				F32NEAREST => F32Nearest,
-				F32SQRT => F32Sqrt,
-				F32ADD => F32Add,
-				F32SUB => F32Sub,
-				F32MUL => F32Mul,
-				F32DIV => F32Div,
-				F32MIN => F32Min,
-				F32MAX => F32Max,
-				F32COPYSIGN => F32Copysign,
-				F64ABS => F64Abs,
-				F64NEG => F64Neg,
-				F64CEIL => F64Ceil,
-				F64FLOOR => F64Floor,
-				F64TRUNC => F64Trunc,
-				F64NEAREST => F64Nearest,
-				F64SQRT => F64Sqrt,
-				F64ADD => F64Add,
-				F64SUB => F64Sub,
-				F64MUL => F64Mul,
-				F64DIV => F64Div,
-				F64MIN => F64Min,
-				F64MAX => F64Max,
-				F64COPYSIGN => F64Copysign,
+			F64LOAD => F64Load(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
 
-				I32WRAPI64 => I32WrapI64,
-				I32TRUNCSF32 => I32TruncSF32,
-				I32TRUNCUF32 => I32TruncUF32,
-				I32TRUNCSF64 => I32TruncSF64,
-				I32TRUNCUF64 => I32TruncUF64,
-				I64EXTENDSI32 => I64ExtendSI32,
-				I64EXTENDUI32 => I64ExtendUI32,
-				I64TRUNCSF32 => I64TruncSF32,
-				I64TRUNCUF32 => I64TruncUF32,
-				I64TRUNCSF64 => I64TruncSF64,
-				I64TRUNCUF64 => I64TruncUF64,
-				F32CONVERTSI32 => F32ConvertSI32,
-				F32CONVERTUI32 => F32ConvertUI32,
-				F32CONVERTSI64 => F32ConvertSI64,
-				F32CONVERTUI64 => F32ConvertUI64,
-				F32DEMOTEF64 => F32DemoteF64,
-				F64CONVERTSI32 => F64ConvertSI32,
-				F64CONVERTUI32 => F64ConvertUI32,
-				F64CONVERTSI64 => F64ConvertSI64,
-				F64CONVERTUI64 => F64ConvertUI64,
-				F64PROMOTEF32 => F64PromoteF32,
+			I32LOAD8S => I32Load8S(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
 
-				I32REINTERPRETF32 => I32ReinterpretF32,
-				I64REINTERPRETF64 => I64ReinterpretF64,
-				F32REINTERPRETI32 => F32ReinterpretI32,
-				F64REINTERPRETI64 => F64ReinterpretI64,
+			I32LOAD8U => I32Load8U(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
 
-				#[cfg(feature="sign_ext")]
-				I32_EXTEND8_S |
-				I32_EXTEND16_S |
-				I64_EXTEND8_S |
-				I64_EXTEND16_S |
-				I64_EXTEND32_S => match val {
-					I32_EXTEND8_S => SignExt(SignExtInstruction::I32Extend8S),
-					I32_EXTEND16_S => SignExt(SignExtInstruction::I32Extend16S),
-					I64_EXTEND8_S => SignExt(SignExtInstruction::I64Extend8S),
-					I64_EXTEND16_S => SignExt(SignExtInstruction::I64Extend16S),
-					I64_EXTEND32_S => SignExt(SignExtInstruction::I64Extend32S),
-					_ => return Err(Error::UnknownOpcode(val)),
+			I32LOAD16S => I32Load16S(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I32LOAD16U => I32Load16U(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64LOAD8S => I64Load8S(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64LOAD8U => I64Load8U(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64LOAD16S => I64Load16S(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64LOAD16U => I64Load16U(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64LOAD32S => I64Load32S(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64LOAD32U => I64Load32U(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I32STORE => I32Store(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64STORE => I64Store(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			F32STORE => F32Store(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			F64STORE => F64Store(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I32STORE8 => I32Store8(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I32STORE16 => I32Store16(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64STORE8 => I64Store8(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64STORE16 => I64Store16(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			I64STORE32 => I64Store32(
+				VarUint32::deserialize(reader)?.into(),
+				VarUint32::deserialize(reader)?.into(),
+			),
+
+			CURRENTMEMORY => {
+				let mem_ref: u8 = Uint8::deserialize(reader)?.into();
+				if mem_ref != 0 {
+					return Err(Error::InvalidMemoryReference(mem_ref))
 				}
+				CurrentMemory(mem_ref)
+			},
+			GROWMEMORY => {
+				let mem_ref: u8 = Uint8::deserialize(reader)?.into();
+				if mem_ref != 0 {
+					return Err(Error::InvalidMemoryReference(mem_ref))
+				}
+				GrowMemory(mem_ref)
+			},
 
-				#[cfg(feature="atomics")]
-				atomics::ATOMIC_PREFIX => return deserialize_atomic(reader),
+			I32CONST => I32Const(VarInt32::deserialize(reader)?.into()),
+			I64CONST => I64Const(VarInt64::deserialize(reader)?.into()),
+			F32CONST => F32Const(Uint32::deserialize(reader)?.into()),
+			F64CONST => F64Const(Uint64::deserialize(reader)?.into()),
+			I32EQZ => I32Eqz,
+			I32EQ => I32Eq,
+			I32NE => I32Ne,
+			I32LTS => I32LtS,
+			I32LTU => I32LtU,
+			I32GTS => I32GtS,
+			I32GTU => I32GtU,
+			I32LES => I32LeS,
+			I32LEU => I32LeU,
+			I32GES => I32GeS,
+			I32GEU => I32GeU,
 
-				#[cfg(feature="simd")]
-				simd::SIMD_PREFIX => return deserialize_simd(reader),
+			I64EQZ => I64Eqz,
+			I64EQ => I64Eq,
+			I64NE => I64Ne,
+			I64LTS => I64LtS,
+			I64LTU => I64LtU,
+			I64GTS => I64GtS,
+			I64GTU => I64GtU,
+			I64LES => I64LeS,
+			I64LEU => I64LeU,
+			I64GES => I64GeS,
+			I64GEU => I64GeU,
 
-				#[cfg(feature="bulk")]
-				bulk::BULK_PREFIX => return deserialize_bulk(reader),
+			F32EQ => F32Eq,
+			F32NE => F32Ne,
+			F32LT => F32Lt,
+			F32GT => F32Gt,
+			F32LE => F32Le,
+			F32GE => F32Ge,
 
-				_ => { return Err(Error::UnknownOpcode(val)); }
-			}
-		)
+			F64EQ => F64Eq,
+			F64NE => F64Ne,
+			F64LT => F64Lt,
+			F64GT => F64Gt,
+			F64LE => F64Le,
+			F64GE => F64Ge,
+
+			I32CLZ => I32Clz,
+			I32CTZ => I32Ctz,
+			I32POPCNT => I32Popcnt,
+			I32ADD => I32Add,
+			I32SUB => I32Sub,
+			I32MUL => I32Mul,
+			I32DIVS => I32DivS,
+			I32DIVU => I32DivU,
+			I32REMS => I32RemS,
+			I32REMU => I32RemU,
+			I32AND => I32And,
+			I32OR => I32Or,
+			I32XOR => I32Xor,
+			I32SHL => I32Shl,
+			I32SHRS => I32ShrS,
+			I32SHRU => I32ShrU,
+			I32ROTL => I32Rotl,
+			I32ROTR => I32Rotr,
+
+			I64CLZ => I64Clz,
+			I64CTZ => I64Ctz,
+			I64POPCNT => I64Popcnt,
+			I64ADD => I64Add,
+			I64SUB => I64Sub,
+			I64MUL => I64Mul,
+			I64DIVS => I64DivS,
+			I64DIVU => I64DivU,
+			I64REMS => I64RemS,
+			I64REMU => I64RemU,
+			I64AND => I64And,
+			I64OR => I64Or,
+			I64XOR => I64Xor,
+			I64SHL => I64Shl,
+			I64SHRS => I64ShrS,
+			I64SHRU => I64ShrU,
+			I64ROTL => I64Rotl,
+			I64ROTR => I64Rotr,
+			F32ABS => F32Abs,
+			F32NEG => F32Neg,
+			F32CEIL => F32Ceil,
+			F32FLOOR => F32Floor,
+			F32TRUNC => F32Trunc,
+			F32NEAREST => F32Nearest,
+			F32SQRT => F32Sqrt,
+			F32ADD => F32Add,
+			F32SUB => F32Sub,
+			F32MUL => F32Mul,
+			F32DIV => F32Div,
+			F32MIN => F32Min,
+			F32MAX => F32Max,
+			F32COPYSIGN => F32Copysign,
+			F64ABS => F64Abs,
+			F64NEG => F64Neg,
+			F64CEIL => F64Ceil,
+			F64FLOOR => F64Floor,
+			F64TRUNC => F64Trunc,
+			F64NEAREST => F64Nearest,
+			F64SQRT => F64Sqrt,
+			F64ADD => F64Add,
+			F64SUB => F64Sub,
+			F64MUL => F64Mul,
+			F64DIV => F64Div,
+			F64MIN => F64Min,
+			F64MAX => F64Max,
+			F64COPYSIGN => F64Copysign,
+
+			I32WRAPI64 => I32WrapI64,
+			I32TRUNCSF32 => I32TruncSF32,
+			I32TRUNCUF32 => I32TruncUF32,
+			I32TRUNCSF64 => I32TruncSF64,
+			I32TRUNCUF64 => I32TruncUF64,
+			I64EXTENDSI32 => I64ExtendSI32,
+			I64EXTENDUI32 => I64ExtendUI32,
+			I64TRUNCSF32 => I64TruncSF32,
+			I64TRUNCUF32 => I64TruncUF32,
+			I64TRUNCSF64 => I64TruncSF64,
+			I64TRUNCUF64 => I64TruncUF64,
+			F32CONVERTSI32 => F32ConvertSI32,
+			F32CONVERTUI32 => F32ConvertUI32,
+			F32CONVERTSI64 => F32ConvertSI64,
+			F32CONVERTUI64 => F32ConvertUI64,
+			F32DEMOTEF64 => F32DemoteF64,
+			F64CONVERTSI32 => F64ConvertSI32,
+			F64CONVERTUI32 => F64ConvertUI32,
+			F64CONVERTSI64 => F64ConvertSI64,
+			F64CONVERTUI64 => F64ConvertUI64,
+			F64PROMOTEF32 => F64PromoteF32,
+
+			I32REINTERPRETF32 => I32ReinterpretF32,
+			I64REINTERPRETF64 => I64ReinterpretF64,
+			F32REINTERPRETI32 => F32ReinterpretI32,
+			F64REINTERPRETI64 => F64ReinterpretI64,
+
+			#[cfg(feature = "sign_ext")]
+			I32_EXTEND8_S | I32_EXTEND16_S | I64_EXTEND8_S | I64_EXTEND16_S | I64_EXTEND32_S => match val {
+				I32_EXTEND8_S => SignExt(SignExtInstruction::I32Extend8S),
+				I32_EXTEND16_S => SignExt(SignExtInstruction::I32Extend16S),
+				I64_EXTEND8_S => SignExt(SignExtInstruction::I64Extend8S),
+				I64_EXTEND16_S => SignExt(SignExtInstruction::I64Extend16S),
+				I64_EXTEND32_S => SignExt(SignExtInstruction::I64Extend32S),
+				_ => return Err(Error::UnknownOpcode(val)),
+			},
+
+			#[cfg(feature = "atomics")]
+			atomics::ATOMIC_PREFIX => return deserialize_atomic(reader),
+
+			#[cfg(feature = "simd")]
+			simd::SIMD_PREFIX => return deserialize_simd(reader),
+
+			#[cfg(feature = "bulk")]
+			bulk::BULK_PREFIX => return deserialize_bulk(reader),
+
+			_ => return Err(Error::UnknownOpcode(val)),
+		})
 	}
 }
 
-#[cfg(feature="atomics")]
+#[cfg(feature = "atomics")]
 fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
-	use self::AtomicsInstruction::*;
-	use self::opcodes::atomics::*;
+	use self::{opcodes::atomics::*, AtomicsInstruction::*};
 
 	let val: u8 = Uint8::deserialize(reader)?.into();
 	let mem = MemArg::deserialize(reader)?;
@@ -1450,10 +1470,9 @@ fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error>
 	}))
 }
 
-#[cfg(feature="simd")]
+#[cfg(feature = "simd")]
 fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
-	use self::SimdInstruction::*;
-	use self::opcodes::simd::*;
+	use self::{opcodes::simd::*, SimdInstruction::*};
 
 	let val = VarUint32::deserialize(reader)?.into();
 	Ok(Instruction::Simd(match val {
@@ -1461,7 +1480,7 @@ fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 			let mut buf = [0; 16];
 			reader.read(&mut buf)?;
 			V128Const(Box::new(buf))
-		}
+		},
 		V128_LOAD => V128Load(MemArg::deserialize(reader)?),
 		V128_STORE => V128Store(MemArg::deserialize(reader)?),
 		I8X16_SPLAT => I8x16Splat,
@@ -1488,7 +1507,7 @@ fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 			let mut buf = [0; 16];
 			reader.read(&mut buf)?;
 			V8x16Shuffle(Box::new(buf))
-		}
+		},
 		I8X16_ADD => I8x16Add,
 		I16X8_ADD => I16x8Add,
 		I32X4_ADD => I32x4Add,
@@ -1622,10 +1641,9 @@ fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	}))
 }
 
-#[cfg(feature="bulk")]
+#[cfg(feature = "bulk")]
 fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
-	use self::BulkInstruction::*;
-	use self::opcodes::bulk::*;
+	use self::{opcodes::bulk::*, BulkInstruction::*};
 
 	let val: u8 = Uint8::deserialize(reader)?.into();
 	Ok(Instruction::Bulk(match val {
@@ -1634,40 +1652,40 @@ fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 				return Err(Error::UnknownOpcode(val))
 			}
 			MemoryInit(VarUint32::deserialize(reader)?.into())
-		}
+		},
 		MEMORY_DROP => MemoryDrop(VarUint32::deserialize(reader)?.into()),
 		MEMORY_FILL => {
 			if u8::from(Uint8::deserialize(reader)?) != 0 {
 				return Err(Error::UnknownOpcode(val))
 			}
 			MemoryFill
-		}
+		},
 		MEMORY_COPY => {
 			if u8::from(Uint8::deserialize(reader)?) != 0 {
 				return Err(Error::UnknownOpcode(val))
 			}
 			MemoryCopy
-		}
+		},
 
 		TABLE_INIT => {
 			if u8::from(Uint8::deserialize(reader)?) != 0 {
 				return Err(Error::UnknownOpcode(val))
 			}
 			TableInit(VarUint32::deserialize(reader)?.into())
-		}
+		},
 		TABLE_DROP => TableDrop(VarUint32::deserialize(reader)?.into()),
 		TABLE_COPY => {
 			if u8::from(Uint8::deserialize(reader)?) != 0 {
 				return Err(Error::UnknownOpcode(val))
 			}
 			TableCopy
-		}
+		},
 
 		_ => return Err(Error::UnknownOpcode(val)),
 	}))
 }
 
-#[cfg(any(feature="simd", feature="atomics"))]
+#[cfg(any(feature = "simd", feature = "atomics"))]
 impl Deserialize for MemArg {
 	type Error = Error;
 
@@ -1679,62 +1697,61 @@ impl Deserialize for MemArg {
 }
 
 macro_rules! op {
-	($writer: expr, $byte: expr) => ({
+	($writer: expr, $byte: expr) => {{
 		let b: u8 = $byte;
 		$writer.write(&[b])?;
-	});
-	($writer: expr, $byte: expr, $s: block) => ({
+	}};
+	($writer: expr, $byte: expr, $s: block) => {{
 		op!($writer, $byte);
 		$s;
-	});
+	}};
 }
 
-#[cfg(feature="atomics")]
+#[cfg(feature = "atomics")]
 macro_rules! atomic {
-	($writer: expr, $byte: expr, $mem:expr) => ({
+	($writer: expr, $byte: expr, $mem:expr) => {{
 		$writer.write(&[ATOMIC_PREFIX, $byte])?;
 		MemArg::serialize($mem, $writer)?;
-	});
+	}};
 }
 
-#[cfg(feature="simd")]
+#[cfg(feature = "simd")]
 macro_rules! simd {
-	($writer: expr, $byte: expr, $other:expr) => ({
+	($writer: expr, $byte: expr, $other:expr) => {{
 		$writer.write(&[SIMD_PREFIX])?;
 		VarUint32::from($byte).serialize($writer)?;
 		$other;
-	})
+	}};
 }
 
-#[cfg(feature="bulk")]
+#[cfg(feature = "bulk")]
 macro_rules! bulk {
-	($writer: expr, $byte: expr) => ({
+	($writer: expr, $byte: expr) => {{
 		$writer.write(&[BULK_PREFIX, $byte])?;
-	});
-	($writer: expr, $byte: expr, $remaining:expr) => ({
+	}};
+	($writer: expr, $byte: expr, $remaining:expr) => {{
 		bulk!($writer, $byte);
 		$remaining;
-	});
+	}};
 }
 
 impl Serialize for Instruction {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		use self::Instruction::*;
-		use self::opcodes::*;
+		use self::{opcodes::*, Instruction::*};
 
 		match self {
 			Unreachable => op!(writer, UNREACHABLE),
 			Nop => op!(writer, NOP),
 			Block(block_type) => op!(writer, BLOCK, {
-			   block_type.serialize(writer)?;
+				block_type.serialize(writer)?;
 			}),
 			Loop(block_type) => op!(writer, LOOP, {
-			   block_type.serialize(writer)?;
+				block_type.serialize(writer)?;
 			}),
 			If(block_type) => op!(writer, IF, {
-			   block_type.serialize(writer)?;
+				block_type.serialize(writer)?;
 			}),
 			Else => op!(writer, ELSE),
 			End => op!(writer, END),
@@ -2018,22 +2035,22 @@ impl Serialize for Instruction {
 			F32ReinterpretI32 => op!(writer, F32REINTERPRETI32),
 			F64ReinterpretI64 => op!(writer, F64REINTERPRETI64),
 
-			#[cfg(feature="sign_ext")]
+			#[cfg(feature = "sign_ext")]
 			SignExt(ref a) => match *a {
 				SignExtInstruction::I32Extend8S => op!(writer, sign_ext::I32_EXTEND8_S),
 				SignExtInstruction::I32Extend16S => op!(writer, sign_ext::I32_EXTEND16_S),
 				SignExtInstruction::I64Extend8S => op!(writer, sign_ext::I64_EXTEND8_S),
 				SignExtInstruction::I64Extend16S => op!(writer, sign_ext::I64_EXTEND16_S),
 				SignExtInstruction::I64Extend32S => op!(writer, sign_ext::I64_EXTEND32_S),
-			}
+			},
 
-			#[cfg(feature="atomics")]
+			#[cfg(feature = "atomics")]
 			Atomics(a) => return a.serialize(writer),
 
-			#[cfg(feature="simd")]
+			#[cfg(feature = "simd")]
 			Simd(a) => return a.serialize(writer),
 
-			#[cfg(feature="bulk")]
+			#[cfg(feature = "bulk")]
 			Bulk(a) => return a.serialize(writer),
 		}
 
@@ -2041,13 +2058,12 @@ impl Serialize for Instruction {
 	}
 }
 
-#[cfg(feature="atomics")]
+#[cfg(feature = "atomics")]
 impl Serialize for AtomicsInstruction {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		use self::AtomicsInstruction::*;
-		use self::opcodes::atomics::*;
+		use self::{opcodes::atomics::*, AtomicsInstruction::*};
 
 		match self {
 			AtomicWake(m) => atomic!(writer, ATOMIC_WAKE, m),
@@ -2130,13 +2146,12 @@ impl Serialize for AtomicsInstruction {
 	}
 }
 
-#[cfg(feature="simd")]
+#[cfg(feature = "simd")]
 impl Serialize for SimdInstruction {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		use self::SimdInstruction::*;
-		use self::opcodes::simd::*;
+		use self::{opcodes::simd::*, SimdInstruction::*};
 
 		match self {
 			V128Const(ref c) => simd!(writer, V128_CONST, writer.write(&c[..])?),
@@ -2296,13 +2311,12 @@ impl Serialize for SimdInstruction {
 	}
 }
 
-#[cfg(feature="bulk")]
+#[cfg(feature = "bulk")]
 impl Serialize for BulkInstruction {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		use self::BulkInstruction::*;
-		use self::opcodes::bulk::*;
+		use self::{opcodes::bulk::*, BulkInstruction::*};
 
 		match self {
 			MemoryInit(seg) => bulk!(writer, MEMORY_INIT, {
@@ -2324,7 +2338,7 @@ impl Serialize for BulkInstruction {
 	}
 }
 
-#[cfg(any(feature="simd", feature="atomics"))]
+#[cfg(any(feature = "simd", feature = "atomics"))]
 impl Serialize for MemArg {
 	type Error = Error;
 
@@ -2336,15 +2350,15 @@ impl Serialize for MemArg {
 }
 
 macro_rules! fmt_op {
-	($f: expr, $mnemonic: expr) => ({
+	($f: expr, $mnemonic: expr) => {{
 		write!($f, "{}", $mnemonic)
-	});
-	($f: expr, $mnemonic: expr, $immediate: expr) => ({
+	}};
+	($f: expr, $mnemonic: expr, $immediate: expr) => {{
 		write!($f, "{} {}", $mnemonic, $immediate)
-	});
-	($f: expr, $mnemonic: expr, $immediate1: expr, $immediate2: expr) => ({
+	}};
+	($f: expr, $mnemonic: expr, $immediate1: expr, $immediate2: expr) => {{
 		write!($f, "{} {} {}", $mnemonic, $immediate1, $immediate2)
-	});
+	}};
 }
 
 impl fmt::Display for Instruction {
@@ -2362,12 +2376,12 @@ impl fmt::Display for Instruction {
 			If(BlockType::Value(value_type)) => fmt_op!(f, "if", value_type),
 			Else => fmt_op!(f, "else"),
 			End => fmt_op!(f, "end"),
-			Br(idx) => fmt_op!(f, "br",  idx),
-			BrIf(idx) => fmt_op!(f, "br_if",  idx),
+			Br(idx) => fmt_op!(f, "br", idx),
+			BrIf(idx) => fmt_op!(f, "br_if", idx),
 			BrTable(ref table) => fmt_op!(f, "br_table", table.default),
 			Return => fmt_op!(f, "return"),
 			Call(index) => fmt_op!(f, "call", index),
-			CallIndirect(index, _) =>  fmt_op!(f, "call_indirect", index),
+			CallIndirect(index, _) => fmt_op!(f, "call_indirect", index),
 			Drop => fmt_op!(f, "drop"),
 			Select => fmt_op!(f, "select"),
 			GetLocal(index) => fmt_op!(f, "get_local", index),
@@ -2590,28 +2604,28 @@ impl fmt::Display for Instruction {
 			F32ReinterpretI32 => write!(f, "f32.reinterpret/i32"),
 			F64ReinterpretI64 => write!(f, "f64.reinterpret/i64"),
 
-			#[cfg(feature="sign_ext")]
+			#[cfg(feature = "sign_ext")]
 			SignExt(ref i) => match i {
 				SignExtInstruction::I32Extend8S => write!(f, "i32.extend8_s"),
 				SignExtInstruction::I32Extend16S => write!(f, "i32.extend16_s"),
 				SignExtInstruction::I64Extend8S => write!(f, "i64.extend8_s"),
 				SignExtInstruction::I64Extend16S => write!(f, "i64.extend16_s"),
 				SignExtInstruction::I64Extend32S => write!(f, "i64.extend32_s"),
-			}
+			},
 
-			#[cfg(feature="atomics")]
+			#[cfg(feature = "atomics")]
 			Atomics(ref i) => i.fmt(f),
 
-			#[cfg(feature="simd")]
+			#[cfg(feature = "simd")]
 			Simd(ref i) => i.fmt(f),
 
-			#[cfg(feature="bulk")]
+			#[cfg(feature = "bulk")]
 			Bulk(ref i) => i.fmt(f),
 		}
 	}
 }
 
-#[cfg(feature="atomics")]
+#[cfg(feature = "atomics")]
 impl fmt::Display for AtomicsInstruction {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::AtomicsInstruction::*;
@@ -2695,7 +2709,7 @@ impl fmt::Display for AtomicsInstruction {
 	}
 }
 
-#[cfg(feature="simd")]
+#[cfg(feature = "simd")]
 impl fmt::Display for SimdInstruction {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::SimdInstruction::*;
@@ -2856,7 +2870,7 @@ impl fmt::Display for SimdInstruction {
 	}
 }
 
-#[cfg(feature="bulk")]
+#[cfg(feature = "bulk")]
 impl fmt::Display for BulkInstruction {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::BulkInstruction::*;
@@ -2900,20 +2914,26 @@ impl Serialize for InitExpr {
 #[test]
 fn ifelse() {
 	// see if-else.wast/if-else.wasm
-	let instruction_list = super::deserialize_buffer::<Instructions>(&[0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B])
-		.expect("valid hex of if instruction");
+	let instruction_list = super::deserialize_buffer::<Instructions>(&[
+		0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B,
+	])
+	.expect("valid hex of if instruction");
 	let instructions = instruction_list.elements();
 	match instructions[0] {
 		Instruction::If(_) => (),
 		_ => panic!("Should be deserialized as if instruction"),
 	}
-	let before_else = instructions.iter().skip(1)
-		.take_while(|op| !matches!(**op, Instruction::Else)).count();
-	let after_else = instructions.iter().skip(1)
+	let before_else = instructions
+		.iter()
+		.skip(1)
+		.take_while(|op| !matches!(**op, Instruction::Else))
+		.count();
+	let after_else = instructions
+		.iter()
+		.skip(1)
 		.skip_while(|op| !matches!(**op, Instruction::Else))
 		.take_while(|op| !matches!(**op, Instruction::End))
-		.count()
-		- 1; // minus Instruction::Else itself
+		.count() - 1; // minus Instruction::Else itself
 	assert_eq!(before_else, after_else);
 }
 
@@ -2936,7 +2956,7 @@ fn size_off() {
 
 #[test]
 fn instructions_hashset() {
-	use self::Instruction::{Call, Block, Drop};
+	use self::Instruction::{Block, Call, Drop};
 	use super::types::{BlockType::Value, ValueType};
 
 	let set: std::collections::HashSet<Instruction> =

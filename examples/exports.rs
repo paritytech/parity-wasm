@@ -5,11 +5,10 @@ extern crate parity_wasm;
 
 use std::env::args;
 
-use parity_wasm::elements::{Internal, External, Type, FunctionType, Module};
+use parity_wasm::elements::{External, FunctionType, Internal, Module, Type};
 
 // Auxillary function to resolve function type (signature) given it's callable index
 fn type_by_index(module: &Module, index: usize) -> FunctionType {
-
 	// Demand that function and type section exist. Otherwise, fail with a
 	// corresponding error.
 	let function_section = module.function_section().expect("No function section found");
@@ -20,17 +19,21 @@ fn type_by_index(module: &Module, index: usize) -> FunctionType {
 	// includes both imported and own functions. So we actualy need the imported function count
 	// to resolve actual index of the given function in own functions list.
 	let import_section_len: usize = match module.import_section() {
-			Some(import) =>
-				import.entries().iter().filter(|entry| matches!(entry.external(), &External::Function(_))).count(),
-			None => 0,
-		};
+		Some(import) => import
+			.entries()
+			.iter()
+			.filter(|entry| matches!(entry.external(), &External::Function(_)))
+			.count(),
+		None => 0,
+	};
 
 	// Substract the value queried in the previous step from the provided index
 	// to get own function index from which we can query type next.
 	let function_index_in_section = index - import_section_len;
 
 	// Query the own function given we have it's index
-	let func_type_ref: usize = function_section.entries()[function_index_in_section].type_ref() as usize;
+	let func_type_ref: usize =
+		function_section.entries()[function_index_in_section].type_ref() as usize;
 
 	// Finally, return function type (signature)
 	match type_section.types()[func_type_ref] {
@@ -39,14 +42,13 @@ fn type_by_index(module: &Module, index: usize) -> FunctionType {
 }
 
 fn main() {
-
 	// Example executable takes one argument which must
 	// refernce the existing file with a valid wasm module
 	let args: Vec<_> = args().collect();
 	if args.len() < 2 {
 		println!("Prints export function names with and their types");
 		println!("Usage: {} <wasm file>", args[0]);
-		return;
+		return
 	}
 
 	// Here we load module using dedicated for this purpose
@@ -60,7 +62,9 @@ fn main() {
 
 	// Process all exports, leaving only those which reference the internal function
 	// of the wasm module
-	let exports: Vec<String> = export_section.entries().iter()
+	let exports: Vec<String> = export_section
+		.entries()
+		.iter()
 		.filter_map(|entry|
 			// This is match on export variant, which can be function, global,table or memory
 			// We are interested only in functions for an example
@@ -71,7 +75,8 @@ fn main() {
 			})
 		// Another map to resolve function signature index given it's internal index and return
 		// the printable string of the export
-		.map(|(field, index)| format!("{:}: {:?}", field, type_by_index(&module, index).params())).collect();
+		.map(|(field, index)| format!("{:}: {:?}", field, type_by_index(&module, index).params()))
+		.collect();
 
 	// Print the result
 	for export in exports {

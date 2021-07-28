@@ -1,9 +1,9 @@
-use alloc::vec::Vec;
-use crate::elements;
 use super::{
-	invoke::{Invoke, Identity},
+	invoke::{Identity, Invoke},
 	misc::{ValueTypeBuilder, ValueTypesBuilder},
 };
+use crate::elements;
+use alloc::vec::Vec;
 
 /// Signature template description
 pub enum Signature {
@@ -12,7 +12,7 @@ pub enum Signature {
 }
 
 /// Signature builder
-pub struct SignatureBuilder<F=Identity> {
+pub struct SignatureBuilder<F = Identity> {
 	callback: F,
 	signature: elements::FunctionType,
 }
@@ -29,13 +29,13 @@ impl Default for SignatureBuilder {
 		Self::new()
 	}
 }
-impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
+impl<F> SignatureBuilder<F>
+where
+	F: Invoke<elements::FunctionType>,
+{
 	/// New builder with callback function specified
 	pub fn with_callback(callback: F) -> Self {
-		SignatureBuilder {
-			callback,
-			signature: elements::FunctionType::default(),
-		}
+		SignatureBuilder { callback, signature: elements::FunctionType::default() }
 	}
 
 	/// Add argument to signature builder
@@ -94,7 +94,8 @@ impl<F> SignatureBuilder<F> where F: Invoke<elements::FunctionType> {
 }
 
 impl<F> Invoke<Vec<elements::ValueType>> for SignatureBuilder<F>
-	where F: Invoke<elements::FunctionType>
+where
+	F: Invoke<elements::FunctionType>,
 {
 	type Result = Self;
 
@@ -104,7 +105,8 @@ impl<F> Invoke<Vec<elements::ValueType>> for SignatureBuilder<F>
 }
 
 impl<F> Invoke<elements::ValueType> for SignatureBuilder<F>
-	where F: Invoke<elements::FunctionType>
+where
+	F: Invoke<elements::FunctionType>,
 {
 	type Result = Self;
 
@@ -114,18 +116,18 @@ impl<F> Invoke<elements::ValueType> for SignatureBuilder<F>
 }
 
 /// Type (signature) reference builder (for function/import/indirect call)
-pub struct TypeRefBuilder<F=Identity> {
+pub struct TypeRefBuilder<F = Identity> {
 	callback: F,
 	type_ref: u32,
 }
 
-impl<F> TypeRefBuilder<F> where F: Invoke<u32> {
+impl<F> TypeRefBuilder<F>
+where
+	F: Invoke<u32>,
+{
 	/// New builder chained with specified callback
 	pub fn with_callback(callback: F) -> Self {
-		TypeRefBuilder {
-			callback,
-			type_ref: 0
-		}
+		TypeRefBuilder { callback, type_ref: 0 }
 	}
 
 	/// Set/override of type reference
@@ -135,11 +137,13 @@ impl<F> TypeRefBuilder<F> where F: Invoke<u32> {
 	}
 
 	/// Finish current builder
-	pub fn build(self) -> F::Result { self.callback.invoke(self.type_ref) }
+	pub fn build(self) -> F::Result {
+		self.callback.invoke(self.type_ref)
+	}
 }
 
 /// Multiple signatures builder
-pub struct SignaturesBuilder<F=Identity> {
+pub struct SignaturesBuilder<F = Identity> {
 	callback: F,
 	section: Vec<Signature>,
 }
@@ -160,10 +164,7 @@ impl Default for SignaturesBuilder {
 impl<F> SignaturesBuilder<F> {
 	/// New builder chained with specified callback
 	pub fn with_callback(callback: F) -> Self {
-		SignaturesBuilder {
-			callback,
-			section: Vec::new(),
-		}
+		SignaturesBuilder { callback, section: Vec::new() }
 	}
 
 	/// Push new signature into the builder output
@@ -178,7 +179,10 @@ impl<F> SignaturesBuilder<F> {
 	}
 }
 
-impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
+impl<F> SignaturesBuilder<F>
+where
+	F: Invoke<SignatureBindings>,
+{
 	/// Start building new signature with dedicated builder
 	pub fn signature(self) -> SignatureBuilder<Self> {
 		SignatureBuilder::with_callback(self)
@@ -201,8 +205,10 @@ impl<F> Invoke<u32> for SignaturesBuilder<F> {
 	}
 }
 
-impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionSection> {
-
+impl<F> SignaturesBuilder<F>
+where
+	F: Invoke<elements::FunctionSection>,
+{
 	/// Finalize builder spawning element
 	pub fn build(self) -> F::Result {
 		let mut result = elements::FunctionSection::default();
@@ -220,7 +226,10 @@ impl<F> SignaturesBuilder<F> where F: Invoke<elements::FunctionSection> {
 /// Signature bindings
 pub type SignatureBindings = Vec<Signature>;
 
-impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
+impl<F> SignaturesBuilder<F>
+where
+	F: Invoke<SignatureBindings>,
+{
 	/// Bind signature list
 	pub fn bind(self) -> F::Result {
 		self.callback.invoke(self.section)
@@ -228,7 +237,7 @@ impl<F> SignaturesBuilder<F> where F: Invoke<SignatureBindings> {
 }
 
 /// Function body (code) builder
-pub struct FuncBodyBuilder<F=Identity> {
+pub struct FuncBodyBuilder<F = Identity> {
 	callback: F,
 	body: elements::FuncBody,
 }
@@ -243,7 +252,10 @@ impl<F> FuncBodyBuilder<F> {
 	}
 }
 
-impl<F> FuncBodyBuilder<F> where F: Invoke<elements::FuncBody> {
+impl<F> FuncBodyBuilder<F>
+where
+	F: Invoke<elements::FuncBody>,
+{
 	/// Set/override entirely with FuncBody struct
 	pub fn with_func(mut self, func: elements::FuncBody) -> Self {
 		self.body = func;
@@ -289,7 +301,7 @@ impl Default for FunctionDefinition {
 }
 
 /// Function definition builder
-pub struct FunctionBuilder<F=Identity> {
+pub struct FunctionBuilder<F = Identity> {
 	callback: F,
 	func: FunctionDefinition,
 }
@@ -307,13 +319,13 @@ impl Default for FunctionBuilder {
 	}
 }
 
-impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+impl<F> FunctionBuilder<F>
+where
+	F: Invoke<FunctionDefinition>,
+{
 	/// New function builder with chained callback
 	pub fn with_callback(callback: F) -> Self {
-		FunctionBuilder {
-			callback,
-			func: Default::default(),
-		}
+		FunctionBuilder { callback, func: Default::default() }
 	}
 
 	/// Set that this function is main entry point
@@ -350,7 +362,10 @@ impl<F> FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
 	}
 }
 
-impl<F> Invoke<elements::FunctionType> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+impl<F> Invoke<elements::FunctionType> for FunctionBuilder<F>
+where
+	F: Invoke<FunctionDefinition>,
+{
 	type Result = Self;
 
 	fn invoke(self, signature: elements::FunctionType) -> Self {
@@ -358,7 +373,10 @@ impl<F> Invoke<elements::FunctionType> for FunctionBuilder<F> where F: Invoke<Fu
 	}
 }
 
-impl<F> Invoke<u32> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+impl<F> Invoke<u32> for FunctionBuilder<F>
+where
+	F: Invoke<FunctionDefinition>,
+{
 	type Result = Self;
 
 	fn invoke(self, type_ref: u32) -> Self {
@@ -366,7 +384,10 @@ impl<F> Invoke<u32> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
 	}
 }
 
-impl<F> Invoke<elements::FuncBody> for FunctionBuilder<F> where F: Invoke<FunctionDefinition> {
+impl<F> Invoke<elements::FuncBody> for FunctionBuilder<F>
+where
+	F: Invoke<FunctionDefinition>,
+{
 	type Result = Self;
 
 	fn invoke(self, body: elements::FuncBody) -> Self::Result {
@@ -392,23 +413,24 @@ pub fn function() -> FunctionBuilder {
 #[cfg(test)]
 mod tests {
 
-	use super::{signatures, function};
+	use super::{function, signatures};
 	use crate::elements;
 
 	#[test]
 	fn example() {
-		let result = signatures()
-			.type_ref().val(1).build()
-			.build();
+		let result = signatures().type_ref().val(1).build().build();
 
 		assert_eq!(result.entries().len(), 1);
 
 		let result = signatures()
 			.signature()
-				.param().i32()
-				.param().i32()
-				.result().i64()
-				.build()
+			.param()
+			.i32()
+			.param()
+			.i32()
+			.result()
+			.i64()
+			.build()
 			.bind();
 
 		assert_eq!(result.len(), 1);
@@ -418,12 +440,14 @@ mod tests {
 	fn func_example() {
 		let func = function()
 			.signature()
-				.param().i32()
-				.result().i32()
-				.build()
+			.param()
+			.i32()
+			.result()
+			.i32()
+			.build()
 			.body()
-				.with_instructions(elements::Instructions::empty())
-				.build()
+			.with_instructions(elements::Instructions::empty())
+			.build()
 			.build();
 
 		assert_eq!(func.code.locals().len(), 0);
@@ -434,9 +458,12 @@ mod tests {
 	fn func_example_multi_result() {
 		let func = function()
 			.signature()
-			.param().i32()
-			.result().i32()
-			.result().i32()
+			.param()
+			.i32()
+			.result()
+			.i32()
+			.result()
+			.i32()
 			.build()
 			.body()
 			.with_instructions(elements::Instructions::empty())

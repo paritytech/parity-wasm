@@ -1,7 +1,6 @@
+use super::{Deserialize, Error, Serialize};
+use crate::{elements, io};
 use alloc::{string::String, vec::Vec};
-use crate::{io, elements};
-use super::{Error, Deserialize, Serialize};
-
 
 #[cfg(feature = "reduced-stack-buffer")]
 const PRIMITIVES_BUFFER_LENGTH: usize = 256;
@@ -47,7 +46,9 @@ impl Deserialize for VarUint32 {
 		let mut shift = 0;
 		let mut u8buf = [0u8; 1];
 		loop {
-			if shift > 31 { return Err(Error::InvalidVarUint32); }
+			if shift > 31 {
+				return Err(Error::InvalidVarUint32)
+			}
 
 			reader.read(&mut u8buf)?;
 			let b = u8buf[0] as u32;
@@ -55,9 +56,9 @@ impl Deserialize for VarUint32 {
 			shift += 7;
 			if (b >> 7) == 0 {
 				if shift >= 32 && (b as u8).leading_zeros() < 4 {
-					return Err(Error::InvalidVarInt32);
+					return Err(Error::InvalidVarInt32)
 				}
-				break;
+				break
 			}
 		}
 		Ok(VarUint32(res))
@@ -77,7 +78,9 @@ impl Serialize for VarUint32 {
 				buf[0] |= 0b1000_0000;
 			}
 			writer.write(&buf[..])?;
-			if v == 0 { break; }
+			if v == 0 {
+				break
+			}
 		}
 
 		Ok(())
@@ -103,7 +106,9 @@ impl Deserialize for VarUint64 {
 		let mut shift = 0;
 		let mut u8buf = [0u8; 1];
 		loop {
-			if shift > 63 { return Err(Error::InvalidVarUint64); }
+			if shift > 63 {
+				return Err(Error::InvalidVarUint64)
+			}
 
 			reader.read(&mut u8buf)?;
 			let b = u8buf[0] as u64;
@@ -111,9 +116,9 @@ impl Deserialize for VarUint64 {
 			shift += 7;
 			if (b >> 7) == 0 {
 				if shift >= 64 && (b as u8).leading_zeros() < 7 {
-					return Err(Error::InvalidVarInt64);
+					return Err(Error::InvalidVarInt64)
 				}
-				break;
+				break
 			}
 		}
 		Ok(VarUint64(res))
@@ -133,7 +138,9 @@ impl Serialize for VarUint64 {
 				buf[0] |= 0b1000_0000;
 			}
 			writer.write(&buf[..])?;
-			if v == 0 { break; }
+			if v == 0 {
+				break
+			}
 		}
 
 		Ok(())
@@ -207,11 +214,13 @@ impl Deserialize for VarInt7 {
 
 		// check if number is not continued!
 		if u8buf[0] & 0b1000_0000 != 0 {
-			return Err(Error::InvalidVarInt7(u8buf[0]));
+			return Err(Error::InvalidVarInt7(u8buf[0]))
 		}
 
 		// expand sign
-		if u8buf[0] & 0b0100_0000 == 0b0100_0000 { u8buf[0] |= 0b1000_0000 }
+		if u8buf[0] & 0b0100_0000 == 0b0100_0000 {
+			u8buf[0] |= 0b1000_0000
+		}
 
 		Ok(VarInt7(u8buf[0] as i8))
 	}
@@ -223,7 +232,10 @@ impl Serialize for VarInt7 {
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		// todo check range?
 		let mut b: u8 = self.0 as u8;
-		if self.0 < 0 { b |= 0b0100_0000; b &= 0b0111_1111; }
+		if self.0 < 0 {
+			b |= 0b0100_0000;
+			b &= 0b0111_1111;
+		}
 		writer.write(&[b])?;
 		Ok(())
 	}
@@ -265,7 +277,6 @@ impl Serialize for Uint8 {
 	}
 }
 
-
 /// 32-bit signed integer, encoded in LEB128 (can be 1-5 bytes length).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VarInt32(i32);
@@ -290,7 +301,9 @@ impl Deserialize for VarInt32 {
 		let mut shift = 0;
 		let mut u8buf = [0u8; 1];
 		loop {
-			if shift > 31 { return Err(Error::InvalidVarInt32); }
+			if shift > 31 {
+				return Err(Error::InvalidVarInt32)
+			}
 			reader.read(&mut u8buf)?;
 			let b = u8buf[0];
 
@@ -302,12 +315,12 @@ impl Deserialize for VarInt32 {
 					res |= (1i32 << shift).wrapping_neg();
 				} else if shift >= 32 && b & 0b0100_0000 == 0b0100_0000 {
 					if (!(b | 0b1000_0000)).leading_zeros() < 5 {
-						return Err(Error::InvalidVarInt32);
+						return Err(Error::InvalidVarInt32)
 					}
 				} else if shift >= 32 && b & 0b0100_0000 == 0 && b.leading_zeros() < 5 {
-						return Err(Error::InvalidVarInt32);
+					return Err(Error::InvalidVarInt32)
 				}
-				break;
+				break
 			}
 		}
 		Ok(VarInt32(res))
@@ -324,7 +337,9 @@ impl Serialize for VarInt32 {
 		while more {
 			buf[0] = (v & 0b0111_1111) as u8;
 			v >>= 7;
-			if (v == 0 && buf[0] & 0b0100_0000 == 0) || (v == -1 && buf[0] & 0b0100_0000 == 0b0100_0000)  {
+			if (v == 0 && buf[0] & 0b0100_0000 == 0) ||
+				(v == -1 && buf[0] & 0b0100_0000 == 0b0100_0000)
+			{
 				more = false
 			} else {
 				buf[0] |= 0b1000_0000
@@ -362,7 +377,9 @@ impl Deserialize for VarInt64 {
 		let mut u8buf = [0u8; 1];
 
 		loop {
-			if shift > 63 { return Err(Error::InvalidVarInt64); }
+			if shift > 63 {
+				return Err(Error::InvalidVarInt64)
+			}
 			reader.read(&mut u8buf)?;
 			let b = u8buf[0];
 
@@ -374,12 +391,12 @@ impl Deserialize for VarInt64 {
 					res |= (1i64 << shift).wrapping_neg();
 				} else if shift >= 64 && b & 0b0100_0000 == 0b0100_0000 {
 					if (b | 0b1000_0000) as i8 != -1 {
-						return Err(Error::InvalidVarInt64);
+						return Err(Error::InvalidVarInt64)
 					}
 				} else if shift >= 64 && b != 0 {
-					return Err(Error::InvalidVarInt64);
+					return Err(Error::InvalidVarInt64)
 				}
-				break;
+				break
 			}
 		}
 		Ok(VarInt64(res))
@@ -396,7 +413,9 @@ impl Serialize for VarInt64 {
 		while more {
 			buf[0] = (v & 0b0111_1111) as u8;
 			v >>= 7;
-			if (v == 0 && buf[0] & 0b0100_0000 == 0) || (v == -1 && buf[0] & 0b0100_0000 == 0b0100_0000)  {
+			if (v == 0 && buf[0] & 0b0100_0000 == 0) ||
+				(v == -1 && buf[0] & 0b0100_0000 == 0b0100_0000)
+			{
 				more = false
 			} else {
 				buf[0] |= 0b1000_0000
@@ -440,7 +459,9 @@ impl Serialize for Uint32 {
 }
 
 impl From<u32> for Uint32 {
-	fn from(u: u32) -> Self { Uint32(u) }
+	fn from(u: u32) -> Self {
+		Uint32(u)
+	}
 }
 
 /// 64-bit unsigned integer, encoded in little endian.
@@ -468,7 +489,9 @@ impl Serialize for Uint64 {
 }
 
 impl From<u64> for Uint64 {
-	fn from(u: u64) -> Self { Uint64(u) }
+	fn from(u: u64) -> Self {
+		Uint64(u)
+	}
 }
 
 impl From<Uint64> for u64 {
@@ -476,7 +499,6 @@ impl From<Uint64> for u64 {
 		var.0
 	}
 }
-
 
 /// VarUint1, 1-bit value (0/1).
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -512,9 +534,7 @@ impl Serialize for VarUint1 {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		writer.write(&[
-			if self.0 { 1u8 } else { 0u8 }
-		])?;
+		writer.write(&[if self.0 { 1u8 } else { 0u8 }])?;
 		Ok(())
 	}
 }
@@ -525,9 +545,9 @@ impl Deserialize for String {
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
 		if length > 0 {
-			String::from_utf8(buffered_read!(PRIMITIVES_BUFFER_LENGTH, length, reader)).map_err(|_| Error::NonUtf8String)
-		}
-		else {
+			String::from_utf8(buffered_read!(PRIMITIVES_BUFFER_LENGTH, length, reader))
+				.map_err(|_| Error::NonUtf8String)
+		} else {
 			Ok(String::new())
 		}
 	}
@@ -550,16 +570,23 @@ pub struct CountedList<T: Deserialize>(Vec<T>);
 
 impl<T: Deserialize> CountedList<T> {
 	/// Destroy counted list returing inner vector.
-	pub fn into_inner(self) -> Vec<T> { self.0 }
+	pub fn into_inner(self) -> Vec<T> {
+		self.0
+	}
 }
 
-impl<T: Deserialize> Deserialize for CountedList<T> where T::Error: From<Error> {
+impl<T: Deserialize> Deserialize for CountedList<T>
+where
+	T::Error: From<Error>,
+{
 	type Error = T::Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let count: usize = VarUint32::deserialize(reader)?.into();
 		let mut result = Vec::new();
-		for _ in 0..count { result.push(T::deserialize(reader)?); }
+		for _ in 0..count {
+			result.push(T::deserialize(reader)?);
+		}
 		Ok(CountedList(result))
 	}
 }
@@ -575,10 +602,7 @@ pub struct CountedWriter<'a, W: 'a + io::Write> {
 impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
 	/// New counted writer on top of the given serial writer.
 	pub fn new(writer: &'a mut W) -> Self {
-		CountedWriter {
-			writer,
-			data: Vec::new(),
-		}
+		CountedWriter { writer, data: Vec::new() }
 	}
 
 	/// Finish counted writer routing, which writes accumulated length
@@ -604,9 +628,14 @@ impl<'a, W: 'a + io::Write> io::Write for CountedWriter<'a, W> {
 /// Helper struct to write series of `T` preceded by the length of the sequence
 /// serialized as VarUint32.
 #[derive(Debug, Clone)]
-pub struct CountedListWriter<I: Serialize<Error=elements::Error>, T: IntoIterator<Item=I>>(pub usize, pub T);
+pub struct CountedListWriter<I: Serialize<Error = elements::Error>, T: IntoIterator<Item = I>>(
+	pub usize,
+	pub T,
+);
 
-impl<I: Serialize<Error=elements::Error>, T: IntoIterator<Item=I>> Serialize for CountedListWriter<I, T> {
+impl<I: Serialize<Error = elements::Error>, T: IntoIterator<Item = I>> Serialize
+	for CountedListWriter<I, T>
+{
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
@@ -614,18 +643,21 @@ impl<I: Serialize<Error=elements::Error>, T: IntoIterator<Item=I>> Serialize for
 		let data = self.1;
 		let len: VarUint32 = len_us.into();
 		len.serialize(writer)?;
-		for data_element in data { data_element.serialize(writer)? }
+		for data_element in data {
+			data_element.serialize(writer)?
+		}
 
 		Ok(())
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 
-	use super::super::{deserialize_buffer, Serialize};
-	use super::{CountedList, VarInt7, VarUint32, VarInt32, VarInt64, VarUint64};
+	use super::{
+		super::{deserialize_buffer, Serialize},
+		CountedList, VarInt32, VarInt64, VarInt7, VarUint32, VarUint64,
+	};
 	use crate::elements::Error;
 
 	fn varuint32_ser_test(val: u32, expected: Vec<u8>) {
@@ -766,7 +798,9 @@ mod tests {
 
 	#[test]
 	fn varint64_bad_extended() {
-		let res = deserialize_buffer::<VarInt64>(&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x6f][..]);
+		let res = deserialize_buffer::<VarInt64>(
+			&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x6f][..],
+		);
 		assert!(res.is_err());
 	}
 
@@ -792,71 +826,55 @@ mod tests {
 
 	#[test]
 	fn varint64_too_long() {
-		assert!(
-			deserialize_buffer::<VarInt64>(
-				&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
-			).is_err()
-		);
+		assert!(deserialize_buffer::<VarInt64>(
+			&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
+		)
+		.is_err());
 	}
 
 	#[test]
 	fn varint32_too_long() {
-		assert!(
-			deserialize_buffer::<VarInt32>(
-				&[0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
-			).is_err()
-		);
+		assert!(deserialize_buffer::<VarInt32>(&[0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],).is_err());
 	}
 
 	#[test]
 	fn varuint64_too_long() {
-		assert!(
-			deserialize_buffer::<VarUint64>(
-				&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
-			).is_err()
-		);
+		assert!(deserialize_buffer::<VarUint64>(
+			&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
+		)
+		.is_err());
 	}
 
 	#[test]
 	fn varuint32_too_long() {
 		assert!(
-			deserialize_buffer::<VarUint32>(
-				&[0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],
-			).is_err()
+			deserialize_buffer::<VarUint32>(&[0xff, 0xff, 0xff, 0xff, 0xff, 0x00][..],).is_err()
 		);
 	}
 
 	#[test]
 	fn varuint32_too_long_trailing() {
-		assert!(
-			deserialize_buffer::<VarUint32>(
-				&[0xff, 0xff, 0xff, 0xff, 0x7f][..],
-			).is_err()
-		);
+		assert!(deserialize_buffer::<VarUint32>(&[0xff, 0xff, 0xff, 0xff, 0x7f][..],).is_err());
 	}
 
 	#[test]
 	fn varuint64_too_long_trailing() {
-		assert!(
-			deserialize_buffer::<VarUint64>(
-				&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x04][..],
-			).is_err()
-		);
+		assert!(deserialize_buffer::<VarUint64>(
+			&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x04][..],
+		)
+		.is_err());
 	}
 
 	#[test]
 	fn varint32_min() {
-		varint32_serde_test(
-			vec![0x80, 0x80, 0x80, 0x80, 0x78],
-			-2147483648,
-		);
+		varint32_serde_test(vec![0x80, 0x80, 0x80, 0x80, 0x78], -2147483648);
 	}
 
 	#[test]
 	fn varint7_invalid() {
 		match deserialize_buffer::<VarInt7>(&[240]) {
 			Err(Error::InvalidVarInt7(_)) => {},
-			_ => panic!("Should be invalid varint7 error!")
+			_ => panic!("Should be invalid varint7 error!"),
 		}
 	}
 
@@ -867,9 +885,9 @@ mod tests {
 
 	#[test]
 	fn varuint32_too_long_nulled() {
-		match deserialize_buffer::<VarUint32>(
-			&[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x78]
-		) {
+		match deserialize_buffer::<VarUint32>(&[
+			0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x78,
+		]) {
 			Err(Error::InvalidVarUint32) => {},
 			_ => panic!("Should be invalid varuint32"),
 		}
@@ -877,23 +895,15 @@ mod tests {
 
 	#[test]
 	fn varint32_max() {
-		varint32_serde_test(
-			vec![0xff, 0xff, 0xff, 0xff, 0x07],
-			2147483647,
-		);
+		varint32_serde_test(vec![0xff, 0xff, 0xff, 0xff, 0x07], 2147483647);
 	}
-
 
 	#[test]
 	fn counted_list() {
 		let payload = [
 			133u8, //(128+5), length is 5
-				0x80, 0x80, 0x80, 0x0, // padding
-			0x01,
-			0x7d,
-			0x05,
-			0x07,
-			0x09,
+			0x80, 0x80, 0x80, 0x0, // padding
+			0x01, 0x7d, 0x05, 0x07, 0x09,
 		];
 
 		let list: CountedList<VarInt7> =

@@ -5,7 +5,9 @@ use std::fs;
 use time::Instant;
 
 fn rate(file_name: &'static str, iterations: u64) {
-	let file_size = fs::metadata(file_name).unwrap_or_else(|_| panic!("{} to exist", file_name)).len();
+	let file_size = fs::metadata(file_name)
+		.unwrap_or_else(|_| panic!("{} to exist", file_name))
+		.len();
 	let mut total_ms = 0;
 
 	for _ in 0..iterations {
@@ -16,9 +18,11 @@ fn rate(file_name: &'static str, iterations: u64) {
 		total_ms += (end - start).whole_milliseconds();
 	}
 
-	println!("Rate for {}: {} MB/s", file_name,
+	println!(
+		"Rate for {}: {} MB/s",
+		file_name,
 		(file_size as f64 * iterations as f64 / (1024*1024) as f64) /  // total work megabytes
-		(total_ms as f64 / 1000f64)									   // total seconds
+		(total_ms as f64 / 1000f64) // total seconds
 	);
 }
 

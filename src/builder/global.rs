@@ -1,12 +1,12 @@
 use super::{
-	invoke::{Invoke, Identity},
+	invoke::{Identity, Invoke},
 	misc::ValueTypeBuilder,
 };
 
 use crate::elements;
 
 /// Global builder
-pub struct GlobalBuilder<F=Identity> {
+pub struct GlobalBuilder<F = Identity> {
 	callback: F,
 	value_type: elements::ValueType,
 	is_mutable: bool,
@@ -61,15 +61,16 @@ impl<F> GlobalBuilder<F> {
 	}
 }
 
-impl<F> GlobalBuilder<F> where F: Invoke<elements::GlobalEntry> {
+impl<F> GlobalBuilder<F>
+where
+	F: Invoke<elements::GlobalEntry>,
+{
 	/// Finalize current builder spawning resulting struct
 	pub fn build(self) -> F::Result {
-		self.callback.invoke(
-			elements::GlobalEntry::new(
-				elements::GlobalType::new(self.value_type, self.is_mutable),
-				self.init_expr,
-			)
-		)
+		self.callback.invoke(elements::GlobalEntry::new(
+			elements::GlobalType::new(self.value_type, self.is_mutable),
+			self.init_expr,
+		))
 	}
 }
 

@@ -1,9 +1,9 @@
-use alloc::{borrow::ToOwned, string::String};
 use super::invoke::{Identity, Invoke};
 use crate::elements;
+use alloc::{borrow::ToOwned, string::String};
 
 /// Import builder
-pub struct ImportBuilder<F=Identity> {
+pub struct ImportBuilder<F = Identity> {
 	callback: F,
 	module: String,
 	field: String,
@@ -63,10 +63,14 @@ impl<F> ImportBuilder<F> {
 	}
 }
 
-impl<F> ImportBuilder<F> where F: Invoke<elements::ImportEntry> {
+impl<F> ImportBuilder<F>
+where
+	F: Invoke<elements::ImportEntry>,
+{
 	/// Finalize current builder spawning the resulting struct
 	pub fn build(self) -> F::Result {
-		self.callback.invoke(elements::ImportEntry::new(self.module, self.field, self.binding))
+		self.callback
+			.invoke(elements::ImportEntry::new(self.module, self.field, self.binding))
 	}
 }
 
@@ -78,18 +82,18 @@ impl<F> Invoke<elements::External> for ImportBuilder<F> {
 }
 
 /// Import to external mapping builder
-pub struct ImportExternalBuilder<F=Identity> {
+pub struct ImportExternalBuilder<F = Identity> {
 	callback: F,
 	binding: elements::External,
 }
 
-impl<F> ImportExternalBuilder<F> where F: Invoke<elements::External> {
+impl<F> ImportExternalBuilder<F>
+where
+	F: Invoke<elements::External>,
+{
 	/// New import to external mapping builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {
-		ImportExternalBuilder{
-			callback,
-			binding: elements::External::Function(0),
-		}
+		ImportExternalBuilder { callback, binding: elements::External::Function(0) }
 	}
 
 	/// Function mapping with type reference
@@ -128,7 +132,8 @@ mod tests {
 
 	#[test]
 	fn example() {
-		let entry = import().module("env").field("memory").external().memory(256, Some(256)).build();
+		let entry =
+			import().module("env").field("memory").external().memory(256, Some(256)).build();
 
 		assert_eq!(entry.module(), "env");
 		assert_eq!(entry.field(), "memory");

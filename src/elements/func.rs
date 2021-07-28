@@ -1,9 +1,9 @@
-use alloc::vec::Vec;
 use super::{
-	Deserialize, Error, ValueType, VarUint32, CountedList, Instructions,
-	Serialize, CountedWriter, CountedListWriter,
+	CountedList, CountedListWriter, CountedWriter, Deserialize, Error, Instructions, Serialize,
+	ValueType, VarUint32,
 };
-use crate::{io, elements::section::SectionReader};
+use crate::{elements::section::SectionReader, io};
+use alloc::vec::Vec;
 
 /// Function signature (type reference)
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -11,7 +11,9 @@ pub struct Func(u32);
 
 impl Func {
 	/// New function signature
-	pub fn new(type_ref: u32) -> Self { Func(type_ref) }
+	pub fn new(type_ref: u32) -> Self {
+		Func(type_ref)
+	}
 
 	/// Function signature type reference.
 	pub fn type_ref(&self) -> u32 {
@@ -33,7 +35,7 @@ impl Serialize for Func {
 }
 
 impl Deserialize for Func {
-	 type Error = Error;
+	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(Func(VarUint32::deserialize(reader)?.into()))
@@ -54,14 +56,18 @@ impl Local {
 	}
 
 	/// Number of locals with the shared type.
-	pub fn count(&self) -> u32 { self.count }
+	pub fn count(&self) -> u32 {
+		self.count
+	}
 
 	/// Type of the locals.
-	pub fn value_type(&self) -> ValueType { self.value_type }
+	pub fn value_type(&self) -> ValueType {
+		self.value_type
+	}
 }
 
 impl Deserialize for Local {
-	 type Error = Error;
+	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let count = VarUint32::deserialize(reader)?;
@@ -99,22 +105,30 @@ impl FuncBody {
 	}
 
 	/// Locals declared in function body.
-	pub fn locals(&self) -> &[Local] { &self.locals }
+	pub fn locals(&self) -> &[Local] {
+		&self.locals
+	}
 
 	/// Instruction list of the function body. Minimal instruction list
 	///
 	/// is just `&[Instruction::End]`
-	pub fn code(&self) -> &Instructions { &self.instructions }
+	pub fn code(&self) -> &Instructions {
+		&self.instructions
+	}
 
 	/// Locals declared in function body (mutable).
-	pub fn locals_mut(&mut self) -> &mut Vec<Local> { &mut self.locals }
+	pub fn locals_mut(&mut self) -> &mut Vec<Local> {
+		&mut self.locals
+	}
 
 	/// Instruction list of the function body (mutable).
-	pub fn code_mut(&mut self) -> &mut Instructions { &mut self.instructions }
+	pub fn code_mut(&mut self) -> &mut Instructions {
+		&mut self.instructions
+	}
 }
 
 impl Deserialize for FuncBody {
-	 type Error = Error;
+	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut body_reader = SectionReader::new(reader)?;
@@ -124,7 +138,8 @@ impl Deserialize for FuncBody {
 		// decoding the binary format.
 		locals
 			.iter()
-			.try_fold(0u32, |acc, &Local { count, .. }| acc.checked_add(count)).ok_or(Error::TooManyLocals)?;
+			.try_fold(0u32, |acc, &Local { count, .. }| acc.checked_add(count))
+			.ok_or(Error::TooManyLocals)?;
 
 		let instructions = Instructions::deserialize(&mut body_reader)?;
 		body_reader.close()?;
@@ -139,10 +154,8 @@ impl Serialize for FuncBody {
 		let mut counted_writer = CountedWriter::new(writer);
 
 		let data = self.locals;
-		let counted_list = CountedListWriter::<Local, _>(
-			data.len(),
-			data.into_iter().map(Into::into),
-		);
+		let counted_list =
+			CountedListWriter::<Local, _>(data.len(), data.into_iter().map(Into::into));
 		counted_list.serialize(&mut counted_writer)?;
 
 		let code = self.instructions;

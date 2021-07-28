@@ -7,6 +7,7 @@ format:
 
 # Run basic checks similar to what the CI does to ensure your code is fine
 check:
+    cargo +nightly fmt --all -- --check
     cargo +stable clippy --all-targets --all-features -- -D warnings
 
 # Run the tests

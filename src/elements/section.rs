@@ -835,12 +835,9 @@ mod tests {
 		let module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		let mut found = false;
 		for section in module.sections() {
-			match section {
-				&Section::Import(ref import_section) => {
-					assert_eq!(25, import_section.entries().len());
-					found = true
-				},
-				_ => { }
+			if let Section::Import(ref import_section) = *section {
+				assert_eq!(25, import_section.entries().len());
+				found = true
 			}
 		}
 		assert!(found, "There should be import section in test5.wasm");
@@ -883,14 +880,9 @@ mod tests {
 		let section: Section =
 			deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
 
-		match section {
-			Section::Function(fn_section) => {
+			if let Section::Function(fn_section) = section {
 				assert_eq!(4, fn_section.entries().len(), "There should be 4 functions total");
-			},
-			_ => {
-				// will be catched by dedicated test
 			}
-		}
 	}
 
 	#[test]
@@ -898,14 +890,9 @@ mod tests {
 		let section: Section =
 			deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
 
-		match section {
-			Section::Function(fn_section) => {
+			if let Section::Function(fn_section) = section {
 				assert_eq!(6, fn_section.entries()[1].type_ref());
-			},
-			_ => {
-				// will be catched by dedicated test
 			}
-		}
 	}
 
 	fn types_test_payload() -> &'static [u8] {
@@ -950,8 +937,8 @@ mod tests {
 		let type_section: TypeSection =
 			deserialize_buffer(types_test_payload()).expect("type_section be deserialized");
 
-		let t1 = match &type_section.types()[1] {
-			&Type::Function(ref func_type) => func_type
+		let t1 = match type_section.types()[1] {
+			Type::Function(ref func_type) => func_type
 		};
 
 		assert_eq!(vec![ValueType::I64], t1.results());

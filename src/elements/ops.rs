@@ -2941,5 +2941,5 @@ fn instructions_hashset() {
 
 	let set: std::collections::HashSet<Instruction> =
 		vec![Call(1), Block(Value(ValueType::I32)), Drop].into_iter().collect();
-	assert_eq!(set.contains(&Drop), true)
+	assert!(set.contains(&Drop));
 }

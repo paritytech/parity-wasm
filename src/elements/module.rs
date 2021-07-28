@@ -713,7 +713,7 @@ mod integration_tests {
 	#[test]
 	fn serde_type() {
 		let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
-		module.sections_mut().retain(|x| if let &Section::Type(_) = x { true } else { false });
+		module.sections_mut().retain(|x| matches!(x, &Section::Type(_)));
 
 		let buf = serialize(module).expect("serialization to succeed");
 
@@ -729,7 +729,7 @@ mod integration_tests {
 	#[test]
 	fn serde_import() {
 		let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
-		module.sections_mut().retain(|x| if let &Section::Import(_) = x { true } else { false });
+		module.sections_mut().retain(|x| matches!(x, &Section::Import(_)));
 
 		let buf = serialize(module).expect("serialization to succeed");
 
@@ -746,10 +746,10 @@ mod integration_tests {
 	fn serde_code() {
 		let mut module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		module.sections_mut().retain(|x| {
-			if let &Section::Code(_) = x {
+			if let Section::Code(_) = *x {
 				return true;
 			}
-			if let &Section::Function(_) = x {
+			if let Section::Function(_) = *x {
 				true
 			} else {
 				false

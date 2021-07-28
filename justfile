@@ -8,3 +8,10 @@ format:
 # Run basic checks similar to what the CI does to ensure your code is fine
 check:
     cargo +stable clippy --all-targets --all-features -- -D warnings
+
+# Run the tests
+test:
+    cargo test --all-features
+
+# So you are ready? This runs format, check and test
+ready: format check test

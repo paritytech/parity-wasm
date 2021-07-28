@@ -27,8 +27,7 @@ fn main() {
 	// Printing the total count of data segments
 	println!("Data segments: {}", data_section.entries().len());
 
-	let mut index = 0;
-	for entry in data_section.entries() {
+	for (index, entry) in data_section.entries().iter().enumerate() {
 		// Printing the details info of each data segment
 		// see `elements::DataSegment` for more properties
 		// you can query
@@ -42,7 +41,5 @@ fn main() {
 
 		// This shows the total length of the data segment in bytes.
 		println!("	size: {}", entry.value().len());
-
-		index += 1;
 	}
 }

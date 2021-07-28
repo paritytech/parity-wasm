@@ -39,7 +39,7 @@ fn main() {
 			Section::Memory(ref memory_section) => {
 				println!("  Memories: {}", memory_section.entries().len());
 			},
-			Section::Data(ref data_section) if data_section.entries().len() > 0 => {
+			Section::Data(ref data_section) if !data_section.entries().is_empty() => {
 				let data = &data_section.entries()[0];
 				println!("  Data size: {}", data.value().len());
 			},

@@ -51,7 +51,7 @@ impl RelocSection {
 
 	/// Name of the section containing the relocations described in this section.
 	pub fn relocation_section_name(&self) -> Option<&str> {
-		self.relocation_section_name.as_ref().map(String::as_str)
+		self.relocation_section_name.as_deref()
 	}
 
 	/// Name of the section containing the relocations described in this section (mutable).
@@ -331,15 +331,12 @@ mod tests {
 			.parse_reloc().expect("Reloc section should be deserialized");
 		let mut found = false;
 		for section in module.sections() {
-			match *section {
-				Section::Reloc(ref reloc_section) => {
-					assert_eq!(vec![
-						RelocationEntry::MemoryAddressSleb { offset: 4, index: 0, addend: 0 },
-						RelocationEntry::FunctionIndexLeb { offset: 12, index: 0 },
-					], reloc_section.entries());
-					found = true
-				},
-				_ => { }
+			if let Section::Reloc(ref reloc_section) = *section {
+				assert_eq!(vec![
+					RelocationEntry::MemoryAddressSleb { offset: 4, index: 0, addend: 0 },
+					RelocationEntry::FunctionIndexLeb { offset: 12, index: 0 },
+				], reloc_section.entries());
+				found = true
 			}
 		}
 		assert!(found, "There should be a reloc section in relocatable.wasm");

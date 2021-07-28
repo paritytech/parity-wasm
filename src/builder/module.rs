@@ -82,7 +82,7 @@ impl From<elements::Module> for ModuleScaffold {
 			memory: memory.unwrap_or_default(),
 			global: global.unwrap_or_default(),
 			export: export.unwrap_or_default(),
-			start: start,
+			start,
 			element: element.unwrap_or_default(),
 			code: code.unwrap_or_default(),
 			data: data.unwrap_or_default(),
@@ -96,46 +96,46 @@ impl From<ModuleScaffold> for elements::Module {
 		let mut sections = Vec::new();
 
 		let types = module.types;
-		if types.types().len() > 0 {
+		if !types.types().is_empty() {
 			sections.push(elements::Section::Type(types));
 		}
 		let import = module.import;
-		if import.entries().len() > 0 {
+		if !import.entries().is_empty() {
 			sections.push(elements::Section::Import(import));
 		}
 		let functions = module.functions;
-		if functions.entries().len() > 0 {
+		if !functions.entries().is_empty() {
 			sections.push(elements::Section::Function(functions));
 		}
 		let table = module.table;
-		if table.entries().len() > 0 {
+		if !table.entries().is_empty() {
 			sections.push(elements::Section::Table(table));
 		}
 		let memory = module.memory;
-		if memory.entries().len() > 0 {
+		if !memory.entries().is_empty() {
 			sections.push(elements::Section::Memory(memory));
 		}
 		let global = module.global;
-		if global.entries().len() > 0 {
+		if !global.entries().is_empty() {
 			sections.push(elements::Section::Global(global));
 		}
 		let export = module.export;
-		if export.entries().len() > 0 {
+		if !export.entries().is_empty() {
 			sections.push(elements::Section::Export(export));
 		}
 		if let Some(start) = module.start {
 			sections.push(elements::Section::Start(start));
 		}
 		let element = module.element;
-		if element.entries().len() > 0 {
+		if !element.entries().is_empty() {
 			sections.push(elements::Section::Element(element));
 		}
 		let code = module.code;
-		if code.bodies().len() > 0 {
+		if !code.bodies().is_empty() {
 			sections.push(elements::Section::Code(code));
 		}
 		let data = module.data;
-		if data.entries().len() > 0 {
+		if !data.entries().is_empty() {
 			sections.push(elements::Section::Data(data));
 		}
 		sections.extend(module.other);
@@ -150,11 +150,17 @@ impl ModuleBuilder {
 	}
 }
 
+impl Default for ModuleBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<F> ModuleBuilder<F> where F: Invoke<elements::Module> {
 	/// New module builder with bound callback
 	pub fn with_callback(callback: F) -> Self {
 		ModuleBuilder {
-			callback: callback,
+			callback,
 			module: Default::default(),
 		}
 	}

@@ -93,7 +93,7 @@ impl Deserialize for Section {
 		Ok(
 			match id.into() {
 				0 => {
-					Section::Custom(CustomSection::deserialize(reader)?.into())
+					Section::Custom(CustomSection::deserialize(reader)?)
 				},
 				1 => {
 					Section::Type(TypeSection::deserialize(reader)?)
@@ -259,12 +259,12 @@ impl SectionReader {
 	pub fn new<R: io::Read>(reader: &mut R) -> Result<Self, elements::Error> {
 		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
 		let inner_buffer = buffered_read!(ENTRIES_BUFFER_LENGTH, length, reader);
-		let buf_length = inner_buffer.len();
+		let declared_length = inner_buffer.len();
 		let cursor = io::Cursor::new(inner_buffer);
 
 		Ok(SectionReader {
-			cursor: cursor,
-			declared_length: buf_length,
+			cursor,
+			declared_length,
 		})
 	}
 
@@ -339,7 +339,7 @@ impl Deserialize for CustomSection {
 		let mut cursor = io::Cursor::new(&buf[..]);
 		let name = String::deserialize(&mut cursor)?;
 		let payload = buf[cursor.position() as usize..].to_vec();
-		Ok(CustomSection { name: name, payload: payload })
+		Ok(CustomSection { name, payload })
 	}
 }
 
@@ -425,14 +425,14 @@ impl ImportSection {
 	/// Returns number of functions.
 	pub fn functions(&self) -> usize {
 		self.0.iter()
-			.filter(|entry| match entry.external() { &External::Function(_) => true, _ => false })
+			.filter(|entry| matches!(*entry.external(), External::Function(_)))
 			.count()
 	}
 
 	/// Returns number of globals
 	pub fn globals(&self) -> usize {
 		self.0.iter()
-			.filter(|entry| match entry.external() { &External::Global(_) => true, _ => false })
+			.filter(|entry| matches!(entry.external(), &External::Global(_)))
 			.count()
 	}
 }
@@ -835,12 +835,9 @@ mod tests {
 		let module = deserialize_file("./res/cases/v1/test5.wasm").expect("Should be deserialized");
 		let mut found = false;
 		for section in module.sections() {
-			match section {
-				&Section::Import(ref import_section) => {
-					assert_eq!(25, import_section.entries().len());
-					found = true
-				},
-				_ => { }
+			if let Section::Import(ref import_section) = *section {
+				assert_eq!(25, import_section.entries().len());
+				found = true
 			}
 		}
 		assert!(found, "There should be import section in test5.wasm");
@@ -883,14 +880,9 @@ mod tests {
 		let section: Section =
 			deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
 
-		match section {
-			Section::Function(fn_section) => {
+			if let Section::Function(fn_section) = section {
 				assert_eq!(4, fn_section.entries().len(), "There should be 4 functions total");
-			},
-			_ => {
-				// will be catched by dedicated test
 			}
-		}
 	}
 
 	#[test]
@@ -898,14 +890,9 @@ mod tests {
 		let section: Section =
 			deserialize_buffer(functions_test_payload()).expect("section to be deserialized");
 
-		match section {
-			Section::Function(fn_section) => {
+			if let Section::Function(fn_section) = section {
 				assert_eq!(6, fn_section.entries()[1].type_ref());
-			},
-			_ => {
-				// will be catched by dedicated test
 			}
-		}
 	}
 
 	fn types_test_payload() -> &'static [u8] {
@@ -950,10 +937,7 @@ mod tests {
 		let type_section: TypeSection =
 			deserialize_buffer(types_test_payload()).expect("type_section be deserialized");
 
-		let t1 = match &type_section.types()[1] {
-			&Type::Function(ref func_type) => func_type
-		};
-
+		let Type::Function(ref t1) = type_section.types()[1];
 		assert_eq!(vec![ValueType::I64], t1.results());
 		assert_eq!(2, t1.params().len());
 	}
@@ -1099,7 +1083,7 @@ mod tests {
 		let buf = serialize(element_section).expect("Element section to be serialized");
 
 		assert_eq!(buf, vec![
-			08u8, // 8 bytes overall
+			8u8, // 8 bytes overall
 			0x01, // number of segments
 			0x00, // index
 			0x0b, // just `end` op
@@ -1144,7 +1128,7 @@ mod tests {
 
 	#[test]
 	fn start_section() {
-		let section: Section = deserialize_buffer(&[08u8, 01u8, 00u8]).expect("Start section to deserialize");
+		let section: Section = deserialize_buffer(&[8u8, 1u8, 0u8]).expect("Start section to deserialize");
 		if let Section::Start(_) = section {
 		} else {
 			panic!("Payload should be a start section");
@@ -1152,6 +1136,6 @@ mod tests {
 
 		let serialized = serialize(section).expect("Start section to successfully serializen");
 
-		assert_eq!(serialized, vec![08u8, 01u8, 00u8]);
+		assert_eq!(serialized, vec![8u8, 1u8, 0u8]);
 	}
 }

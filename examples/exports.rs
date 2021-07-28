@@ -21,10 +21,7 @@ fn type_by_index(module: &Module, index: usize) -> FunctionType {
 	// to resolve actual index of the given function in own functions list.
 	let import_section_len: usize = match module.import_section() {
 			Some(import) =>
-				import.entries().iter().filter(|entry| match entry.external() {
-					&External::Function(_) => true,
-					_ => false,
-					}).count(),
+				import.entries().iter().filter(|entry| matches!(entry.external(), &External::Function(_))).count(),
 			None => 0,
 		};
 

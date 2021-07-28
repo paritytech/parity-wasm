@@ -30,9 +30,9 @@ impl ElementSegment {
 	/// New element segment.
 	pub fn new(index: u32, offset: Option<InitExpr>, members: Vec<u32>) -> Self {
 		ElementSegment {
-			index: index,
-			offset: offset,
-			members: members,
+			index,
+			offset,
+			members,
 
 			#[cfg(feature="bulk")]
 			passive: false,
@@ -111,16 +111,16 @@ impl Deserialize for ElementSegment {
 			Some(InitExpr::deserialize(reader)?)
 		};
 
-		let funcs: Vec<u32> = CountedList::<VarUint32>::deserialize(reader)?
+		let members: Vec<u32> = CountedList::<VarUint32>::deserialize(reader)?
 			.into_inner()
 			.into_iter()
 			.map(Into::into)
 			.collect();
 
 		Ok(ElementSegment {
-			index: index,
-			offset: offset,
-			members: funcs,
+			index,
+			offset,
+			members,
 			passive: flags == FLAG_PASSIVE,
 		})
 	}
@@ -172,9 +172,9 @@ impl DataSegment {
 	/// New data segments.
 	pub fn new(index: u32, offset: Option<InitExpr>, value: Vec<u8>) -> Self {
 		DataSegment {
-			index: index,
-			offset: offset,
-			value: value,
+			index,
+			offset,
+			value,
 
 			#[cfg(feature="bulk")]
 			passive: false,
@@ -223,12 +223,12 @@ impl Deserialize for DataSegment {
 		let index = VarUint32::deserialize(reader)?;
 		let offset = InitExpr::deserialize(reader)?;
 		let value_len = u32::from(VarUint32::deserialize(reader)?) as usize;
-		let value_buf = buffered_read!(VALUES_BUFFER_LENGTH, value_len, reader);
+		let value = buffered_read!(VALUES_BUFFER_LENGTH, value_len, reader);
 
 		Ok(DataSegment {
 			index: index.into(),
 			offset: Some(offset),
-			value: value_buf,
+			value,
 		})
 	}
 
@@ -248,12 +248,12 @@ impl Deserialize for DataSegment {
 			Some(InitExpr::deserialize(reader)?)
 		};
 		let value_len = u32::from(VarUint32::deserialize(reader)?) as usize;
-		let value_buf = buffered_read!(VALUES_BUFFER_LENGTH, value_len, reader);
+		let value = buffered_read!(VALUES_BUFFER_LENGTH, value_len, reader);
 
 		Ok(DataSegment {
-			index: index,
-			offset: offset,
-			value: value_buf,
+			index,
+			offset,
+			value,
 			passive: flags == FLAG_PASSIVE,
 		})
 	}

@@ -248,7 +248,7 @@ impl<T> Iterator for IntoIter<T> {
 		if self.remaining_len == 0 {
 			return None;
 		}
-		while let Some(value_opt) = self.iter.next() {
+		for value_opt in &mut self.iter {
 			let idx = self.next_idx;
 			self.next_idx += 1;
 			if let Some(value) = value_opt {
@@ -295,10 +295,10 @@ impl<'a, T: 'static> Iterator for Iter<'a, T> {
 		if self.remaining_len == 0 {
 			return None;
 		}
-		while let Some(value_opt) = self.iter.next() {
+		for value_opt in &mut self.iter {
 			let idx = self.next_idx;
 			self.next_idx += 1;
-			if let &Some(ref value) = value_opt {
+			if let Some(ref value) = *value_opt {
 				self.remaining_len -= 1;
 				return Some((idx, value));
 			}
@@ -367,8 +367,8 @@ mod tests {
 		let map = IndexMap::<String>::default();
 		assert_eq!(map.len(), 0);
 		assert!(map.is_empty());
-		assert_eq!(map.iter().collect::<Vec<_>>().len(), 0);
-		assert_eq!(map.into_iter().collect::<Vec<_>>().len(), 0);
+		assert_eq!(map.iter().count(), 0);
+		assert_eq!(map.into_iter().count(), 0);
 	}
 
 	#[test]

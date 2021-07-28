@@ -10,10 +10,7 @@ pub fn inject_nop(instructions: &mut elements::Instructions) {
 	let instructions = instructions.elements_mut();
 	let mut position = 0;
 	loop {
-		let need_inject = match &instructions[position] {
-			&Block(_) | &If(_) => true,
-			_ => false,
-		};
+		let need_inject = matches!(&instructions[position], &Block(_) | &If(_));
 		if need_inject {
 			instructions.insert(position + 1, Nop);
 		}
@@ -35,13 +32,10 @@ fn main() {
 	let mut module = parity_wasm::deserialize_file(&args[1]).unwrap();
 
 	for section in module.sections_mut() {
-		match section {
-			&mut elements::Section::Code(ref mut code_section) => {
-				for ref mut func_body in code_section.bodies_mut() {
-					inject_nop(func_body.code_mut());
-				}
-			},
-			_ => { }
+		if let elements::Section::Code(ref mut code_section) = *section {
+			for ref mut func_body in code_section.bodies_mut() {
+				inject_nop(func_body.code_mut());
+			}
 		}
 	}
 

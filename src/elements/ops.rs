@@ -587,20 +587,14 @@ pub struct BrTableData {
 impl Instruction {
 	/// Is this instruction starts the new block (which should end with terminal instruction).
 	pub fn is_block(&self) -> bool {
-		match self {
-			&Instruction::Block(_) | &Instruction::Loop(_) | &Instruction::If(_) => true,
-			_ => false,
-		}
+		matches!(self, &Instruction::Block(_) | &Instruction::Loop(_) | &Instruction::If(_))
 	}
 
 	/// Is this instruction determines the termination of instruction sequence?
 	///
 	/// `true` for `Instruction::End`
 	pub fn is_terminal(&self) -> bool {
-		match self {
-			&Instruction::End => true,
-			_ => false,
-		}
+		matches!(self, &Instruction::End)
 	}
 }
 
@@ -1753,7 +1747,7 @@ impl Serialize for Instruction {
 			BrTable(ref table) => op!(writer, BRTABLE, {
 				let list_writer = CountedListWriter::<VarUint32, _>(
 					table.table.len(),
-					table.table.into_iter().map(|x| VarUint32::from(*x)),
+					table.table.iter().map(|x| VarUint32::from(*x)),
 				);
 				list_writer.serialize(writer)?;
 				VarUint32::from(table.default).serialize(writer)?;
@@ -2909,15 +2903,15 @@ fn ifelse() {
 	let instruction_list = super::deserialize_buffer::<Instructions>(&[0x04, 0x7F, 0x41, 0x05, 0x05, 0x41, 0x07, 0x0B, 0x0B])
 		.expect("valid hex of if instruction");
 	let instructions = instruction_list.elements();
-	match &instructions[0] {
-		&Instruction::If(_) => (),
+	match instructions[0] {
+		Instruction::If(_) => (),
 		_ => panic!("Should be deserialized as if instruction"),
 	}
 	let before_else = instructions.iter().skip(1)
-		.take_while(|op| match **op { Instruction::Else => false, _ => true }).count();
+		.take_while(|op| !matches!(**op, Instruction::Else)).count();
 	let after_else = instructions.iter().skip(1)
-		.skip_while(|op| match **op { Instruction::Else => false, _ => true })
-		.take_while(|op| match **op { Instruction::End => false, _ => true })
+		.skip_while(|op| !matches!(**op, Instruction::Else))
+		.take_while(|op| !matches!(**op, Instruction::End))
 		.count()
 		- 1; // minus Instruction::Else itself
 	assert_eq!(before_else, after_else);
@@ -2947,5 +2941,5 @@ fn instructions_hashset() {
 
 	let set: std::collections::HashSet<Instruction> =
 		vec![Call(1), Block(Value(ValueType::I32)), Drop].into_iter().collect();
-	assert_eq!(set.contains(&Drop), true)
+	assert!(set.contains(&Drop));
 }

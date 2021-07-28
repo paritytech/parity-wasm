@@ -20,11 +20,17 @@ impl GlobalBuilder {
 	}
 }
 
+impl Default for GlobalBuilder {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<F> GlobalBuilder<F> {
 	/// New global builder with callback (in chained context)
 	pub fn with_callback(callback: F) -> Self {
 		GlobalBuilder {
-			callback: callback,
+			callback,
 			value_type: elements::ValueType::I32,
 			init_expr: elements::InitExpr::empty(),
 			is_mutable: false,
@@ -88,6 +94,6 @@ mod tests {
 	fn example() {
 		let entry = global().value_type().i32().build();
 		assert_eq!(entry.global_type().content_type(), elements::ValueType::I32);
-		assert_eq!(entry.global_type().is_mutable(), false);
+		assert!(!entry.global_type().is_mutable());
 	}
 }

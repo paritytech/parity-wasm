@@ -8,7 +8,7 @@ pub struct ValueTypeBuilder<F=Identity> {
 
 impl<F> ValueTypeBuilder<F> where F: Invoke<elements::ValueType> {
 	pub fn with_callback(callback: F) -> Self {
-		ValueTypeBuilder { callback: callback }
+		ValueTypeBuilder { callback }
 	}
 
 	pub fn i32(self) -> F::Result {
@@ -36,7 +36,7 @@ pub struct ValueTypesBuilder<F=Identity> {
 impl<F> ValueTypesBuilder<F> where F: Invoke<Vec<elements::ValueType>> {
 	pub fn with_callback(callback: F) -> Self {
 		ValueTypesBuilder {
-			callback: callback,
+			callback,
 			value_types: Vec::new(),
 		}
 	}

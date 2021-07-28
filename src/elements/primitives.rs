@@ -304,10 +304,8 @@ impl Deserialize for VarInt32 {
 					if (!(b | 0b1000_0000)).leading_zeros() < 5 {
 						return Err(Error::InvalidVarInt32);
 					}
-				} else if shift >= 32 && b & 0b0100_0000 == 0 {
-					if b.leading_zeros() < 5 {
+				} else if shift >= 32 && b & 0b0100_0000 == 0 && b.leading_zeros() < 5 {
 						return Err(Error::InvalidVarInt32);
-					}
 				}
 				break;
 			}
@@ -505,7 +503,7 @@ impl Deserialize for VarUint1 {
 		match u8buf[0] {
 			0 => Ok(VarUint1(false)),
 			1 => Ok(VarUint1(true)),
-			v @ _ => Err(Error::InvalidVarUint1(v)),
+			v => Err(Error::InvalidVarUint1(v)),
 		}
 	}
 }
@@ -578,7 +576,7 @@ impl<'a, W: 'a + io::Write> CountedWriter<'a, W> {
 	/// New counted writer on top of the given serial writer.
 	pub fn new(writer: &'a mut W) -> Self {
 		CountedWriter {
-			writer: writer,
+			writer,
 			data: Vec::new(),
 		}
 	}

@@ -749,11 +749,7 @@ mod integration_tests {
 			if let Section::Code(_) = *x {
 				return true;
 			}
-			if let Section::Function(_) = *x {
-				true
-			} else {
-				false
-			}
+			matches!(*x, Section::Function(_))
 		});
 
 		let buf = serialize(module).expect("serialization to succeed");

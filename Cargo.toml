@@ -14,7 +14,7 @@ exclude = [ "res/*", "spec/*" ]
 edition = "2018"
 
 [dev-dependencies]
-time = "0.1"
+time = "0.2"
 
 [features]
 default = ["std"]

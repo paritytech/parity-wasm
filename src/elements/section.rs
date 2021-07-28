@@ -1086,7 +1086,7 @@ mod tests {
 		let buf = serialize(element_section).expect("Element section to be serialized");
 
 		assert_eq!(buf, vec![
-			08u8, // 8 bytes overall
+			8u8, // 8 bytes overall
 			0x01, // number of segments
 			0x00, // index
 			0x0b, // just `end` op
@@ -1131,7 +1131,7 @@ mod tests {
 
 	#[test]
 	fn start_section() {
-		let section: Section = deserialize_buffer(&[08u8, 01u8, 00u8]).expect("Start section to deserialize");
+		let section: Section = deserialize_buffer(&[8u8, 1u8, 0u8]).expect("Start section to deserialize");
 		if let Section::Start(_) = section {
 		} else {
 			panic!("Payload should be a start section");
@@ -1139,6 +1139,6 @@ mod tests {
 
 		let serialized = serialize(section).expect("Start section to successfully serializen");
 
-		assert_eq!(serialized, vec![08u8, 01u8, 00u8]);
+		assert_eq!(serialized, vec![8u8, 1u8, 0u8]);
 	}
 }

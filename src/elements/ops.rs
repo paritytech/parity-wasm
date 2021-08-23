@@ -123,6 +123,8 @@ pub enum Instruction {
 
 	Call(u32),
 	CallIndirect(u32, u8),
+	ReturnCall(u32),
+	ReturnCallIndirect(u32, u8),
 
 	Drop,
 	Select,
@@ -616,6 +618,8 @@ pub mod opcodes {
 	pub const RETURN: u8 = 0x0f;
 	pub const CALL: u8 = 0x10;
 	pub const CALLINDIRECT: u8 = 0x11;
+	pub const RETURNCALL: u8 = 0x12;
+	pub const RETURNCALLINDIRECT: u8 = 0x13;
 	pub const DROP: u8 = 0x1a;
 	pub const SELECT: u8 = 0x1b;
 	pub const GETLOCAL: u8 = 0x20;
@@ -1785,6 +1789,13 @@ impl Serialize for Instruction {
 				VarUint32::from(index).serialize(writer)?;
 				Uint8::from(reserved).serialize(writer)?;
 			}),
+			ReturnCall(index) => op!(writer, RETURNCALL, {
+				VarUint32::from(index).serialize(writer)?;
+			}),
+			ReturnCallIndirect(index, reserved) => op!(writer, RETURNCALLINDIRECT, {
+				VarUint32::from(index).serialize(writer)?;
+				Uint8::from(reserved).serialize(writer)?;
+			}),
 			Drop => op!(writer, DROP),
 			Select => op!(writer, SELECT),
 			GetLocal(index) => op!(writer, GETLOCAL, {
@@ -2396,6 +2407,8 @@ impl fmt::Display for Instruction {
 			Return => fmt_op!(f, "return"),
 			Call(index) => fmt_op!(f, "call", index),
 			CallIndirect(index, _) => fmt_op!(f, "call_indirect", index),
+			ReturnCall(index) => fmt_op!(f, "return_call", index),
+			ReturnCallIndirect(index, _) => fmt_op!(f, "return_call_indirect", index),
 			Drop => fmt_op!(f, "drop"),
 			Select => fmt_op!(f, "select"),
 			GetLocal(index) => fmt_op!(f, "get_local", index),

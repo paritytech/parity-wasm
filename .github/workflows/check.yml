@@ -46,27 +46,7 @@ jobs:
         with:
           toolchain: stable
           command: clippy
-          args: --all-targets --all-features -- -D warnings
-
-  spec:
-    runs-on: "ubuntu-latest"
-    steps:
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          toolchain: stable
-          command: test
-          args: --manifest-path=spec/Cargo.toml
+          args: --all-targets --all-features --workspace -- -D warnings
 
   test:
     strategy:
@@ -83,12 +63,15 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       - uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Cargo build
         uses: actions-rs/cargo@v1
         with:
           toolchain: ${{ matrix.toolchain }}
           command: build
+          args: --workspace
 
       - name: Cargo build (no_std)
         uses: actions-rs/cargo@v1
@@ -109,4 +92,4 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
           command: test
-          args: --all-features
+          args: --all-features --workspace

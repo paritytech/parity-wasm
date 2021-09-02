@@ -13,6 +13,9 @@ categories = ["wasm", "parser-implementations"]
 exclude = [ "res/*", "spec/*" ]
 edition = "2018"
 
+[workspace]
+members = ["spec"]
+
 [dev-dependencies]
 time = "0.2"
 

@@ -17,7 +17,7 @@ edition = "2018"
 members = ["spec"]
 
 [dev-dependencies]
-time = "0.2"
+time = "0.3"
 
 [features]
 default = ["std"]

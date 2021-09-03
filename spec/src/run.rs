@@ -1,42 +1,42 @@
-use parity_wasm::elements::{deserialize_buffer, Module};
-use wabt::script::{Command, CommandKind, ScriptParser};
-
-fn read_file(filename: &str) -> String {
-	use std::{fs::File, io::prelude::*};
-
-	let mut f = File::open(filename).expect("file not found");
-
-	let mut contents = String::new();
-	f.read_to_string(&mut contents).expect("something went wrong reading the file");
-
-	contents
-}
+use parity_wasm::elements::{deserialize_buffer, serialize, Module};
+use wast::{
+	parser::{parse, ParseBuffer},
+	QuoteModule, Wast, WastDirective,
+};
 
 pub fn spec(path: &str) {
-	let mut parser = {
-		let source = read_file(&format!("./testsuite/{}.wast", path));
-		ScriptParser::<f32, f64>::from_str(&source).expect("Can't read spec script")
-	};
-	while let Some(Command { kind, line }) = parser.next().expect("Failed to iterate") {
+	let source = std::fs::read_to_string(&format!("./testsuite/{}.wast", path)).unwrap();
+	let buffer = ParseBuffer::new(&source).unwrap();
+	let wast = parse::<Wast>(&buffer).unwrap();
+	for kind in wast.directives {
 		match kind {
-			CommandKind::AssertMalformed { module, .. } => {
-				match deserialize_buffer::<Module>(&module.into_vec()) {
-					Ok(_) => panic!(
-						"Expected invalid module definition, got some module! at line {}",
-						line
-					),
-					Err(e) => println!("assert_invalid at line {} - success ({:?})", line, e),
+			WastDirective::Module(mut module) => {
+				let (line, _col) = module.span.linecol_in(&source);
+				println!("Parsing module at line {}", line);
+				let orig_bytes = module.encode().unwrap();
+				let parsed =
+					deserialize_buffer::<Module>(&orig_bytes).expect("Failed to parse module");
+				let bytes = serialize(parsed).expect("Failed to serialize module");
+				assert_eq!(orig_bytes, bytes, "Serialized file should match the original");
+			},
+			WastDirective::AssertMalformed { module, message, span }
+				if matches!(module, QuoteModule::Module(_)) =>
+			{
+				let (line, _col) = span.linecol_in(&source);
+				println!("Parsing assert_malformed at line {}", line);
+				let parsed = deserialize_buffer::<Module>(&as_bytes(module));
+				if parsed.is_ok() {
+					panic!("Module should be malformed because: {}", message);
 				}
-			},
-			CommandKind::Module { module, .. } => {
-				match deserialize_buffer::<Module>(&module.into_vec()) {
-					Ok(_) => println!("module at line {} - parsed ok", line),
-					Err(e) => panic!("Valid module reported error ({:?})", e),
-				}
-			},
-			_ => {
-				// Skipping interpreted
-			},
+			}
+			_ => (),
 		}
+	}
+}
+
+fn as_bytes(module: QuoteModule) -> Vec<u8> {
+	match module {
+		QuoteModule::Module(mut module) => module.encode().unwrap(),
+		QuoteModule::Quote(_) => panic!("Only binary modules are supported."),
 	}
 }

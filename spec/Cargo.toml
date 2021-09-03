@@ -10,5 +10,5 @@ description = "parity-wasm testsuite"
 edition = "2018"
 
 [dependencies]
-wabt = "0.7.1"
+wast = "38"
 parity-wasm = { path = ".." }

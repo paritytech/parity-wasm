@@ -1,17 +1,14 @@
 #![cfg(test)]
 
-extern crate wabt;
-extern crate parity_wasm;
-
 mod run;
 
 macro_rules! run_test {
-	($label: expr, $test_name: ident) => (
+	($label: expr, $test_name: ident) => {
 		#[test]
 		fn $test_name() {
 			self::run::spec($label)
 		}
-	);
+	};
 }
 
 run_test!("address", wasm_address);

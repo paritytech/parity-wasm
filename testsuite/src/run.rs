@@ -4,8 +4,9 @@ use wast::{
 	QuoteModule, Wast, WastDirective,
 };
 
-pub fn spec(path: &str) {
-	let source = std::fs::read_to_string(&format!("./testsuite/{}.wast", path)).unwrap();
+pub fn check(path: &str) {
+	let path = path.strip_prefix("testsuite/").unwrap();
+	let source = std::fs::read_to_string(path).unwrap();
 	let buffer = ParseBuffer::new(&source).unwrap();
 	let wast = parse::<Wast>(&buffer).unwrap();
 	for kind in wast.directives {

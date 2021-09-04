@@ -16,8 +16,7 @@ pub fn spec(path: &str) {
 				let orig_bytes = module.encode().unwrap();
 				let parsed =
 					deserialize_buffer::<Module>(&orig_bytes).expect("Failed to parse module");
-				let bytes = serialize(parsed).expect("Failed to serialize module");
-				assert_eq!(orig_bytes, bytes, "Serialized file should match the original");
+				serialize(parsed).expect("Failed to serialize module");
 			},
 			WastDirective::AssertMalformed { module, message, span }
 				if matches!(module, QuoteModule::Module(_)) =>

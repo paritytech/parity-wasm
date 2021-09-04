@@ -10,11 +10,11 @@ documentation = "https://docs.rs/parity-wasm"
 description = "WebAssembly low-level format library"
 keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"]
 categories = ["wasm", "parser-implementations"]
-exclude = [ "res/*", "spec/*" ]
+include = ["src/**/*", "LICENSE-*", "README.md"]
 edition = "2018"
 
 [workspace]
-members = ["spec"]
+members = ["testsuite"]
 
 [dev-dependencies]
 time = "0.3"

@@ -2,6 +2,7 @@
 name = "parity-wasm-testsuite"
 version = "0.0.0"
 authors = ["NikVolf <nikvolf@gmail.com>"]
+publish = false
 license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/nikvolf/parity-wasm"

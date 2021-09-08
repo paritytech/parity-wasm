@@ -4,7 +4,6 @@ use super::{
 use crate::io;
 use alloc::vec::Vec;
 use core::fmt;
-use std::convert::TryInto;
 
 /// Type definition in types section. Currently can be only of the function type.
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -121,12 +120,15 @@ impl Deserialize for BlockType {
 			-0x03 => Ok(BlockType::Value(ValueType::F32)),
 			-0x04 => Ok(BlockType::Value(ValueType::F64)),
 			#[cfg(feature = "simd")]
-			0x7b => Ok(BlockType::Value(ValueType::V128)),
+			-0x05 => Ok(BlockType::Value(ValueType::V128)),
 			#[cfg(feature = "multi_value")]
 			idx => {
+				use core::convert::TryInto;
 				let idx = idx.try_into().map_err(|_| Error::UnknownBlockType(idx))?;
 				Ok(BlockType::TypeIndex(idx))
-			}
+			},
+			#[cfg(not(feature = "multi_value"))]
+			_ => Err(Error::UnknownBlockType(val.into())),
 		}
 	}
 }
@@ -142,7 +144,8 @@ impl Serialize for BlockType {
 			BlockType::Value(ValueType::F32) => -0x03,
 			BlockType::Value(ValueType::F64) => -0x04,
 			#[cfg(feature = "simd")]
-			BlockType::Value(ValueType::V128) => 0x7b,
+			BlockType::Value(ValueType::V128) => -0x05,
+			#[cfg(feature = "multi_value")]
 			BlockType::TypeIndex(idx) => idx as i32,
 		}
 		.into();

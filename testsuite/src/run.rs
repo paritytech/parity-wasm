@@ -19,24 +19,19 @@ pub fn check(path: &str) {
 					deserialize_buffer::<Module>(&orig_bytes).expect("Failed to parse module");
 				serialize(parsed).expect("Failed to serialize module");
 			},
-			WastDirective::AssertMalformed { module, message, span }
-				if matches!(module, QuoteModule::Module(_)) =>
-			{
+			WastDirective::AssertMalformed {
+				module: QuoteModule::Module(mut module),
+				message,
+				span,
+			} => {
 				let (line, _col) = span.linecol_in(&source);
 				println!("Parsing assert_malformed at line {}", line);
-				let parsed = deserialize_buffer::<Module>(&as_bytes(module));
+				let parsed = deserialize_buffer::<Module>(&module.encode().unwrap());
 				if parsed.is_ok() {
 					panic!("Module should be malformed because: {}", message);
 				}
-			}
+			},
 			_ => (),
 		}
-	}
-}
-
-fn as_bytes(module: QuoteModule) -> Vec<u8> {
-	match module {
-		QuoteModule::Module(mut module) => module.encode().unwrap(),
-		QuoteModule::Quote(_) => panic!("Only binary modules are supported."),
 	}
 }

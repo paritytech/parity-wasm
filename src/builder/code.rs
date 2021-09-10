@@ -45,7 +45,10 @@ where
 	}
 
 	/// Add multiple arguments to signature builder
-	pub fn with_params(mut self, value_types: Vec<elements::ValueType>) -> Self {
+	pub fn with_params<I>(mut self, value_types: I) -> Self
+	where
+		I: IntoIterator<Item = elements::ValueType>,
+	{
 		self.signature.params_mut().extend(value_types);
 		self
 	}
@@ -67,7 +70,10 @@ where
 	}
 
 	/// Add multiple results to signature builder
-	pub fn with_results(mut self, value_types: Vec<elements::ValueType>) -> Self {
+	pub fn with_results<I>(mut self, value_types: I) -> Self
+	where
+		I: IntoIterator<Item = elements::ValueType>,
+	{
 		self.signature.results_mut().extend(value_types);
 		self
 	}
@@ -93,13 +99,14 @@ where
 	}
 }
 
-impl<F> Invoke<Vec<elements::ValueType>> for SignatureBuilder<F>
+impl<F, I> Invoke<I> for SignatureBuilder<F>
 where
 	F: Invoke<elements::FunctionType>,
+	I: IntoIterator<Item = elements::ValueType>,
 {
 	type Result = Self;
 
-	fn invoke(self, args: Vec<elements::ValueType>) -> Self {
+	fn invoke(self, args: I) -> Self {
 		self.with_params(args)
 	}
 }
@@ -263,7 +270,10 @@ where
 	}
 
 	/// Extend function local list with new entries
-	pub fn with_locals(mut self, locals: Vec<elements::Local>) -> Self {
+	pub fn with_locals<I>(mut self, locals: I) -> Self
+	where
+		I: IntoIterator<Item = elements::Local>,
+	{
 		self.body.locals_mut().extend(locals);
 		self
 	}

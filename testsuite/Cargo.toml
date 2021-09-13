@@ -2,12 +2,24 @@
 name = "parity-wasm-testsuite"
 version = "0.0.0"
 authors = ["NikVolf <nikvolf@gmail.com>"]
+publish = false
 license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/nikvolf/parity-wasm"
 homepage = "https://github.com/nikvolf/parity-wasm"
 description = "parity-wasm testsuite"
+edition = "2018"
 
 [dependencies]
-wabt = "0.7.1"
-parity-wasm = { path = ".." }
+wast = "38"
+test-generator = "0.3"
+
+[dependencies.parity-wasm]
+path = ".."
+features = [
+	"atomics",
+	"simd",
+	"sign_ext",
+	"bulk",
+	"multi_value",
+]

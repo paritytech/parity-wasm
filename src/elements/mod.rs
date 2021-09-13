@@ -119,6 +119,8 @@ pub enum Error {
 	HeapOther(String),
 	/// Invalid/unknown value type declaration.
 	UnknownValueType(i8),
+	/// Invalid block type declaration.
+	UnknownBlockType(i32),
 	/// Invalid/unknown table element type declaration.
 	UnknownTableElementType(i8),
 	/// Non-utf8 string.
@@ -184,6 +186,7 @@ impl fmt::Display for Error {
 			Error::Other(msg) => write!(f, "{}", msg),
 			Error::HeapOther(ref msg) => write!(f, "{}", msg),
 			Error::UnknownValueType(ty) => write!(f, "Invalid or unknown value type {}", ty),
+			Error::UnknownBlockType(ty) => write!(f, "Invalid or unknown block type {}", ty),
 			Error::UnknownTableElementType(ty) => write!(f, "Unknown table element type {}", ty),
 			Error::NonUtf8String => write!(f, "Non-UTF-8 string"),
 			Error::UnknownExternalKind(kind) => write!(f, "Unknown external kind {}", kind),
@@ -228,6 +231,7 @@ impl ::std::error::Error for Error {
 			Error::Other(msg) => msg,
 			Error::HeapOther(ref msg) => &msg[..],
 			Error::UnknownValueType(_) => "Invalid or unknown value type",
+			Error::UnknownBlockType(_) => "Invalid or unknown block type",
 			Error::UnknownTableElementType(_) => "Unknown table element type",
 			Error::NonUtf8String => "Non-UTF-8 string",
 			Error::UnknownExternalKind(_) => "Unknown external kind",

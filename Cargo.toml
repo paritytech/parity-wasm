@@ -1,6 +1,6 @@
 [package]
 name = "parity-wasm"
-version = "0.43.0"
+version = "0.44.0"
 authors = ["Nikolay Volf <nikvolf@gmail.com>", "Svyatoslav Nikolsky <svyatonik@yandex.ru>", "Sergey Shulepov <s.pepyakin@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -10,11 +10,14 @@ documentation = "https://docs.rs/parity-wasm"
 description = "WebAssembly low-level format library"
 keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"]
 categories = ["wasm", "parser-implementations"]
-exclude = [ "res/*", "spec/*" ]
+include = ["src/**/*", "LICENSE-*", "README.md"]
 edition = "2018"
 
+[workspace]
+members = ["testsuite"]
+
 [dev-dependencies]
-time = "0.2"
+time = "0.3"
 
 [features]
 default = ["std"]

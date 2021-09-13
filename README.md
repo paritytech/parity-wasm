@@ -29,14 +29,14 @@ println!("Function count in wasm file: {}", code_section.bodies().len());
 
 ## Wabt Test suite
 
-`parity-wasm` supports full wabt testsuite (https://github.com/WebAssembly/testsuite), running asserts that involves deserialization.
+`parity-wasm` supports full [wasm testsuite](https://github.com/WebAssembly/testsuite), running asserts that involves deserialization.
 
 To run testsuite:
-- make sure you have all prerequisites to build `wabt` (since parity-wasm builds it internally using `wabt-rs`, see https://github.com/WebAssembly/wabt)
-- checkout with submodules (`git submodule update --init --recursive`)
-- run `cargo test --release --manifest-path=spec/Cargo.toml`
 
-Decoder can be fuzzed with `cargo-fuzz` using `wasm-opt` (https://github.com/WebAssembly/binaryen):
+- checkout with submodules (`git submodule update --init --recursive`)
+- run `cargo test --release --workspace`
+
+Decoder can be fuzzed with `cargo-fuzz` using [`wasm-opt`](https://github.com/WebAssembly/binaryen):
 
 - make sure you have all prerequisites to build `binaryen` and `cargo-fuzz` (`cmake` and a C++11 toolchain)
 - checkout with submodules (`git submodule update --init --recursive`)
@@ -54,7 +54,7 @@ in a `no_std` context, add the following to your `Cargo.toml` (still requires al
 parity-wasm = { version = "0.41", default-features = false }
 ```
 
-# License
+## License
 
 `parity-wasm` is primarily distributed under the terms of both the MIT
 license and the Apache License (Version 2.0), at your choice.

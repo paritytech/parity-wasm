@@ -2370,10 +2370,16 @@ impl fmt::Display for Instruction {
 			Nop => fmt_op!(f, "nop"),
 			Block(BlockType::NoResult) => fmt_op!(f, "block"),
 			Block(BlockType::Value(value_type)) => fmt_op!(f, "block", value_type),
+			#[cfg(feature = "multi_value")]
+			Block(BlockType::TypeIndex(idx)) => write!(f, "block type_idx={}", idx),
 			Loop(BlockType::NoResult) => fmt_op!(f, "loop"),
 			Loop(BlockType::Value(value_type)) => fmt_op!(f, "loop", value_type),
+			#[cfg(feature = "multi_value")]
+			Loop(BlockType::TypeIndex(idx)) => write!(f, "loop type_idx={}", idx),
 			If(BlockType::NoResult) => fmt_op!(f, "if"),
 			If(BlockType::Value(value_type)) => fmt_op!(f, "if", value_type),
+			#[cfg(feature = "multi_value")]
+			If(BlockType::TypeIndex(idx)) => write!(f, "if type_idx={}", idx),
 			Else => fmt_op!(f, "else"),
 			End => fmt_op!(f, "end"),
 			Br(idx) => fmt_op!(f, "br", idx),

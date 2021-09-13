@@ -1,4 +1,6 @@
-use super::{CountedList, CountedListWriter, Deserialize, Error, Serialize, VarInt7, VarUint7};
+use super::{
+	CountedList, CountedListWriter, Deserialize, Error, Serialize, VarInt32, VarInt7, VarUint7,
+};
 use crate::io;
 use alloc::vec::Vec;
 use core::fmt;
@@ -96,27 +98,37 @@ impl fmt::Display for ValueType {
 /// Block type which is basically `ValueType` + NoResult (to define blocks that have no return type)
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlockType {
-	/// Value-type specified block type
-	Value(ValueType),
 	/// No specified block type
 	NoResult,
+	/// Inline value type.
+	Value(ValueType),
+	/// Reference to a signature.
+	#[cfg(feature = "multi_value")]
+	TypeIndex(u32),
 }
 
 impl Deserialize for BlockType {
 	type Error = Error;
 
 	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		let val = VarInt7::deserialize(reader)?;
+		let val = VarInt32::deserialize(reader)?;
 
 		match val.into() {
+			-0x40 => Ok(BlockType::NoResult),
 			-0x01 => Ok(BlockType::Value(ValueType::I32)),
 			-0x02 => Ok(BlockType::Value(ValueType::I64)),
 			-0x03 => Ok(BlockType::Value(ValueType::F32)),
 			-0x04 => Ok(BlockType::Value(ValueType::F64)),
 			#[cfg(feature = "simd")]
-			0x7b => Ok(BlockType::Value(ValueType::V128)),
-			-0x40 => Ok(BlockType::NoResult),
-			_ => Err(Error::UnknownValueType(val.into())),
+			-0x05 => Ok(BlockType::Value(ValueType::V128)),
+			#[cfg(feature = "multi_value")]
+			idx => {
+				use core::convert::TryInto;
+				let idx = idx.try_into().map_err(|_| Error::UnknownBlockType(idx))?;
+				Ok(BlockType::TypeIndex(idx))
+			},
+			#[cfg(not(feature = "multi_value"))]
+			_ => Err(Error::UnknownBlockType(val.into())),
 		}
 	}
 }
@@ -125,14 +137,16 @@ impl Serialize for BlockType {
 	type Error = Error;
 
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
-		let val: VarInt7 = match self {
-			BlockType::NoResult => -0x40i8,
+		let val: VarInt32 = match self {
+			BlockType::NoResult => -0x40,
 			BlockType::Value(ValueType::I32) => -0x01,
 			BlockType::Value(ValueType::I64) => -0x02,
 			BlockType::Value(ValueType::F32) => -0x03,
 			BlockType::Value(ValueType::F64) => -0x04,
 			#[cfg(feature = "simd")]
-			BlockType::Value(ValueType::V128) => 0x7b,
+			BlockType::Value(ValueType::V128) => -0x05,
+			#[cfg(feature = "multi_value")]
+			BlockType::TypeIndex(idx) => idx as i32,
 		}
 		.into();
 		val.serialize(writer)?;

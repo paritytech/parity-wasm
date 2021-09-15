@@ -21,3 +21,8 @@ fn basic(path: &str) {
 		run::check(path);
 	}
 }
+
+#[test_generator::test_resources("testsuite/spec/proposals/threads/*.wast")]
+fn threads(path: &str) {
+	run::check(path);
+}

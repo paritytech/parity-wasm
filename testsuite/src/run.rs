@@ -13,7 +13,7 @@ pub fn check(path: &str) {
 		match kind {
 			WastDirective::Module(mut module) => {
 				let (line, _col) = module.span.linecol_in(&source);
-				println!("Parsing module at line {}", line);
+				println!("Parsing module at line {}", line + 1);
 				let orig_bytes = module.encode().unwrap();
 				let parsed =
 					deserialize_buffer::<Module>(&orig_bytes).expect("Failed to parse module");
@@ -25,7 +25,7 @@ pub fn check(path: &str) {
 				span,
 			} => {
 				let (line, _col) = span.linecol_in(&source);
-				println!("Parsing assert_malformed at line {}", line);
+				println!("Parsing assert_malformed at line {}", line + 1);
 				let parsed = deserialize_buffer::<Module>(&module.encode().unwrap());
 				if parsed.is_ok() {
 					panic!("Module should be malformed because: {}", message);

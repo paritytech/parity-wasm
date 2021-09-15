@@ -1434,6 +1434,14 @@ fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error>
 		I64_ATOMIC_RMW_SUB16U => I64AtomicRmwSub16u(mem),
 		I64_ATOMIC_RMW_SUB32U => I64AtomicRmwSub32u(mem),
 
+		I32_ATOMIC_RMW_AND => I32AtomicRmwAnd(mem),
+		I64_ATOMIC_RMW_AND => I64AtomicRmwAnd(mem),
+		I32_ATOMIC_RMW_AND8U => I32AtomicRmwAnd8u(mem),
+		I32_ATOMIC_RMW_AND16U => I32AtomicRmwAnd16u(mem),
+		I64_ATOMIC_RMW_AND8U => I64AtomicRmwAnd8u(mem),
+		I64_ATOMIC_RMW_AND16U => I64AtomicRmwAnd16u(mem),
+		I64_ATOMIC_RMW_AND32U => I64AtomicRmwAnd32u(mem),
+
 		I32_ATOMIC_RMW_OR => I32AtomicRmwOr(mem),
 		I64_ATOMIC_RMW_OR => I64AtomicRmwOr(mem),
 		I32_ATOMIC_RMW_OR8U => I32AtomicRmwOr8u(mem),

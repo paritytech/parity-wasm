@@ -11,7 +11,7 @@ description = "WebAssembly low-level format library"
 keywords = ["wasm", "webassembly", "bytecode", "serde", "interpreter"]
 categories = ["wasm", "parser-implementations"]
 include = ["src/**/*", "LICENSE-*", "README.md"]
-edition = "2018"
+edition = "2021"
 
 [workspace]
 members = ["testsuite"]

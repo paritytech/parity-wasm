@@ -4,6 +4,8 @@ name = "parity-wasm-fuzz"
 version = "0.0.1"
 authors = ["Pat Hickey phickey@fastly.com"]
 publish = false
+edition = "2021"
+rust-version = "1.56.1"
 
 [package.metadata]
 cargo-fuzz = true

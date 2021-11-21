@@ -8,7 +8,8 @@ readme = "README.md"
 repository = "https://github.com/nikvolf/parity-wasm"
 homepage = "https://github.com/nikvolf/parity-wasm"
 description = "parity-wasm testsuite"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56.1"
 
 [dependencies]
 wast = "38"

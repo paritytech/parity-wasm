@@ -123,7 +123,6 @@ impl Deserialize for BlockType {
 			-0x05 => Ok(BlockType::Value(ValueType::V128)),
 			#[cfg(feature = "multi_value")]
 			idx => {
-				use core::convert::TryInto;
 				let idx = idx.try_into().map_err(|_| Error::UnknownBlockType(idx))?;
 				Ok(BlockType::TypeIndex(idx))
 			},

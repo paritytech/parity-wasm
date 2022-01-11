@@ -53,3 +53,7 @@ bulk = []
 # Multi-value
 # https://github.com/WebAssembly/multi-value/
 multi_value = []
+
+# Tail-calls
+# https://github.com/WebAssembly/tail-call/
+tail_calls = []

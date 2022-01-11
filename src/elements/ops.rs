@@ -123,8 +123,6 @@ pub enum Instruction {
 
 	Call(u32),
 	CallIndirect(u32, u8),
-	ReturnCall(u32),
-	ReturnCallIndirect(u32, u8),
 
 	Drop,
 	Select,
@@ -311,6 +309,11 @@ pub enum Instruction {
 
 	#[cfg(feature = "bulk")]
 	Bulk(BulkInstruction),
+
+	#[cfg(feature = "tail_calls")]
+	ReturnCall(u32),
+	#[cfg(feature = "tail_calls")]
+	ReturnCallIndirect(u32, u8),
 }
 
 #[allow(missing_docs)]
@@ -618,7 +621,9 @@ pub mod opcodes {
 	pub const RETURN: u8 = 0x0f;
 	pub const CALL: u8 = 0x10;
 	pub const CALLINDIRECT: u8 = 0x11;
+	#[cfg(feature = "tail_calls")]
 	pub const RETURNCALL: u8 = 0x12;
+	#[cfg(feature = "tail_calls")]
 	pub const RETURNCALLINDIRECT: u8 = 0x13;
 	pub const DROP: u8 = 0x1a;
 	pub const SELECT: u8 = 0x1b;
@@ -1391,6 +1396,19 @@ impl Deserialize for Instruction {
 			#[cfg(feature = "bulk")]
 			bulk::BULK_PREFIX => return deserialize_bulk(reader),
 
+			#[cfg(feature = "tail_calls")]
+			RETURNCALL => ReturnCall(VarUint32::deserialize(reader)?.into()),
+			#[cfg(feature = "tail_calls")]
+			RETURNCALLINDIRECT => {
+				let signature: u32 = VarUint32::deserialize(reader)?.into();
+				let table_ref: u8 = Uint8::deserialize(reader)?.into();
+				if table_ref != 0 {
+					return Err(Error::InvalidTableReference(table_ref));
+				}
+
+				ReturnCallIndirect(signature, table_ref)
+			}
+
 			_ => return Err(Error::UnknownOpcode(val)),
 		})
 	}
@@ -1789,13 +1807,6 @@ impl Serialize for Instruction {
 				VarUint32::from(index).serialize(writer)?;
 				Uint8::from(reserved).serialize(writer)?;
 			}),
-			ReturnCall(index) => op!(writer, RETURNCALL, {
-				VarUint32::from(index).serialize(writer)?;
-			}),
-			ReturnCallIndirect(index, reserved) => op!(writer, RETURNCALLINDIRECT, {
-				VarUint32::from(index).serialize(writer)?;
-				Uint8::from(reserved).serialize(writer)?;
-			}),
 			Drop => op!(writer, DROP),
 			Select => op!(writer, SELECT),
 			GetLocal(index) => op!(writer, GETLOCAL, {
@@ -2071,6 +2082,16 @@ impl Serialize for Instruction {
 
 			#[cfg(feature = "bulk")]
 			Bulk(a) => return a.serialize(writer),
+
+			#[cfg(feature = "tail_calls")]
+			ReturnCall(index) => op!(writer, RETURNCALL, {
+				VarUint32::from(index).serialize(writer)?;
+			}),
+			#[cfg(feature = "tail_calls")]
+			ReturnCallIndirect(index, reserved) => op!(writer, RETURNCALLINDIRECT, {
+				VarUint32::from(index).serialize(writer)?;
+				Uint8::from(reserved).serialize(writer)?;
+			}),
 		}
 
 		Ok(())
@@ -2407,8 +2428,6 @@ impl fmt::Display for Instruction {
 			Return => fmt_op!(f, "return"),
 			Call(index) => fmt_op!(f, "call", index),
 			CallIndirect(index, _) => fmt_op!(f, "call_indirect", index),
-			ReturnCall(index) => fmt_op!(f, "return_call", index),
-			ReturnCallIndirect(index, _) => fmt_op!(f, "return_call_indirect", index),
 			Drop => fmt_op!(f, "drop"),
 			Select => fmt_op!(f, "select"),
 			GetLocal(index) => fmt_op!(f, "get_local", index),
@@ -2648,6 +2667,11 @@ impl fmt::Display for Instruction {
 
 			#[cfg(feature = "bulk")]
 			Bulk(ref i) => i.fmt(f),
+
+			#[cfg(feature = "tail_calls")]
+			ReturnCall(index) => fmt_op!(f, "return_call", index),
+			#[cfg(feature = "tail_calls")]
+			ReturnCallIndirect(index, _) => fmt_op!(f, "return_call_indirect", index),
 		}
 	}
 }

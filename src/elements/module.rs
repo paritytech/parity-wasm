@@ -819,6 +819,44 @@ mod integration_tests {
 		assert_eq!(I32Const(2147483647), func.code().elements()[17]);
 	}
 
+	#[cfg(feature = "tail_calls")]
+	#[test]
+	fn tail_calls() {
+		use super::{
+			super::{
+				types::{BlockType::Value, ValueType::I32},
+				Instruction::*,
+			},
+			peek_size,
+		};
+
+		let module =
+			deserialize_file("./res/cases/v1/tail-call.wasm").expect("Should be deserialized");
+		let func = &module.code_section().expect("Code section to exist").bodies()[0];
+		assert_eq!(func.code().elements().len(), 16);
+
+		assert_eq!(GetLocal(0), func.code().elements()[0]);
+		assert_eq!(I32Const(1), func.code().elements()[1]);
+		assert_eq!(I32LtU, func.code().elements()[2]);
+		assert_eq!(If(Value(I32)), func.code().elements()[3]);
+		assert_eq!(GetLocal(0), func.code().elements()[4]);
+		assert_eq!(I32Const(1), func.code().elements()[5]);
+		assert_eq!(I32Sub, func.code().elements()[6]);
+		assert_eq!(GetLocal(1), func.code().elements()[7]);
+		assert_eq!(GetLocal(0), func.code().elements()[8]);
+		assert_eq!(I32Mul, func.code().elements()[9]);
+		assert_eq!(ReturnCall(0), func.code().elements()[10]);
+		assert_eq!(Else, func.code().elements()[11]);
+		assert_eq!(GetLocal(1), func.code().elements()[12]);
+		assert_eq!(Return, func.code().elements()[13]);
+		assert_eq!(End, func.code().elements()[14]);
+		assert_eq!(End, func.code().elements()[15]);
+
+		let mut buf = serialize(module).expect("failed to serialize tail calls");
+		buf.extend_from_slice(&[1, 5, 12, 17]);
+		assert_eq!(peek_size(&buf), buf.len() - 4);
+	}
+
 	#[test]
 	fn store() {
 		use super::super::Instruction::*;

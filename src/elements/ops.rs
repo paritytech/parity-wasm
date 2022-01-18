@@ -1403,11 +1403,11 @@ impl Deserialize for Instruction {
 				let signature: u32 = VarUint32::deserialize(reader)?.into();
 				let table_ref: u8 = Uint8::deserialize(reader)?.into();
 				if table_ref != 0 {
-					return Err(Error::InvalidTableReference(table_ref));
+					return Err(Error::InvalidTableReference(table_ref))
 				}
 
 				ReturnCallIndirect(signature, table_ref)
-			}
+			},
 
 			_ => return Err(Error::UnknownOpcode(val)),
 		})
@@ -3013,4 +3013,13 @@ fn instructions_hashset() {
 	let set: std::collections::HashSet<Instruction> =
 		vec![Call(1), Block(Value(ValueType::I32)), Drop].into_iter().collect();
 	assert!(set.contains(&Drop));
+}
+
+#[cfg(feature = "tail_calls")]
+#[test]
+fn return_call_encode() {
+	use self::Instruction::{ReturnCall, ReturnCallIndirect};
+	let bytes = super::serialize(Instructions::new(vec![ReturnCall(2), ReturnCallIndirect(4, 0)]))
+		.expect("serialize tail call instructions");
+	assert_eq!(&bytes, &[0x12, 0x02, 0x13, 0x04, 0x00]);
 }

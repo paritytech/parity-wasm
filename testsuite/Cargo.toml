@@ -23,4 +23,5 @@ features = [
 	"sign_ext",
 	"bulk",
 	"multi_value",
+	"tail_calls",
 ]

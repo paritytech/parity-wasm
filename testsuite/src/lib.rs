@@ -26,3 +26,8 @@ fn basic(path: &str) {
 fn threads(path: &str) {
 	run::check(path);
 }
+
+#[test_generator::test_resources("testsuite/spec/proposals/tail-call/*.wast")]
+fn tail_calls(path: &str) {
+	run::check(path);
+}

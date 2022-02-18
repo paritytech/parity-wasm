@@ -65,7 +65,7 @@ impl NameSection {
 
 impl NameSection {
 	/// Deserialize a name section.
-	pub fn deserialize<R: io::Read>(module: &Module, rdr: &mut R) -> Result<Self, Error> {
+	pub fn deserialize<R: io::ReadSeek>(module: &Module, rdr: &mut R) -> Result<Self, Error> {
 		let mut module_name: Option<ModuleNameSubsection> = None;
 		let mut function_names: Option<FunctionNameSubsection> = None;
 		let mut local_names: Option<LocalNameSubsection> = None;
@@ -175,7 +175,7 @@ impl Serialize for ModuleNameSubsection {
 impl Deserialize for ModuleNameSubsection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(rdr: &mut R) -> Result<ModuleNameSubsection, Error> {
+	fn deserialize<R: io::ReadSeek>(rdr: &mut R) -> Result<ModuleNameSubsection, Error> {
 		let name = String::deserialize(rdr)?;
 		Ok(ModuleNameSubsection { name })
 	}
@@ -199,7 +199,7 @@ impl FunctionNameSubsection {
 	}
 
 	/// Deserialize names, making sure that all names correspond to functions.
-	pub fn deserialize<R: io::Read>(
+	pub fn deserialize<R: io::ReadSeek>(
 		module: &Module,
 		rdr: &mut R,
 	) -> Result<FunctionNameSubsection, Error> {
@@ -236,7 +236,7 @@ impl LocalNameSubsection {
 
 	/// Deserialize names, making sure that all names correspond to local
 	/// variables.
-	pub fn deserialize<R: io::Read>(
+	pub fn deserialize<R: io::ReadSeek>(
 		module: &Module,
 		rdr: &mut R,
 	) -> Result<LocalNameSubsection, Error> {

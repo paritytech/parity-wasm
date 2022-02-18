@@ -80,12 +80,15 @@ pub use self::{
 	segment::{DataSegment, ElementSegment},
 };
 
+/// Absolute offset of a given instruction or section
+pub type Offset = u64;
+
 /// Deserialization from serial i/o.
 pub trait Deserialize: Sized {
 	/// Serialization error produced by deserialization routine.
 	type Error: From<io::Error>;
 	/// Deserialize type from serial i/o
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error>;
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error>;
 }
 
 /// Serialization to serial i/o. Takes self by value to consume less memory
@@ -204,14 +207,17 @@ impl fmt::Display for Error {
 			Error::InvalidSectionId(ref id) => write!(f, "Invalid section id: {}", id),
 			Error::SectionsOutOfOrder => write!(f, "Sections out of order"),
 			Error::DuplicatedSections(ref id) => write!(f, "Duplicated sections ({})", id),
-			Error::InvalidMemoryReference(ref mem_ref) =>
-				write!(f, "Invalid memory reference ({})", mem_ref),
-			Error::InvalidTableReference(ref table_ref) =>
-				write!(f, "Invalid table reference ({})", table_ref),
+			Error::InvalidMemoryReference(ref mem_ref) => {
+				write!(f, "Invalid memory reference ({})", mem_ref)
+			},
+			Error::InvalidTableReference(ref table_ref) => {
+				write!(f, "Invalid table reference ({})", table_ref)
+			},
 			Error::InvalidLimitsFlags(ref flags) => write!(f, "Invalid limits flags ({})", flags),
 			Error::UnknownFunctionForm(ref form) => write!(f, "Unknown function form ({})", form),
-			Error::InconsistentCode =>
-				write!(f, "Number of function body entries and signatures does not match"),
+			Error::InconsistentCode => {
+				write!(f, "Number of function body entries and signatures does not match")
+			},
 			Error::InvalidSegmentFlags(n) => write!(f, "Invalid segment flags: {}", n),
 			Error::TooManyLocals => write!(f, "Too many locals"),
 			Error::DuplicatedNameSubsections(n) => write!(f, "Duplicated name subsections: {}", n),
@@ -286,7 +292,7 @@ pub struct Unparsed(pub Vec<u8>);
 impl Deserialize for Unparsed {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let len = VarUint32::deserialize(reader)?.into();
 		let mut vec = vec![0u8; len];
 		reader.read(&mut vec[..])?;

@@ -2,23 +2,43 @@ use super::{
 	BlockType, CountedList, CountedListWriter, Deserialize, Error, Serialize, Uint32, Uint64,
 	Uint8, VarInt32, VarInt64, VarUint32,
 };
+
+#[cfg(feature = "offsets")]
+use super::Offset;
+
 use crate::io;
 use alloc::{boxed::Box, vec::Vec};
 use core::fmt;
 
 /// List of instructions (usually inside a block section).
 #[derive(Debug, Clone, PartialEq)]
-pub struct Instructions(Vec<Instruction>);
+pub struct Instructions(Vec<Instruction>, #[cfg(feature = "offsets")] Vec<Offset>);
 
 impl Instructions {
 	/// New list of instructions from vector of instructions.
 	pub fn new(elements: Vec<Instruction>) -> Self {
-		Instructions(elements)
+		// instruction offsets really only make sense if we
+		// have deserialized a module, so in
+		// `new` we just set all offsets to 0
+		// It would be really unpleasant to change the signature of
+		// `new` if the feature is enabled, so I guess this is the best option
+		#[cfg(feature = "offsets")]
+		let offsets = vec![0; elements.len()];
+
+		Instructions(
+			elements,
+			#[cfg(feature = "offsets")]
+			offsets,
+		)
 	}
 
 	/// Empty expression with only `Instruction::End` instruction.
 	pub fn empty() -> Self {
-		Instructions(vec![Instruction::End])
+		Instructions(
+			vec![Instruction::End],
+			#[cfg(feature = "offsets")]
+			vec![0],
+		)
 	}
 
 	/// List of individual instructions.
@@ -30,16 +50,35 @@ impl Instructions {
 	pub fn elements_mut(&mut self) -> &mut Vec<Instruction> {
 		&mut self.0
 	}
+
+	/// List of instruction offsets
+	///
+	/// The offsets are absolute, so if you want to get the offset
+	/// of an instruction relative to the start of the code section (e.g. when
+	/// working with DWARF debug information), you need to subtract the
+	/// offset of the code section first.
+	#[cfg(feature = "offsets")]
+	pub fn offsets(&self) -> &[Offset] {
+		&self.1
+	}
 }
 
 impl Deserialize for Instructions {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
+		#[cfg(feature = "offsets")]
+		let mut offsets = Vec::new();
 		let mut instructions = Vec::new();
 		let mut block_count = 1usize;
 
 		loop {
+			#[cfg(feature = "offsets")]
+			{
+				let offset = reader.seek(io::SeekFrom::Current(0))?;
+				offsets.push(offset);
+			}
+
 			let instruction = Instruction::deserialize(reader)?;
 			if instruction.is_terminal() {
 				block_count -= 1;
@@ -54,7 +93,11 @@ impl Deserialize for Instructions {
 			}
 		}
 
-		Ok(Instructions(instructions))
+		Ok(Instructions(
+			instructions,
+			#[cfg(feature = "offsets")]
+			offsets,
+		))
 	}
 }
 
@@ -89,7 +132,7 @@ impl InitExpr {
 impl Deserialize for InitExpr {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut instructions = Vec::new();
 
 		loop {
@@ -1052,7 +1095,7 @@ pub mod opcodes {
 impl Deserialize for Instruction {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		use self::{opcodes::*, Instruction::*};
 
 		#[cfg(feature = "sign_ext")]
@@ -1393,7 +1436,7 @@ impl Deserialize for Instruction {
 }
 
 #[cfg(feature = "atomics")]
-fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
+fn deserialize_atomic<R: io::ReadSeek>(reader: &mut R) -> Result<Instruction, Error> {
 	use self::{opcodes::atomics::*, AtomicsInstruction::*};
 
 	let val: u8 = Uint8::deserialize(reader)?.into();
@@ -1479,7 +1522,7 @@ fn deserialize_atomic<R: io::Read>(reader: &mut R) -> Result<Instruction, Error>
 }
 
 #[cfg(feature = "simd")]
-fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
+fn deserialize_simd<R: io::ReadSeek>(reader: &mut R) -> Result<Instruction, Error> {
 	use self::{opcodes::simd::*, SimdInstruction::*};
 
 	let val = VarUint32::deserialize(reader)?.into();
@@ -1650,7 +1693,7 @@ fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 }
 
 #[cfg(feature = "bulk")]
-fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
+fn deserialize_bulk<R: io::ReadSeek>(reader: &mut R) -> Result<Instruction, Error> {
 	use self::{opcodes::bulk::*, BulkInstruction::*};
 
 	let val: u8 = Uint8::deserialize(reader)?.into();
@@ -1697,7 +1740,7 @@ fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 impl Deserialize for MemArg {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let align = Uint8::deserialize(reader)?;
 		let offset = VarUint32::deserialize(reader)?;
 		Ok(MemArg { align: align.into(), offset: offset.into() })

@@ -36,7 +36,7 @@ impl GlobalType {
 impl Deserialize for GlobalType {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let content_type = ValueType::deserialize(reader)?;
 		let is_mutable = VarUint1::deserialize(reader)?;
 		Ok(GlobalType { content_type, is_mutable: is_mutable.into() })
@@ -80,7 +80,7 @@ impl TableType {
 impl Deserialize for TableType {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let elem_type = TableElementType::deserialize(reader)?;
 		let limits = ResizableLimits::deserialize(reader)?;
 		Ok(TableType { elem_type, limits })
@@ -134,7 +134,7 @@ impl ResizableLimits {
 impl Deserialize for ResizableLimits {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let flags: u8 = Uint8::deserialize(reader)?.into();
 		match flags {
 			// Default flags are always supported. This is simply: FLAG_HAS_MAX={true, false}.
@@ -219,7 +219,7 @@ impl MemoryType {
 impl Deserialize for MemoryType {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(MemoryType(ResizableLimits::deserialize(reader)?))
 	}
 }
@@ -249,7 +249,7 @@ pub enum External {
 impl Deserialize for External {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let kind = VarUint7::deserialize(reader)?;
 		match kind.into() {
 			0x00 => Ok(External::Function(VarUint32::deserialize(reader)?.into())),
@@ -338,7 +338,7 @@ impl ImportEntry {
 impl Deserialize for ImportEntry {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let module_str = String::deserialize(reader)?;
 		let field_str = String::deserialize(reader)?;
 		let external = External::deserialize(reader)?;

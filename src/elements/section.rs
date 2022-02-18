@@ -3,6 +3,10 @@ use super::{
 	ElementSegment, Error, ExportEntry, External, Func, FuncBody, GlobalEntry, ImportEntry,
 	MemoryType, Serialize, TableType, VarUint32, VarUint7,
 };
+
+#[cfg(feature = "offsets")]
+use super::Offset;
+
 use crate::{elements, io};
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
@@ -65,7 +69,7 @@ pub enum Section {
 impl Deserialize for Section {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let id = match VarUint7::deserialize(reader) {
 			// todo: be more selective detecting no more section
 			Err(_) => return Err(Error::UnexpectedEof),
@@ -207,16 +211,28 @@ impl Section {
 pub(crate) struct SectionReader {
 	cursor: io::Cursor<Vec<u8>>,
 	declared_length: usize,
+	#[cfg(feature = "offsets")]
+	offset: Offset,
 }
 
 impl SectionReader {
-	pub fn new<R: io::Read>(reader: &mut R) -> Result<Self, elements::Error> {
+	pub fn new<R: io::ReadSeek>(reader: &mut R) -> Result<Self, elements::Error> {
 		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
+
+		// The absolute offset of this section
+		#[cfg(feature = "offsets")]
+		let offset = reader.seek(io::SeekFrom::Current(0))?;
+
 		let inner_buffer = buffered_read!(ENTRIES_BUFFER_LENGTH, length, reader);
 		let declared_length = inner_buffer.len();
 		let cursor = io::Cursor::new(inner_buffer);
 
-		Ok(SectionReader { cursor, declared_length })
+		Ok(SectionReader {
+			cursor,
+			declared_length,
+			#[cfg(feature = "offsets")]
+			offset,
+		})
 	}
 
 	pub fn close(self) -> Result<(), io::Error> {
@@ -238,7 +254,18 @@ impl io::Read for SectionReader {
 	}
 }
 
-fn read_entries<R: io::Read, T: Deserialize<Error = elements::Error>>(
+#[cfg(feature = "offsets")]
+impl io::Seek for SectionReader {
+	fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
+		// We have to add the sections offset because we
+		// use a separate Cursor
+		self.cursor.seek(pos).map(|offset| offset + self.offset)
+	}
+}
+
+impl io::ReadSeek for SectionReader {}
+
+fn read_entries<R: io::ReadSeek, T: Deserialize<Error = elements::Error>>(
 	reader: &mut R,
 ) -> Result<Vec<T>, elements::Error> {
 	let mut section_reader = SectionReader::new(reader)?;
@@ -284,7 +311,7 @@ impl CustomSection {
 impl Deserialize for CustomSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let section_length: usize = u32::from(VarUint32::deserialize(reader)?) as usize;
 		let buf = buffered_read!(ENTRIES_BUFFER_LENGTH, section_length, reader);
 		let mut cursor = io::Cursor::new(&buf[..]);
@@ -332,7 +359,7 @@ impl TypeSection {
 impl Deserialize for TypeSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(TypeSection(read_entries(reader)?))
 	}
 }
@@ -391,7 +418,7 @@ impl ImportSection {
 impl Deserialize for ImportSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(ImportSection(read_entries(reader)?))
 	}
 }
@@ -434,7 +461,7 @@ impl FunctionSection {
 impl Deserialize for FunctionSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(FunctionSection(read_entries(reader)?))
 	}
 }
@@ -479,7 +506,7 @@ impl TableSection {
 impl Deserialize for TableSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(TableSection(read_entries(reader)?))
 	}
 }
@@ -522,7 +549,7 @@ impl MemorySection {
 impl Deserialize for MemorySection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(MemorySection(read_entries(reader)?))
 	}
 }
@@ -565,7 +592,7 @@ impl GlobalSection {
 impl Deserialize for GlobalSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(GlobalSection(read_entries(reader)?))
 	}
 }
@@ -608,7 +635,7 @@ impl ExportSection {
 impl Deserialize for ExportSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(ExportSection(read_entries(reader)?))
 	}
 }
@@ -629,12 +656,16 @@ impl Serialize for ExportSection {
 
 /// Section with function bodies of the module.
 #[derive(Default, Debug, Clone, PartialEq)]
-pub struct CodeSection(Vec<FuncBody>);
+pub struct CodeSection(Vec<FuncBody>, #[cfg(feature = "offsets")] Offset);
 
 impl CodeSection {
 	/// New code section with specified function bodies.
 	pub fn with_bodies(bodies: Vec<FuncBody>) -> Self {
-		CodeSection(bodies)
+		CodeSection(
+			bodies,
+			#[cfg(feature = "offsets")]
+			0,
+		)
 	}
 
 	/// All function bodies in the section.
@@ -646,13 +677,25 @@ impl CodeSection {
 	pub fn bodies_mut(&mut self) -> &mut Vec<FuncBody> {
 		&mut self.0
 	}
+
+	/// Return the absolute offset of the code section
+	#[cfg(feature = "offsets")]
+	pub fn offset(&self) -> Offset {
+		self.1
+	}
 }
 
 impl Deserialize for CodeSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
-		Ok(CodeSection(read_entries(reader)?))
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
+		#[cfg(feature = "offsets")]
+		let offset = reader.seek(io::SeekFrom::Current(0))?;
+		Ok(CodeSection(
+			read_entries(reader)?,
+			#[cfg(feature = "offsets")]
+			offset,
+		))
 	}
 }
 
@@ -694,7 +737,7 @@ impl ElementSection {
 impl Deserialize for ElementSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(ElementSection(read_entries(reader)?))
 	}
 }
@@ -737,7 +780,7 @@ impl DataSection {
 impl Deserialize for DataSection {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(DataSection(read_entries(reader)?))
 	}
 }
@@ -894,27 +937,51 @@ mod tests {
 
 	fn code_payload() -> &'static [u8] {
 		&[
-			// sectionid
-			0x0Au8, // section length, 32
-			0x20,   // body count
-			0x01,   // body 1, length 30
-			0x1E, 0x01, 0x01, 0x7F, // local i32 (one collection of length one of type i32)
-			0x02, 0x7F, // block i32
-			0x23, 0x00, // get_global 0
-			0x21, 0x01, // set_local 1
-			0x23, 0x00, // get_global 0
-			0x20, 0x00, // get_local 0
-			0x6A, // i32.add
-			0x24, 0x00, // set_global 0
-			0x23, 0x00, // get_global 0
-			0x41, 0x0F, // i32.const 15
-			0x6A, // i32.add
-			0x41, 0x70, // i32.const -16
-			0x71, // i32.and
-			0x24, 0x00, // set_global 0
-			0x20, 0x01, // get_local 1
-			0x0B, 0x0B,
+			0x0Au8, // sectionid, offset=0
+			0x20,   // section length, 32, , offset=1
+			0x01,   // body count, , offset=2
+			0x1E, 0x01, // body 1, length 30, , offset=3
+			0x01, 0x7F, // local i32 (one collection of length one of type i32), offset=5
+			0x02, 0x7F, // block i32, offset=7
+			0x23, 0x00, // get_global 0, offset=9
+			0x21, 0x01, // set_local 1, offset=11
+			0x23, 0x00, // get_global 0, offset=13
+			0x20, 0x00, // get_local 0, offset=15
+			0x6A, // i32.add, offset=17
+			0x24, 0x00, // set_global 0, offset=18
+			0x23, 0x00, // get_global 0, offset=20
+			0x41, 0x0F, // i32.const 15, offset=22
+			0x6A, // i32.add, offset=24
+			0x41, 0x70, // i32.const -16, offset=25
+			0x71, // i32.and, offset=27
+			0x24, 0x00, // set_global 0, offset=28
+			0x20, 0x01, // get_local 1, offset=30
+			0x0B, // end, offset=32
+			0x0B, // end, offset=33
 		]
+	}
+
+	#[cfg(feature = "offsets")]
+	#[test]
+	fn offsets() {
+		let section: Section = deserialize_buffer(code_payload()).unwrap();
+
+		match section {
+			Section::Code(code_section) => {
+				// Should be 1, since we read the section id right before
+				// the start of the code section.
+				assert_eq!(code_section.offset(), 1);
+				let func_body = code_section.bodies().get(0).unwrap();
+				let offsets = func_body.code().offsets();
+				assert_eq!(
+					offsets,
+					[7u64, 9, 11, 13, 15, 17, 18, 20, 22, 24, 25, 27, 28, 30, 32, 33]
+				);
+			},
+			_ => {
+				panic!("Payload should be recognized as a code section")
+			},
+		}
 	}
 
 	#[test]

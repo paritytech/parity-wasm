@@ -91,7 +91,7 @@ impl Deserialize for ElementSegment {
 	type Error = Error;
 
 	#[cfg(not(feature = "bulk"))]
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let index: u32 = VarUint32::deserialize(reader)?.into();
 		let offset = InitExpr::deserialize(reader)?;
 		let members: Vec<u32> = CountedList::<VarUint32>::deserialize(reader)?
@@ -104,7 +104,7 @@ impl Deserialize for ElementSegment {
 	}
 
 	#[cfg(feature = "bulk")]
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		// This piece of data was treated as `index` [of the table], but was repurposed
 		// for flags in bulk-memory operations proposal.
 		let flags: u32 = VarUint32::deserialize(reader)?.into();
@@ -233,7 +233,7 @@ impl Deserialize for DataSegment {
 	type Error = Error;
 
 	#[cfg(not(feature = "bulk"))]
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let index = VarUint32::deserialize(reader)?;
 		let offset = InitExpr::deserialize(reader)?;
 		let value_len = u32::from(VarUint32::deserialize(reader)?) as usize;
@@ -243,7 +243,7 @@ impl Deserialize for DataSegment {
 	}
 
 	#[cfg(feature = "bulk")]
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let flags: u32 = VarUint32::deserialize(reader)?.into();
 		let index = if flags == FLAG_MEMZERO || flags == FLAG_PASSIVE {
 			0u32

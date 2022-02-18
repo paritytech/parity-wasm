@@ -34,7 +34,7 @@ impl GlobalEntry {
 impl Deserialize for GlobalEntry {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let global_type = GlobalType::deserialize(reader)?;
 		let init_expr = InitExpr::deserialize(reader)?;
 

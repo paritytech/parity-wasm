@@ -576,7 +576,7 @@ impl Module {
 impl Deserialize for Module {
 	type Error = super::Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut sections = Vec::new();
 
 		let mut magic = [0u8; 4];
@@ -659,6 +659,18 @@ impl<'a> io::Read for PeekSection<'a> {
 		Ok(())
 	}
 }
+
+#[cfg(feature = "offsets")]
+impl<'a> io::Seek for PeekSection<'a> {
+	fn seek(&mut self, seek_from: io::SeekFrom) -> io::Result<u64> {
+		self.cursor = io::seek_impl(self.region.len(), self.cursor, seek_from)?;
+
+		// Casting up from usize to u64 should be fine.
+		Ok(self.cursor as u64)
+	}
+}
+
+impl<'a> io::ReadSeek for PeekSection<'a> {}
 
 /// Returns size of the module in the provided stream.
 pub fn peek_size(source: &[u8]) -> usize {

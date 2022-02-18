@@ -75,7 +75,7 @@ impl RelocSection {
 
 impl RelocSection {
 	/// Deserialize a reloc section.
-	pub fn deserialize<R: io::Read>(name: String, rdr: &mut R) -> Result<Self, Error> {
+	pub fn deserialize<R: io::ReadSeek>(name: String, rdr: &mut R) -> Result<Self, Error> {
 		let section_id = VarUint32::deserialize(rdr)?.into();
 
 		let relocation_section_name =
@@ -198,7 +198,7 @@ pub enum RelocationEntry {
 impl Deserialize for RelocationEntry {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(rdr: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(rdr: &mut R) -> Result<Self, Self::Error> {
 		match VarUint7::deserialize(rdr)?.into() {
 			FUNCTION_INDEX_LEB => Ok(RelocationEntry::FunctionIndexLeb {
 				offset: VarUint32::deserialize(rdr)?.into(),

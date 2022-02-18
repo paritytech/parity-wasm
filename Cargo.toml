@@ -29,6 +29,14 @@ std = []
 # where the stack size is fixed (stacks do not grow) and limited to a few (k)bytes.
 reduced-stack-buffer = []
 
+
+# Provide a way to query the (absolute) offsets of the code section and individual instructions.
+# This can be useful if you want to to work with DWARF debug information, for example
+# when using the addr2line crate.
+# This is a separate feature because all deserialize functions then 
+# require something that is Read + Seek instead of only Read
+offsets = []
+
 #
 # Features for enabling non-MVP proposals.
 # These features should be tested as part of Travis CI build.

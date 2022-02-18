@@ -37,7 +37,7 @@ impl Serialize for Func {
 impl Deserialize for Func {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		Ok(Func(VarUint32::deserialize(reader)?.into()))
 	}
 }
@@ -69,7 +69,7 @@ impl Local {
 impl Deserialize for Local {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let count = VarUint32::deserialize(reader)?;
 		let value_type = ValueType::deserialize(reader)?;
 		Ok(Local { count: count.into(), value_type })
@@ -130,7 +130,7 @@ impl FuncBody {
 impl Deserialize for FuncBody {
 	type Error = Error;
 
-	fn deserialize<R: io::Read>(reader: &mut R) -> Result<Self, Self::Error> {
+	fn deserialize<R: io::ReadSeek>(reader: &mut R) -> Result<Self, Self::Error> {
 		let mut body_reader = SectionReader::new(reader)?;
 		let locals: Vec<Local> = CountedList::<Local>::deserialize(&mut body_reader)?.into_inner();
 

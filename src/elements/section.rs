@@ -217,11 +217,11 @@ pub(crate) struct SectionReader {
 
 impl SectionReader {
 	pub fn new<R: io::ReadSeek>(reader: &mut R) -> Result<Self, elements::Error> {
-		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
-
 		// The absolute offset of this section
 		#[cfg(feature = "offsets")]
 		let offset = reader.seek(io::SeekFrom::Current(0))?;
+
+		let length = u32::from(VarUint32::deserialize(reader)?) as usize;
 
 		let inner_buffer = buffered_read!(ENTRIES_BUFFER_LENGTH, length, reader);
 		let declared_length = inner_buffer.len();
@@ -975,7 +975,7 @@ mod tests {
 				let offsets = func_body.code().offsets();
 				assert_eq!(
 					offsets,
-					[7u64, 9, 11, 13, 15, 17, 18, 20, 22, 24, 25, 27, 28, 30, 32, 33]
+					[5u64, 7, 9, 11, 13, 15, 16, 18, 20, 22, 23, 25, 26, 28, 30, 31]
 				);
 			},
 			_ => {

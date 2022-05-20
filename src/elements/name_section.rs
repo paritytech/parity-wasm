@@ -20,6 +20,8 @@ pub struct NameSection {
 
 	/// Local name subsection.
 	locals: Option<LocalNameSubsection>,
+
+	unparsed : Vec<UnparsedNameSubsection>,
 }
 
 impl NameSection {
@@ -28,8 +30,9 @@ impl NameSection {
 		module: Option<ModuleNameSubsection>,
 		functions: Option<FunctionNameSubsection>,
 		locals: Option<LocalNameSubsection>,
+		unparsed : Vec<UnparsedNameSubsection>,
 	) -> Self {
-		Self { module, functions, locals }
+		Self { module, functions, locals, unparsed }
 	}
 
 	/// Module name subsection of this section.
@@ -69,11 +72,11 @@ impl NameSection {
 		let mut module_name: Option<ModuleNameSubsection> = None;
 		let mut function_names: Option<FunctionNameSubsection> = None;
 		let mut local_names: Option<LocalNameSubsection> = None;
-
+		let mut unparsed = vec![];
 		while let Ok(raw_subsection_type) = VarUint7::deserialize(rdr) {
 			let subsection_type = raw_subsection_type.into();
 			// deserialize the section size
-			VarUint32::deserialize(rdr)?;
+			 let name_payload_len = VarUint32::deserialize(rdr)?;
 
 			match subsection_type {
 				NAME_TYPE_MODULE => {
@@ -97,11 +100,18 @@ impl NameSection {
 					local_names = Some(LocalNameSubsection::deserialize(module, rdr)?);
 				},
 
-				_ => return Err(Error::UnknownNameSubsectionType(subsection_type)),
+				_ => {
+					let mut name_payload = vec![0u8; name_payload_len.into()];
+					rdr.read(&mut name_payload)?;
+					unparsed.push(UnparsedNameSubsection {
+						name_type: subsection_type,
+						name_payload,
+					});
+				}
 			};
 		}
 
-		Ok(Self { module: module_name, functions: function_names, locals: local_names })
+		Ok(Self { module: module_name, functions: function_names, locals: local_names, unparsed: unparsed, })
 	}
 }
 
@@ -137,6 +147,9 @@ impl Serialize for NameSection {
 			serialize_subsection(wtr, NAME_TYPE_LOCAL, &buffer)?;
 		}
 
+		for s in self.unparsed{
+			serialize_subsection(wtr, s.name_type, s.name_payload.as_slice())?;
+		}
 		Ok(())
 	}
 }
@@ -286,6 +299,21 @@ impl Serialize for LocalNameSubsection {
 
 /// A map from indices to names.
 pub type NameMap = IndexMap<String>;
+
+
+/// The names of the local variables in this module's functions.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct UnparsedNameSubsection {
+	name_type: u8,
+	/// The contents of this name section, unparsed.
+	name_payload: Vec<u8>,
+}
+impl UnparsedNameSubsection {
+	pub fn payload(&self) -> &Vec<u8> {
+		&self.name_payload
+	}
+}
+
 
 #[cfg(test)]
 mod tests {

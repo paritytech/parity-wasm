@@ -3,7 +3,7 @@ use crate::elements;
 use alloc::vec::Vec;
 
 /// Table definition
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct TableDefinition {
 	/// Minimum length
 	pub min: u32,
@@ -77,11 +77,5 @@ where
 	/// Finalize current builder spawning resulting struct
 	pub fn build(self) -> F::Result {
 		self.callback.invoke(self.table)
-	}
-}
-
-impl Default for TableDefinition {
-	fn default() -> Self {
-		TableDefinition { min: 0, max: None, elements: Vec::new() }
 	}
 }

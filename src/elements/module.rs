@@ -904,6 +904,34 @@ mod integration_tests {
 		assert!(found_section, "Name section should be present in dedicated example");
 	}
 
+	#[test]
+	fn names_with_global_section() {
+		let module = deserialize_file("./res/cases/v1/global_section.wasm")
+			.expect("Should be deserialized")
+			.parse_names()
+			.expect("Names to be parsed");
+
+		let mut found_section = false;
+		for section in module.sections() {
+			if let Section::Name(ref name_section) = *section {
+				let function_name_subsection =
+					name_section.functions().expect("function_name_subsection should be present");
+				assert_eq!(
+					function_name_subsection.names().get(0).expect("Should be entry #0"),
+					"~lib/builtins/abort"
+				);
+				assert_eq!(
+					function_name_subsection.names().get(11).expect("Should be entry #0"),
+					"~lib/typedarray/Uint8Array#__set"
+				);
+
+				found_section = true;
+			}
+		}
+
+		assert!(found_section, "Name section should be present in dedicated example");
+	}
+
 	// This test fixture has FLAG_SHARED so it depends on atomics feature.
 	#[test]
 	fn shared_memory_flag() {

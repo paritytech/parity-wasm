@@ -73,7 +73,7 @@ impl NameSection {
 		while let Ok(raw_subsection_type) = VarUint7::deserialize(rdr) {
 			let subsection_type = raw_subsection_type.into();
 			// deserialize the section size
-			VarUint32::deserialize(rdr)?;
+			let size: usize = VarUint32::deserialize(rdr)?.into();
 
 			match subsection_type {
 				NAME_TYPE_MODULE => {
@@ -97,7 +97,12 @@ impl NameSection {
 					local_names = Some(LocalNameSubsection::deserialize(module, rdr)?);
 				},
 
-				_ => return Err(Error::UnknownNameSubsectionType(subsection_type)),
+				_ => {
+					// Consume the entire subsection size and drop it. This allows other sections to still be
+					// consumed if there are any.
+					let mut buf = vec![0; size];
+					rdr.read(&mut buf)?;
+				},
 			};
 		}
 

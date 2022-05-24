@@ -170,8 +170,6 @@ pub enum Error {
 	TooManyLocals,
 	/// Duplicated name subsections.
 	DuplicatedNameSubsections(u8),
-	/// Unknown name subsection type.
-	UnknownNameSubsectionType(u8),
 }
 
 impl fmt::Display for Error {
@@ -215,7 +213,6 @@ impl fmt::Display for Error {
 			Error::InvalidSegmentFlags(n) => write!(f, "Invalid segment flags: {}", n),
 			Error::TooManyLocals => write!(f, "Too many locals"),
 			Error::DuplicatedNameSubsections(n) => write!(f, "Duplicated name subsections: {}", n),
-			Error::UnknownNameSubsectionType(n) => write!(f, "Unknown subsection type: {}", n),
 		}
 	}
 }
@@ -258,7 +255,6 @@ impl ::std::error::Error for Error {
 			Error::InvalidSegmentFlags(_) => "Invalid segment flags",
 			Error::TooManyLocals => "Too many locals",
 			Error::DuplicatedNameSubsections(_) => "Duplicated name subsections",
-			Error::UnknownNameSubsectionType(_) => "Unknown name subsections type",
 		}
 	}
 }

@@ -36,6 +36,7 @@ struct ModuleScaffold {
 	pub code: elements::CodeSection,
 	pub data: elements::DataSection,
 	pub other: Vec<elements::Section>,
+	pub record_data_count: bool,
 }
 
 impl From<elements::Module> for ModuleScaffold {
@@ -51,6 +52,7 @@ impl From<elements::Module> for ModuleScaffold {
 		let mut element: Option<elements::ElementSection> = None;
 		let mut code: Option<elements::CodeSection> = None;
 		let mut data: Option<elements::DataSection> = None;
+		let mut record_data_count: bool = false;
 
 		let mut other = Vec::new();
 		let mut sections = module.into_sections();
@@ -89,6 +91,9 @@ impl From<elements::Module> for ModuleScaffold {
 				elements::Section::Data(sect) => {
 					data = Some(sect);
 				},
+				elements::Section::DataCount(_) => {
+					record_data_count = true;
+				},
 				section => other.push(section),
 			}
 		}
@@ -105,6 +110,7 @@ impl From<elements::Module> for ModuleScaffold {
 			element: element.unwrap_or_default(),
 			code: code.unwrap_or_default(),
 			data: data.unwrap_or_default(),
+			record_data_count,
 			other,
 		}
 	}
@@ -149,6 +155,10 @@ impl From<ModuleScaffold> for elements::Module {
 		if !element.entries().is_empty() {
 			sections.push(elements::Section::Element(element));
 		}
+		let data_count = module.data.entries().len();
+		if module.record_data_count && data_count > 0 {
+			sections.push(elements::Section::DataCount(data_count as u32));
+		}
 		let code = module.code;
 		if !code.bodies().is_empty() {
 			sections.push(elements::Section::Code(code));
@@ -158,6 +168,7 @@ impl From<ModuleScaffold> for elements::Module {
 			sections.push(elements::Section::Data(data));
 		}
 		sections.extend(module.other);
+
 		elements::Module::new(sections)
 	}
 }

@@ -1,10 +1,12 @@
+use std::path::Path;
+
 use parity_wasm::elements::{deserialize_buffer, serialize, Module};
 use wast::{
 	parser::{parse, ParseBuffer},
 	QuoteModule, Wast, WastDirective,
 };
 
-pub fn check(path: &str) {
+pub fn check(path: &Path) {
 	let path = path.strip_prefix("testsuite/").unwrap();
 	let source = std::fs::read_to_string(path).unwrap();
 	let buffer = ParseBuffer::new(&source).unwrap();

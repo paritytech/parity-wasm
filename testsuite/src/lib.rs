@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use std::ffi::OsStr;
+use std::{ffi::OsStr, path::Path};
 
 mod run;
 
@@ -12,7 +12,8 @@ const BASIC_BLACKLIST: [&str; 2] = [
 
 #[test_generator::test_resources("testsuite/spec/*.wast")]
 fn basic(path: &str) {
-	let blacklisted = std::path::Path::new(path)
+	let path = Path::new(path);
+	let blacklisted = path
 		.file_name()
 		.map(|file| BASIC_BLACKLIST.iter().any(|black| OsStr::new(black) == file))
 		.unwrap_or(false);
@@ -24,5 +25,5 @@ fn basic(path: &str) {
 
 #[test_generator::test_resources("testsuite/spec/proposals/threads/*.wast")]
 fn threads(path: &str) {
-	run::check(path);
+	run::check(Path::new(path));
 }

@@ -309,6 +309,9 @@ pub enum Instruction {
 
 	#[cfg(feature = "bulk")]
 	Bulk(BulkInstruction),
+
+	#[cfg(feature = "non_trapping_float_to_int")]
+	NonTrappingFloatToInt(NonTrappingFloatToIntInstruction),
 }
 
 #[allow(missing_docs)]
@@ -570,6 +573,20 @@ pub enum BulkInstruction {
 	TableInit(u32),
 	TableDrop(u32),
 	TableCopy,
+}
+
+#[allow(missing_docs)]
+#[cfg(feature = "non_trapping_float_to_int")]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum NonTrappingFloatToIntInstruction {
+	I32TruncSatF32S,
+	I32TruncSatF32U,
+	I32TruncSatF64S,
+	I32TruncSatF64U,
+	I64TruncSatF32S,
+	I64TruncSatF32U,
+	I64TruncSatF64S,
+	I64TruncSatF64U,
 }
 
 #[cfg(any(feature = "simd", feature = "atomics"))]
@@ -1036,9 +1053,9 @@ pub mod opcodes {
 		pub const F64X2_CONVERT_U_I64X2: u32 = 0xb2;
 	}
 
+	pub const MISC_PREFIX: u8 = 0xfc;
 	#[cfg(feature = "bulk")]
 	pub mod bulk {
-		pub const BULK_PREFIX: u8 = 0xfc;
 		pub const MEMORY_INIT: u8 = 0x08;
 		pub const MEMORY_DROP: u8 = 0x09;
 		pub const MEMORY_COPY: u8 = 0x0a;
@@ -1046,6 +1063,17 @@ pub mod opcodes {
 		pub const TABLE_INIT: u8 = 0x0c;
 		pub const TABLE_DROP: u8 = 0x0d;
 		pub const TABLE_COPY: u8 = 0x0e;
+	}
+	#[cfg(feature = "non_trapping_float_to_int")]
+	pub mod non_trapping_float_to_int {
+		pub const I32_TRUNC_SAT_F32_S: u8 = 0x00;
+		pub const I32_TRUNC_SAT_F32_U: u8 = 0x01;
+		pub const I32_TRUNC_SAT_F64_S: u8 = 0x02;
+		pub const I32_TRUNC_SAT_F64_U: u8 = 0x03;
+		pub const I64_TRUNC_SAT_F32_S: u8 = 0x04;
+		pub const I64_TRUNC_SAT_F32_U: u8 = 0x05;
+		pub const I64_TRUNC_SAT_F64_S: u8 = 0x06;
+		pub const I64_TRUNC_SAT_F64_U: u8 = 0x07;
 	}
 }
 
@@ -1384,8 +1412,7 @@ impl Deserialize for Instruction {
 			#[cfg(feature = "simd")]
 			simd::SIMD_PREFIX => return deserialize_simd(reader),
 
-			#[cfg(feature = "bulk")]
-			bulk::BULK_PREFIX => return deserialize_bulk(reader),
+			MISC_PREFIX => return deserialize_misc(reader),
 
 			_ => return Err(Error::UnknownOpcode(val)),
 		})
@@ -1649,11 +1676,41 @@ fn deserialize_simd<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
 	}))
 }
 
+fn deserialize_misc<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
+	use self::{opcodes::non_trapping_float_to_int::*, opcodes::bulk::*};
+	let val: u8 = Uint8::deserialize(reader)?.into();
+	match val {
+		#[cfg(feature = "non_trapping_float_to_int")]
+		I32_TRUNC_SAT_F32_S|I32_TRUNC_SAT_F32_U|I32_TRUNC_SAT_F64_S|I32_TRUNC_SAT_F64_U
+		|I64_TRUNC_SAT_F32_S|I64_TRUNC_SAT_F32_U|I64_TRUNC_SAT_F64_S|I64_TRUNC_SAT_F64_U => deserialize_non_trapping_float_to_int(val, reader),
+		#[cfg(feature = "bulk")]
+		MEMORY_INIT|MEMORY_DROP|MEMORY_FILL|MEMORY_COPY|TABLE_INIT|TABLE_DROP|TABLE_COPY=> deserialize_bulk(val, reader),
+		_ => return Err(Error::UnknownOpcode(val)),
+	}
+}
+
+#[cfg(feature = "non_trapping_float_to_int")]
+fn deserialize_non_trapping_float_to_int<R: io::Read>(val:u8, _: &mut R) -> Result<Instruction, Error> {
+	use self::{opcodes::non_trapping_float_to_int::*, NonTrappingFloatToIntInstruction::*};
+	Ok(Instruction::NonTrappingFloatToInt(match val {
+		I32_TRUNC_SAT_F32_S=>I32TruncSatF32S,
+		I32_TRUNC_SAT_F32_U=>I32TruncSatF32U,
+		I32_TRUNC_SAT_F64_S=>I32TruncSatF64S,
+		I32_TRUNC_SAT_F64_U=>I32TruncSatF64U,
+
+		I64_TRUNC_SAT_F32_S=>I64TruncSatF32S,
+		I64_TRUNC_SAT_F32_U=>I64TruncSatF32U,
+		I64_TRUNC_SAT_F64_S=>I64TruncSatF64S,
+		I64_TRUNC_SAT_F64_U=>I64TruncSatF64U,
+
+		_ => return Err(Error::UnknownOpcode(val)),
+	}))
+}
+
 #[cfg(feature = "bulk")]
-fn deserialize_bulk<R: io::Read>(reader: &mut R) -> Result<Instruction, Error> {
+fn deserialize_bulk<R: io::Read>(val:u8, reader: &mut R) -> Result<Instruction, Error> {
 	use self::{opcodes::bulk::*, BulkInstruction::*};
 
-	let val: u8 = Uint8::deserialize(reader)?.into();
 	Ok(Instruction::Bulk(match val {
 		MEMORY_INIT => {
 			if u8::from(Uint8::deserialize(reader)?) != 0 {
@@ -1735,7 +1792,8 @@ macro_rules! simd {
 #[cfg(feature = "bulk")]
 macro_rules! bulk {
 	($writer: expr, $byte: expr) => {{
-		$writer.write(&[BULK_PREFIX, $byte])?;
+		use crate::elements::opcodes::MISC_PREFIX;
+		$writer.write(&[MISC_PREFIX, $byte])?;
 	}};
 	($writer: expr, $byte: expr, $remaining:expr) => {{
 		bulk!($writer, $byte);
@@ -2060,6 +2118,9 @@ impl Serialize for Instruction {
 
 			#[cfg(feature = "bulk")]
 			Bulk(a) => return a.serialize(writer),
+
+			#[cfg(feature = "non_trapping_float_to_int")]
+			NonTrappingFloatToInt(a) => return a.serialize(writer),
 		}
 
 		Ok(())
@@ -2340,6 +2401,27 @@ impl Serialize for BulkInstruction {
 			}),
 			TableDrop(seg) => bulk!(writer, TABLE_DROP, VarUint32::from(seg).serialize(writer)?),
 			TableCopy => bulk!(writer, TABLE_COPY, Uint8::from(0).serialize(writer)?),
+		}
+
+		Ok(())
+	}
+}
+
+#[cfg(feature = "non_trapping_float_to_int")]
+impl Serialize for NonTrappingFloatToIntInstruction {
+	type Error = Error;
+
+	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
+		use self::{opcodes::non_trapping_float_to_int::*, NonTrappingFloatToIntInstruction::*};
+		match self {
+			I32TruncSatF32S => op!(writer, I32_TRUNC_SAT_F32_S),
+			I32TruncSatF32U => op!(writer, I32_TRUNC_SAT_F32_U),
+			I32TruncSatF64S => op!(writer, I32_TRUNC_SAT_F64_S),
+			I32TruncSatF64U => op!(writer, I32_TRUNC_SAT_F64_U),
+			I64TruncSatF32S => op!(writer, I64_TRUNC_SAT_F32_S),
+			I64TruncSatF32U => op!(writer, I64_TRUNC_SAT_F32_U),
+			I64TruncSatF64S => op!(writer, I64_TRUNC_SAT_F64_S),
+			I64TruncSatF64U => op!(writer, I64_TRUNC_SAT_F64_U),
 		}
 
 		Ok(())
@@ -2635,7 +2717,11 @@ impl fmt::Display for Instruction {
 
 			#[cfg(feature = "bulk")]
 			Bulk(ref i) => i.fmt(f),
+
+			#[cfg(feature = "non_trapping_float_to_int")]
+			NonTrappingFloatToInt(ref i) => i.fmt(f),
 		}
+
 	}
 }
 
@@ -2897,6 +2983,23 @@ impl fmt::Display for BulkInstruction {
 			TableInit(_) => write!(f, "table.init"),
 			TableDrop(_) => write!(f, "table.drop"),
 			TableCopy => write!(f, "table.copy"),
+		}
+	}
+}
+
+#[cfg(feature = "non_trapping_float_to_int")]
+impl fmt::Display for NonTrappingFloatToIntInstruction {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::NonTrappingFloatToIntInstruction::*;
+		match *self {
+			I32TruncSatF32S => write!(f, "i32.trunc_sat_f32_s"),
+			I32TruncSatF32U => write!(f, "i32.trunc_sat_f32_u"),
+			I32TruncSatF64S => write!(f, "i32.trunc_sat_f64_s"),
+			I32TruncSatF64U => write!(f, "i32.trunc_sat_f64_u"),
+			I64TruncSatF32S => write!(f, "i64.trunc_sat_f32_s"),
+			I64TruncSatF32U => write!(f, "i64.trunc_sat_f32_u"),
+			I64TruncSatF64S => write!(f, "i64.trunc_sat_f64_s"),
+			I64TruncSatF64U => write!(f, "i64.trunc_sat_f64_u"),
 		}
 	}
 }

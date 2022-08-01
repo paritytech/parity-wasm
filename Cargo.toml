@@ -21,7 +21,7 @@ members = ["testsuite"]
 time = "0.3"
 
 [features]
-default = ["std"]
+default = ["std", "bulk", "non_trapping_float_to_int", "sign_ext"]
 std = []
 
 # Reduce stack usage for buffered read operations.
@@ -53,3 +53,7 @@ bulk = []
 # Multi-value
 # https://github.com/WebAssembly/multi-value/
 multi_value = []
+
+# nontrapping-float-to-int-conversion
+# https://github.com/WebAssembly/spec/blob/main/proposals/nontrapping-float-to-int-conversion/Overview.md
+non_trapping_float_to_int = []

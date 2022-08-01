@@ -67,6 +67,9 @@ pub use self::ops::SignExtInstruction;
 #[cfg(feature = "bulk")]
 pub use self::ops::BulkInstruction;
 
+#[cfg(feature = "non_trapping_float_to_int")]
+pub use self::ops::NonTrappingFloatToIntInstruction;
+
 #[cfg(any(feature = "simd", feature = "atomics"))]
 pub use self::ops::MemArg;
 

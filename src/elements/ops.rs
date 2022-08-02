@@ -1772,6 +1772,17 @@ macro_rules! op {
 	}};
 }
 
+macro_rules! misc {
+	($writer: expr, $byte: expr) => {{
+		use crate::elements::opcodes::MISC_PREFIX;
+		$writer.write(&[MISC_PREFIX, $byte])?;
+	}};
+	($writer: expr, $byte: expr, $remaining:expr) => {{
+		misc!($writer, $byte);
+		$remaining;
+	}};
+}
+
 #[cfg(feature = "atomics")]
 macro_rules! atomic {
 	($writer: expr, $byte: expr, $mem:expr) => {{
@@ -1789,17 +1800,6 @@ macro_rules! simd {
 	}};
 }
 
-#[cfg(feature = "bulk")]
-macro_rules! bulk {
-	($writer: expr, $byte: expr) => {{
-		use crate::elements::opcodes::MISC_PREFIX;
-		$writer.write(&[MISC_PREFIX, $byte])?;
-	}};
-	($writer: expr, $byte: expr, $remaining:expr) => {{
-		bulk!($writer, $byte);
-		$remaining;
-	}};
-}
 
 impl Serialize for Instruction {
 	type Error = Error;
@@ -2388,19 +2388,19 @@ impl Serialize for BulkInstruction {
 		use self::{opcodes::bulk::*, BulkInstruction::*};
 
 		match self {
-			MemoryInit(seg) => bulk!(writer, MEMORY_INIT, {
+			MemoryInit(seg) => misc!(writer, MEMORY_INIT, {
 				Uint8::from(0).serialize(writer)?;
 				VarUint32::from(seg).serialize(writer)?;
 			}),
-			MemoryDrop(seg) => bulk!(writer, MEMORY_DROP, VarUint32::from(seg).serialize(writer)?),
-			MemoryFill => bulk!(writer, MEMORY_FILL, Uint8::from(0).serialize(writer)?),
-			MemoryCopy => bulk!(writer, MEMORY_COPY, Uint8::from(0).serialize(writer)?),
-			TableInit(seg) => bulk!(writer, TABLE_INIT, {
+			MemoryDrop(seg) => misc!(writer, MEMORY_DROP, VarUint32::from(seg).serialize(writer)?),
+			MemoryFill => misc!(writer, MEMORY_FILL, Uint8::from(0).serialize(writer)?),
+			MemoryCopy => misc!(writer, MEMORY_COPY, Uint8::from(0).serialize(writer)?),
+			TableInit(seg) => misc!(writer, TABLE_INIT, {
 				Uint8::from(0).serialize(writer)?;
 				VarUint32::from(seg).serialize(writer)?;
 			}),
-			TableDrop(seg) => bulk!(writer, TABLE_DROP, VarUint32::from(seg).serialize(writer)?),
-			TableCopy => bulk!(writer, TABLE_COPY, Uint8::from(0).serialize(writer)?),
+			TableDrop(seg) => misc!(writer, TABLE_DROP, VarUint32::from(seg).serialize(writer)?),
+			TableCopy => misc!(writer, TABLE_COPY, Uint8::from(0).serialize(writer)?),
 		}
 
 		Ok(())
@@ -2414,14 +2414,14 @@ impl Serialize for NonTrappingFloatToIntInstruction {
 	fn serialize<W: io::Write>(self, writer: &mut W) -> Result<(), Self::Error> {
 		use self::{opcodes::non_trapping_float_to_int::*, NonTrappingFloatToIntInstruction::*};
 		match self {
-			I32TruncSatF32S => op!(writer, I32_TRUNC_SAT_F32_S),
-			I32TruncSatF32U => op!(writer, I32_TRUNC_SAT_F32_U),
-			I32TruncSatF64S => op!(writer, I32_TRUNC_SAT_F64_S),
-			I32TruncSatF64U => op!(writer, I32_TRUNC_SAT_F64_U),
-			I64TruncSatF32S => op!(writer, I64_TRUNC_SAT_F32_S),
-			I64TruncSatF32U => op!(writer, I64_TRUNC_SAT_F32_U),
-			I64TruncSatF64S => op!(writer, I64_TRUNC_SAT_F64_S),
-			I64TruncSatF64U => op!(writer, I64_TRUNC_SAT_F64_U),
+			I32TruncSatF32S => misc!(writer, I32_TRUNC_SAT_F32_S),
+			I32TruncSatF32U => misc!(writer, I32_TRUNC_SAT_F32_U),
+			I32TruncSatF64S => misc!(writer, I32_TRUNC_SAT_F64_S),
+			I32TruncSatF64U => misc!(writer, I32_TRUNC_SAT_F64_U),
+			I64TruncSatF32S => misc!(writer, I64_TRUNC_SAT_F32_S),
+			I64TruncSatF32U => misc!(writer, I64_TRUNC_SAT_F32_U),
+			I64TruncSatF64S => misc!(writer, I64_TRUNC_SAT_F64_S),
+			I64TruncSatF64U => misc!(writer, I64_TRUNC_SAT_F64_U),
 		}
 
 		Ok(())

@@ -21,7 +21,7 @@ members = ["testsuite"]
 time = "0.3"
 
 [features]
-default = ["std", "bulk", "non_trapping_float_to_int", "sign_ext"]
+default = ["std"]
 std = []
 
 # Reduce stack usage for buffered read operations.

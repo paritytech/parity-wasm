@@ -1,6 +1,6 @@
 [package]
 name = "parity-wasm"
-version = "0.45.0"
+version = "0.45.1"
 authors = ["Nikolay Volf <nikvolf@gmail.com>", "Svyatoslav Nikolsky <svyatonik@yandex.ru>", "Sergey Shulepov <s.pepyakin@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"

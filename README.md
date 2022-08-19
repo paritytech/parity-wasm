@@ -1,5 +1,8 @@
 # parity-wasm
 
+> :warning: **This repository/crate is deprecated and unmaintained**: If you interested in maintaining
+this crate consider forking it. We can provide a link to the most promising forks here.
+
 Low-level WebAssembly format library.
 
 [![Build Status](https://travis-ci.org/paritytech/parity-wasm.svg?branch=master)](https://travis-ci.org/paritytech/parity-wasm)
